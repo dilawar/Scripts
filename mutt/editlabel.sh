@@ -5,7 +5,7 @@
 # $2 is the filename
 
 # Configuration
-LFILE="$HOME/.labels"
+LFILE="$HOME/Scripts/mutt/.labels"
 
 
 ACTION="$1"
