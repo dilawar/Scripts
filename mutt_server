@@ -92,16 +92,16 @@ set sleep_time=0
 
 ## Put how to label emials here.
 # labels
-macro index x "<enter-command>set editor=\"~/bin/editlabel append\"\n\
+macro index x "<enter-command>set editor=\"~/Scripts/editlabel.sh append\"\n\
 <edit><sync-mailbox><next-undeleted>\
 <enter-command>set editor=vim\n" "Append label"
-macro pager x "<enter-command>set editor=\"~/bin/editlabel append\"\n\
+macro pager x "<enter-command>set editor=\"~/Scripts/editlabel.sh append\"\n\
 <edit><sync-mailbox><next-undeleted>\
 <enter-command>set editor=vim\n" "Append label"
-macro index X "<enter-command>set editor=\"~/bin/editlabel menu\"\n\
+macro index X "<enter-command>set editor=\"~/Scripts/editlabel.sh menu\"\n\
 <edit><sync-mailbox><next-undeleted>\
 <enter-command>set editor=vim\n" "Edit labels"
-macro pager X "<enter-command>set editor=\"~/bin/editlabel menu\"\n\
+macro pager X "<enter-command>set editor=\"~/Scripts/editlabel.sh menu\"\n\
 <edit><sync-mailbox><next-undeleted>\
 <enter-command>set editor=vim\n" "Edit labels"
 macro index \Cx "<limit>~y " "Limit view to label"
