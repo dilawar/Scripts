@@ -1,0 +1,6 @@
+vhdl work ../../XSA_LIB/common.vhd
+vhdl work ../../XSA_LIB/randgen.vhd
+vhdl work ../../XSA_LIB/memtest.vhd
+vhdl work ../../XSA_LIB/sdramcntl.vhd
+vhdl work ../../XSA_LIB/xsasdramcntl.vhd
+vhdl work test_board.vhd

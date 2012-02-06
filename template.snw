@@ -1,0 +1,39 @@
+\documentclass{article}
+\usepackage{amsmath, amssymb}
+\usepackage{noweb}
+\usepackage{amsthm}
+\newtheorem{prop}{Property}
+
+\title{Flite}
+\author{Dilawar Singh \\
+Email : \texttt{dilawar@ee.iitb.ac.in}
+}
+\date{\today}
+\begin{document}
+\maketitle
+
+@
+\section{Introduction}
+
+
+\section{Adders}
+
+<<Define Module>>=
+module Main where
+import Lava
+import Lava.Arithmetic -- This provides standard implementation.
+
+@
+\subsection{Half adder}
+
+<<Half Adder>>=
+yHalfAdd (a, b) = (sum, carry)
+	where
+		sum = xor2 (a, b)
+		carry = and2 (a, b)
+@ 
+\nowebchunks
+\nowebindex
+@
+\end{document}
+

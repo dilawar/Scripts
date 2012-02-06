@@ -1,0 +1,2 @@
+#!/bin/bash
+google-chrome --proxy-server="http=netmon.iitb.ac.in:80;https=netmon.iitb.ac.in:80;ftp=netmon.iitb.ac.in:80"
