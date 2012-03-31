@@ -37,9 +37,9 @@ main = do
     , ((0, 0x1008FF11), spawn "amixer set Master playback 3-")
     , ((0, 0x1008FF12), spawn "amixer set Master playback 0")
     , ((0, 0x1008FF13), spawn "amixer set Master playback 3+")
-    , ((0, 0x1008ff14), spawn "mpc toggle")
-    , ((0, 0x1008ff16), spawn "mpc prev")
-    , ((0, 0x1008ff17), spawn "mpc next")
+    , ((controlMask, xK_t), spawn "mpc toggle")
+    , ((controlMask, xK_p), spawn "mpc prev")
+    , ((controlMask, xK_n), spawn "mpc next")
     ]
  
 ws_term = "1:control"
