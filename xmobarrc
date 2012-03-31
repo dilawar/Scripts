@@ -6,15 +6,14 @@ Config {
  , lowerOnStart = False
  , commands     = [ 
     Run Network "eth0" ["-L","0","-H","32","-l", "green", "--normal","orange","--high","red"] 3
-  , Run Network "room" ["-L","0","-H","32","-l", "green", "--normal","orange","--high","red"] 3
   , Run Cpu ["<cpu0>/<cpu1>","-L","6","-H","50","-l","green","--normal","orange","--high","red"] 2
   , Run Battery ["-t", "<left>","-L","50","-H","75", "-h","blue","-n","yell","-l","red"] 60
   , Run Memory ["-t","Mem: <usedratio>%", "-l", "green", "--normal","orange","--high","red"] 3
+  , Run Com "concky" [ "-q","-i","1"] "conky" 600
   , Run Date "%a %b %_d %H:%M" "date" 60 
   , Run CpuFreq ["-t","<cpu0>|<cpu1> GH","-L","0","-H","2","-l","green","-n","orange","-h","red"] 2
-  , Run StdinReader
-  ]
- , sepChar      = "%"
+  , Run StdinReader ]
+ ,sepChar      = "%"
  , alignSep     = "}{"
- , template     = " %StdinReader% }{ BAT : %battery% | %cpu% @ %cpufreq% <fc=#0033FF>|</fc>  %memory% <fc=#0033FF>|</fc> %eth0% <fc=#0033FF>|</fc> %date%             "
+ , template     = "%StdinReader% }{ BAT: %battery% | %cpu% @ %cpufreq% <fc=#0033FF>|</fc>  %memory% <fc=#0033FF>|</fc> %eth0% <fc=#0033FF>|</fc> %date%"
 }
