@@ -1,13 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 #
 # by lyon8 (lyon8@gmx.net)
 # modified by dilawar@ee.iitb.ac.in
 # show your laptop battery state in dzen
  
 BG='#444'  # dzen backgrounad
-FG='#fff'  # dzen foreground
+FG='#888'  # dzen foreground
 W=150     # width of the dzen bar
-GW=50      # width of the gauge
+GW=80      # width of the gauge
 GFG='#999'  # color of the gauge
 GH=6       # height of the gauge
 GBG='#3f6'  # color of gauge background
@@ -39,4 +39,4 @@ if [ $RPERC -le $LOWBAT ]; then GFG=$LOWCOL; fi
 $echo  $PREBAR
 eval echo $RPERC | dzen2-gdbar -h $GH -w $GW -fg $GFG -bg $GBG
 sleep $TIME_INT;
-done | dzen2 -ta c -tw $W -y $Y -x $X -fg $FG -bg $BG -fn $FN
+done | dzen2 -ta c -tw $W -y $Y -x $X -fg $FG -bg $BG -fn $FN -xs 2
