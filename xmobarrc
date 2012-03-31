@@ -1,0 +1,20 @@
+Config { 
+               font         = "xft:Bitstream Vera Sans Mono:size=7:antialias=true"
+             , bgColor      = "#000000"
+             , fgColor      = "#00FFFF"
+             , position =  Top
+             , lowerOnStart = False
+             , commands     = [ Run Network "eth0" ["-L","0","-H","32","-l", "green", "--normal","orange","--high","red"] 50
+                              , Run Network "room" ["-L","0","-H","32","-l", "green", "--normal","orange","--high","red"] 50
+                              , Run Cpu ["<cpu0>/<cpu1>","-L","6","-H","50","-l","green","--normal","orange","--high","red"]   50
+                              , Run Battery ["-t", "<left>","-L","50","-H","75",
+                              "-h","green","-n","yell","-l","red"] 10
+                              , Run Memory ["-t","Mem: <usedratio>%", "-l", "green", "--normal","orange","--high","red"] 50
+                              , Run Date "%a %b %_d %H:%M" "date" 60
+                              , Run CpuFreq ["-t","<cpu0>|<cpu1> GH","-L","0","-H","2","-l","green","-n","orange","-h","red"] 70
+                              , Run StdinReader
+                              ]
+             , sepChar      = "%"
+             , alignSep     = "}{"
+             , template     = " %StdinReader% }{ BAT : %battery% | %cpu% @ %cpufreq% <fc=#0033FF>|</fc>  %memory% <fc=#0033FF>|</fc> %eth0% <fc=#0033FF>|</fc> %date%             "
+             }
