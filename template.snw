@@ -1,39 +1,46 @@
-\documentclass{article}
-\usepackage{amsmath, amssymb}
+\documentclass[10pt,a4paper]{report}
+\usepackage{pgf,tikz}
+\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{noweb}
 \usepackage{amsthm}
+\usepackage{hyperref}
+\setlength{\parskip}{3mm}
+\newtheorem{axiom}{Axiom}
+\newtheorem{definition}{Definition}
+\newtheorem{comment}{Comment}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
 \newtheorem{prop}{Property}
-
-\title{Flite}
+\newtheorem{remark}{Remark}
+\newtheorem{theorem}{Theorem}
+\pagestyle{noweb}
 \author{Dilawar Singh \\
-Email : \texttt{dilawar@ee.iitb.ac.in}
-}
-\date{\today}
+Email : \texttt{dilawar@ee.iitb.ac.in}}
+\title{Title}
 \begin{document}
+
 \maketitle
+\begin{abstract}
 
+
+\end{abstract} 
+
+\paragraph{Program structure}
+
+    Program structure is following.
+
+
+<<*>>= 
+<<Import>>
+<<Types and all>>
+<<Test cases>> 
 @
-\section{Introduction}
 
-
-\section{Adders}
-
-<<Define Module>>=
-module Main where
-import Lava
-import Lava.Arithmetic -- This provides standard implementation.
-
-@
-\subsection{Half adder}
-
-<<Half Adder>>=
-yHalfAdd (a, b) = (sum, carry)
-	where
-		sum = xor2 (a, b)
-		carry = and2 (a, b)
-@ 
+\paragraph{Parse circuit description file}
 \nowebchunks
+\paragraph{Index}\par\noindent
 \nowebindex
 @
 \end{document}
-
