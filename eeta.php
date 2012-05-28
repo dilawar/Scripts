@@ -2,7 +2,8 @@
 <body>
 <h1>EE IITB Teaching Assistant Interface</h1>
 <h2>Authentication</h2>
-Please fill your ldap details. We do not store your password. Your password is used to authenticate yourself with IIT Bombay ldap server. 
+Please fill in your LDAP details. <br>
+Note that we do not save your password. This is to authenticate you with proxy-server. 
 <br>
 <br>
 <form action="authenticate.php" method="post">
