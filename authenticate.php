@@ -3,7 +3,6 @@
 <h1> EE IITB Teaching Assistant Interface </h1>
 <br>
 <?php 
-echo "Curl";
 
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
@@ -27,8 +26,14 @@ curl_setopt($ch, CURLOPT_PROXYTYPE, 'HTTP');
 curl_setopt($ch, CURLOPT_PROXY, $proxy_url);
 curl_setopt($ch, CURLOPT_PROXYUSERPWD, $proxy_user.":".$proxy_pass);
 $data = curl_exec($ch);
-echo $data;
-
+$httpCode = curl_getinfo($ch);
+if($httpCode['http_code']==302) {
+	echo "Authentication successful!";
+}
+else {
+	echo "Authentication unsucessful!\n";
+	echo "Error code : ".$httpCode['http_code'];
+}
 ?>
 
 </body>
