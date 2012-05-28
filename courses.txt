@@ -1,0 +1,196 @@
+CourseCode, CourseName                                                 
+EE 002,  Principles of Electrical Engg                               
+EE 003,  Principles of Electrical Engineering Lab                    
+EE 004,  Electronics                                                 
+EE 005,  Electronics Lab                                             
+EE 101,  Introduction to Electrical and Electronics Circuits         
+EE 111,  Introduction to Electrical Systems                          
+EE 112,  Introduction to Electronics                                 
+EE 152,  Basic Electric Circuits                                     
+EE 204,  Analog Circuits                                             
+EE 206,  Digital Circuits                                            
+EE 207,  Electronic Devices & Circuits                               
+EE 209,  Electrical/Electronics Lab.                                 
+EE 210,  Signals & System                                            
+EE 214,  Digital Circuits Lab                                        
+EE 218,  Electrical Machines                                         
+EE 219,  Electronics Lab                                             
+EE 220,  Electrical Machines Lab                                     
+EE 222,  Electrical Machines and Power Electronics                   
+EE 224,  Digital Systems                                             
+EE 225,  Network Theory                                              
+EE 230,  Analog Lab                                                  
+EE 234,  Machines Lab                                                
+EE 236,  Electronic Devices Lab                                      
+EE 261,  Electronic Circuits Lab                                     
+EE 301,  Electromagnetic Waves                                       
+EE 302,  Control Systems                                             
+EE 304,  Electrical Energy Systems                                   
+EE 308,  Communication Systems                                       
+EE 309,  Microprocessors                                             
+EE 315,  Microprocessor Lab                                          
+EE 317,  Electromagnetic Waves Lab                                   
+EE 318,  Electronic Design Lab-I                                     
+EE 319,  Analog Circuits Lab.                                        
+EE 321,  Power Electronics                                           
+EE 323,  Analog Circuits                                             
+EE 324,  Control Systems Lab                                         
+EE 325,  Probability and Random Processes                            
+EE 326,  Power System Lab                                            
+EE 328,  Digital Communications                                      
+EE 329,  Electrical and Electronics Lab                              
+EE 334,  Power Systems                                               
+EE 338,  Digital Signal Processing                                   
+EE 340,  Communications Lab                                          
+EE 352,  Digital Signal Processing Lab                               
+EE 388,  Practical Training                                          
+EE 389,  Electronic Design Lab II                                    
+EE 393,  Works Visit                                                 
+EE 397,  Seminar                                                     
+EE 403,  Introduction to Digital Signal Processing                   
+EE 405,  Communication Electronics                                   
+EE 407,  Communication Electronics Lab.                              
+EE 409,  Advanced Solid State Physics                                
+EE 415,  Electrical Design Lab                                       
+EE 421,  Communication Systems Theory                                
+EE 422,  Microwave and Optical Communication                         
+EE 425,  IC Design & Technology                                      
+EE 426,  Digital Communication Systems                               
+EE 429,  Discrete Data and Digital Control                           
+EE 430,  Information Theory and Coding                               
+EE 432,  Special Semiconductor Devices                               
+EE 433,  Electronic Instrumentation                                  
+EE 434,  Industrial Instrumentation                                  
+EE 435,  Introduction to Fibre Optic Communications                  
+EE 437,  Analog Filters                                              
+EE 438,  Control Systems Design                                      
+EE 439,  Power Semiconductor Controlled Drives                       
+EE 440,  Speech Processing                                           
+EE 442,  Advanced Network Analysis                                   
+EE 443,  DSP Lab.                                                    
+EE 448,  Information Theory and Coding                               
+EE 450,  Computer Control and Automation of Power Systems            
+EE 451,  Supervised Research Exposition                              
+EE 452,  Microwave & Satellite Communication                         
+EE 453,  Advanced Computing for Electrical Engineers                 
+EE 455,  Communication Electronics Lab                               
+EE 457,  Compound Semiconductor Material and Devices                 
+EE 491,  BTP I                                                       
+EE 492,  BTP II                                                      
+EE 497,  B.Tech Project I                                            
+EE 498,  B.Tech. Project II                                          
+EE 590,  Foundations of Project                                      
+EE 600,  Mini Project                                                
+EE 601,  Statistical Signal Analysis                                 
+EE 602,  Radar Systems                                               
+EE 603,  Digital Signal Processing and its Applications              
+EE 605,  Error Correcting Codes                                      
+EE 606,  Fibre Optic Communications                                  
+EE 608,  Adaptive Signal Processing                                  
+EE 609,  Radiating Systems                                           
+EE 610,  Image Processing                                            
+EE 611,  Microwave Integrated Circuits                               
+EE 612,  Telematics                                                  
+EE 613,  Nonlinear Dynamical Systems                                 
+EE 614,  Solid State Microwave Devices and their Applications        
+EE 615,  Control and Computational Laboratory                        
+EE 616,  Electronic Systems Design                                   
+EE 617,  Sensors in Instrumentation                                  
+EE 618,  CMOS Analog VLSI Design                                     
+EE 619,  Radio Frequency Microelectronics Chip Design                
+EE 620,  Physics of Transistors                                      
+EE 621,  Markov Chains and Queuing Systems                           
+EE 622,  Optimal Control Systems                                     
+EE 623,  Non-linear Control Systems                                  
+EE 624,  Adaptive Control Systems                                    
+EE 625,  Bio Sensors & BioMEMS                                       
+EE 627,  Transducers in Instrumentation                              
+EE 629,  Biomedical Instrumentation                                  
+EE 630,  Digital Measurement Techniques                              
+EE 631,  Modern Filter Design                                        
+EE 632,  System Design                                               
+EE 634,  Simulation of Devices and Circuits                          
+EE 635,  Applied Linear Algebra                                      
+EE 636,  Matrix Computations                                         
+EE 637,  Microprocessors and Microcomputers                          
+EE 638,  Estimation and Identification                               
+EE 639,  Microprocessor Lab                                          
+EE 640,  Multivariable Control Systems                               
+EE 649,  Finite Fields and their Applications                        
+EE 651,  Digital Protection of Power Systems                         
+EE 653,  Power Electronics -I                                        
+EE 654,  Power Electronics - II                                      
+EE 655,  Computer Aided Power System Analysis                        
+EE 656,  Electrical Machine Analysis and Control                     
+EE 657,  Electric Drives                                             
+EE 658,  Power System Dynamics and Control                           
+EE 659,  A First Course in Optimization                              
+EE 660,  Application of Power Electronics to Power Systems           
+EE 661,  Physical Electronics                                        
+EE 665,  IC Technology                                               
+EE 666,  High Power Semiconductor Devices                            
+EE 668,  Systems Design                                              
+EE 669,  VLSI Technology                                             
+EE 671,  VLSI Design                                                 
+EE 672,  Microelectronics Lab                                        
+EE 673,  Power Systems & Power Electronics Laboratory                
+EE 675,  Microprocessor Applications in Power Electronics            
+EE 677,  Foundation of VLSI CAD                                      
+EE 678,  Wavelets                                                    
+EE 679,  Speech Processing                                           
+EE 686,  H V D C Transmission                                        
+EE 687,  Switchgear Principles                                       
+EE 691,  R & D Project                                               
+EE 692,  R & D Project                                               
+EE 694,  Seminar                                                     
+EE 695,  Research Seminar in Electrical Engg                         
+EE 696,  I Stage Project                                             
+EE 697,  II Stage Project                                            
+EE 698,  III Stage Project                                           
+EE 700,  Laboratory and Computational Techniques                     
+EE 701,  Introduction to MEMS                                        
+EE 702,  Computer Vision                                             
+EE 703,  Digital Message Transmission                                
+EE 704,  Artificial Neural Network                                   
+EE 705,  V L S I Design Lab                                          
+EE 706,  Communication Networks                                      
+EE 707,  Modern Electronic Design Techniques                         
+EE 708,  Information Theory & Coding                                 
+EE 709,  Testing and Verification of VLSI Circuits                   
+EE 710,  Large Sparse Matrix Computations                            
+EE 712,  Embedded Systems Design                                     
+EE 713,  Circuit Simulation in Power Electronics                     
+EE 714,  Behavioral Theory of Systems                                
+EE 716,  Advances in Communications Systems                          
+EE 717,  Advanced Computing for Electrical                           
+EE 718,  Aids for the Motor and Sensory Disabled                     
+EE 719,  Mixed-Signal VLSI Design                                    
+EE 720,  An Introduction to Number Theory and Cryptography           
+EE 721,  Hardware Description                                        
+EE 722,  Restructured Power Systems                                  
+EE 723,  Physics of Nanoelectronic Devices - I                       
+EE 724,  Nanoelectronics                                             
+EE 725,  Computational Electromagnetics                              
+EE 727,  Physics of Nanoscale Devices - II                           
+EE 728,  Growth and Characterization of Nano-electronic Materials    
+EE 729,  Reliability of Electric Power Systems                       
+EE 730,  Reliability and Maintainability of Fault Tolerant Electronic Systems
+EE 731,  Design and Analysis of Experiments Using Taguchi Method     
+EE 732,  Combinatorial Optimization I                                
+EE 733,  Solid State Devices                                         
+EE 734,  Adavced Probability and Random Processes for Engineers      
+EE 735,  Microelectronics Simulations Lab                            
+EE 738,  Mathematical and Physical Theories in Electrical Engineering
+EE 740,  Advanced Data Network                                       
+EE 760,  Advanced Network Analysis                                   
+EE 764,  Wireless & Mobile Communication                             
+EE 779,  Advanced Topics in Signal Processing                        
+EE 795,  I Stage Project                                             
+EE 796,  II Stage Project                                            
+EE 797,  I Stage Project                                             
+EEP602,  II stage project                                            
+EEP603,  III stage project                                           
+EEP697,  II Stage Project                                            
+EEP698,  III Stage Project                                           
+EEP797,  I Stage Project                                             
+EES401,  Seminar                                                     
