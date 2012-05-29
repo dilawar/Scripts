@@ -6,16 +6,10 @@
 
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
-$acad_sem=$_REQUEST["sem"];
+$acad_sem=$_REQUEST["year"].$_REQUEST["sem"];
 $db_name="ta".$acad_sem;
 $course_list="./courses/course_".$acad_sem.".txt";
 $base_url="http://www.ee.iitb.ac.in/student/~dilawar/Scripts/";
-
-#for dedault case.
-if(strlen($db_name) < 2)
-{
-	$db_name="ta"."2011-12-2";
-}
 
 if(strlen($proxy_user) < 2) {
 	$proxy_user=getenv('proxy_username');
@@ -25,7 +19,6 @@ if(strlen($proxy_user) < 2) {
 $proxy_url = "netmon.iitb.ac.in:80";
 $proxy_port = 80;
 $url = "http://www.google.com";
-
 
 # function to authenticate user with proxy-server.
 function authenticate($input) {
@@ -51,11 +44,7 @@ function authenticate($input) {
 		return true;
 	}
 	else {
-		echo "I can not authenticate you with IIT Proxy server. \n";
-		echo "Error code : ".$httpCode['http_code']."\n";
-		echo "Redirecting in 3 seconds...\n";
-		header("Refresh: 3, url=$base_url./eeta.php");
-		return false;
+				return false;
 	}
 }
 
@@ -70,7 +59,7 @@ if($res) {
 	}
 	$con = mysql_connect("10.107.105.13", "dilawar", $sqlpass);
 	if(!$con) {
-		echo "\nIt is embarrasing but I can not connect to database!\n Redirecting in 3 seconds...\n";
+		echo "<font size=\"5\" color=\"blue\"> It is embarrasing but I can not connect to database! Redirecting in 3 seconds...</font>\n";
 		header("Refresh: 3, url=$base_url./eeta.php");
 	}
 	else {
@@ -80,29 +69,35 @@ if($res) {
 		mysql_select_db("ta2012", $con);
 		$sql= "CREATE TABLE IF NOT EXISTS job_table
 			( LDAP varchar(20)
-				, FirstName varchar(20)
-				, LastName varchar(20)
-				, WhichSem int
-				, FirstChoice varchar(6)
-				, SecondChoice varchar(6)
-				, ThirdChoice varchar(6)
-				, prevJob varchar(6)
-				, pprevJob varchar(6)
-				, ppprevJob varchar(6)
-				, PRIMARY KEY(LDAP)
-			)";
+			, FirstName varchar(20)
+			, LastName varchar(20)
+			, WhichSem int
+			, FirstChoice varchar(6)
+			, SecondChoice varchar(6)
+			, ThirdChoice varchar(6)
+			, prevJob varchar(6)
+			, pprevJob varchar(6)
+			, ppprevJob varchar(6)
+			, PRIMARY KEY(LDAP)
+		)";
 		mysql_query($sql, $con);
 		mysql_query("use job_table");
 
 	}
 }
+else {
+		echo "<font size=\"4\" color=\"red\"> Failed to authenticate with error code : ".$httpCode['http_code']."</font><br>";
+		echo "<br>font size=\"5\" color=\"blue\"> Redirecting in 3 seconds...</font>\n";
+		header("Refresh: 3, url=$base_url./eeta.php");
+}
+
 ?>
 
 <?php 
 echo $course_list;
 $fh = fopen($course_list, "r");
 if(!$fh) {
-	echo "<br>No course list is available with us for this academic semester. Redirecting in 3 second...<br>";
+		echo "<font size=\"5\" color=\"blue\"> I can not find a course list! Redirecting in 3 seconds...</font>\n";
 	header("Refresh: 3, url=$base_url./eeta.php");
 }
 $course_array = array();
