@@ -9,12 +9,12 @@ Please fill in your LDAP details. </font><br>
 <form action="authenticate.php" method="post">
 Proxy Username : <input type="text" name="username" id="username" />
 Proxy Password : <input type="password" size="25" name="pass" id="pass"> <br><br>
-Semester : <select name="semester"> 
+Semester : <select name="year"> 
 	<option value="2012">2012</option>
 	<option value="2011">2011</option>
 	<option value="2010">2010</option>
 </select> 
-<select>
+<select name="sem">
 	<option value="Odd">Odd</option>
 	<option value="Even">Even</option>
 	<option value="Summer">Summer</option>

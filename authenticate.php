@@ -3,11 +3,15 @@
 <h1> EE IITB Teaching Assistant Interface </h1>
 <br>
 <?php 
+include('student.php');
+include('teacher.php');
+include('error.php');
 
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
 $acad_sem=$_REQUEST["year"].$_REQUEST["sem"];
 $db_name="ta".$acad_sem;
+$db_course="courses".$acad_sem;
 $course_list="./courses/course_".$acad_sem.".txt";
 $base_url="http://www.ee.iitb.ac.in/student/~dilawar/Scripts/";
 
@@ -40,7 +44,6 @@ function authenticate($input) {
 	$data = curl_exec($ch);
 	$httpCode = curl_getinfo($ch);
 	if($httpCode['http_code']=='302') {
-		echo "Authentication successful! \n";
 		return true;
 	}
 	else {
@@ -59,58 +62,52 @@ if($res) {
 	}
 	$con = mysql_connect("10.107.105.13", "dilawar", $sqlpass);
 	if(!$con) {
-		echo "<font size=\"5\" color=\"blue\"> It is embarrasing but I can not connect to database! Redirecting in 3 seconds...</font>\n";
+		echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
 		header("Refresh: 3, url=$base_url./eeta.php");
 	}
 	else {
-
 		# check if entry for the username already exists.
-		mysql_query("CREATE DATABASE IF NOT EXISTS $db_name", $con);
-		mysql_select_db("ta2012", $con);
-		$sql= "CREATE TABLE IF NOT EXISTS job_table
-			( LDAP varchar(20)
-			, FirstName varchar(20)
-			, LastName varchar(20)
-			, WhichSem int
-			, FirstChoice varchar(6)
-			, SecondChoice varchar(6)
-			, ThirdChoice varchar(6)
-			, prevJob varchar(6)
-			, pprevJob varchar(6)
-			, ppprevJob varchar(6)
-			, PRIMARY KEY(LDAP)
-		)";
-		mysql_query($sql, $con);
-		mysql_query("use job_table");
+		$res = mysql_select_db($db_name, $con);
+		if(!$res) {
+			echo printErrorSevere("Can not locate database for this semseter.".mysql_error()."An email is sent to adminstrator");
+			header("Refresh: 5, url=$base_url./eeta.php");
+			sendEmailToAdmin("database_connect_error".$mysql_error(), $db_name);
+			exit(0);
+		}
 
 	}
 }
 else {
-		echo "<font size=\"4\" color=\"red\"> Failed to authenticate with error code : ".$httpCode['http_code']."</font><br>";
-		echo "<br>font size=\"5\" color=\"blue\"> Redirecting in 3 seconds...</font>\n";
-		header("Refresh: 3, url=$base_url./eeta.php");
+		echo printErrorSevere("Failed to authenticate at proxy-server! Redirecting in 5 sec ...");
+		header("Refresh: 5, url=$base_url./eeta.php");
+		exit(0);
 }
 
 ?>
 
 <?php 
-echo $course_list;
-$fh = fopen($course_list, "r");
-if(!$fh) {
-		echo "<font size=\"5\" color=\"blue\"> I can not find a course list! Redirecting in 3 seconds...</font>\n";
-	header("Refresh: 3, url=$base_url./eeta.php");
+## Find courses from database. 
+$res = mysql_select_db($db_course, $con);
+if(!$res) {
+	echo printErrorSevere("Not courses found for this semester ... An email is sent to admin.");
+	header("Refresh: 5, url=$base_url./eeta.php");
+	sendEmailToAdmin("course_list_error".$mysql_error(), $db_course);
+	exit(0);
 }
-$course_array = array();
-while(! feof($fh))
-{
-	$data=fgetcsv($fh, 100, ",");
-	array_push($course_array, $data);
+else {
+	$course = mysql_query("select * from courses");
+	if(!$course) {
+		echo printErrorSevere("Error reading database ...");
+		exit(0);
+	}
+	else {
+		$course_array = array(array());
+		while($row = mysql_fetch_assoc($course)) {
+			$this_course = array($row['id'], $row['name'], $row['faculty']);
+			array_push($course_array, $this_course);
+		}
+	}
 }
-if(!course_array) {
-	echo "<br>Error in reading course list. Redirecting in 3 second...<br>";
-	header("Refresh: 3, url=$base_url./eeta.php");
-}
-$courses = $course_array;
 ?>
 
 <html>
@@ -131,11 +128,11 @@ $courses = $course_array;
 <h3>Job description</h3>
 <form action="database.php" method="post">
 First Preference :
-<?php echo generateSelect("ta1", $courses);	?>
+<?php echo generateSelect("ta1", $course_array);	?>
 Second Preference :
-<?php echo generateSelect("ta2", $courses);	?>
+<?php echo generateSelect("ta2", $course_array);	?>
 Third Preference :
-<?php echo generateSelect("ta3", $courses);	?>
+<?php echo generateSelect("ta3", $course_array);	?>
 <input type="submit" name="Submit" value="Submit" />
 </form>
 </body>
@@ -151,3 +148,4 @@ function generateSelect($name, $courses) {
 	$html .= "</select>";
 	return $html;
 }
+?>
