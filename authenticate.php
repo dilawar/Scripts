@@ -17,6 +17,7 @@ $course_list="./courses/course_".$acad_sem.".txt";
 $base_url="http://www.ee.iitb.ac.in/student/~dilawar/Scripts/";
 $history_exists = false;
 $complete_info = false;
+$db_ip = "10.107.105.13";
 
 include('student.php');
 include('teacher.php');
@@ -28,6 +29,12 @@ if(strlen($proxy_user) < 2) {
   $proxy_pass=getenv('proxy_password');
 }
 $_SESSION['user_ldap'] = $proxy_user;
+$_SESSION['acad_sem'] = $acad_sem;
+$_SESSION['db_name'] = $db_name;
+$_SESSION['db_course'] = $db_course;
+$_SESSION['base_url'] = $base_url;
+$_SESSION['sql_ip'] = $db_ip;
+$_SESSION['sql_pass'] = "dilawar123";
 
 if($_REQUEST['Role'] == "Teacher") {
 	echo printErrorSevere("Not implemented. Redirecting in 5 sec...");
@@ -75,7 +82,7 @@ if($res) {
 	if(strlen($sqlpass) < 2) {
 		$sqlpass="dilawar123";
 	}
-	$con = mysql_connect("10.107.105.13", "dilawar", $sqlpass);
+	$con = mysql_connect($db_ip, "dilawar", $sqlpass);
 	if(!$con) {
 		echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
 		header("Refresh: 3, url=$base_url./eeta.php");
@@ -90,6 +97,7 @@ if($res) {
 			exit(0);
 		}
 	}
+	$_SESSION['sql_con'] = $con;
 	$student_info = getStudentDetails($proxy_user, $con);
 	if(checkStudentDetails($student_info))
 	{

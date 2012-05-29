@@ -1,20 +1,53 @@
-<?php
-$con = mysql_connect($sql_host, "root", "rashmirathi");
-if(!not)
-{
-    echo "Can not connect to database.\n";
+<h1>EE IITB Teaching Assistant Interface</h1>
 
+<?php
+include('error.php');
+session_save_path(getenv('HOME'."/sessions"));
+session_start();
+
+$ldap = $_SESSION['user_ldap'];
+$ip = $_SESSION['sql_ip'];
+$pass = $_SESSION['sql_pass'];
+
+$con = mysql_connect($ip, "dilawar", $pass);
+if(!$con) {
+	echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
+	header("Refresh: 3, url=$base_url./eeta.php");
 }
-else {
-    mysql_query("CREATE DATABASE IF NOT EXISTS ta2012", $con);
-    mysql_select_db("ta2012", $con);
-    $sql= "CREATE TABLE IF NOT EXISTS tas 
-        ( LDAP varchar(20),
-          FirstName varchar(20),
-          LastName varchar(20),
-          PRIMARY KEY(LDAP))";
-    mysql_query($sql, $con);
-    mysql_close($con);
+else 
+{
+	$_ldap = $_POST['ldap'];
+	$_roll = $_POST['roll'];
+	$_specialization = $_POST['specialization'];
+	$_program = $_POST['program'];
+	$_category = $_POST['category'];
+	$_gradYear = $_POST['gradYear'];
+	$_gradSem = $_POST['gradSem'];
+	$_graduatingOn = "";
+	if($_gradSem == "even") {
+		$_graduatingOn = "1 September ".$_gradYear;
+	}
+	else {
+		$_graduatingOn = "1 January ".$_gradYear;
+	}
+	$_graduatingOn = date("Y-m-d", strtotime($_graduatingOn));	
+	
+	$query = sprintf("insert into student (ldap, roll, program, category, graduatingOn) 
+			values ('%s', '%s', '%s', '%s', '%s' )", 
+			mysql_real_escape_string($_ldap)
+		, mysql_real_escape_string($_roll)
+		, mysql_real_escape_string($_program)
+		, mysql_real_escape_string($_category)
+		, mysql_real_escape_string($_graduatingOn)
+		);
+	$res = mysql_db_query("eestudents", $query, $con);
+
+	if(!$res) {
+		echo "Unsuccesful with error ".mysql_error();
+	}
+	else {
+		header("Location: ".$_SESSION['base_url']."/preference.php");
+	}
 }
 
 ?>
