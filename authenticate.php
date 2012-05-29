@@ -1,12 +1,13 @@
+<!-- This authenticate user with proxy-server 
+(c) dilwar@ee.iitb.ac.in
+-->
 <html>
 <body>
 <h1> EE IITB Teaching Assistant Interface </h1>
 <br>
 <?php 
-include('student.php');
-include('teacher.php');
-include('error.php');
-
+session_save_path(getenv('HOME'."/sessions"));
+session_start();
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
 $acad_sem=$_REQUEST["year"].$_REQUEST["sem"];
@@ -14,10 +15,24 @@ $db_name="ta".$acad_sem;
 $db_course="courses".$acad_sem;
 $course_list="./courses/course_".$acad_sem.".txt";
 $base_url="http://www.ee.iitb.ac.in/student/~dilawar/Scripts/";
+$history_exists = false;
+$complete_info = false;
+
+include('student.php');
+include('teacher.php');
+include('error.php');
+
 
 if(strlen($proxy_user) < 2) {
 	$proxy_user=getenv('proxy_username');
   $proxy_pass=getenv('proxy_password');
+}
+$_SESSION['user_ldap'] = $proxy_user;
+
+if($_REQUEST['Role'] == "Teacher") {
+	echo printErrorSevere("Not implemented. Redirecting in 5 sec...");
+	header("Refresh: 5, url=$base_url./eeta.php");
+	exit(0);
 }
 
 $proxy_url = "netmon.iitb.ac.in:80";
@@ -55,7 +70,7 @@ $res = authenticate(array($url, $proxy_url, $proxy_port, $proxy_user, $proxy_pas
 
 # if authentication is successful.
 if($res) {
-	$location=$_SERVER['PATH_INFO'];
+	echo "Here I am";
 	$sqlpass=$_SERVER['sql_pass'];
 	if(strlen($sqlpass) < 2) {
 		$sqlpass="dilawar123";
@@ -74,18 +89,76 @@ if($res) {
 			sendEmailToAdmin("database_connect_error".$mysql_error(), $db_name);
 			exit(0);
 		}
-
+	}
+	$student_info = getStudentDetails($proxy_user, $con);
+	if(checkStudentDetails($student_info))
+	{
+		echo "Details are ok.";
+		echo printStudentInfo($student_info);
+		$complete_info = true;
+	}
+	else 
+	{
+		echo "Here I am";
+		//ob_start();
+		session_write_close();
+		header("Location: $base_url/get_info.php");
+		//$output = ob_get_clean();
+		echo $output;
 	}
 }
+
+# can not authenticate.
 else {
 		echo printErrorSevere("Failed to authenticate at proxy-server! Redirecting in 5 sec ...");
 		header("Refresh: 5, url=$base_url./eeta.php");
 		exit(0);
 }
-
 ?>
 
 <?php 
+function getStudentDetails($name, $con) {
+	if(mysql_select_db("eestudents", $con) == NULL) {
+		printErrorSevere("I can not communicate with database! Redirecting...");
+		header("Refresh: 5, url=$base_url./eeta.php");
+		exit(0);
+	}
+	else {
+		$res = mysql_query("select * from students where ldap=$name", $con);
+		$details = mysql_fetch_assoc($res);
+		return $details;
+	}
+}
+
+function checkStudentDetails($info) 
+{
+	echo "Info";
+	if(!$info) {
+		return false;
+	}
+	else {
+		foreach($info as $value) 
+		{
+			if(strlen($value) < 1) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+function printStudentInfo($info) {
+	$str = "<br>Your details with us are following : <br>";
+	foreach($info as $value) {
+		$str .= print_r($value);
+	}
+	return $str;
+}
+
+?>
+
+<!--
+<?php
 ## Find courses from database. 
 $res = mysql_select_db($db_course, $con);
 if(!$res) {
@@ -110,6 +183,15 @@ else {
 }
 ?>
 
+
+<?php 
+# if last two semester histroy is not available in database, ask
+# for it.
+if(!$historyExists) {
+	echo printWaring("We do not have your past reacord. Please fill details. Redirecting you to appropriate page ...");
+
+}
+?>
 <html>
 <head>
 <style type="text/css">
@@ -143,9 +225,11 @@ Third Preference :
 function generateSelect($name, $courses) {
 	$html = "<select name=".$name.">";
 	foreach($courses as $id => $cname) {
-		$html .= "<option value=".$cname[0].">".$cname[0].": ".$cname[1]."</option>";
+		$html .= "<option value=".$cname[0].">".$cname[0]." : ".$cname[2]." : ".$cname[1]."</option>";
 	}
 	$html .= "</select>";
 	return $html;
 }
 ?>
+
+-->
