@@ -15,7 +15,6 @@ $HOME="/pg/rs/dilawar";
 session_save_path($HOME."/sessions/");
 if(session_start())
 {
-	echo "Sesson start successfully.";
 }
 else {
 	echo "Problem loading session.";
@@ -98,28 +97,46 @@ if($res) {
 		}
 		else {
 			$details = mysql_fetch_assoc($res);
-			echo "<b> We have your details : </b> <br>";
-			echo printStudentInfo($details);
+			/* Print details and check if they are complete. Also provide edit button. 
+			 */
+			if(!$details) {
+				// Launch a page to fill-in details. 
+			}
+			else {
+				if(!checkStudentDetails($details))
+				{
+					$complete_info = false;
+					printErrorSevere("Some of your details are not complete.");
+					echo printStudentInfo($details);
+?>
+				<br>
+				<form method="post" action="database.php">
+					<input type="submit" name="Edit" value="Edit">
+					<input type="submit" name="O.K." value="OK">
+				</form>
+				<br>
+<?php
+
+				}
+				else 
+				{
+					session_write_close();
+					echo "<b> Your details in my database </b> <br> <br>";
+					echo printStudentInfo($details);
+
+					### Ok or edit.
+?>
+				<br>
+				<form method="post" action="database.php">
+					<input type="submit" name="Edit" value="Edit">
+					<input type="submit" name="O.K." value="OK">
+				</form>
+				<br>
+<?php
+				}
+			}
 		}
 	}
-
-	/*
-	if(checkStudentDetails($student_info))
-	{
-		echo "Details are ok.";
-		echo printStudentInfo($student_info);
-		$complete_info = true;
-	}
-	else 
-	{
-		//ob_start();
-		session_write_close();
-		echo "<br>Your details with us are following : <br>";
-		echo printStudentInfo($student_info);
-		//header("Location: $base_url/get_info.php");
-		//$output = ob_get_clean();
-	}
-	 */
 }
 
 # can not authenticate.

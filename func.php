@@ -11,9 +11,10 @@ function checkStudentDetails($info)
 		return false;
 	}
 	else {
-		foreach($info as $value) 
+		foreach($info as $key => $value) 
 		{
 			if(strlen($value) < 1) {
+				echo $value;
 				return false;
 			}
 		}
@@ -22,9 +23,83 @@ function checkStudentDetails($info)
 }
 
 function printStudentInfo($info) {
-	foreach($info as $key => $value) {
-		$str .= $key.":".$value."<br>";
+	
+	$course = $info['specialization'];
+	if($course == "xx") {
+		$spec = "Not Given ";
+		$_SESSION['completeInfo'] = "no";
 	}
+	else if($course == "ee1") {
+		$spec = "Communication ";
+	}
+	else if($course == "ee2") {
+		$spec = "Control and Computing ";
+	}
+	else if($course == "ee3") {
+		$spec = "Power Electronics and System ";
+	}
+	else if($course == "ee4") {
+		$spec = "Microelectronics and VLSI ";
+	}
+	else {
+		$spec = "Electronic Systems ";
+	}
+
+	$program = $info['program'];
+	switch($program) 
+	{
+	case "xx" :
+		$prog = "Not given ";
+		$_SESSION['completeInfo'] = "no";
+		break;
+	case "rs" :
+		$prog  = "Research Scholar ";
+		break;
+	case "mtech" :
+		$prog = "Master of Technology ";
+		break;
+	case "dd" :
+		$prog = "Dual Degree (B.Tech + M.Tech.) ";
+		break;
+	} 
+
+	$category = $info['category'];
+	switch($category) 
+	{
+	case "xx" :
+		$cat = "Not given ";
+		$_SESSION['completeInfo'] = "no";
+		break;
+	case "ta" :
+		$cat = "Teaching Assistant";
+		break;
+	case "ira" :
+		$cat = "Institute Research Assistant ";
+		break;
+	case "pra" :
+		$cat = "Project Research Assistant ";
+		break;
+	case "sf":
+		$cat = "Self Financed ";
+		break;
+	case "qip" :
+		$cat = "Qualility Imporvement Program ";
+		break;
+	case "sponsored" :
+		$cat = "Sponsored ";
+		break;
+	}
+
+	$gradOn = $info['graduatingOn'];
+
+	$str = "<table border='1'>";
+	$str .=  "<tr><td> LDAP Id </td> <td> <b>".$info['ldap']."</b></td></tr>";
+	$str .= "<tr><td> Roll No </td> <td> <b>".$info['roll']."</b></td></tr>";
+	$str .= "<tr><td> Program </td> <td> <b>".$prog."</b></td></tr>";
+	$str .= "<tr><td> Category </td> <td> <b>".$cat."</b></td></tr>";
+	$str .= "<tr><td> Specialization </td> <td> <b>".$spec."</b></td></tr>";
+	$str .= "<tr><td> Graduating on </td> <td> <b>".$gradOn."</b></td></tr>";
+	$str .= "</table>";
 	return $str;
 }
 
