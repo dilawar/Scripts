@@ -1,25 +1,44 @@
 <h1>EE IITB Teaching Assistant Interface</h1>
 <?php
 session_start();
+
 include('error.php');
 include('print.php');
 include('func.php');
 ?>
 
-Thanks for submitting your details. 
+<h3> Thanks for submitting your details. </h3>
 
 <?php 
 
 if(!checkStudentDetails($_POST))
 {
-	printErrorSevere("Details are not complete.");
+	echo printErrorSevere("Details you hav provided do not look complete. Redirecting you to entry form in 3 seconds ...");
 	echo printStudentInfo($_POST);
+	$init = $_SESSION['init'];
+	$base_url = $init['base_url'];
+	$url = "http://".$base_url."/get_info.php";
+	header("Refresh: 3, url=$url");
+	exit;
 }
 
 else {
 	echo printStudentInfo($_POST);
-	echo "<br> Details look complete.";
+	echo "<br> Your Detail looks complete.";
+}		
+
+/* convert date to be sent to database. */
+$info = $_POST;
+$gradY = $info['gradYear'];
+$gradS = $info['gradSem'];
+if($gradS == "Odd") {
+	$gradOn = "January 1 ".$gradY;
 }
+else {
+	$gradOn = "August 1 ".$gradY;
+}
+$gradOn = date("Y-m-d", strtotime($gradOn));
+
 ?>
 <!-- Compose a hidden form for posting purpose only -->
 <html>
@@ -30,8 +49,7 @@ else {
 <input type="hidden" name="specialization" value=<?php echo $_POST['specialization'] ?> readonly>
 <input type="hidden" name="program" value=<?php echo $_POST['program'] ?> readonly>
 <input type="hidden" name="category" value=<?php echo $_POST['category'] ?> readonly>
-<input type="hidden" name="gradYear" value=<?php echo $_POST['gradYear'] ?> readonly>
-<input type="hidden" name="gradSem" value=<?php echo $_POST['gradSem'] ?> readonly>
+<input type="hidden" name="graduatingOn" value=<?php echo $gradOn ?> readonly>
 <input label="Submit" type="submit" name="Submit" value="Submit" >
 </body>
 </html>
