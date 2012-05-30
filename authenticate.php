@@ -5,35 +5,11 @@
 <h1> EE IITB Teaching Assistant Interface </h1>
 
 <?php 
-
+session_start();
 include('student.php');
 include('teacher.php');
 include('error.php');
 include('func.php');
-
-$HOME="/pg/rs/dilawar";
-$_SESSION['HOME'] = $HOME;
-session_save_path($HOME."/sessions/");
-if(session_start())
-{
-}
-else {
-	echo "Problem loading session.";
-}
-
-$inifile = "$HOME"."/sessions/eeta.ini";
-if(!file_exists($inifile)) {
-	printErrorSevere("Init file does not exists.");
-	header("No configuration file found. Application incomplete ..");
-}
-$conf = parse_ini_file($inifile);
-if(!$conf)
-{
-	header("No configuration file found. Application incomplete ..");
-}
-else {
-	$_SESSION['init'] = $conf;
-}
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
 $acad_sem=$_REQUEST["year"].$_REQUEST["sem"];
@@ -129,7 +105,7 @@ if($res) {
 				<br>
 				<form method="post" action="get_info.php">
 					<input type="submit" name="response" value="Edit">
-					<input type="submit" name="response" value="OK">
+					<input type="submit" name="response" value="O.K.">
 				</form>
 				<br>
 <?php

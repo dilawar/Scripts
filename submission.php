@@ -24,7 +24,7 @@ if(!checkStudentDetails($_POST))
 
 else {
 	echo printStudentInfo($_POST);
-	echo "<br> Your Detail looks complete.";
+	echo "<br> Your detail looks complete.";
 }		
 
 /* convert date to be sent to database. */
@@ -50,7 +50,8 @@ $gradOn = date("Y-m-d", strtotime($gradOn));
 <input type="hidden" name="program" value=<?php echo $_POST['program'] ?> readonly>
 <input type="hidden" name="category" value=<?php echo $_POST['category'] ?> readonly>
 <input type="hidden" name="graduatingOn" value=<?php echo $gradOn ?> readonly>
-<input label="Submit" type="submit" name="Submit" value="Submit" >
+<input type="submit" name="response" value="Submit" >
+<input type="submit" name="response" value="Edit" >
 </body>
 </html>
 

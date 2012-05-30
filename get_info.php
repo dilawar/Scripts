@@ -3,6 +3,8 @@
 <?php
 session_start();
 ## check if details are mission or incomplete.
+if(!$_POST['response'] == "O_K_") 
+{
 ?>
 
 <html>
@@ -30,7 +32,7 @@ Specialization :
 	<option value="ee2">EE2 : Control And Computing</option>
 	<option value="ee3">EE3 : Power Electronics and Systems.</option>
 	<option value="ee4">EE4 : Microelectronics and VLSI</option>
-	<option value="ee5">EE4 : Electronic Systems</option>
+	<option value="ee5">EE5 : Electronic Systems</option>
 </select> 
 <br>
 <br>
@@ -77,3 +79,14 @@ Graduation Date :
 </form>
 </body>
 </html>
+<?php
+}
+else {
+
+	$init = $_SESSION['init'];
+	$base_url = $init['base_url'];
+	$url = "http://".$base_url."/preference.php";
+	header("Location: $url");
+	exit;
+}
+?>

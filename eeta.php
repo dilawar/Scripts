@@ -1,6 +1,31 @@
 <?php 
 session_save_path(getenv('HOME'."/sessions"));
 session_start();
+
+$HOME="/pg/rs/dilawar";
+$_SESSION['HOME'] = $HOME;
+session_save_path($HOME."/sessions/");
+if(session_start())
+{
+}
+else {
+	echo "Problem loading session.";
+}
+
+$inifile = "$HOME"."/sessions/eeta.ini";
+if(!file_exists($inifile)) {
+	printErrorSevere("Init file does not exists.");
+	header("No configuration file found. Application incomplete ..");
+}
+$conf = parse_ini_file($inifile);
+if(!$conf)
+{
+	header("No configuration file found. Application incomplete ..");
+}
+else {
+	$_SESSION['init'] = $conf;
+}
+
 ?>
 
 <h1>EE IITB Teaching Assistant Interface</h1>
