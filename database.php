@@ -23,7 +23,6 @@ else
 	$_specialization = $_POST['specialization'];
 	$_program = $_POST['program'];
 	$_category = $_POST['category'];
-	$_gradYear = $_POST['gradYear'];
 	$_graduatingOn = $_POST['graduatingOn'];	
 	
 	/* check if entry is already there. */
@@ -38,11 +37,12 @@ else
 		if(count($entry) > 0) 
 		{
 			echo "Updating your entry ...<br>";
-			$query = sprintf("update student set ldap='%s', roll = '%s', program='%s', category='%s', graduatingOn='%s'"
+			$query = sprintf("update student set ldap='%s', roll = '%s', program='%s', category='%s', specialization='%s', graduatingOn='%s'"
 				, mysql_real_escape_string($_ldap)
 				, mysql_real_escape_string($_roll)
 				, mysql_real_escape_string($_program)
 				, mysql_real_escape_string($_category)
+				, mysql_real_escape_string($_specialization)
 				, mysql_real_escape_string($_graduatingOn)
 			);
 			$res = mysql_db_query("eestudents", $query, $con);
@@ -50,17 +50,18 @@ else
 				echo "Failed to update your entry with error".mysql_error();
 			}
 			else {
-				echo "<b> Successfully updated your entry <br>";
+				echo "<b><br> Successfully updated your entry !!</b> <br>";
 			}
 		}
 		else {
 			echo "Inserting your entry into database ... <br>";
-			$query = sprintf("insert into student (ldap, roll, program, category, graduatingOn) 
+			$query = sprintf("insert into student (ldap, roll, program, category, specialization, graduatingOn) 
 				values ('%s', '%s', '%s', '%s', '%s' )", 
 				mysql_real_escape_string($_ldap)
 				, mysql_real_escape_string($_roll)
 				, mysql_real_escape_string($_program)
 				, mysql_real_escape_string($_category)
+				, mysql_real_escape_string($_specialization)
 				, mysql_real_escape_string($_graduatingOn)
 			);
 			$res = mysql_db_query("eestudents", $query, $con);
