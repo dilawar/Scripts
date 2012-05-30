@@ -6,10 +6,14 @@ session_save_path(getenv('HOME'."/sessions"));
 session_start();
 
 $ldap = $_SESSION['user_ldap'];
-$ip = $_SESSION['sql_ip'];
-$pass = $_SESSION['sql_pass'];
+$init = $_SESSION['init'];
+$ip = $init['db_ip'];
+$pass = $init['db_pass'];
+$user = $init['db_user'];
 
-$con = mysql_connect($ip, "dilawar", $pass);
+print_r($_POST);
+
+$con = mysql_connect($ip, $user, $pass);
 if(!$con) {
 	echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
 	header("Refresh: 3, url=$base_url./eeta.php");

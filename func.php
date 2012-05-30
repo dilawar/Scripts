@@ -13,8 +13,7 @@ function checkStudentDetails($info)
 	else {
 		foreach($info as $key => $value) 
 		{
-			if(strlen($value) < 1) {
-				echo $value;
+			if($value == "xx") {
 				return false;
 			}
 		}
@@ -90,7 +89,20 @@ function printStudentInfo($info) {
 		break;
 	}
 
-	$gradOn = $info['graduatingOn'];
+	$gradOn = $info['graduatingOn']; // from database.
+
+	if(!$gradOn) // from form and not from database.
+	{
+		$gradY = $info['gradYear'];
+		$gradS = $info['gradSem'];
+		if($gradS == "Odd") {
+			$gradOn = "January 1 ".$gradY;
+		}
+		else {
+			$gradOn = "August 1 ".$gradY;
+		}
+		$gradOn = date("Y-m-d", strtotime($gradOn));
+	}
 
 	$str = "<table border='1'>";
 	$str .=  "<tr><td> LDAP Id </td> <td> <b>".$info['ldap']."</b></td></tr>";
@@ -129,6 +141,5 @@ function authenticate($input) {
 				return false;
 	}
 }
-
 
 ?>

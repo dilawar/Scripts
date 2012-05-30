@@ -12,6 +12,7 @@ include('error.php');
 include('func.php');
 
 $HOME="/pg/rs/dilawar";
+$_SESSION['HOME'] = $HOME;
 session_save_path($HOME."/sessions/");
 if(session_start())
 {
@@ -110,9 +111,8 @@ if($res) {
 					echo printStudentInfo($details);
 ?>
 				<br>
-				<form method="post" action="database.php">
-					<input type="submit" name="Edit" value="Edit">
-					<input type="submit" name="O.K." value="OK">
+				<form method="post" action="get_info.php">
+					<input type="submit" name="response" value="Edit">
 				</form>
 				<br>
 <?php
@@ -127,9 +127,9 @@ if($res) {
 					### Ok or edit.
 ?>
 				<br>
-				<form method="post" action="database.php">
-					<input type="submit" name="Edit" value="Edit">
-					<input type="submit" name="O.K." value="OK">
+				<form method="post" action="get_info.php">
+					<input type="submit" name="response" value="Edit">
+					<input type="submit" name="response" value="OK">
 				</form>
 				<br>
 <?php

@@ -1,8 +1,5 @@
 <h1> EE IITB Teaching Assitant Interface</h1>
 
-<font color="red"> Your details are either incomplete or missing.</font>
-
-
 <?php
 session_save_path(getenv('HOME'."/sessions"));
 session_start();
@@ -23,7 +20,7 @@ session_start();
 Roll No :
 <input type="text" name="roll" >
 
-LDAP : <input type="text" name="ldap" value=<?php echo $_SESSION['user_ldap']; ?> readonly> 
+LDAP : <input type="text" name="ldap" value=<?php echo $_SESSION['ldap']; ?> readonly> 
 <br>
 <br>
 
