@@ -1,8 +1,7 @@
 <!-- This authenticate user with proxy-server 
 (c) dilwar@ee.iitb.ac.in
 -->
-
-<h1> EE IITB Teaching Assistant Interface </h1>
+<?php include('header.php'); ?>
 
 <?php 
 session_start();
@@ -10,13 +9,13 @@ include('student.php');
 include('teacher.php');
 include('error.php');
 include('func.php');
+
+$init = $_SESSION['init'];
 $proxy_user=$_REQUEST["username"];
 $proxy_pass=$_REQUEST["pass"];
 $acad_sem=$_REQUEST["year"].$_REQUEST["sem"];
 $db_name="ta".$acad_sem;
 $db_course="courses".$acad_sem;
-$course_list="./courses/course_".$acad_sem.".txt";
-$base_url="http://www.ee.iitb.ac.in/student/~dilawar/Scripts/";
 
 if(strlen($proxy_user) < 2) {
 	$proxy_user=getenv('proxy_username');
@@ -28,8 +27,8 @@ $_SESSION['acad_sem'] = $acad_sem;
 $_SESSION['db_name'] = $db_name;
 $_SESSION['db_course'] = $db_course;
 
-if($_REQUEST['Role'] == "Teacher") {
-	echo printErrorSevere("Not implemented. Redirecting in 5 sec...");
+if(strcmp($_REQUEST['Role'], "Teacher") == 0) {
+	echo printErrorSevere("Interface to teachers is not available. Going back 5 sec...");
 	header("Refresh: 5, url=$base_url./eeta.php");
 }
 
@@ -44,7 +43,7 @@ if($res) {
 	$init = $_SESSION['init'];
 	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
 	if(!$con) {
-		printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
+		echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
 		echo mysql_error();
 		header("Refresh: 3, url=$base_url./eeta.php");
 	}
@@ -52,18 +51,17 @@ if($res) {
 		# check if entry for the username already exists.
 		$res = mysql_select_db($_SESSION['db_name'], $con);
 		if(!$res) {
-			printErrorSevere("Can not locate database for this semseter.".mysql_error()."An 
-				email is sent to adminstrator");
+			echo printErrorSevere("I can not locate database for this semseter. Failed with ".mysql_error());
 			echo mysql_error();
-			header("Refresh: 5, url=$base_url./eeta.php");
+			header("Refresh: 3, url=$base_url./eeta.php");
 		}
 	}
 	$res = mysql_select_db("eestudents", $con);
 	if(!$res)
 	{
-		printErrorSevere("I can not communicate with database! Redirecting...");
+		echo printErrorSevere("I can not communicate with database! Redirecting...");
 		echo mysql_error();
-		header("Refresh: 5, url=$base_url./eeta.php");
+		header("Refresh: 3, url=$base_url./eeta.php");
 	}
 	else {
 		$query = sprintf("select * from student where ldap='%s'", 		
@@ -76,14 +74,10 @@ if($res) {
 			$details = mysql_fetch_assoc($res);
 			/* Print details and check if they are complete. Also provide edit button. 
 			 */
-			if(!$details) {
-				// Launch a page to fill-in details. 
-			}
-			else {
 				if(!checkStudentDetails($details))
 				{
 					$complete_info = false;
-					printErrorSevere("Some of your details are not complete.");
+					echo printErrorSevere("Your details are not complete or missing. ");
 					echo printStudentInfo($details);
 ?>
 				<br>
@@ -109,7 +103,6 @@ if($res) {
 				</form>
 				<br>
 <?php
-				}
 			}
 		}
 	}
@@ -119,46 +112,11 @@ if($res) {
 else {
 		echo printErrorSevere("Failed to authenticate at proxy-server! Redirecting in 5 sec ...");
 		header("Refresh: 5, url=$base_url./eeta.php");
-		exit(0);
 }
 
 ?>
 
 <!--
-<?php
-## Find courses from database. 
-$res = mysql_select_db($db_course, $con);
-if(!$res) {
-	echo printErrorSevere("Not courses found for this semester ... An email is sent to admin.");
-	header("Refresh: 5, url=$base_url./eeta.php");
-	sendEmailToAdmin("course_list_error".$mysql_error(), $db_course);
-	exit(0);
-}
-else {
-	$course = mysql_query("select * from courses");
-	if(!$course) {
-		echo printErrorSevere("Error reading database ...");
-		exit(0);
-	}
-	else {
-		$course_array = array(array());
-		while($row = mysql_fetch_assoc($course)) {
-			$this_course = array($row['id'], $row['name'], $row['faculty']);
-			array_push($course_array, $this_course);
-		}
-	}
-}
-?>
-
-
-<?php 
-# if last two semester histroy is not available in database, ask
-# for it.
-if(!$historyExists) {
-	echo printWaring("We do not have your past reacord. Please fill details. Redirecting you to appropriate page ...");
-
-}
-?>
 <html>
 <head>
 <style type="text/css">
@@ -186,7 +144,6 @@ Third Preference :
 </form>
 </body>
 </html>
-
 <?php 
 ## This function converts course list into select options.
 function generateSelect($name, $courses) {

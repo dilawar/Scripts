@@ -1,9 +1,8 @@
-<h1> EE IITB Teaching Assitant Interface</h1>
-
+<?php include('header.php'); ?>
 <?php
 session_start();
 ## check if details are mission or incomplete.
-if(!$_POST['response'] == "O_K_") 
+if(strcmp($_POST['response'], "O.K.") != 0) 
 {
 ?>
 
@@ -82,7 +81,6 @@ Graduation Date :
 <?php
 }
 else {
-
 	$init = $_SESSION['init'];
 	$base_url = $init['base_url'];
 	$url = "http://".$base_url."/preference.php";

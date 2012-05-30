@@ -1,8 +1,10 @@
+<?php include('header.php'); ?>
 <?php 
+
+$HOME="/pg/rs/dilawar";
 session_save_path(getenv('HOME'."/sessions"));
 session_start();
 
-$HOME="/pg/rs/dilawar";
 $_SESSION['HOME'] = $HOME;
 session_save_path($HOME."/sessions/");
 if(session_start())
@@ -26,27 +28,29 @@ else {
 	$_SESSION['init'] = $conf;
 }
 
+function getSem($conf) 
+{
+	if($conf['sem'] == 1) {
+		return "Odd"; 
+	} 
+	else { 
+		return "Even"; 
+	} 
+}
+
 ?>
 
-<h1>EE IITB Teaching Assistant Interface</h1>
 <font size="3" color="black">
-Please fill in your LDAP details. </font><br>
+Please fill in your <i>LDAP details </i>. </font><br>
 <font size="2" color="red">Note that we do not save your password. This is to authenticate you with proxy-server. </font>
 <br>
-
+<br>
 <form action="authenticate.php" method="post">
-Proxy Username : <input type="text" name="username" id="username" />
-Proxy Password : <input type="password" size="25" name="pass" id="pass"> <br><br>
-Semester : <select name="year"> 
-	<option value="2012">2012</option>
-	<option value="2011">2011</option>
-	<option value="2010">2010</option>
-</select> 
-<select name="sem">
-	<option value="Odd">Odd</option>
-	<option value="Even">Even</option>
-	<option value="Summer">Summer</option>
-</select>
+Username : <input type="text" name="username" id="username" />
+Password : <input type="password" size="25" name="pass" id="pass"> <br><br>
+Year : <input type="text" name="year" value=<?php echo $conf['year'] ?> readonly />
+Semester : <input type="text" name="sem" value=<?php echo getSem($conf); ?> readonly />
+
 <!-- <input type="radio" name="Semster" value="Odd" checked="checked" >Odd
 <input type="radio" name="Semester" value="Even" >Even
 <input type="radio" name="Semester" value="Summer" >Summer<br /> -->
@@ -56,5 +60,4 @@ Semester : <select name="year">
 <input type="radio" name="Role" value="Teacher" />Teacher<br />
 <input type="submit" name="Submit" value="Submit" />
 </form>
-
 
