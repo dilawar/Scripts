@@ -43,8 +43,9 @@ else
 	$res = mysql_db_query("eestudents", $query, $con);
 
 	if(!$res) {
-		echo "Unsuccesful with error ".mysql_error();
-	}
+		echo printErrorSevere("I can not add you now ! Redirecting in 3 sec...");
+		header("Refresh: 3, url=$base_url./eeta.php");
+}
 	else {
 		header("Location: ".$_SESSION['base_url']."/preference.php");
 	}

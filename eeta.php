@@ -1,11 +1,14 @@
-<html>
-<body>
+<?php 
+session_save_path(getenv('HOME'."/sessions"));
+session_start();
+?>
+
 <h1>EE IITB Teaching Assistant Interface</h1>
 <font size="3" color="black">
 Please fill in your LDAP details. </font><br>
 <font size="2" color="red">Note that we do not save your password. This is to authenticate you with proxy-server. </font>
 <br>
-<br>
+
 <form action="authenticate.php" method="post">
 Proxy Username : <input type="text" name="username" id="username" />
 Proxy Password : <input type="password" size="25" name="pass" id="pass"> <br><br>
@@ -28,5 +31,5 @@ Semester : <select name="year">
 <input type="radio" name="Role" value="Teacher" />Teacher<br />
 <input type="submit" name="Submit" value="Submit" />
 </form>
-</body>
-</html>
+
+

@@ -6,6 +6,7 @@
 <?php
 session_save_path(getenv('HOME'."/sessions"));
 session_start();
+## check if details are mission or incomplete.
 ?>
 
 <html>
