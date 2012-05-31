@@ -99,13 +99,39 @@ else {
 			echo "A job has been alloted to you.<br>";
 			$id = $ta_job['course_id'];
 			$course = getCourseNameFaculty($id);
-			echo "Course name : <b>".$id['name']."</b>";
-			echo "Faculty : <b>".$id['faculty']."</b>";
+			echo "Course name : <b>".$course['name']."</b>";
+			echo "Faculty : <b>".$course['faculty']."</b>";
+			exit;
 		}
 
+		/* 
+		 * Check if preferences are already submitted. 
+		 */
+		$preferences = getPreferennces($this_sem);
+		if($preferences) 
+		{
+			$first = $preferences['first'];
+			$second = $preferences['second'];
+			$third = $preferences['third'];
+
+			echo "<h4> Your preferences with us are  </h4>";
+			echo "<table border='1'>";
+			echo "<tr> <td> First </td> <td> <b> $first </b> </td> </tr>";
+			echo "<tr> <td> Second </td> <td> <b> $second </b> </td> </tr>";
+			echo "<tr> <td> Third </td> <td> <b> $third </b> </td> </tr>";
+			echo "</table>";
+?>
+	<br>
+	<form action="edit_preference.php" method="post">
+	<input type="submit" name="response" value="Edit" />
+	<input type="submit" name="response" value="O.K." />
+	</form>
+	<br>
+<?php
+		}
 		else 
 		{
-			$course_list = getCourseList("ta".$this_sem);
+			$course_list = getCourseList($this_sem);
 ?>
 <html>
 <h3> Three preferences for this semester </h3>
@@ -123,13 +149,13 @@ else {
 </head>
 <body>
 <div class="container">
-<form action="final.php" method="post">
+<form action="get_preference.php" method="post">
 First choice
 <?php echo generateSelect("first", $course_list);	?> <br /> <br />
 Second choice
 <?php echo generateSelect("second", $course_list);	?> <br /> <br />
 Third choice
-<?php echo generateSelect("second", $course_list);	?> <br /> <br />
+<?php echo generateSelect("third", $course_list);	?> <br /> <br />
 <input type="submit" name="Submit" value="Submit" />
 </form>
 </body>
