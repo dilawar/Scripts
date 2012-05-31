@@ -142,4 +142,48 @@ function authenticate($input) {
 	}
 }
 
+function getPreviousSem($sem, $count) 
+{
+	if($count == 0) {
+		return $sem;
+	}
+	$count =  abs($count);
+	$year = substr($sem, 0, 4); // first 4 character are year.
+	$type = substr($sem, 4); // 4 to last index are sem.
+	$quot = floor($count / 2);
+	$rem = (int) ($count % 2);
+	$newsem = "";
+	$newyear = $year - $quot;
+	if($rem == 0) {
+		$newsem = $type;
+	}
+	else {
+		if(strcmp($type, "Even") == 0)
+		{
+			$newsem = "Odd";
+		}
+		else {
+			$newsem = "Even";
+		}
+	}
+	return  $newyear.$newsem;
+
+}
+
+function generateSelect($name, $courses) {
+	$html = "<select name=".$name.">";
+	foreach($courses as $id => $cname) {
+		$html .= "<option value=\"$cname[0]\"".">".$cname[0]." : ".$cname[2]." : ".$cname[1]."</option>";
+	}
+	$html .= "</select>";
+	return $html;
+}
+
+function printSem($sem) {
+	$year = substr($sem, 0, 4); // first 4 character are year.
+	$type = substr($sem, 4); // 4 to last index are sem.
+
+	return $type." semester, ".$year;
+}
+
 ?>
