@@ -3,10 +3,12 @@
 session_start();
 include('func.php');
 include('error.php');
+include('sql_func.php');
 
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
 $this_sem = $_SESSION['sem'];
+$ldap = $_SESSION['ldap'];
 /*
  * Once reached here, ask for hostory and preference.
 */
@@ -21,7 +23,6 @@ else {
 	$missingHistory = false;
 	$prevSem = getPreviousSem($this_sem, 1);
 	$pprevSem = getPreviousSem($this_sem, 2);
-	$ldap = $_SESSION['ldap'];
 
 	/* check if this person has entry in database in previous semester. */
 	$res = mysql_select_db("ta".$prevSem, $con);
@@ -84,17 +85,27 @@ else {
 			$base_url = $init['base_url'];
 			$url = "http://".$base_url."/eeta.php";
 			header("Refresh: 3, url=$url");
-			exit;
 		}
-		$query = sprintf("select id, name, faculty from course where running='%s'"
-			, mysql_real_escape_string("yes"));
+
+		/* check if ta-job is alloted. */
+		$query = sprintf("select course_id from ta_record where ldap='%s'"
+				, mysql_real_escape_string($ldap)
+			);
 		$res = mysql_query($query, $con);
-		$course_list = array();
-		while($row = mysql_fetch_array($res))
-		{
-			array_push($course_list, $row);
-		}
+		$ta_job = mysql_fetch_assoc($res);
 		mysql_free_result($res);
+		if($ta_job)  /* job is alloted to you. */
+		{
+			echo "A job has been alloted to you.<br>";
+			$id = $ta_job['course_id'];
+			$course = getCourseNameFaculty($id);
+			echo "Course name : <b>".$id['name']."</b>";
+			echo "Faculty : <b>".$id['faculty']."</b>";
+		}
+
+		else 
+		{
+			$course_list = getCourseList("ta".$this_sem);
 ?>
 <html>
 <h3> Three preferences for this semester </h3>
@@ -125,8 +136,8 @@ Third choice
 </html>
 
 <?php
+		}
 	}
 }
-
 
 ?>
