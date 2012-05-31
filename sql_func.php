@@ -1,5 +1,6 @@
 <?php
 session_start();
+include('func.php');
 
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
@@ -17,7 +18,7 @@ function getCourseNameFaculty($id)
 	else 
 	{
 		$res = mysql_select_db("eecourses", $con);
-		$query = sprintf("select name, faculty from courses where id='%s'"
+		$query = sprintf("select id, name, faculty from courses where id='%s'"
 			, mysql_real_escape_string($id)
 		);
 		$res = mysql_query($query, $con);
@@ -53,7 +54,7 @@ function getCourseList($sem)
 	}
 }
 
-function getPreferennces($sem) 
+function getPreferences($sem) 
 {
 	$db = "ta".$sem;
 	$init = $_SESSION['init'];
@@ -152,6 +153,44 @@ function getStudentInformation($sem)
 			$details = mysql_fetch_assoc($res);
 			return $details;
 		}
+	}
+}
+
+function getHistory($sem, $count)
+{
+
+	$init = $_SESSION['init'];
+	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
+	if(!$con) 
+	{
+		return null;
+	}
+	else {
+		$prevSem = getPreviousSem($sem, 1);
+		$pprevSem = getPreviousSem($sem, 2);
+
+		$ldap = $_SESSION['ldap'];
+
+		mysql_select_db("ta".$prevSem, $con);
+		
+		$query = sprintf("select course_id from ta_record where ldap='%s'"
+			, mysql_real_escape_string($ldap));
+		$res = mysql_query($query, $con);
+		$course1 = mysql_fetch_array($res);
+		mysql_free_result($res);
+
+		mysql_select_db("ta".$pprevSem, $con);
+		$query = sprintf("select course_id from ta_record where ldap='%s'"
+			, mysql_real_escape_string($ldap));
+		$res = mysql_query($query, $con);
+		$course2 = mysql_fetch_array($res);
+		mysql_free_result($res);	
+		$history = array();
+	
+		array_push($history, $course1);
+		array_push($history, $course2);
+
+		return $history;
 	}
 }
 

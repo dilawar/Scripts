@@ -2,7 +2,7 @@
 
 <?php
 include('error.php');
-include('func.php');
+include('seq_func.php');
 session_start();
 $_SESSION['entry_ok'] = "";
 $init = $_SESSION['init'];

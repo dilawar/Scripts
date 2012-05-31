@@ -2,7 +2,7 @@
 <h3> Job done in previous two semesters </h3>
 <?php
 session_start();
-include('func.php');
+include('sql_func.php');
 
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];

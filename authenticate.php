@@ -8,7 +8,6 @@ session_start();
 include('student.php');
 include('teacher.php');
 include('error.php');
-include('func.php');
 include('sql_func.php');
 
 $init = $_SESSION['init'];
@@ -122,11 +121,4 @@ else {
 }
 
 ?>
-
-<!--
-<?php 
-## This function converts course list into select options.
-?>
-
--->
 

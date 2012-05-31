@@ -1,7 +1,6 @@
 <?php include('header.php'); ?>
 <?php
 session_start();
-include('func.php');
 include('error.php');
 include('sql_func.php');
 

@@ -89,4 +89,27 @@ function printStudentInformation($data)
 	return $str;
 }
 
+function printCourse($course) 
+{
+	$id = $course['id'];
+	$name = $course['name'];
+	$faculty = $course['faculty'];
+
+	return $id." : ".$faculty;
+}
+
+function printPreference($preferences)
+{
+	$first = getCourseNameFaculty($preferences['first']);
+	$second = getCourseNameFaculty($preferences['second']);
+	$third = getCourseNameFaculty($preferences['third']);
+
+	$str .= "<table border='1'>";
+	$str .= "<tr> <td> First </td> <td> <b>".$first['id']." : ".$first['faculty']."</b> </td> </tr>";
+	$str .= "<tr> <td> Second </td> <td> <b>".$second['id']." : ".$second['faculty']."</b> </td> </tr>";
+	$str .= "<tr> <td> Third </td> <td> <b>".$third['id']." : ".$third['faculty']."</b> </td> </tr>";
+	$str .= "</table>";
+	
+	return $str;
+}
 ?>

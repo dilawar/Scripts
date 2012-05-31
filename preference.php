@@ -1,7 +1,6 @@
 <?php include('header.php'); ?>
 <?php
 session_start();
-include('func.php');
 include('error.php');
 include('sql_func.php');
 
@@ -107,19 +106,12 @@ else {
 		/* 
 		 * Check if preferences are already submitted. 
 		 */
-		$preferences = getPreferennces($this_sem);
+		$preferences = getPreferences($this_sem);
 		if($preferences) 
 		{
-			$first = $preferences['first'];
-			$second = $preferences['second'];
-			$third = $preferences['third'];
-
 			echo "<h4> Your preferences with us are  </h4>";
-			echo "<table border='1'>";
-			echo "<tr> <td> First </td> <td> <b> $first </b> </td> </tr>";
-			echo "<tr> <td> Second </td> <td> <b> $second </b> </td> </tr>";
-			echo "<tr> <td> Third </td> <td> <b> $third </b> </td> </tr>";
-			echo "</table>";
+			echo printPreference($preferences);
+
 ?>
 	<br>
 	<form action="edit_preference.php" method="post">
