@@ -9,6 +9,7 @@ include('student.php');
 include('teacher.php');
 include('error.php');
 include('func.php');
+include('sql_func.php');
 
 $init = $_SESSION['init'];
 $proxy_user=$_REQUEST["username"];
@@ -35,8 +36,11 @@ $url = "http://www.google.com";
 $res = authenticate(array($url, $proxy_url, $proxy_port, $proxy_user, $proxy_pass));
 
 # if authentication is successful.
-if($res) {
+if($res) 
+{
 	$init = $_SESSION['init'];
+	
+/*
 	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
 	if(!$con) {
 		echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
@@ -68,13 +72,21 @@ if($res) {
 		}
 		else {
 			$details = mysql_fetch_assoc($res);
-			/* Print details and check if they are complete. Also provide edit button. 
-			 */
-				if(!checkStudentDetails($details))
-				{
-					$complete_info = false;
-					echo printErrorSevere("Your details are not complete or missing. ");
-					echo printStudentInfo($details);
+*/
+	$details = getStudentInformation($acad_sem);
+	if(!$details)
+	{
+		echo printErrorSevere("I can not locate database for this semseter. Failed with ".mysql_error());
+		echo mysql_error();
+		header("Refresh: 3, url=$base_url./eeta.php");
+	}
+	else 
+	{
+		if(!checkStudentDetails($details))
+		{
+			$complete_info = false;
+			echo printErrorSevere("Your details are not complete or missing. ");
+			echo printStudentInfo($details);
 ?>
 				<br>
 				<form method="post" action="get_info.php">
@@ -83,14 +95,14 @@ if($res) {
 				<br>
 <?php
 
-				}
-				else 
-				{
-					session_write_close();
-					echo "<b> Your details in my database </b> <br> <br>";
-					echo printStudentInfo($details);
+		}
+		else 
+		{
+			session_write_close();
+			echo "<b> Your details in my database </b> <br> <br>";
+			echo printStudentInfo($details);
 
-					### Ok or edit.
+			### Ok or edit.
 ?>
 				<br>
 				<form method="post" action="get_info.php">
@@ -99,15 +111,14 @@ if($res) {
 				</form>
 				<br>
 <?php
-			}
 		}
 	}
 }
 
 # can not authenticate.
 else {
-		echo printErrorSevere("Failed to authenticate at proxy-server! Redirecting in 5 sec ...");
-		header("Refresh: 5, url=$base_url./eeta.php");
+	echo printErrorSevere("Failed to authenticate at proxy-server! Redirecting in 5 sec ...");
+	header("Refresh: 5, url=$base_url./eeta.php");
 }
 
 ?>

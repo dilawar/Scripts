@@ -90,7 +90,7 @@ function pushPreferences($sem, $post)
 	else 
 	{
 		$first = $post['first'];
-		$seccond = $post['second'];
+		$second = $post['second'];
 		$third = $post['third'];
 		/* if entry is already present then update else insert. */
 		if(getPreferennces($sem))
@@ -118,6 +118,39 @@ function pushPreferences($sem, $post)
 				);
 			$res = mysql_query($query, $con);
 			return $res;
+		}
+	}
+}
+
+function getStudentInformation($sem)
+{
+	$init = $_SESSION['init'];
+	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
+	if(!$con) {
+		return null;
+	}
+	else {
+		# check if entry for the username already exists.
+		$res = mysql_select_db("ta".$sem, $con);
+		if(!$res) {
+			return null;
+		}
+	}
+	$res = mysql_select_db("eestudents", $con);
+	if(!$res)
+	{
+		return null;
+	}
+	else {
+		$query = sprintf("select * from student where ldap='%s'", 		
+											mysql_real_escape_string($_SESSION['ldap']));
+		$res = mysql_query($query, $con);
+		if(!$res) {
+			return null;
+		}
+		else {
+			$details = mysql_fetch_assoc($res);
+			return $details;
 		}
 	}
 }
