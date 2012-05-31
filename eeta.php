@@ -2,11 +2,9 @@
 <?php 
 
 $HOME="/pg/rs/dilawar";
-session_save_path(getenv('HOME'."/sessions"));
+session_save_path(getenv($HOME."/sessions"));
 session_start();
-
 $_SESSION['HOME'] = $HOME;
-session_save_path($HOME."/sessions/");
 if(session_start())
 {
 }

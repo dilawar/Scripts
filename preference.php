@@ -3,6 +3,7 @@
 session_start();
 include('error.php');
 include('sql_func.php');
+include('print.php');
 
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];

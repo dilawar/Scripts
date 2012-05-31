@@ -1,5 +1,7 @@
 <?php 
 session_start();
+include_once('sql_func.php');
+
 function printStudentInformation($data) 
 {
 

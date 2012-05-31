@@ -6,14 +6,15 @@ include('error.php');
 include('sql_func.php');
 include('print.php');
 
+$sendmail= $_SESSION['HOME']."/send_mail.php";
+include($sendmail);
+
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
 $this_sem = $_SESSION['sem'];
-$ldap = $_SESSION['ldap'];
 
 echo printWarning("Your preferences have been recodred successfully.");
 echo "<br><br>";
-echo "<b> An email have been sent to you with following information. </b>";
 $details = getStudentInformation($this_sem);
 if(!$details)
 {
@@ -21,7 +22,8 @@ if(!$details)
 	header("Refresh: 5, url=$base_url./eeta.php");
 }
 else {
-	$msg = "<h3>Your personal details. <h3>";
+	$msg = "<html> <body>";
+	$msg .= "<h3>Your personal details. <h3>";
 	$msg .= printStudentInfo($details);
 }
 $history = getHistory($this_sem, 2);
@@ -53,12 +55,19 @@ $msg .= printPreference($prefer);
 
 echo $msg;
 
+$ldap = $_SESSION['ldap'];
 $mailto = $ldap."@iitb.ac.in";
-$subject = "Your details regarding this semester TA job in department database.";
 $msg .= "<font color='red'> In case of discrepencies, please visit the application interface to update your details.</font>";
 $msg .= "<br> <br> Application link : www.".$_SESSION['base_url']."/eeta.php";
 
-exec("echo $msg | mutt $mailto -s $subject");
-
+$msg .= "</body></html>";
+if(sendEmail($mailto, $msg))
+{
+	echo "Mail sent successfully.";
+}
+else 
+{
+	echo "Problem sending email.";
+}
 
 ?>
