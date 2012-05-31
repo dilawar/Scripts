@@ -9,6 +9,7 @@ $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
 $this_sem = $_SESSION['sem'];
 $ldap = $_SESSION['ldap'];
+$missingHistory = false;
 /*
  * Once reached here, ask for hostory and preference.
 */
@@ -35,10 +36,10 @@ else {
 		);
 	
 	$res = mysql_query($query, $con);
-	$pCourse = mysql_fetch_assoc($res);
+	$pCourse = mysql_fetch_array($res);
 	mysql_free_result($res);
 
-	if(count($pCourse) == 0) 
+	if(!$pCourse) 
 	{
 		$missingHistory = true;
 	}
@@ -56,17 +57,17 @@ else {
 	{
 		echo "Query failed with error ".mysql_error();
 	}
-	$ppCourse = mysql_fetch_assoc($res);
+	$ppCourse = mysql_fetch_array($res);
 	mysql_free_result($res);
 
-	if(count($ppCourse) == 0) 
+	if(!$ppCourse) 
 	{
 		$missingHistory = true;
 	}
 	if($missingHistory)
 	{
 		$url = "http://".$init['base_url']."/history.php";
-		header("Refresh: 3, url=$url");
+		header("Location: $url");
 	}
 
 	else {
