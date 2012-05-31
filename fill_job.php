@@ -4,7 +4,6 @@ session_start();
 include('sql_func.php');
 include('error.php');
 
-print_r($_POST);
 $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
 $this_sem = $_SESSION['sem'];
@@ -20,9 +19,10 @@ $pass = $init['db_pass'];
 $user = $init['db_user'];
 $init = $_SESSION['init'];
 
-echo "<font size=\"4\"> We do not have any record of your previous semester TA job. <br> 
-			Please fill the next form.Redirecting in 3 sec...</font>";
+$res1 = updateHistory($pSem, $pCourse);
+$res2 = updateHistory($ppSem, $ppCourse);
 
+/*
 $con = mysql_connect($ip, $user, $pass);
 if(!$con) {
 	echo printErrorSevere("It is embarrasing but I can not connect to database! Redirecting in 3 sec...");
@@ -72,12 +72,14 @@ $query = sprintf("insert into ta_record (ldap, semester, course_id) values ('%s'
 					, mysql_real_escape_string($ppCourse)
 				);
 $res = mysql_query($query, $con);
-if(!$res) 
+
+ */
+if(!$res1 or !$res2) 
 {
 	echo printErrorSevere("Failed query with error ".mysql_error());
 	$base_url = $init['base_url'];
 	$url = "http://".$base_url."/preference.php";
-	header("Refresh: 3, url=$url");
+	//header("Refresh: 3, url=$url");
 	exit;
 }
 else 

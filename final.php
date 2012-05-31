@@ -34,7 +34,7 @@ $ppCourse = $history[1];
 $course1 = getCourseNameFaculty($pCourse['course_id']);
 $course2 = getCourseNameFaculty($ppCourse['course_id']);
 
-$msg .= "<h3> Previous two semester record </h3>";
+$msg .= "<h3> Last two semesters details </h3>";
 $msg .= "<table border=\"1\">";
 $msg .= "<tr> <td>".printSem($prevSem);
 $msg .= "</td> <td> <b>".printCourse($course1);

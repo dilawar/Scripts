@@ -1,5 +1,6 @@
 <?php include('header.php') ?>
-<h3> Job done in previous two semesters </h3>
+<h3> Let us know what you did last year </h3>
+<font color="red"> Please be careful! Once submitted, you can not change your these values. </font>
 <?php
 session_start();
 include('sql_func.php');

@@ -194,4 +194,76 @@ function getHistory($sem, $count)
 	}
 }
 
+function updateHistory($sem, $course)
+{
+	$init = $_SESSION['init'];
+	$base_url = "http://".$init['base_url'];
+	$this_sem = $_SESSION['sem'];
+	$ldap = $_SESSION['ldap'];
+
+	$init = $_SESSION['init'];
+	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
+	if(!$con) {
+		return null;
+	}
+	
+	$res = mysql_select_db("ta".$sem, $con);
+	if(!$res) 
+	{
+		return null;
+	}
+	/* if there is history, then update it else insert. */
+	if(!fetchHistory($sem))
+	{
+		$query = sprintf("insert into ta_record (ldap, semester, course_id) values ('%s', '%s', '%s')"
+			, mysql_real_escape_string($ldap)
+			, mysql_real_escape_string($sem)
+			, mysql_real_escape_string($course)
+		);
+
+		$res = mysql_query($query, $con);
+		return $res;
+	}
+	else /* there is an entry, update it. */
+	{
+		$query = sprintf("update ta_record set semester='%s', course_id='%s' where ldap='%s'"
+			, mysql_real_escape_string($sem)
+			, mysql_real_escape_string($course)
+			, mysql_real_escape_string($ldap)
+		);
+		$res = mysql_query($query, $con);
+		return $res;
+	}
+}
+
+/* return course-id of ta-job done in particular semester. */
+function fetchHistory($sem)
+{
+	$init = $_SESSION['init'];
+	$base_url = "http://".$init['base_url'];
+	$this_sem = $_SESSION['sem'];
+	$ldap = $_SESSION['ldap'];
+
+	$init = $_SESSION['init'];
+	$con = mysql_connect($init['db_ip'], $init['db_user'], $init['db_pass']);
+	if(!$con) {
+		return null;
+	}
+	
+	$res = mysql_select_db("ta".$sem);
+	if(!$res) { 
+		return null; 
+	}
+
+	$query = sprintf("select course_id from ta_record where ldap='%s'"
+		, $ldap
+	);
+	$res = mysql_query($query, $con);
+	$history = mysql_fetch_array($res);
+	return $history;
+}
+
+
+	
+
 ?>

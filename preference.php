@@ -72,7 +72,8 @@ else {
 
 	else {
 ?>
-<h3> Previous two semester record </h3> 
+<h3> Your history of previous two semester. </h3> 
+<small>Send an email to administrator to change them.</small>
 <table border="1">
 <tr> <td> <?php echo printSem($prevSem); ?> </td> <td> <b> <?php echo $pCourse['course_id']; ?> </b> </td> </tr>
 <tr> <td> <?php echo printSem($pprevSem); ?> </td> <td> <b> <?php echo $ppCourse['course_id']; ?> </b> </td> </tr>

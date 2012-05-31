@@ -58,4 +58,6 @@ Semester : <input type="text" name="sem" value=<?php echo getSem($conf); ?> read
 <input type="radio" name="Role" value="Teacher" />Teacher<br />
 <input type="submit" name="Submit" value="Submit" />
 </form>
-
+<font color="blue"> Even semester : <b> August to December </b> <br>
+Odd Semester :  <b>  January to May </b> </br>
+</font>
