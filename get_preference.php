@@ -27,7 +27,7 @@ else
 	if(pushPreferences($sem, $_POST)) 
 	{
 		$url = "http://".$init['base_url']."/final.php";
-		header("Loaction: url=$url");
+		header("Location: $url");
 	}
 	else 
 	{
