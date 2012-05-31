@@ -73,19 +73,11 @@ if($res)
 			$details = mysql_fetch_assoc($res);
 */
 	$details = getStudentInformation($acad_sem);
-	if(!$details)
+	if(!checkStudentDetails($details))
 	{
-		echo printErrorSevere("I can not locate database for this semseter. Failed with ".mysql_error());
-		echo mysql_error();
-		header("Refresh: 3, url=$base_url./eeta.php");
-	}
-	else 
-	{
-		if(!checkStudentDetails($details))
-		{
-			$complete_info = false;
-			echo printErrorSevere("Your details are not complete or missing. ");
-			echo printStudentInfo($details);
+		$complete_info = false;
+		echo printErrorSevere("Your details are not complete or missing. ");
+		echo printStudentInfo($details);
 ?>
 				<br>
 				<form method="post" action="get_info.php">
@@ -94,14 +86,14 @@ if($res)
 				<br>
 <?php
 
-		}
-		else 
-		{
-			session_write_close();
-			echo "<b> Your details in my database </b> <br> <br>";
-			echo printStudentInfo($details);
+	}
+	else 
+	{
+		session_write_close();
+		echo "<b> Your details in my database </b> <br> <br>";
+		echo printStudentInfo($details);
 
-			### Ok or edit.
+		### Ok or edit.
 ?>
 				<br>
 				<form method="post" action="get_info.php">
@@ -110,7 +102,6 @@ if($res)
 				</form>
 				<br>
 <?php
-		}
 	}
 }
 

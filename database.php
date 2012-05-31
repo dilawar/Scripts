@@ -6,9 +6,9 @@ include('seq_func.php');
 session_start();
 $_SESSION['entry_ok'] = "";
 $init = $_SESSION['init'];
-print_r($_POST);
 
-if($_POST['response'] == "Submit")
+print_r($_POST);
+if(strcmp($_POST['response'] , "Submit") == 0)
 {
 	$ldap = $_SESSION['ldap'];
 	$ip = $init['db_ip'];
@@ -32,17 +32,19 @@ if($_POST['response'] == "Submit")
 		$_graduatingOn = $_POST['graduatingOn'];	
 		
 		/* check if entry is already there. */
+		mysql_select_db("eestudents", $con);
 		$query = sprintf("select * from student where ldap='%s'",
 					mysql_real_escape_string($_ldap));
-		$res = mysql_db_query("eestudents", $query, $con);
+		$res = mysql_query($query, $con);
 		if(!$res) {
 			echo "Error in query :".mysql_error();
 		}
 		else {
-			$entry = mysql_fetch_assoc($res);
-			if(count($entry) > 0) 
+			$entry = mysql_fetch_array($res);
+			if($entry) 
 			{
 				echo "Updating your entry ...<br>";
+				mysql_select_db("eestudents", $con);
 				$query = sprintf("update student set ldap='%s', roll = '%s', program='%s', category='%s', specialization='%s', graduatingOn='%s'"
 					, mysql_real_escape_string($_ldap)
 					, mysql_real_escape_string($_roll)
@@ -62,8 +64,9 @@ if($_POST['response'] == "Submit")
 			}
 			else {
 				echo "Inserting your entry into database ... <br>";
+				mysql_select_db("eestudents", $con);
 				$query = sprintf("insert into student (ldap, roll, program, category, specialization, graduatingOn) 
-					values ('%s', '%s', '%s', '%s', '%s' )", 
+					values ('%s', '%s', '%s', '%s', '%s', '%s' )", 
 					mysql_real_escape_string($_ldap)
 					, mysql_real_escape_string($_roll)
 					, mysql_real_escape_string($_program)
@@ -71,7 +74,7 @@ if($_POST['response'] == "Submit")
 					, mysql_real_escape_string($_specialization)
 					, mysql_real_escape_string($_graduatingOn)
 				);
-				$res = mysql_db_query("eestudents", $query, $con);
+				$res = mysql_query($query, $con);
 
 				if(!$res) {
 					echo printErrorSevere("I can not add you now ! Redirecting in 3 sec...");

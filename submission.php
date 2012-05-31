@@ -4,7 +4,7 @@ session_start();
 
 include('error.php');
 include('print.php');
-include('func.php');
+//include('func.php');
 ?>
 
 <h3> Thanks for submitting your details. </h3>
