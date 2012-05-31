@@ -1,7 +1,6 @@
 <?php include('header.php'); ?>
 <?php
 session_start();
-include('func.php');
 include('error.php');
 include('sql_func.php');
 
@@ -24,7 +23,7 @@ else
 {
 	$sem = $this_sem;
 	$res = pushPreferences($sem, $_POST);
-	if(pushPreferences($sem, $_POST)) 
+	if($res) 
 	{
 		$url = "http://".$init['base_url']."/final.php";
 		header("Location: $url");

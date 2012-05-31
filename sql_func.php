@@ -94,7 +94,7 @@ function pushPreferences($sem, $post)
 		$second = $post['second'];
 		$third = $post['third'];
 		/* if entry is already present then update else insert. */
-		if(getPreferennces($sem))
+		if(getPreferences($sem))
 		{
 			$res = mysql_select_db($db, $con);
 			$query = sprintf("update preference set first='%s', second='%s'
