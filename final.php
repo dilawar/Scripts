@@ -13,8 +13,7 @@ $init = $_SESSION['init'];
 $base_url = "http://".$init['base_url'];
 $this_sem = $_SESSION['sem'];
 
-echo printWarning("Your preferences have been recodred successfully.");
-echo "<br><br>";
+echo printWarning("Your details are recorded successfully.");
 $details = getStudentInformation($this_sem);
 if(!$details)
 {
@@ -23,7 +22,7 @@ if(!$details)
 }
 else {
 	$msg = "<html> <body>";
-	$msg .= "<h3>Your personal details. <h3>";
+	$msg .= "<h3>Basic information <h3>";
 	$msg .= printStudentInfo($details);
 }
 $history = getHistory($this_sem, 2);
@@ -34,7 +33,7 @@ $ppCourse = $history[1];
 $course1 = getCourseNameFaculty($pCourse['course_id']);
 $course2 = getCourseNameFaculty($ppCourse['course_id']);
 
-$msg .= "<h3> Last two semesters details </h3>";
+$msg .= "<h3> Last two semesters jobs </h3>";
 $msg .= "<table border=\"1\">";
 $msg .= "<tr> <td>".printSem($prevSem);
 $msg .= "</td> <td> <b>".printCourse($course1);
@@ -54,20 +53,5 @@ $msg .= "<h3> Your preferences for this semester </h3>";
 $msg .= printPreference($prefer);
 
 echo $msg;
-
-$ldap = $_SESSION['ldap'];
-$mailto = $ldap."@iitb.ac.in";
-$msg .= "<font color='red'> In case of discrepencies, please visit the application interface to update your details.</font>";
-$msg .= "<br> <br> Application link : www.".$_SESSION['base_url']."/eeta.php";
-
-$msg .= "</body></html>";
-if(sendEmail($mailto, $msg))
-{
-	echo "Mail sent successfully.";
-}
-else 
-{
-	echo "Problem sending email.";
-}
 
 ?>
