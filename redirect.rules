@@ -1,0 +1,13 @@
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+-A OUTPUT -d 10.0.0.0/8 -j RETURN
+-A OUTPUT -d 127.0.0.0/8 -j RETURN
+-A OUTPUT -d 192.168.0.0/16 -j RETURN
+-A OUTPUT -o eth0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 127.0.0.1:5123
+-A OUTPUT -o eth0 -p tcp -m tcp --dport 443 -j DNAT --to-destination 127.0.0.1:5124
+-A OUTPUT -o wlan0 -p tcp -m tcp --dport 80 -j DNAT --to-destination 127.0.0.1:5123
+-A OUTPUT -o wlan0 -p tcp -m tcp --dport 443 -j DNAT --to-destination 127.0.0.1:5124
+COMMIT
