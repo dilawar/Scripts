@@ -1,0 +1,12 @@
+#!/bin/bash
+#Run this for a Nios II SDK bash shell
+SOPC_KIT_NIOS2=/cad/altera/12.0/nios2eds
+export PATH=$PATH:$SOPC_KIT_NIOS2/bin/
+export PATH=$PATH:/cad/altera/12.0/nios2eds/bin/:/cad/altera/12.0/nios2eds/sdk2/bin:/cad/altera/12.0/nios2eds/bin/nios2-gnutools/H-i686-pc-linux-gnu/bin/:/cad/altera/12.0/nios2eds/bin/gnu/H-i686-pc-linux-gnu/bin/
+export SOPC_KIT_NIOS2
+SOPC_BUILDER_PATH_12_0=/cad/altera/12.0/nios2eds
+export SOPC_BUILDER_PATH_12_0
+unset GCC_EXEC_PREFIX
+QUARTUS_ROOTDIR=/cad/altera/12.0/quartus
+export QUARTUS_ROOTDIR
+bash --rcfile $QUARTUS_ROOTDIR/sopc_builder/bin/nios_bash
