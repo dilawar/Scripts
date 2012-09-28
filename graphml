@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from graph_tool.all import load_graph, graph_draw
+from graph_tool.draw import *
 import sys
 
 if len(sys.argv) < 1 :
@@ -9,4 +10,6 @@ if len(sys.argv) < 1 :
 
 G = load_graph(sys.argv[1], 'xml')
 if len(sys.argv) < 3 :
-  graph_draw(G)
+#  graph_draw(G, output_size=(400,400))
+    interactive_window(G, geometry=(200,200))
+
