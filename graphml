@@ -12,5 +12,6 @@ if len(sys.argv) < 1 :
 G = load_graph(sys.argv[1], 'xml')
 names = G.vertex_properties['name']
 if len(sys.argv) < 3 : 
-    interactive_window(G, vertex_text=names, geometry=(201,200))
-
+  interactive_window(G, vertex_text=names, geometry=(201,200))
+elif sys.argv[2] == 'n' :
+  interactive_window(G, geometry=(201,200))
