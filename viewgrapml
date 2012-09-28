@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+import networkx as nx
+import matplotlib.pyplot as plt
+import sys
+
+g = nx.read_graphml(sys.argv[1])
+nx.draw(g)
+plt.show()
