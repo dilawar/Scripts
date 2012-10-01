@@ -20,7 +20,7 @@ main = do
   xmonad $ defaultConfig
     { manageHook = manageDocks <+> manageHook defaultConfig <+> myManageHook
     , layoutHook = avoidStruts $ layoutHook defaultConfig
-    , terminal = "urxvt"
+    , terminal = "xfce4-terminal"
     , workspaces = myWorkspaces
     , startupHook = myStartupHook
     , logHook = myLogHook xmobar 
@@ -29,7 +29,7 @@ main = do
     [ ((mod4Mask .|. shiftMask, xK_z), spawn "xscreensaver-command -lock")
     , ((controlMask, xK_Print), spawn "sleep 0.2; scrot -s")
     , ((mod4Mask, xK_t), spawn "xterm")
-    , ((0, xK_Print), spawn "scrot")
+    , ((0, xK_Print), spawn "scrot '%Y-%m-%d_$wx$h.png' -e 'mv $f ~/Pictures/shots/'")
     , ((mod4Mask, xK_p), runOrRaisePrompt defaultXPConfig)
     , ((mod4Mask, xK_m), focusUpTaggedGlobal "mail")
     , ((mod4Mask, xK_b), focusUpTaggedGlobal "web")
@@ -37,7 +37,7 @@ main = do
     , ((0, 0x1008FF11), spawn "amixer set Master playback 3-")
     , ((0, 0x1008FF12), spawn "amixer set Master playback 0")
     , ((0, 0x1008FF13), spawn "amixer set Master playback 3+")
-    , ((controlMask, xK_t), spawn "mpc toggle")
+    , ((controlMask .|. shiftMask, xK_t), spawn "mpc toggle")
     , ((controlMask, xK_p), spawn "mpc prev")
     , ((controlMask, xK_n), spawn "mpc next")
     ]
@@ -101,7 +101,7 @@ myManageHook = ( composeAll
     , className =? "virtualbox" --> doShift ws_vms
     , appName =? "htop" --> doShift ws_stats
     , appName =? "feh" --> doShift ws_stats
---    , appName =? "xterm" --> doFloat
+    , appName =? "guake" --> doFloat
     , appName =? "dev1" --> doShift ws_dev
     , appName =? "dev2" --> doShift ws_dev
     ] ) <+> xPropManageHook xPropMatches
