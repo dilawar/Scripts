@@ -29,7 +29,7 @@ main = do
     [ ((mod4Mask .|. shiftMask, xK_z), spawn "xscreensaver-command -lock")
     , ((controlMask, xK_Print), spawn "sleep 0.2; scrot -s")
     , ((mod4Mask, xK_t), spawn "xterm")
-    , ((0, xK_Print), spawn "scrot '%Y-%m-%d_$wx$h.png' -e 'mv $f ~/Pictures/shots/'")
+    , ((0, xK_Print), spawn "scrot -e 'mv $f ~/Pictures/shots/'")
     , ((mod4Mask, xK_p), runOrRaisePrompt defaultXPConfig)
     , ((mod4Mask, xK_m), focusUpTaggedGlobal "mail")
     , ((mod4Mask, xK_b), focusUpTaggedGlobal "web")
