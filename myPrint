@@ -1,0 +1,2 @@
+#! /bin/bash
+lpr -o media=A4 -o sides=two-sided-short-edge -o number-up=2 -o prettyprint $2 $1
