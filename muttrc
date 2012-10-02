@@ -1,0 +1,116 @@
+# Name
+set realname = 'Dilawar Singh'
+## set local folder.
+set header_cache = ~/.mutt/cache/headers
+set message_cachedir = ~/.mutt/cache/bodies
+set certificate_file = ~/.mutt/certificates
+set mailcap_path=$HOME/.mailcap
+set mime_forward=yes
+set mime_forward_rest=yes
+
+
+#
+## where mails are stored
+##set folder = ~/Mail
+mailboxes =mairix-search
+mailboxes = ~/Mail/GPO
+mailboxes = ~/Mail/EE
+set spoolfile = "imaps://dilawars@imap.iitb.ac.in"
+set record = +sent
+set sort = threads
+set postponed = +drafts
+set mbox_type = MailDir
+set content_type = "text"
+set signature="~/Mail/sign.txt"
+set sig_on_top=yes
+set realname="Dilawar Singh"
+
+##message-hook ~A 'set pager=vim'
+## message-hook '~f rfs' 'set pager="less"+/^ subject: .*\""'
+
+## Editor
+set editor = "vim -c 'set spell spelllang=en syntax=mail ft=mail enc=utf-8' '+/^$'"
+ignore *
+unignore date from subject to cc
+#
+folder-hook ~/Mail/GPO 'source ~/.mutt/gpo'
+folder-hook ~/Mail/EE 'source ~/.mutt/ee'
+
+###
+set folder_format = "%2C %t %N %12s %d %f"
+set read_inc=100
+set edit_headers = yes
+set reverse_name
+
+set askbcc = yes
+set text_flowed = yes
+set smart_wrap = yes
+set pager_stop = yes
+set pager_format = " %C - %[%H:%M] %.20v, %s%* %?H? [%H] ?"
+
+## reply
+set reply_self = no
+set indent_string = ">"
+set include = yes
+set attribution = "On %d, %n wrote:"
+set bounce_delivered = yes
+set quote_regexp = "^( {0,4}[>|:#]| {0,4}[a-z0-9]+[>|]+)+"
+# Folder options
+set copy = yes
+set move = no
+
+set abort_nosubject = ask-yes
+set abort_unmodified = ask-yes
+set copy = yes
+set include = yes
+set metoo  = yes # send reply to myself.
+
+set alias_file = ~/.mutt/aliases
+set pager_index_lines = 7
+set query_command = "abook --mutt-query '%s'"
+macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
+macro index,pager A "<pipe-message>abook --add-email<return>" "add the sender address to abook"
+source $alias_file
+source ~/.mutt/macros
+source ~/.mutt/gnupgp
+source ~/.mutt/ldap
+
+auto_view text/html
+
+alternative_order text/enriched text/plain text/html
+
+## macro of automatic save.
+macro attach W <save-entry><kill-line>/home/dilawar/Attachments/
+macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
+macro index ",c" "<pipe-message>~/.mutt/parse_remind.pl<enter>"
+
+#set hdrs
+my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
+my_hdr X-Mailer: 'mutt'
+#macro generic "1" ":set from 'Dilawar <dilawars@iitb.ac.in>'"
+#
+color   hdrdefault      brightcyan      default
+color   header          brightred       default "^from:"
+color   header          brightred       default "^subject:"
+color   quoted          brightgreen     default
+color   quoted          brightgreen     default
+color   signature       brightwhite     default
+
+color   indicator       blue            default
+
+color   error           red             default
+mono    error           bold
+color   status          cyan            default
+mono    status          bold
+color   tree            yellow          default
+
+color   tilde           brightmagenta   default
+color   body            red             default    "[-a-z_0-9.]+@[-a-z_0-9.]+"
+mono    body            bold                    "[-a-z_0-9.]+@[-a-z_0-9.]+"
+color   body            red             default   "^Good signature"
+mono    body            bold                    "^Good signature"
+color   body            brightwhite     default     "^Bad signature from.*"
+mono    body            bold                    "^Bad signature from.*"
+color   normal          white          default
+color   message         red            default
+color   attachment      red            blue

@@ -1,0 +1,6 @@
+### mutt option
+set sendmail="/usr/bin/msmtp"
+set envelope_from=yes
+set use_from=yes
+set realname="Dilawar Singh"
+set from="Dilawar <dilawars@iitb.ac.in>"
