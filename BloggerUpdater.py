@@ -3,6 +3,7 @@ Created on Apr 17, 2012
 @author: Vlad Gorloff
 '''
 
+import difflib
 from gdata import service
 import atom
 
@@ -37,7 +38,8 @@ class BloggerUpdater:
     def GetPostByTitle(self, title):
         feed = self.blogger_service.GetFeed('/feeds/' + self.blog_id + '/posts/default')
         for entry in feed.entry:
-            if entry.title.text == title:
+            print difflib.SequenceMatcher(None, entry.title.text)
+            if difflib.SequenceMatcher(None, entry.title.text, title).ratio() > 0.7 :
                 return entry
         return None
     

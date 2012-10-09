@@ -2,6 +2,8 @@
 '''
 Created on Apr 17, 2012
 @author: Vlad Gorloff
+
+Modified by Dilawar for personal use.
 '''
 
 import os
@@ -26,8 +28,8 @@ def main(argv=None):
     
     # Getting command line arguments   
     try:
-        opts, args = getopt.getopt(argv[1:], "b:p:s:h",
-                                   ["blog", "post", "src", "user=", "pass=", "help"])
+        opts, args = getopt.getopt(argv[1:], "p:s:h",
+                                   ["post", "src", "help"])
     except getopt.GetoptError, err:
         print str(err)
         usage()
@@ -42,21 +44,30 @@ def main(argv=None):
         if o in ("-h", "--help"):
             usage()
             return 0
-        elif o in ("-b", "--blog"):
-            blog = a
         elif o in ("-p", "--post"):
             post = a
         elif o in ("-s", "--src"):
             src = a
-        elif o in ("--user"):
-            user = a
-        elif o in ("--pass"):
-            password = a
         else:
             print "unknown option: " + o
             usage()
             return 1
         
+    file = open('/home/dilawar/.bloggerrc', 'r');
+    for line in file :
+      line = line.split('=')
+      key = line[0]
+      value = line[1]
+      if key.strip() == "blog" :
+        blog = value.strip()
+      elif key.strip() == "user" :
+        user = value.strip()
+      elif key.strip() == "password" :
+        password = value.strip()
+      else :
+        print key, "Unknown option"
+        return 1
+
     # Checking required arguments (if variable not exist NameError raised)
     try:
         blog
@@ -65,6 +76,7 @@ def main(argv=None):
         user
         password
     except NameError:
+        print blog, post, src, user, password
         usage()
         return 1
     
