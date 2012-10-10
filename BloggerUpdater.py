@@ -38,7 +38,6 @@ class BloggerUpdater:
     def GetPostByTitle(self, title):
         feed = self.blogger_service.GetFeed('/feeds/' + self.blog_id + '/posts/default')
         for entry in feed.entry:
-            print difflib.SequenceMatcher(None, entry.title.text)
             if difflib.SequenceMatcher(None, entry.title.text, title).ratio() > 0.7 :
                 return entry
         return None
@@ -49,3 +48,4 @@ class BloggerUpdater:
         contentType = postEntry.content.type
         postEntry.content = atom.Content(contentType, None, newContent)
         return self.blogger_service.Put(postEntry, postEntry.GetEditLink().href)
+
