@@ -8,8 +8,6 @@ set mailcap_path=$HOME/.mailcap
 set mime_forward=yes
 set mime_forward_rest=yes
 
-
-#
 ## where mails are stored
 ##set folder = ~/Mail
 mailboxes =mairix-search
