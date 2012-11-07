@@ -20,7 +20,7 @@ main = do
   xmonad $ defaultConfig
     { manageHook = manageDocks <+> manageHook defaultConfig <+> myManageHook
     , layoutHook = avoidStruts $ layoutHook defaultConfig
-    , terminal = "xfce4-terminal"
+    , terminal = "gnome-terminal"
     , workspaces = myWorkspaces
     , startupHook = myStartupHook
     , logHook = myLogHook xmobar 
@@ -37,9 +37,9 @@ main = do
     , ((0, 0x1008FF11), spawn "amixer set Master playback 3-")
     , ((0, 0x1008FF12), spawn "amixer set Master playback 0")
     , ((0, 0x1008FF13), spawn "amixer set Master playback 3+")
-    , ((controlMask .|. shiftMask, xK_t), spawn "mpc toggle")
-    , ((controlMask, xK_p), spawn "mpc prev")
-    , ((controlMask, xK_n), spawn "mpc next")
+    , ((controlMask .|. altMask, xK_t), spawn "mpc toggle")
+    , ((controlMask .|. altMask, xK_p), spawn "mpc prev")
+    , ((controlMask .|. altMask, xK_n), spawn "mpc next")
     ]
  
 ws_term = "1:control"
