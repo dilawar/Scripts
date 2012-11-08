@@ -1,6 +1,4 @@
 # Name
-set realname = 'Dilawar Singh'
-
 ## set local folder.
 set header_cache = ~/.mutt/cache/headers
 set message_cachedir = ~/.mutt/cache/bodies
@@ -54,10 +52,10 @@ set pager_index_lines = 7
 ## Muttrc file for ee and gpo accounts.
 
 mailboxes 'imaps://imap.iitb.ac.in' \
-          'imaps://sandesh.ee.iitb.ac.in' 
+          'imaps://sandesh.ee.iitb.ac.in' \ 
 
 ## Folder hooks
-folder-hook 'imaps://imap.iitb.ac.in' "\
+folder-hook 'imaps://imap.iitb.ac.in' " \
   set spoolfile='+INBOX' \
   record='+INBOX.Sent' \
   imap_user='dilawars' \
@@ -71,8 +69,8 @@ folder-hook 'imaps://imap.iitb.ac.in' "\
 
 ## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
 #will arise.
-folder-hook 'imaps://sandesh.ee.iitb.ac.in' "\ 
-set folder='imaps://sandesh.ee.iitb.ac.in' \
+folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
+  set folder='imaps://sandesh.ee.iitb.ac.in' \
   spoolfile='+INBOX' \
   imap_user='dilawar' \
   imap_pass=$EE_PASS \
@@ -87,6 +85,7 @@ set folder='imaps://sandesh.ee.iitb.ac.in' \
 set query_command = "~/.mutt/mutt-ldap.py '%s'"
 set timeout=60	#Check for mail every minute
 set mail_check=5
+set sleep_time=0
 #
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
