@@ -1,0 +1,91 @@
+# Name
+set realname = 'Dilawar Singh'
+
+## set local folder.
+set header_cache = ~/.mutt/cache/headers
+set message_cachedir = ~/.mutt/cache/bodies
+set certificate_file = ~/.mutt/certificates
+set mailcap_path=$HOME/.mailcap
+set mime_forward=yes
+set mime_forward_rest=yes
+set sig_on_top=yes
+
+## Editor
+set editor = "vim -c 'set spell spelllang=en syntax=mail ft=mail enc=utf-8' '+/^$'"
+ignore *
+unignore date from subject to cc
+#
+
+###
+set folder_format = "%2C %t %N %12s %d %f"
+set read_inc=100
+set edit_headers = yes
+set reverse_name
+
+set askbcc = yes
+set text_flowed = yes
+set smart_wrap = yes
+set pager_stop = yes
+set pager_format = " %C - %[%H:%M] %.20v, %s%* %?H? [%H] ?"
+
+## reply
+set reply_self = no
+set indent_string = ">"
+set include = yes
+set attribution = "On %d, %n wrote:"
+set bounce_delivered = yes
+set quote_regexp = "^( {0,4}[>|:#]| {0,4}[a-z0-9]+[>|]+)+"
+# Folder options
+set copy = yes
+set move = no
+auto_view text/html
+
+alternative_order text/enriched text/plain text/html
+
+set abort_nosubject = ask-yes
+set abort_unmodified = ask-yes
+set copy = yes
+set include = yes
+set metoo  = yes # send reply to myself.
+
+set alias_file = ~/.mutt/aliases
+set pager_index_lines = 7
+
+## Muttrc file for ee and gpo accounts.
+account-hook . 'unset preconnect imap_user imap_pass imap_authenticators; set ssl_starttls=ask-yes'
+account-hook imaps://imap.iitb.ac.in/ 'set imap_user=dilawars imap_pass=$GPO_PASS'
+account-hook imaps://sandesh.ee.iitb.ac.in/ 'set imap_user=dilawar imap_pass=$EE_PASS'
+
+
+## Folder hooks
+set folder="imaps://imap.iitb.ac.in"
+mailboxes =INBOX =Sent =Draft =TODO
+folder-hook 'imaps://imap.iitb.ac.in' " \ 
+  set folder=imaps://imap.iitb.ac.in/INBOX \
+  record=Sent \
+  postponed=Drafts \
+  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
+  smtp_pass=$GPO_PASS \
+  signature=~/.mutt/sign.txt \
+  from='Dilawar <dilawars@iitb.ac.in>' \
+  realname='Dilawar Singh' "
+
+## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
+#will arise.
+set folder="imaps://sandesh.ee.iitb.ac.in/"
+mailboxes =INBOX =Sent =Draft =TODO
+folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
+  set folder=imaps://sandesh.ee.iitb.ac.in/INBOX \
+  record=Sent \
+  postponed=Drafts \
+  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
+  smtp_pass=$GPO_PASS \
+  signature=~/.mutt/sign.txt \
+  from='Dilawar <dilawar@ee.iitb.ac.in>' \
+  realname='Dilawar Singh' "
+
+set timeout=60	#Check for mail every minute
+set mail_check=5
+#
+
+
