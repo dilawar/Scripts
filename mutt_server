@@ -59,11 +59,10 @@ account-hook imaps://sandesh.ee.iitb.ac.in/ 'set imap_user=dilawar imap_pass=$EE
 
 ## Folder hooks
 set folder="imaps://imap.iitb.ac.in"
-mailboxes =INBOX =Sent =Draft =TODO
+mailboxes =INBOX =INBOX.TODO
 folder-hook 'imaps://imap.iitb.ac.in' " \ 
-  set folder=imaps://imap.iitb.ac.in/INBOX \
-  record=Sent \
-  postponed=Drafts \
+  set record='=INBOX.Sent' \
+  postponed='=INBOX.Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
   signature=~/.mutt/sign.txt \
@@ -73,17 +72,17 @@ folder-hook 'imaps://imap.iitb.ac.in' " \
 ## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
 #will arise.
 set folder="imaps://sandesh.ee.iitb.ac.in/"
-mailboxes =INBOX =Sent =Draft =TODO
+mailboxes =INBOX =mail/TODO
 folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
-  set folder=imaps://sandesh.ee.iitb.ac.in/INBOX \
-  record=Sent \
-  postponed=Drafts \
+  set record='=mail/Sent' \
+  postponed='=mail/Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
   signature=~/.mutt/sign.txt \
   from='Dilawar <dilawar@ee.iitb.ac.in>' \
   realname='Dilawar Singh' "
 
+set query_command = "~/.mutt/mutt-ldap.py '%s'"
 set timeout=60	#Check for mail every minute
 set mail_check=5
 #
