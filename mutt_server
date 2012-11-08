@@ -22,7 +22,7 @@ set read_inc=100
 set edit_headers = yes
 set reverse_name
 
-set askbcc = yes
+set askcc = yes
 set text_flowed = yes
 set smart_wrap = yes
 set pager_stop = yes
@@ -52,17 +52,17 @@ set alias_file = ~/.mutt/aliases
 set pager_index_lines = 7
 
 ## Muttrc file for ee and gpo accounts.
-account-hook . 'unset preconnect imap_user imap_pass imap_authenticators; set ssl_starttls=ask-yes'
-account-hook imaps://imap.iitb.ac.in/ 'set imap_user=dilawars imap_pass=$GPO_PASS'
-account-hook imaps://sandesh.ee.iitb.ac.in/ 'set imap_user=dilawar imap_pass=$EE_PASS'
 
+mailboxes 'imaps://imap.iitb.ac.in' \
+          'imaps://sandesh.ee.iitb.ac.in' \
 
 ## Folder hooks
-set folder="imaps://imap.iitb.ac.in"
-mailboxes =INBOX =INBOX.TODO
-folder-hook 'imaps://imap.iitb.ac.in' " \ 
-  set record='=INBOX.Sent' \
-  postponed='=INBOX.Drafts' \
+folder-hook 'imaps://imap.iitb.ac.in' " \
+  set spoolfile='+INBOX' \
+  record='+INBOX.Sent' \
+  imap_user='dilawars' \
+  imap_pass=$GPO_PASS \
+  postponed='+INBOX.Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
   signature=~/.mutt/sign.txt \
@@ -71,11 +71,12 @@ folder-hook 'imaps://imap.iitb.ac.in' " \
 
 ## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
 #will arise.
-set folder="imaps://sandesh.ee.iitb.ac.in/"
-mailboxes =INBOX =mail/TODO
 folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
-  set record='=mail/Sent' \
-  postponed='=mail/Drafts' \
+set spoolfile='+INBOX' \
+  imap_user='dilawar' \
+  imap_pass=$EE_PASS \
+  record='+mail/Sent' \
+  postponed='+mail/Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
   signature=~/.mutt/sign.txt \
