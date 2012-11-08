@@ -1,4 +1,4 @@
 #!/bin/bash 
 pwds=`gpg --decrypt ~/.mutt/password.gpg`
 eval "$pwds"
-exec mutt "$@"
+exec mutt -F ~/Scripts/mutt_server "$@"
