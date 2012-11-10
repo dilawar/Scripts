@@ -52,13 +52,15 @@ set pager_index_lines = 7
 ## Muttrc file for ee and gpo accounts.
 
 mailboxes 'imaps://imap.iitb.ac.in' \
-          'imaps://sandesh.ee.iitb.ac.in' \ 
+          'imaps://sandesh.ee.iitb.ac.in' 
 
 ## Folder hooks
 folder-hook 'imaps://imap.iitb.ac.in' " \
-  set spoolfile='+INBOX' \
+  set \
+  folder='imaps://imap.iitb.ac.in' \
+  spoolfile='+INBOX' \
   record='+INBOX.Sent' \
-  imap_user='dilawars' \
+  imap_user=dilawars \
   imap_pass=$GPO_PASS \
   postponed='+INBOX.Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
@@ -70,7 +72,8 @@ folder-hook 'imaps://imap.iitb.ac.in' " \
 ## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
 #will arise.
 folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
-  set folder='imaps://sandesh.ee.iitb.ac.in' \
+  set \
+  folder='imaps://sandesh.ee.iitb.ac.in' \
   spoolfile='+INBOX' \
   imap_user='dilawar' \
   imap_pass=$EE_PASS \
