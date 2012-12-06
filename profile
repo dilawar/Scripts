@@ -6,8 +6,6 @@
 
 # the default umask is set in /etc/profile; for setting the umask
 # for ssh logins, install and configure the libpam-umask package.
-#umask 022
-alias m="mutt -y"
 export GITAWAREPROMPT=~/Scripts/bash/git-aware-prompt
 source $GITAWAREPROMPT/main.sh
 green=$'\e[1;32m'
