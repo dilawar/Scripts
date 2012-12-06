@@ -37,6 +37,8 @@ class BloggerUpdater:
     """This will get post entry by it's title (name)"""
     def GetPostByTitle(self, title):
         feed = self.blogger_service.GetFeed('/feeds/' + self.blog_id + '/posts/default')
+        for i in feed.entry :
+          print i.title.text
         for entry in feed.entry:
             if difflib.SequenceMatcher(None, entry.title.text, title).ratio() > 0.7 :
                 return entry

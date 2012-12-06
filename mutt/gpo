@@ -1,0 +1,6 @@
+set imap_user=dilawars
+set imap_pass=^kurukchetra
+set use_from=yes
+set realname="Dilawar Singh"
+set sendmail="/usr/bin/msmtp"
+set from="Dilawar <dilawars@iitb.ac.in>"
