@@ -9,7 +9,7 @@ set mime_forward=yes
 set mime_forward_rest=yes
 
 ## where mails are stored
-##set folder = ~/Mail
+set folder = ~/Mail
 mailboxes =mairix-search
 mailboxes = ~/Mail/GPO
 mailboxes = ~/Mail/EE
@@ -17,6 +17,7 @@ source ~/.mutt/server
 source ~/.mutt/gpo 
 set sort = threads
 set postponed = +drafts
+#set record = +sent
 set mbox_type = MailDir
 set content_type = "text"
 set signature="~/.mutt/sign.txt"
@@ -68,6 +69,9 @@ set query_command = "abook --mutt-query '%s'"
 macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
 macro index,pager A "<pipe-message>abook --add-email<return>" "add the sender address to abook"
 source $alias_file
+source ~/.mutt/macros
+source ~/.mutt/gnupgp
+source ~/.mutt/ldap
 
 auto_view text/html
 
