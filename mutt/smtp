@@ -1,0 +1,3 @@
+set smtp_url="smtp://dilawars@smtp-auth.iitb.ac.in:25"
+set smtp_pass="%rashmirathi"
+
