@@ -47,7 +47,7 @@ with zipfile.ZipFile(assign, "r") as myzip :
     listobj = myzip.infolist()
     for obj in listobj :
         zippedFile = obj.filename
-        filename = zippedFile.split("._")
+        filename = zippedFile.split("_")
         studentName = filename[0].strip()
         file = filename[1]
         assignments[studentName].append(file)
