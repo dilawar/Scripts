@@ -84,12 +84,15 @@ def main(argv=None):
 
     if get :
       post = updater.GetPostByTitle(get)
-      fileName = (post.title.text).strip()
-      fileName = re.sub(r"\s+", "", fileName)
-      f = open(fileName+".html", 'w')
-      f.write(post.content.text)
-      f.close()
-      return
+      if post :
+        fileName = (post.title.text).strip()
+        fileName = re.sub(r"\s+", "", fileName)
+        f = open(fileName+".html", 'w')
+        f.write(post.content.text)
+        f.close()
+        return
+      else :
+        print "I can't find post named "+get
    
     elif src :  
       content1 = open(src, 'r').read()              # Opening source HTML for reading
