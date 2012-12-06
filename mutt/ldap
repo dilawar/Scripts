@@ -1,0 +1,2 @@
+set query_command = "~/.mutt/mutt-ldap.py '%s'"
+
