@@ -8,7 +8,7 @@ from collections import defaultdict
 
 
 
-assign = sys.argv[1]
+inputFile = sys.argv[1]
 curDir = os.getcwd()
 
 assignments = defaultdict(list)
@@ -43,7 +43,7 @@ def extract_asssignments(dir):
 
 
 
-with zipfile.ZipFile(assign, "r") as myzip :
+with zipfile.ZipFile(inputFile, "r") as myzip :
     listobj = myzip.infolist()
     for obj in listobj :
         zippedFile = obj.filename
