@@ -141,5 +141,5 @@ xrdb ~/Scripts/Xdefaults
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
 export NNTPSERVER=news.iitb.ac.in
-
 source ~/Scripts/hot_dirs
+source ~/Scripts/profile
