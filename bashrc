@@ -113,7 +113,8 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
 fi
 export PATH=$PATH:/usr/local/bin/bin:/usr/bin:/usr/sbin:/usr/local/bin/Leo:/cad:/cad/bin:/cad/lib:/usr/local/mosml/bin
 export PATH=$PATH:/sbin
-export PATH=$PATH:~/Scripts:/Cad/Xilinx/ISE_DS/ISE/bin/lin
+export PATH=$PATH:~/Scripts
+export PATH=$PATH:/opt/Xilinx/13.4/ISE_DS/ISE/bin/lin
 export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
 export PATH=$PATH:/cad/altera/12.0/modelsim_ase/bin/
 export PATH=$PATH:/usr/local/bin/gephi/bin/
