@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # $1 is the action (append, show, remove)
