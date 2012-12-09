@@ -21,11 +21,10 @@ elif sys.argv[2] == 'n' :
 elif sys.argv[2] == 'x' :
   interactive_window(G, geometry=(201,200))
 elif sys.argv[2] == "-f" :
-  filePath = "/tmp/"+sys.argv[3]+".png"
+  filePath = sys.argv[3]+".png"
   if os.path.exists(filePath) :
     os.remove(filePath)
     graph_draw(G, vertex_text=names, output=filePath)
   else :
     graph_draw(G, vertex_text=names, output=filePath)
-  shutil.copy(filePath, "./"+sys.argv[3]+".png")
 
