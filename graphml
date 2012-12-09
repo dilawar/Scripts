@@ -4,6 +4,8 @@ from IPython import embed
 from graph_tool.all import load_graph, graph_draw
 from graph_tool.draw import *
 import sys
+import os
+import shutil
 
 if len(sys.argv) < 1 :
   print "usage : graphml [x | n] [-f filename]"
@@ -19,4 +21,11 @@ elif sys.argv[2] == 'n' :
 elif sys.argv[2] == 'x' :
   interactive_window(G, geometry=(201,200))
 elif sys.argv[2] == "-f" :
-  graph_draw(G, vertex_text=names, output=sys.argv[3]+".pdf")
+  filePath = "/tmp/"+sys.argv[3]+".png"
+  if os.path.exists(filePath) :
+    os.remove(filePath)
+    graph_draw(G, vertex_text=names, output=filePath)
+  else :
+    graph_draw(G, vertex_text=names, output=filePath)
+  shutil.copy(filePath, "./"+sys.argv[3]+".png")
+
