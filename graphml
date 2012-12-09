@@ -6,7 +6,7 @@ from graph_tool.draw import *
 import sys
 
 if len(sys.argv) < 1 :
-  print "usage : viewgraphml filename"
+  print "usage : graphml [x | n] [-f filename]"
   sys.exit()
 
 G = load_graph(sys.argv[1], 'xml')
