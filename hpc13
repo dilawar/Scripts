@@ -1,2 +1,0 @@
-#!/bin/bash 
-ssh -X dilawars@hpc13 gnome-terminal
