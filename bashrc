@@ -116,7 +116,8 @@ export PATH=$PATH:/sbin
 export PATH=$PATH:/home/dilawar/Scripts/
 export PATH=$PATH:/opt/Xilinx/13.4/ISE_DS/ISE/bin/lin
 export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
-export PATH=$PATH:/cad/altera/12.0/modelsim_ase/bin/
+export PATH=$PATH:/opt/altera10.1/modelsim_ase/bin/
+export PATH=$PATH:/opt/altera10.1/quartus/bin
 export PATH=$PATH:/usr/local/bin/gephi/bin/
 
 export MMSIMHOME=/cad/cadence/mmsim
