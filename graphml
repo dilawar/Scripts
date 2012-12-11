@@ -4,16 +4,27 @@ from IPython import embed
 from graph_tool.all import load_graph, graph_draw
 from graph_tool.draw import *
 import sys
+import os
+import shutil
 
 if len(sys.argv) < 1 :
-  print "usage : viewgraphml filename"
+  print "usage : graphml [x | n] [-f filename]"
   sys.exit()
 
 G = load_graph(sys.argv[1], 'xml')
-names = G.vertex_properties['label']
+names = G.vertex_properties['name']
+labels = G.vertex_properties['label']
 if len(sys.argv) < 3 : 
-  interactive_window(G, vertex_text=names, geometry=(201,200))
+  interactive_window(G, vertex_text=labels, geometry=(201,200))
 elif sys.argv[2] == 'n' :
+  interactive_window(G, vertex_text=names, geometry=(201,200))
+elif sys.argv[2] == 'x' :
   interactive_window(G, geometry=(201,200))
 elif sys.argv[2] == "-f" :
-  graph_draw(G, vertex_text=names, output=sys.argv[3]+".pdf")
+  filePath = sys.argv[3]+".png"
+  if os.path.exists(filePath) :
+    os.remove(filePath)
+    graph_draw(G, vertex_text=names, output=filePath)
+  else :
+    graph_draw(G, vertex_text=names, output=filePath)
+
