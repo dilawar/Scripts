@@ -101,6 +101,6 @@ if __name__ == '__main__':
     entries = search(query)
     addresses = list(itertools.chain(
             *[format_entry(e) for e in sorted(entries)]))
-    print '%d addresses found:' % len(addresses)
+    print("{0} addresses found:".format(len(addresses)))
     for i in addresses :
-        print i
+        print("{0}".format(i))

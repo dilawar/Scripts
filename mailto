@@ -1,2 +1,2 @@
-#!/bin/sh 
-exec urxvt -e m "$@"
+#!/bin/bash 
+exec urxvt -e ~/Scripts/m "$@"
