@@ -40,6 +40,8 @@ main = do
     , ((controlMask .|. mod1Mask, xK_t), spawn "mpc toggle")
     , ((controlMask .|. mod1Mask, xK_p), spawn "mpc prev")
     , ((controlMask .|. mod1Mask, xK_n), spawn "mpc next")
+    , ((controlMask .|. mod1Mask, xK_d), spawn "~/Scripts/manage_mpc.sh -d")
+    , ((controlMask .|. mod1Mask, xK_a), spawn "~/Scripts/manage_mpc.sh -a")
     ]
  
 ws_term = "1:control"
@@ -120,5 +122,5 @@ xPropMatches = [ ([(wM_CLASS, any ("mutt"==))], pmX(addTag "mail"))
                , ([(wM_CLASS, any ("rhythmbox"==))], pmX(addTag "mus"))
                , ([(wM_CLASS, any ("centerim"==))], pmX(addTag "chat"))
                , ([(wM_CLASS, any ("firefox"==))], pmX(addTag "web"))
-               , ([(wM_CLASS, any ("anjuta"==))], pmX(addTag "dev"))
+               , ([(wM_CLASS, any ("eclipse"==))], pmX(addTag "dev"))
                ]
