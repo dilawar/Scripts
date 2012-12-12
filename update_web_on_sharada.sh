@@ -6,7 +6,7 @@ then
 elif [ "$1" = "y" ] 
 then 
   echo "Pulling web on sharada from origin."
-  ssh dilawar@sharada.ee.iitb.ac.in "cd public_html && git pull";
+  ssh dilawar@sharada.ee.iitb.ac.in "cd public_html && git stash save && git pull";
 else 
   echo "Usage : arg x to push or y to pull."
 fi
