@@ -61,7 +61,7 @@ myBattery :: String
 myBattery = "~/Scripts/battery.sh"
 
 myConkyBar :: String
-myConkyBar = "sleep 1 && conky -c ~/.conky_time | dzen2 -fn '-*-terminus-bold-r-normal-*-12-*-*-*-*-*-*-*' -bg black -fg green -h 10 -sa c -x 1000 -y 0 -e '' -ta r -xs 1"
+myConkyBar = "sleep 1 && conky -c ~/Scripts/conky_time | dzen2 -fn '-*-terminus-bold-r-normal-*-12-*-*-*-*-*-*-*' -bg black -fg green -h 10 -sa c -x 1000 -y 0 -e '' -ta r -xs 1"
  
 myLogHook :: Handle -> X ()
 myLogHook xmobar = dynamicLogWithPP $ defaultPP {
