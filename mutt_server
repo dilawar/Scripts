@@ -65,7 +65,7 @@ folder-hook 'imaps://imap.iitb.ac.in' " \
   postponed='+INBOX.Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
-  signature=~/.mutt/sign.txt \
+  signature=~/Scripts/mutt/sign.txt \
   from='Dilawar <dilawars@iitb.ac.in>' \
   realname='Dilawar Singh' "
 
@@ -81,7 +81,7 @@ folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \
   postponed='+mail/Drafts' \
   smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
   smtp_pass=$GPO_PASS \
-  signature=~/.mutt/sign.txt \
+  signature=~/Scripts/mutt/sign.txt \
   from='Dilawar <dilawar@ee.iitb.ac.in>' \
   realname='Dilawar Singh' "
 
