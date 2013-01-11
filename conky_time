@@ -1,0 +1,11 @@
+gap_y -1000
+
+double_buffer yes
+out_to_console yes
+own_window yes
+own_window_type desktop
+update_interval 1.0
+
+TEXT
+^p(5)${time %a %b %e %H:%M %Z}^p(5)
+
