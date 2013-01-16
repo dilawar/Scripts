@@ -13,7 +13,7 @@ import XMonad.StackSet(stack)
 import XMonad.Actions.TagWindows
  
 main = do
-  xmobar <- spawnPipe "xmobar"
+  xmobar <- spawnPipe "xmobar ~/Scripts/xmobarrc"
   workspaceBarPipe <- spawnPipe myStatusBar
 --  spawn myBattery
 --  spawn myConkyBar
