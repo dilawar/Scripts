@@ -16,9 +16,9 @@ names = G.vertex_properties['name']
 labels = G.vertex_properties['label']
 if len(sys.argv) < 3 : 
   interactive_window(G, vertex_text=labels, geometry=(201,200))
-elif sys.argv[2] == 'n' :
+elif sys.argv[2] == '-n' :
   interactive_window(G, vertex_text=names, geometry=(201,200))
-elif sys.argv[2] == 'x' :
+elif sys.argv[2] == '-x' :
   interactive_window(G, geometry=(201,200))
 elif sys.argv[2] == "-f" :
   filePath = sys.argv[3]+".png"
