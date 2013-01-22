@@ -10,6 +10,7 @@ Config {
   , Run BatteryP ["BAT0"] ["-t", "<acstatus><watts>(<left>%)",
       "-L","30","-H","75", "-p", "3"
       , "--", "-O", "<fc=green>On</fc> - ", "-o", ""
+      , "-c", "energy_full"
       , "-L","-15","-H","-5"
       , "-h","green","-m","blue","-l","red"] 60
   , Run Memory ["-t","Mem: <usedratio>%", "-l", "green", "--normal","orange","--high","red"] 3
