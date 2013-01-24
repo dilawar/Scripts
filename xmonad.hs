@@ -56,7 +56,7 @@ ws_vms = "8:vms"
 ws_9 = "9:others"
 
 myStatusBar :: String
-myStatusBar = "dzen2 -fn '-*-terminus-bold-r-normal-*-12-*-*-*-*-*-*-*'  -bg '#000000' -fg '#444444' -sa c -x 0 -y 0 -e '' -ta l -xs 1"
+myStatusBar = "dzen2 -a -fn '-*-terminus-bold-r-normal-*-12-*-*-*-*-*-*-*'  -bg '#000000' -fg '#444444' -sa c -x 0 -y 0 -e '' -ta l -xs 1"
 
 myBattery :: String
 myBattery = "~/Scripts/battery.sh"
