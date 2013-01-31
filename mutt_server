@@ -47,6 +47,7 @@ set include = yes
 set metoo  = yes # send reply to myself.
 
 set alias_file = ~/.mutt/aliases
+source $alias_file
 set pager_index_lines = 7
 
 ## Muttrc file for ee and gpo accounts.
