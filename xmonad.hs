@@ -28,7 +28,7 @@ main = do
     } `additionalKeys`
     [ ((mod4Mask .|. shiftMask, xK_z), spawn "xscreensaver-command -lock")
     , ((controlMask, xK_Print), spawn "sleep 0.2; scrot -s")
-    , ((mod4Mask, xK_t), spawn "xterm")
+    , ((mod4Mask, xK_t), spawn "xfce4-terminal")
     , ((0, xK_Print), spawn "scrot -e 'mv $f ~/Pictures/shots/'")
     , ((mod4Mask, xK_p), runOrRaisePrompt defaultXPConfig)
     , ((mod4Mask, xK_m), focusUpTaggedGlobal "mail")
