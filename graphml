@@ -21,13 +21,17 @@ if len(sys.argv) < 3 :
   interactive_window(G, vertex_text=labels, geometry=(201,200))
 elif sys.argv[2] == '-n' :
   newNames = G.new_vertex_property("string")
-  loc = sys.argv[3]
-  for v in G.vertices() :
-    if len(names[v]) > 3 :
-      newNames[v] = names[v][-loc:]
+  if len(sys.argv) > 3 :
+    l = int(sys.argv[3])
+    for v in G.vertices() :
+      if len(names[v]) > l :
+        newNames[v] = names[v][-l:]
+      else :
+        newNames[v] = names[v]
+    interactive_window(G, vertex_text=newNames, geometry=(201,200))
   else :
-    newNames[v] = names[v]
-  interactive_window(G, vertex_text=newNames, geometry=(201,200))
+    interactive_window(G, vertex_text=names, geometry=(201,200))
+
 elif sys.argv[2] == '-x' :
   interactive_window(G, geometry=(201,200))
 elif sys.argv[2] == "-f" :
