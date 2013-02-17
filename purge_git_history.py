@@ -31,3 +31,9 @@ else :
   print(usage)
   sys.exit()
 
+## Purge the local references.
+sys.command("rm -rf ./.git/refs/original")
+sys.command("git reflog expire --expire=now --all")
+sys.command("git gc --prune=now")
+sys.command("git push origin master --force)
+
