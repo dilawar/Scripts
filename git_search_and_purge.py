@@ -29,32 +29,33 @@ def search_files(size, pat) :
       if splitdata[-1] == "-":
         continue
       size = int(splitdata[-1])
-      path = "".join(splitdata[1:len(splitdata)-3])
+      path = " ".join(splitdata[0:len(splitdata)-3])
       if (size > maxSize):
         path = path.split("\x00100")
-        bigfiles.add("{0} {1} {2}".format(size, commit, path[0]))
+        bigfiles.add("{2}".format(size, commit, path[0]))
 
   bigfiles = sorted(bigfiles, reverse=True)
 
   for f in bigfiles:
     filename = f.split()[-1].split("/")[-1]
+    filepath = f.split("<>")[-1]
     if(len(sys.argv) > 3) :
       pat = sys.argv[4]
       if(re.match(pat, filename)) :
-        foundFiles.add(f.strip())
+        foundFiles.add(filepath.strip())
       else : pass
     else :
-      foundFiles.add(f.strip())
+      foundFiles.add(filepath.strip())
   return foundFiles
 
 
-def purge_files(files) :
-  for filename in files :
-    print("Purging file {0} ...".format(filename))
-    command = '''git filter-branch -f --index-filter 'git rm -f {0}' 
-        --tag-name-filter cat -- --all'''.format(filename)
-    command = string.replace(command, "\n", " ")
-    subprocess.call(command, shell=True)
+def purge_file(filename) :
+  print("|- Purging file {0} ...".format(filename))
+  command = '''git filter-branch -f --index-filter 
+  'git rm --cached --ignore-unmatch {0}'
+   --prune-empty --tag-name-filter cat -- --all'''.format(filename)
+  command = string.replace(command, "\n", " ")
+  subprocess.call(command, shell=True)
 
 if __name__ == "__main__" :
   usage = "Usage : git_search_and_purge.py -s size_in_bytes [-e regex]"
@@ -68,10 +69,12 @@ if __name__ == "__main__" :
     regex = ".*"
   
   files = search_files(size, regex)
-  print files
+  for file in files :
+    file = string.replace(file, " ", "\ ")
+    purge_file(file)
   ### Purge the local references.
-  #subprocess.call("rm -rf ./.git/refs/original", shell=True)
-  #subprocess.call("git reflog expire --expire=now --all", shell=True)
-  #subprocess.call("git gc --prune=now", shell=True)
-  #subprocess.call("git push origin master --force", shell=True)
+  subprocess.call("rm -rf ./.git/refs/original", shell=True)
+  subprocess.call("git reflog expire --expire=now --all", shell=True)
+  subprocess.call("git gc --prune=now", shell=True)
+  subprocess.call("git push origin master --force", shell=True)
 
