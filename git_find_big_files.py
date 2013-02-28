@@ -4,14 +4,15 @@
 # 
 import os, sys
 import string
+import re
 
 def getOutput(cmd):
   return os.popen(cmd).read()
 
-if (len(sys.argv) <> 2):
-  print "usage: %s size_in_bytes" % sys.argv[0]
+if (len(sys.argv) < 3):
+  print "usage: %s -s size_in_bytes -e regex" % sys.argv[0]
 else:
-  maxSize = int(sys.argv[1])
+  maxSize = int(sys.argv[2])
 
   revisions = getOutput("git rev-list HEAD").split()
 
@@ -36,4 +37,13 @@ else:
   bigfiles = sorted(bigfiles, reverse=True)
 
   for f in bigfiles:
+    filename = f.split()[-1].split("/")[-1]
+    if(len(sys.argv) > 3) :
+      pat = sys.argv[4]
+      if(re.match(pat, filename)) :
+        print f
+      else : pass
+    else :
       print f
+
+
