@@ -12,12 +12,10 @@ if len(sys.argv) < 3 :
 if sys.argv[1] == "-f" :
   filename = sys.argv[2]
   print("Purging file {0} ...".format(filename))
-  subprocess.call(["git filter-branch "
-    , "-f --index-filter"
-    , "\"git rm -f-cached --ignore-unmatch" , filename, "\""
-    , "--prune-empty --tag-name-filter cat"
-    , "-- --all"]
-    , shell=True)
+  command = '''git filter-branch -f --index-filter 'git rm -f {0}' 
+    --tag-name-filter cat -- --all'''.format(filename)
+  command = string.replace(command, "\n", " ")
+  subprocess.call(command, shell=True)
 
 elif sys.argv[1] == "-d" :
   dirname = sys.argv[2]
