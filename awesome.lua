@@ -16,7 +16,7 @@ function activeram()
       elseif key == "MemTotal" then total = tonumber(value) end 
     end 
   end 
-  return string.format("%.0f%%", (active/total)*100)
+  return string.format("Mem: %.0f%% ", (active/total)*100)
 end
 -- }}}
 
@@ -192,8 +192,8 @@ for s = 1, screen.count() do
             layout = awful.widget.layout.horizontal.leftright
         },
         mylayoutbox[s],
-        meminfo,
         mytextclock,
+        meminfo,
         s == 1 and mysystray or nil,
         mytasklist[s],
         layout = awful.widget.layout.horizontal.rightleft
