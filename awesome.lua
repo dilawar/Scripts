@@ -22,7 +22,9 @@ end
 
 -- create a widget 
 meminfo = widget({type = "textbox", align="right"})
-awful.hooks.timer.register(10, function() meminfo.text = activeram() end)
+meminfotimer = timer({timeout=1})
+meminfotimer:add_signal("timeout", function() meminfo.text = activeram() end)
+meminfotimer:start()
 
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
