@@ -7,6 +7,23 @@ require("beautiful")
 -- Notification library
 require("naughty")
 
+--- {{{ A function to get the status of active ram. 
+function activeram()
+  local active, total
+  for line in io.lines('/proc/meminfo') do 
+    for key, value in string.gmatch(line, "(%w+):\ +(%d+).+") do 
+      if key == "Active" then active = tonumber(value) 
+      elseif key == "MemTotal" then total = tonumber(value) end 
+    end 
+  end 
+  return string.format("%.0f%%", (active/total)*100)
+end
+-- }}}
+
+-- create a widget 
+meminfo = widget({type = "textbox", align="right"})
+awful.hooks.timer.register(10, function() meminfo.text = activeram() end)
+
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
 -- another config (This code will only ever execute for the fallback config)
@@ -175,6 +192,7 @@ for s = 1, screen.count() do
             layout = awful.widget.layout.horizontal.leftright
         },
         mylayoutbox[s],
+        meminfo,
         mytextclock,
         s == 1 and mysystray or nil,
         mytasklist[s],
@@ -371,3 +389,5 @@ end)
 client.add_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.add_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
 -- }}}
+
+
