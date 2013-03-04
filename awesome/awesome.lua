@@ -251,7 +251,7 @@ function ()
 end),
 awful.key({ modkey,           }, "w", function () mymainmenu:show({keygrabber=true}) end),
 -- Lock the screen
-awful.key({modKey }, "F12", function() awful.util.spawn("xlock") end),
+awful.key({modKey }, "F12", function() awful.util.spawn("xtrlock") end),
 
 -- MPD and MPC config.
 awful.key({"Mod1", "Control" }, "n", function () awful.util.spawn("mpc next") end),
