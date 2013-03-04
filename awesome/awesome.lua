@@ -237,8 +237,8 @@ awful.key({"Mod1", "Control" }, "p", function () awful.util.spawn("mpc prev") en
 awful.key({"Mod1", "Control" }, "t", function () awful.util.spawn("mpc toggle") end),
 awful.key({"Mod1", "Control" }, "m", function () awful.util.spawn("amixer -q sset Master 2dB-") end),
 awful.key({"Mod1", "Control" }, "l", function () awful.util.spawn("amixer -q sset Master 2dB+") end),
-awful.key({"Mod1", "Control" }, "d", function () awful.util.spawn("manage_mpc -d") end),
-awful.key({"Mod1", "Control" }, "a", function () awful.util.spawn("manage_mpc -a") end),
+awful.key({"Mod1", "Control" }, "d", function () awful.util.spawn_with_shell("~/Scripts/manage_mpc.sh -d") end),
+awful.key({"Mod1", "Control" }, "a", function () awful.util.spawn_with_shell("~/Scripts/manage_mpc.sh -a") end),
 
 -- Layout manipulation
 awful.key({ modkey, "Shift"   }, "j", function () awful.client.swap.byidx(  1)    end),
