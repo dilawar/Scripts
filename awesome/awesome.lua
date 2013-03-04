@@ -19,12 +19,33 @@ function activeram()
   return string.format("Mem: %.0f%% ", (active/total)*100)
 end
 -- }}}
+--- {{{ Cpu usage 
+jiffies = {}
+function activecpu()
+  local s = ""
+  for line in io.lines("/proc/stat") do
+    local cpu, newjiffies = string.match(line, "(cpu%d*)\ +(%d+)")
+    if cpu and newjiffies then 
+      if not jiffies[cpu] then 
+        jiffies[cpu] = newjiffies 
+      end
+      s = s .. " " .. cpu .. ":<span color='red'> " .. string.format("%02d",newjiffies-jiffies[cpu]) .. "%</span> "
+      jiffies[cpu] = newjiffies 
+    end 
+  end 
+  return s
+end
 
 -- create a widget 
 meminfo = widget({type = "textbox", align="right"})
 meminfotimer = timer({timeout=1})
 meminfotimer:add_signal("timeout", function() meminfo.text = activeram() end)
 meminfotimer:start()
+
+cpuinfo = widget({type = "textbox", align="right" })
+cpuinfotimer = timer({timeout=1})
+cpuinfotimer:add_signal("timeout", function() cpuinfo.text = activecpu() end)
+cpuinfotimer:start()
 
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
@@ -195,6 +216,7 @@ for s = 1, screen.count() do
     },
     mylayoutbox[s],
     mytextclock,
+    cpuinfo,
     meminfo,
     s == 1 and mysystray or nil,
     mytasklist[s],
