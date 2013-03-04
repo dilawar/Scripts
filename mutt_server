@@ -56,7 +56,7 @@ mailboxes 'imaps://imap.iitb.ac.in' \
           'imaps://sandesh.ee.iitb.ac.in' 
 
 ## Folder hooks
-folder-hook 'imaps://imap.iitb.ac.in' " \
+folder-hook imaps://imap.iitb.ac.in " \
   set \
   folder='imaps://imap.iitb.ac.in' \
   spoolfile='+INBOX' \
@@ -72,7 +72,7 @@ folder-hook 'imaps://imap.iitb.ac.in' " \
 
 ## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
 #will arise.
-folder-hook 'imaps://sandesh.ee.iitb.ac.in' " \ 
+folder-hook imaps://sandesh.ee.iitb.ac.in " \ 
   set \
   folder='imaps://sandesh.ee.iitb.ac.in' \
   spoolfile='+INBOX' \
@@ -90,6 +90,7 @@ set query_command = "~/.mutt/mutt-ldap.py '%s'"
 set timeout=60	#Check for mail every minute
 set mail_check=5
 set sleep_time=0
+set imap_check_subscribed
 
 ## Put how to label emials here.
 # labels
@@ -108,6 +109,11 @@ macro pager X "<enter-command>set editor=\"~/Scripts/mutt/editlabel.sh menu\"\n\
 macro index \Cx "<limit>~y " "Limit view to label"
 
 set index_format="%4C %Z %{%b %d} %-15.15L %?M?(#%03M)&(%4l)? %?y?(%.20Y) ?%s"
+
+macro index <f2> '<change-folder>imaps://sandesh.ee.iitb.ac.in<enter>'
+macro index <f3> '<change-folder>imaps://imap.iitb.ac.in<enter>'
+
+
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
 my_hdr X-Mailer: 'mutt'
