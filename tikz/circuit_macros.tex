@@ -1,4 +1,4 @@
-%% Dilawar Singh (c) 2012 
+%% Dilawar Singh (c) 2012 - 2013
 %% Circuit macros to produce amazing quality circuits
 %% More amazing than powerpuff girls.
 \def\mux { -- ++(0,-1) node [above right] {$1$} -- ++(0.6,0.2) -- 
@@ -7,15 +7,17 @@
 ++(-0.6,0) -- ++(-0.2,0.6)  -- cycle};
 
 %% Multiplexor 
-%% 3 params : location, size, name.
-%% Note : To connect wires to north, east, south and west one should 
-%% also use .center with name.
+%% 3 params : location, size, name.  
+%% Note : To connect wires
+%% to north, east, south and west one should also use .center with name.
+
 \newcommand{\multiplexer}[3]{
 \draw #1 -- ++(0,-#2/4)  node (#3_input1) at ++(0,0) {\scriptsize{\hspace{8pt}1}}
 -- ++(0,-#2/2) node (#3_input2) at ++(0,0){\scriptsize{\hspace{8pt}0}} 
 -- ++(0,-#2/4) -- ++(#2/2,#2/4)
 -- ++(0,#2/4) node(#3_output) [] {}  -- ++(0,#2/4) 
 -- ++(-#2/4,#2/8) node(#3_select) {} -- ++(-#2/4,#2/8)
+;
 };
 
 %% Register 
@@ -34,6 +36,7 @@
 -- ++(0.6*#3, -0.5*#3) -- ++(-0.6*#3, -0.5*#3)
 % the western anchor
 -- ++(0,#3/2) node (#4_west) {} 
+;
 };
 
 %% Bus
@@ -41,4 +44,31 @@
 \newcommand*{\bus}[4] {
 \draw[->] #1 -- #2 node[midway]{\tiny{/}} 
     node [#3] {\scriptsize{#4}}
-}
+;
+};
+
+%% D flip-flop
+%% 4 params : left bottom, width, height, label
+\newcommand{\dflipflop}[4] {
+\draw #1 -- ++(#2/2,0) node(#4_set) at ++(0,0) [above] {\scriptsize{S}}
+-- ++(#2/2,0) 
+% qbar 
+-- ++(0,#3/3) node (#4_qbar) at ++(0,0) [left] {\scriptsize{$\bar{Q}$}}
+-- ++(0,#3*2/3)
+% q
+-- ++(0,#3/3) node (#4_q) at ++(0,0) [left] {\scriptsize{${Q}$}}
+-- ++(0,#3/3)
+% reset 
+-- ++(-#2/2,0) node (#4_reset) at ++(0,0) [below] {\scriptsize{R}}
+-- ++(-#2/2,0)
+% D
+-- ++(0,-#3/3) node (#4_d) at ++(0,0) [right] {\scriptsize{D}}
+-- ++(0,-#3*2/3)
+%% clock
+-- ++(0, -0.2) -- ++(0.2,0.2) -- ++(-0.2, 0.2) -- ++(0, -0.1) 
+node (#4_clock) at ++(0,0) {}
+%% clock enable
+-- ++(0,-#3/3) node (#4_ce) at ++(0,0) [right] {\scriptsize{CE}}
+-- cycle
+;
+};
