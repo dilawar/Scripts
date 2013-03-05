@@ -4,7 +4,7 @@
 \def\mux { -- ++(0,-1) node [above right] {$1$} -- ++(0.6,0.2) -- 
 ++(0,0.6) -- ++(-0.6,0.2) -- cycle};
 \def\muxr { -- node [below left] {$1$} ++(1,0) -- ++(-0.2,-0.6) -- 
-++(-0.6,0) -- ++(-0.2,0.6)  -- cycle};
+++(-0.6,0) -- ++(-0.2,0.6)  -- cycle}
 
 %% Multiplexor 
 %% 3 params : location, size, name.  
@@ -17,8 +17,7 @@
 -- ++(0,-#2/4) -- ++(#2/2,#2/4)
 -- ++(0,#2/4) node(#3_output) [] {}  -- ++(0,#2/4) 
 -- ++(-#2/4,#2/8) node(#3_select) {} -- ++(-#2/4,#2/8)
-;
-};
+}
 
 %% Register 
 %% 4 parama : location, width, height, name 
@@ -35,17 +34,15 @@
 % the western triangle
 -- ++(0.6*#3, -0.5*#3) -- ++(-0.6*#3, -0.5*#3)
 % the western anchor
--- ++(0,#3/2) node (#4_west) {} 
-;
-};
+-- ++(0,#3/2) node (#4_west) {}
+}
 
 %% Bus
 %% 3 params : from, to, size 
 \newcommand*{\bus}[4] {
 \draw[->] #1 -- #2 node[midway]{\tiny{/}} 
     node [#3] {\scriptsize{#4}}
-;
-};
+}
 
 %% D flip-flop
 %% 4 params : left bottom, width, height, label
@@ -70,5 +67,4 @@ node (#4_clock) at ++(0,0) {}
 %% clock enable
 -- ++(0,-#3/3) node (#4_ce) at ++(0,0) [right] {\scriptsize{CE}}
 -- cycle
-;
-};
+}
