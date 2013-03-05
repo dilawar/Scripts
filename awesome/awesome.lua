@@ -38,12 +38,12 @@ end
 
 -- create a widget 
 meminfo = widget({type = "textbox", align="right"})
-meminfotimer = timer({timeout=0.2})
+meminfotimer = timer({timeout=1})
 meminfotimer:add_signal("timeout", function() meminfo.text = activeram() end)
 meminfotimer:start()
 
 cpuinfo = widget({type = "textbox", align="right" })
-cpuinfotimer = timer({timeout=1})
+cpuinfotimer = timer({timeout=0.5})
 cpuinfotimer:add_signal("timeout", function() cpuinfo.text = activecpu() end)
 cpuinfotimer:start()
 
