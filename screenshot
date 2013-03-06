@@ -1,5 +1,5 @@
 #!/bin/bash
-DIR="${HOME}/images/screenshots"
+DIR="${HOME}/Pictures/screenshots"
 DATE="$(date +%Y%m%d@%H%M%S)"
 NAME="${DIR}/screenshot-${DATE}.png"
 LOG="${DIR}/screenshots.log"
@@ -16,11 +16,4 @@ if [ "$1" = "scr" ]; then import -window root "${NAME}"; fi
 # Screenshot a selected area
 if [ "$1" = "area" ]; then import +repage "${NAME}"; fi
 
-if [[ $# = 0 ]]; then
-  # Display a warning if no area defined
-  echo "No screenshot area has been specified. Screenshot not taken."
-  echo "${DATE}: No screenshot area has been defined. Screenshot not taken." >> "${LOG}"
-else
-  # Save the screenshot in the directory and edit the log
-  echo "${NAME}" >> "${LOG}"
-fi
+if [[ $# = 0 ]]; then import -window root "${NAME}"; fi
