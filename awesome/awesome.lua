@@ -238,7 +238,8 @@ globalkeys = awful.util.table.join(
 awful.key({ modkey,           }, "Left",   awful.tag.viewprev       ),
 awful.key({ modkey,           }, "Right",  awful.tag.viewnext       ),
 awful.key({ modkey,           }, "Escape", awful.tag.history.restore),
-awful.key({ }, "Print", function() awful.util.spawn("scrot -e 'mv $f ~/Pictures/shots/ 2>/dev/null'") end),
+awful.key({"Shift"}, "Print"
+      , function() awful.util.spawn("scrot -e 'mv $f " .. home .. "/Pictures/shots/ 2>/dev/null' ") end),
 
 awful.key({ modkey,           }, "j",
 function ()
