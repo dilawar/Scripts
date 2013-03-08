@@ -91,6 +91,7 @@ set timeout=60	#Check for mail every minute
 set mail_check=5
 set sleep_time=0
 set imap_check_subscribed
+macro pager \cb <pipe-entry>'urlview'<enter>'Follow links with urlview'
 
 ## Put how to label emials here.
 # labels
