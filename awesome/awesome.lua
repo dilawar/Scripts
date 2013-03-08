@@ -256,9 +256,9 @@ awful.key({ modkey,           }, "w", function () mymainmenu:show({keygrabber=tr
 awful.key({modKey }, "F12", function() awful.util.spawn("xtrlock") end),
 
 -- MPD and MPC config.
-awful.key({"Mod1", "Control" }, "n", function () awful.util.spawn("mpc next") end),
-awful.key({"Mod1", "Control" }, "p", function () awful.util.spawn("mpc prev") end),
-awful.key({"Mod1", "Control" }, "t", function () awful.util.spawn("mpc toggle") end),
+awful.key({"Mod1", "Control" }, "n", function () awful.util.spawn("mpc -h 127.0.0.1 next") end),
+awful.key({"Mod1", "Control" }, "p", function () awful.util.spawn("mpc -h 127.0.0.1 prev") end),
+awful.key({"Mod1", "Control" }, "t", function () awful.util.spawn("mpc -h 127.0.0.1 toggle") end),
 awful.key({"Mod1", "Control" }, "m", function () awful.util.spawn("amixer -q sset Master 2dB-") end),
 awful.key({"Mod1", "Control" }, "l", function () awful.util.spawn("amixer -q sset Master 2dB+") end),
 awful.key({"Mod1", "Control" }, "d", function () awful.util.spawn_with_shell("~/Scripts/manage_mpc.sh -d") end),
