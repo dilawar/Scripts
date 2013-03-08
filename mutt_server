@@ -1,5 +1,5 @@
-# This script is used on imaps server. Along with m file.
-
+# Name
+set realname = 'Dilawar Singh'
 ## set local folder.
 set header_cache = ~/.mutt/cache/headers
 set message_cachedir = ~/.mutt/cache/bodies
@@ -7,20 +7,39 @@ set certificate_file = ~/.mutt/certificates
 set mailcap_path=$HOME/.mailcap
 set mime_forward=yes
 set mime_forward_rest=yes
+
+## where mails are stored
+##set folder = ~/Mail
+mailboxes =mairix-search
+mailboxes = ~/Mail/GPO
+mailboxes = ~/Mail/EE
+source ~/.mutt/server
+source ~/.mutt/gpo 
+set sort = threads
+set postponed = +drafts
+set mbox_type = MailDir
+set content_type = "text"
+set signature="~/.mutt/sign.txt"
 set sig_on_top=yes
+
+##message-hook ~A 'set pager=vim'
+## message-hook '~f rfs' 'set pager="less"+/^ subject: .*\""'
 
 ## Editor
 set editor = "vim -c 'set spell spelllang=en syntax=mail ft=mail enc=utf-8' '+/^$'"
 ignore *
 unignore date from subject to cc
 #
+folder-hook ~/Mail/GPO 'source ~/.mutt/gpo'
+folder-hook ~/Mail/EE 'source ~/.mutt/ee'
+
 ###
 set folder_format = "%2C %t %N %12s %d %f"
 set read_inc=100
 set edit_headers = yes
 set reverse_name
 
-set askcc = yes
+set askbcc = yes
 set text_flowed = yes
 set smart_wrap = yes
 set pager_stop = yes
@@ -36,9 +55,6 @@ set quote_regexp = "^( {0,4}[>|:#]| {0,4}[a-z0-9]+[>|]+)+"
 # Folder options
 set copy = yes
 set move = no
-auto_view text/html
-
-alternative_order text/enriched text/plain text/html
 
 set abort_nosubject = ask-yes
 set abort_unmodified = ask-yes
@@ -47,72 +63,21 @@ set include = yes
 set metoo  = yes # send reply to myself.
 
 set alias_file = ~/.mutt/aliases
-source $alias_file
 set pager_index_lines = 7
+set query_command = "abook --mutt-query '%s'"
+macro pager \cb <pipe-entry>'urlview'<enter>'Follow links with urlview'
+macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
+macro index,pager A "<pipe-message>abook --add-email<return>" "add the sender address to abook"
+source $alias_file
 
-## Muttrc file for ee and gpo accounts.
+auto_view text/html
 
-mailboxes 'imaps://imap.iitb.ac.in' \
-          'imaps://sandesh.ee.iitb.ac.in' 
+alternative_order text/enriched text/plain text/html
 
-## Folder hooks
-folder-hook imaps://imap.iitb.ac.in " \
-  set \
-  folder='imaps://imap.iitb.ac.in' \
-  spoolfile='+INBOX' \
-  record='+INBOX.Sent' \
-  imap_user=dilawars \
-  imap_pass=$GPO_PASS \
-  postponed='+INBOX.Drafts' \
-  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
-  smtp_pass=$GPO_PASS \
-  signature=~/Scripts/mutt/sign.txt \
-  from='Dilawar <dilawars@iitb.ac.in>' \
-  realname='Dilawar Singh' "
-
-## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
-#will arise.
-folder-hook imaps://sandesh.ee.iitb.ac.in " \ 
-  set \
-  folder='imaps://sandesh.ee.iitb.ac.in' \
-  spoolfile='+INBOX' \
-  imap_user='dilawar' \
-  imap_pass=$EE_PASS \
-  record='+mail/Sent' \
-  postponed='+mail/Drafts' \
-  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
-  smtp_pass=$GPO_PASS \
-  signature=~/Scripts/mutt/sign.txt \
-  from='Dilawar <dilawar@ee.iitb.ac.in>' \
-  realname='Dilawar Singh' "
-
-set query_command = "~/.mutt/mutt-ldap.py '%s'"
-set timeout=60	#Check for mail every minute
-set mail_check=5
-set sleep_time=0
-set imap_check_subscribed
-
-## Put how to label emials here.
-# labels
-macro index x "<enter-command>set editor=\"~/Scripts/mutt/editlabel.sh append\"\n\
-<edit><sync-mailbox><next-undeleted>\
-<enter-command>set editor=vim\n" "Append label"
-macro pager x "<enter-command>set editor=\"~/Scripts/mutt/editlabel.sh append\"\n\
-<edit><sync-mailbox><next-undeleted>\
-<enter-command>set editor=vim\n" "Append label"
-macro index X "<enter-command>set editor=\"~/Scripts/mutt/editlabel.sh menu\"\n\
-<edit><sync-mailbox><next-undeleted>\
-<enter-command>set editor=vim\n" "Edit labels"
-macro pager X "<enter-command>set editor=\"~/Scripts/mutt/editlabel.sh menu\"\n\
-<edit><sync-mailbox><next-undeleted>\
-<enter-command>set editor=vim\n" "Edit labels"
-macro index \Cx "<limit>~y " "Limit view to label"
-
-set index_format="%4C %Z %{%b %d} %-15.15L %?M?(#%03M)&(%4l)? %?y?(%.20Y) ?%s"
-
-macro index <f2> '<change-folder>imaps://sandesh.ee.iitb.ac.in<enter>'
-macro index <f3> '<change-folder>imaps://imap.iitb.ac.in<enter>'
-
+## macro of automatic save.
+macro attach W <save-entry><kill-line>/home/dilawar/Attachments/
+macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
+macro index ",c" "<pipe-message>~/.mutt/parse_remind.pl<enter>"
 
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
