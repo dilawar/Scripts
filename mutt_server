@@ -138,6 +138,9 @@ alternative_order text/enriched text/plain text/html
 macro attach W <save-entry><kill-line>/home/dilawar/Attachments/
 macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
 macro index ",c" "<pipe-message>~/.mutt/parse_remind.pl<enter>"
+macro index <f2> '<change-folder>imaps://sandesh.ee.iitb.ac.in<enter>'
+macro index <f3> '<change-folder>imaps://imap.iitb.ac.in<enter>'
+
 
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
