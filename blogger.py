@@ -11,6 +11,9 @@ import sys
 import getopt
 import re
 import blogger.BloggerUpdater as BloggerUpdater
+import pprint
+import lxml.html as lh
+from lxml.etree import tostring
       
 def main(args):
   argv = sys.argv
@@ -55,12 +58,18 @@ def main(args):
       filename = (post.title.text).strip()
       filename = filename.replace(" ", "_")
       with open(filename+".html", 'w') as blog :
-        blog.write("<title>\n")
-        blog.write(post.title.text+"\n</title>")
+        blog.write("<TITLE>\n")
+        blog.write(post.title.text+"\n</TITLE>")
         blog.write("\n\n")
-        blog.write("<content>\n\n");
-        blog.write(post.content.text)
-        blog.write("\n\n</content>\n")
+        blog.write("<CONTENT>\n\n");
+        
+        content = post.content.text 
+
+        # Pretty print the content.
+        content = content.replace("<br />", "<br />\n\n")
+        
+        blog.write(content)
+        blog.write("\n\n</CONTENT>\n")
       return
     else :
       print "I can't find post named "+get
@@ -71,15 +80,15 @@ def main(args):
       print("File {0} does not exists".format(src))
       return
     txt = open(src, 'r').read()   # Opening source HTML for reading
-    titleRegex = re.compile(r'\<title\>(?P<title>.+)\<\/title\>'
-        , re.IGNORECASE | re.DOTALL)
+    titleRegex = re.compile(r'\<TITLE\>(?P<title>.+)\<\/TITLE\>'
+        , re.DOTALL)
     s = titleRegex.search(txt)
     if not s :
       print("I can not find the title. Existing ...")
       return 
       
     title = m.groupdict()['title']
-    contentRegex = re.compile(r'\<content\>(?P<content>.+)\<\/content\>',
+    contentRegex = re.compile(r'\<CONTENT\>(?P<content>.+)\<\/CONTENT\>',
         re.IGNORECASE | re.DOTALL)
     s = contentRegex.search(txt)
     if not s :
