@@ -6,6 +6,7 @@ Created on Apr 17, 2012
 import difflib
 from gdata import service
 import atom
+import sys
 
 """Simple class for updating posts on www.blogger.com service"""
 class BloggerUpdater:
@@ -32,16 +33,22 @@ class BloggerUpdater:
             if entry.title.text == title:
                 self.blog_id = entry.GetSelfLink().href.split("/")[-1]
                 return entry
-        return None
+        print("Can't find blog with title : {0}".format(title))
+        sys.exit(0)
     
     """This will get post entry by it's title (name)"""
     def GetPostByTitle(self, title):
         feed = self.blogger_service.GetFeed('/feeds/' + self.blog_id + '/posts/default')
-        for i in feed.entry :
-          print i.title.text
         for entry in feed.entry:
-            if difflib.SequenceMatcher(None, entry.title.text, title).ratio() > 0.7 :
-                return entry
+          if entry.title.text :
+            match = difflib.SequenceMatcher(None, entry.title.text 
+                ,title).ratio()
+            if match > 0.6 :
+              print(" |- Found with title : {0} ".format(entry.title.text))
+              return entry
+            else : pass
+          else : pass
+        print("|- Can't find post with this title.")
         return None
     
     """This will update supplied post entry with new content

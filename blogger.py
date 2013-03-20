@@ -83,6 +83,7 @@ def main(argv=None):
     print "[I] Requested blog found: \"" + blogEntry.title.text + "\""
 
     if get :
+      print("Fetching the post : {0}".format(get))
       post = updater.GetPostByTitle(get)
       if post :
         fileName = (post.title.text).strip()
@@ -116,4 +117,5 @@ def main(argv=None):
    
    
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
+    sys.exit(0)
