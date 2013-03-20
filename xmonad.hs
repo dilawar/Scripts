@@ -20,7 +20,7 @@ main = do
   xmonad $ defaultConfig
     { manageHook = manageDocks <+> manageHook defaultConfig <+> myManageHook
     , layoutHook = avoidStruts $ layoutHook defaultConfig
-    , terminal = "gnome-terminal"
+    , terminal = "xterm"
     , workspaces = myWorkspaces
     , startupHook = myStartupHook
     , logHook = myLogHook xmobar 
