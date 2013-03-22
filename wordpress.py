@@ -129,6 +129,7 @@ def fetchPosts(posts, type) :
     content = content.replace("<br>", "<br>\n\n")
     content = content.replace("<pre>", "\n<pre>\n") 
     content = content.replace("</pre>", "\n</pre>\n") 
+    content = content.replace("p>", "p>\n\n")
     fileName = titleToFileName(title)
     f = codecs.open(fileName, "w", encoding="utf-8", errors="ignore")
     f.write("<TYPE>"+type+"</TYPE>\n")
