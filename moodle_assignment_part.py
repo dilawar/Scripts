@@ -8,10 +8,6 @@ from collections import defaultdict
 import errno
 
 
-
-inputFile = sys.argv[1]
-curDir = os.getcwd()
-
 assignments = defaultdict(list)
 
 def extract_asssignments(dirs):
@@ -44,27 +40,33 @@ def extract_asssignments(dirs):
       subprocess.call(["tar", "xvf", file], stdout=subprocess.PIPE)
 
 
+if __name__ == "__main__" :
 
-with zipfile.ZipFile(inputFile, "r") as myzip :
-  listobj = myzip.infolist()
-  filesToExtract = list()
-  print("|- Extracting from zip file.")
-  for obj in listobj :
-    zippedFile = obj.filename
-    filename = zippedFile.split("_")
-    studentName = filename[0].strip()
-    file = filename[1]
-    assignments[studentName].append(file)
+  inputFile = sys.argv[1]
+  curDir = os.getcwd()
 
-    path = curDir+"/"+studentName
+  with zipfile.ZipFile(inputFile, "r") as myzip :
+    listobj = myzip.infolist()
+    filesToExtract = list()
+    print("|- Extracting from zip file.")
+    for obj in listobj :
+      zippedFile = obj.filename
+      filename = zippedFile.split("_")
+      studentName = filename[0].strip()
+      file = filename[1]
+      assignments[studentName].append(file)
+
+      path = curDir+"/"+studentName
+      
+      try :
+        os.makedirs(path)
+      except OSError as exception :
+        if exception.errno != errno.EEXIST :
+          raise 
+
+      myzip.extract(zippedFile, path)
+      pathToExtract= curDir+"/"+studentName+"/"+zippedFile
+      filesToExtract.append(path)
+    extract_asssignments(filesToExtract)
+
     
-    try :
-      os.makedirs(path)
-    except OSError as exception :
-      if exception.errno != errno.EEXIST :
-        raise 
-
-    myzip.extract(zippedFile, path)
-    pathToExtract= curDir+"/"+studentName+"/"+zippedFile
-    filesToExtract.append(path)
-  extract_asssignments(filesToExtract)
