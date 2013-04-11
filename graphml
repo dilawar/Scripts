@@ -10,15 +10,25 @@ def drawMe(args) :
   graph = gt.load_graph(args.f, fmt='xml')
   vprops = graph.vertex_properties 
   eprops = graph.edge_properties
-  if (args.v or args.e) and not args.o :
+  vLabels = graph.new_vertex_property("string")
+  eLabels = graph.new_edge_property("string")
+  if (args.v or args.e) :
     if args.v and args.e :
-      edgeMap = graph.edge_properties[args.e]
+      for v in graph.vertices() :
+        vLabel = ""
+        for vp in args.v :
+          vProp = graph.vertex_properties[vp]
+          vLabel += (vProp[v]+",")
+        vLabels[v] = vLabel
+      for e in graph.edges() :
+        eLabel = ""
+        for ep in args.e :
+          eProp = graph.edge_properties[ep]
+          eLabel += (str(eProp[e])+"/")
+        eLabels[e] = eLabel 
       print("Drawing with both vertex and edge map.")
-      gt.graphviz_draw(graph, vprops={"label":graph.vertex_properties[args.v]}
-          , eprops={'label':edgeMap})
-    elif args.v  :
-      print("Drawing with vertex map only.")
-      gt.graphviz_draw(graph, vprops={"text":graph.vertex_properties[args.v]})
+      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6}
+          , eprops={'label':eLabels, "fontsize":6})
   else :
     print("Not doing anything.")
     return
@@ -27,9 +37,8 @@ def drawMe(args) :
 if __name__ == "__main__" :
   parser = argparse.ArgumentParser(description="Draw a grapml graph.")
   parser.add_argument('-f', metavar='FileName', help='GraphML file')
-  parser.add_argument('-v', metavar='VertexProperty')
-  parser.add_argument('-e', metavar='EdgeProperty')
-  parser.add_argument('-o', metavar='OutFilePath')
+  parser.add_argument('-v', metavar='VertexProperty', action='append')
+  parser.add_argument('-e', metavar='EdgeProperty', action='append')
 
   args = parser.parse_args()
   drawMe(args)
