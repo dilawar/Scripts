@@ -18,7 +18,7 @@ def drawMe(args) :
         vLabel = ""
         for vp in args.v :
           vProp = graph.vertex_properties[vp]
-          vLabel += (vProp[v]+",")
+          vLabel += (str(vProp[v])+",")
         vLabels[v] = vLabel
       for e in graph.edges() :
         eLabel = ""
