@@ -1,2 +1,2 @@
 #!/bin/bash 
-ffmpeg -i $1 -vcodec copy -acodec copy "$1_[slow_pc].avi"
+ffmpeg -i $1 -f avi -fs 20 "$1_[slow_pc].avi"
