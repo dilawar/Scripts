@@ -31,7 +31,7 @@ if m :
     print("[INFO] Format is {0}".format(fmt))
     subprocess.call("vlib work", shell=True)
     if fmt == "vhd" :
-      subprocess.call("vcom *.{0} && vsim -c {1} -do 'vcd file out.vcd;vcd add -r\
+      subprocess.call("vcom *.{0} && vsim -c {1} -do 'vcd file {1}.vcd;vcd add -r\
           /*;run 1ms;quit;'".format(fmt, entityName), shell=True)
     elif fmt == "v" :
       subprocess.call("vlog *.{0} && vsim -c {1} -do 'vcd file out.vcd;vcd add -r /*;run 1ms;quit' ".format(fmt, 
