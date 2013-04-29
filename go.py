@@ -16,11 +16,30 @@ def initDB() :
     , PRIMARY KEY(dir, date))""")
   conn.commit()
 
+def insertIntoDB(dir) :
+  global conn 
+  c = conn.cursor()
+  c.execute("""INSERT OR IGNORE INTO cdh 
+    (dir, date) VALUES ('{0}', 'now', '1')""".format(dir))
+  c.execute("""UPDATE cdh SET count = count + 1 WHERE dir LIKE\
+      '{0}'""".format(dir))
+  conn.commit()
+
+
 def changeDir(arg, direction) :
   if arg.isdigit() :
-    print("Go level {0} in {1} dirction".format(arg, direction))
+    print("[I] Go level {0} in {1} dirction".format(arg, direction))
   else :
-    print("Search for pattern {0} in {1} direction".format(arg, diretction))
+    print("[I] Search for pattern {0} in {1} direction".format(arg, direction))
+    import re 
+    currentDir = os.getcwd()
+    newDir = os.path.join(currentDir, arg)
+    if os.path.exists(newDir) :
+      print("[I] Path exists. Changing to {0}".format(newDir))
+      import subprocess 
+      subprocess.call("cd {0}".format(newDir), shell = True)
+    else :
+      print("[I] This path must be searched.")
 
 if __name__ == "__main__" :
   initDB()
@@ -38,5 +57,4 @@ if __name__ == "__main__" :
     except IndexError :
       print("[WARN] Assuming +")
       dir = "up"
-    print("Check for int or string and work accordingly.")
     changeDir(sys.argv[1], dir)
