@@ -8,3 +8,5 @@
 # for ssh logins, install and configure the libpam-umask package.
 
 source ~/Scripts/git_prompt.sh
+export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ \n'
+
