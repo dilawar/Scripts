@@ -1,9 +1,8 @@
 #!/usr/bin/env python 
 import graph_tool.all as gt
-from graph_tool.draw import interactive_window
+#from graph_tool.draw import interactive_window
 import sys
 import argparse 
-from IPython import embed
 
 def drawMe(args) :
   print(args)
@@ -29,9 +28,10 @@ def drawMe(args) :
       print("Drawing with both vertex and edge map.")
       gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6}
           , eprops={'label':eLabels, "fontsize":6})
+    else :
+      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6})
   else :
-    print("Not doing anything.")
-    return
+    gt.graphviz_draw(graph)
   
 
 if __name__ == "__main__" :
