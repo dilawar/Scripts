@@ -6,9 +6,5 @@
 
 # the default umask is set in /etc/profile; for setting the umask
 # for ssh logins, install and configure the libpam-umask package.
-export GITAWAREPROMPT=~/Scripts/bash/git-aware-prompt
-source $GITAWAREPROMPT/main.sh
-green=$'\e[1;32m'
-magenta=$'\e[1;34m'
-normal_colours=$'\e[m'
-export PS1="\[$green\]\u@\h:\[$magenta\]\w\[$txtcyn\]\$git_branch\[$txtylw\]\$git_dirty\[$txtrst\]\$\[$normal_colours\] \n"
+
+source ~/Scripts/git_prompt.sh
