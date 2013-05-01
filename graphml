@@ -12,23 +12,24 @@ def drawMe(args) :
   vLabels = graph.new_vertex_property("string")
   eLabels = graph.new_edge_property("string")
   if (args.v or args.e) :
-    if args.v and args.e :
+    if args.v :
       for v in graph.vertices() :
         vLabel = ""
         for vp in args.v :
           vProp = graph.vertex_properties[vp]
           vLabel += (str(vProp[v])+",")
         vLabels[v] = vLabel
+    if args.e :
       for e in graph.edges() :
         eLabel = ""
         for ep in args.e :
           eProp = graph.edge_properties[ep]
           eLabel += (str(eProp[e])+"/")
         eLabels[e] = eLabel 
-      print("Drawing with both vertex and edge map.")
+    if args.v and args.e :
       gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6}
           , eprops={'label':eLabels, "fontsize":6})
-    else :
+    elif args.v :
       gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6})
   else :
     gt.graphviz_draw(graph)
