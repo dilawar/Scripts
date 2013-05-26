@@ -280,7 +280,7 @@ end),
 
 -- Standard program
 awful.key({ modkey,           }, "Return", function () awful.util.spawn(terminal) end),
-awful.key({modkey,            }, "t", function () awful.util.spawn("xterm") end),
+awful.key({modkey,            }, "t", function () awful.util.spawn("urxvt") end),
 awful.key({ modkey, "Control" }, "r", awesome.restart),
 awful.key({ modkey, "Shift"   }, "q", awesome.quit),
 
