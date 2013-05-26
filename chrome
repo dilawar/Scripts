@@ -1,2 +1,4 @@
 #!/bin/bash
-google-chrome --proxy-server="http=netmon.iitb.ac.in:80;https=netmon.iitb.ac.in:80;ftp=netmon.iitb.ac.in:80"
+chromium-browser \
+  --proxy-server="http=netmon.iitb.ac.in:80;https=netmon.iitb.ac.in:80;ftp=netmon.iitb.ac.in:80" \
+  --proxy-bypass-list="*.iitb.ac.in;10.0.0.0/8;localhost;10.*.*.*"
