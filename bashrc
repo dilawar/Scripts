@@ -143,5 +143,4 @@ xrdb ~/Scripts/Xdefaults
 #export PROMPT_COMMAND="history -n; history -a"
 export NNTPSERVER=news.iitb.ac.in
 source ~/Scripts/cd.sh
-alias cd='c'
 source ~/Scripts/profile

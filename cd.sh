@@ -15,7 +15,7 @@ c ()
   # last week.
   if [[ $# == 0 ]] ; then 
     IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE 
-                  accessed > datetime('now', '-3 days')"`
+                  accessed > datetime('now', '-3 days') ORDER BY count DESC"`
 
     declare -a ch
     read -ra choices <<< $IN 
