@@ -14,22 +14,39 @@ c ()
   # If no argument is given the present the most used directory paths in during
   # last week.
   if [[ $# == 0 ]] ; then 
-    echo "Give user choice of his life."
     IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE 
-                  accessed > datetime('now', '-7 days')"`
-    while IFS=' '; read -ra choices; do
+                  accessed > datetime('now', '-3 days')"`
+
+    declare -a ch
+    read -ra choices <<< $IN 
+    count=0
     for d in "${choices[@]}" 
-      do 
-        echo $d "da"
-      done 
-    done <<< "$IN" 
+    do 
+      ch[count]=$d 
+      echo "$count :" $d 
+      let count++
+    done 
+    echo "Give your choice [default 0] : "
+    read choice 
+    if [[ $choice =~ [0-9]+ ]]; then 
+      if [[ $choice > $count ]]; then 
+        echo "An invalid numeric choice."
+        exit;
+      fi
+    else 
+      echo "No numeric choice. Using default."
+      choice=0
+    fi
+
+    ## Good, we have a choice. Now find the directory and cd to it.
+    dir=${ch[$choice]}
+    c $dir
   else 
     dir=$1 
     cd $dir
     if [[ $? == 0 ]]; then 
       {
       dir=$(pwd)
-      echo "Logging to database"
       (
         sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
           VALUES ('$dir', '0', datetime('now')); 
@@ -39,6 +56,7 @@ c ()
     }
     else 
       echo "I can't change to : $dir"
+      exit;
     fi
   fi
 }
