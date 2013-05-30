@@ -14,21 +14,24 @@ c ()
   # If no argument is given the present the most used directory paths in during
   # last week.
   if [[ $# == 0 ]] ; then 
-    dir=~
+    echo "Give user choice of his life."
   else 
-    dir=$1
-  fi
-  cd $dir
-  if [ $? -eq 0 ]; then 
-    dir=$(pwd)
-    (
-      sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
-        VALUES ('$dir', '1', datetime('now')); 
-        UPDATE cdh SET count=count + 1 
-        where dirname LIKE '$dir';" &
-    )
-  else 
-    echo "I can't change to : $dir"
+    dir=$1 
+    cd $dir
+    if [[ $? == 0 ]]; then 
+      {
+      dir=$(pwd)
+      echo "Logging to database"
+      (
+        sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
+          VALUES ('$dir', '1', datetime('now')); 
+          UPDATE cdh SET count=count + 1 
+          where dirname LIKE '$dir';" &
+      )
+    }
+    else 
+      echo "I can't change to : $dir"
+    fi
   fi
 }
 
