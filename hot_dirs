@@ -20,5 +20,5 @@ function pick_cwd_from_history() {
     if [ -r "$f" ] ; then cd "`head -1 $f`" ; fi
 }
 
-alias cd=keep_cd_history
-alias cdh=pick_cwd_from_history
+#alias cd=keep_cd_history
+#alias cdh=pick_cwd_from_history
