@@ -31,7 +31,7 @@ c ()
     if [[ $choice =~ [0-9]+ ]]; then 
       if [[ $choice > $count ]]; then 
         echo "An invalid numeric choice."
-        exit;
+        return
       fi
     else 
       echo "No numeric choice. Using default."
@@ -56,7 +56,7 @@ c ()
     }
     else 
       echo "I can't change to : $dir"
-      exit;
+      return
     fi
   fi
 }
