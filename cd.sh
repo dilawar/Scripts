@@ -29,7 +29,7 @@ c ()
     echo "Give your choice [default 0] : "
     read choice 
     if [[ $choice =~ [0-9]+ ]]; then 
-      if [[ $choice > $count ]]; then 
+      if [[ $choice -ge $count ]]; then 
         echo "An invalid numeric choice."
         return
       fi
@@ -55,8 +55,32 @@ c ()
       )
     }
     else 
-      echo "I can't change to : $dir"
-      return
+      echo "Search for matching option."
+      dir="*$dir*"
+      IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE dirname GLOB '$dir';"`
+      declare -a ch
+      read -ra choices <<< $IN 
+      count=0
+      for d in "${choices[@]}" 
+      do 
+        ch[count]=$d 
+        echo "$count :" $d 
+        let count++
+      done 
+      echo "Give your choice [default 0] : "
+      read choice 
+      if [[ $choice =~ [0-9]+ ]]; then 
+        if [[ $choice -ge $count ]]; then 
+          echo "An invalid numeric choice."
+          return
+        fi
+      else 
+        echo "No numeric choice. Using default."
+        choice=0
+      fi
+      ## Good, we have a choice. Now find the directory and cd to it.
+      dir=${ch[$choice]}
+      c $dir
     fi
   fi
 }
