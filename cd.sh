@@ -67,20 +67,25 @@ c ()
         echo "$count :" $d 
         let count++
       done 
-      echo "Give your choice [default 0] : "
-      read choice 
-      if [[ $choice =~ [0-9]+ ]]; then 
-        if [[ $choice -ge $count ]]; then 
-          echo "An invalid numeric choice."
-          return
-        fi
+      if [ "$cound" -eq 0 ]; then 
+        dir=${ch[0]}
+        c $dir
       else 
-        echo "No numeric choice. Using default."
-        choice=0
+        echo "Give your choice [default 0] : "
+        read choice 
+        if [[ $choice =~ [0-9]+ ]]; then 
+          if [[ $choice -ge $count ]]; then 
+            echo "An invalid numeric choice."
+            return
+          fi
+        else 
+          echo "No numeric choice. Using default."
+          choice=0
+        fi
+        ## Good, we have a choice. Now find the directory and cd to it.
+        dir=${ch[$choice]}
+        c $dir
       fi
-      ## Good, we have a choice. Now find the directory and cd to it.
-      dir=${ch[$choice]}
-      c $dir
     fi
   fi
 }
