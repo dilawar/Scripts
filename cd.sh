@@ -43,7 +43,7 @@ c ()
     c $dir
   else 
     dir=$1 
-    cd $dir
+    cd 2> /dev/null $dir
     if [[ $? == 0 ]]; then 
       {
       dir=$(pwd)
@@ -55,20 +55,20 @@ c ()
       )
     }
     else 
-      echo "Search for matching option."
+      echo "Search for matching ... "
       dir="*$dir*"
       IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE dirname GLOB '$dir';"`
-      declare -a ch
-      read -ra choices <<< $IN 
+      declare -a cch
+      read -ra ccc <<< $IN 
       count=0
-      for d in "${choices[@]}" 
+      for d in "${ccc[@]}" 
       do 
-        ch[count]=$d 
+        cch[count]=$d 
         echo "$count :" $d 
         let count++
       done 
-      if [ "$cound" -eq 0 ]; then 
-        dir=${ch[0]}
+      if [[ $count -eq 1 ]]; then 
+        dir=${cch[0]}
         c $dir
       else 
         echo "Give your choice [default 0] : "
@@ -79,11 +79,11 @@ c ()
             return
           fi
         else 
-          echo "No numeric choice. Using default."
+          echo "Invalid choice. Using default 0."
           choice=0
         fi
         ## Good, we have a choice. Now find the directory and cd to it.
-        dir=${ch[$choice]}
+        dir=${cch[$choice]}
         c $dir
       fi
     fi
