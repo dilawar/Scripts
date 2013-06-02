@@ -144,3 +144,4 @@ xrdb ~/Scripts/Xdefaults
 export NNTPSERVER=news.iitb.ac.in
 source ~/Scripts/cd.sh
 source ~/Scripts/profile
+cd ~
