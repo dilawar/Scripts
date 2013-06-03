@@ -46,7 +46,6 @@ c ()
     cd $dir
     if [[ $? == 0 ]]; then 
     {
-      echo "Inserting into database ... "
       dir=$(pwd)
       (
         sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
