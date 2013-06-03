@@ -46,11 +46,12 @@ c ()
     cd $dir
     if [[ $? == 0 ]]; then 
     {
+      echo "Inserting into database ... "
       dir=$(pwd)
       (
         sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
           VALUES ('$dir', '0', datetime('now')); 
-          UPDATE cdh SET count=count + 1 
+          UPDATE cdh SET count=count + 1, accessed=datetime('now') 
           where dirname LIKE '$dir';" &
       )
     }
