@@ -43,9 +43,9 @@ c ()
     c $dir
   else 
     dir=$1 
-    cd 2> /dev/null $dir
+    cd $dir
     if [[ $? == 0 ]]; then 
-      {
+    {
       dir=$(pwd)
       (
         sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
