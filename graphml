@@ -27,10 +27,12 @@ def drawMe(args) :
           eLabel += (str(eProp[e])+"/")
         eLabels[e] = eLabel 
     if args.v and args.e :
-      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6}
-          , eprops={'label':eLabels, "fontsize":6})
+      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":8}
+          , eprops={'label':eLabels, "fontsize":8})
     elif args.v :
-      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":6})
+      gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":8})
+    elif args.e :
+      gt.graphviz_draw(graph, eprops={'label':eLabels, "fontsize":8})
   else :
     gt.graphviz_draw(graph)
   
