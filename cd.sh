@@ -1,4 +1,7 @@
-#!/bin/bash -x
+#!/bin/bash 
+# GNU-GPL
+# (c) Dilawar Singh, 2013
+# dilawar@ee.iitb.ac.in
 
 c () 
 {
@@ -11,8 +14,7 @@ c ()
     echo $tableCommand > /tmp/structure
     sqlite3 $dbname < /tmp/structure 
   fi
-  # If no argument is given the present the most used directory paths in during
-  # last week.
+  # If no argument is given, fetch most used directory paths in last 3 days.
   if [[ $# == 0 ]] ; then 
     IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE 
                   accessed > datetime('now', '-3 days') ORDER BY count DESC"`
@@ -26,11 +28,11 @@ c ()
       echo "$count :" $d 
       let count++
     done 
-    echo "Give your choice [default 0] : "
+    echo "Your choice [default 0] : "
     read choice 
     if [[ $choice =~ [0-9]+ ]]; then 
       if [[ $choice -ge $count ]]; then 
-        echo "An invalid numeric choice."
+        echo "Invalid numeric choice. Existing .."
         return
       fi
     else 
@@ -55,7 +57,7 @@ c ()
       )
     }
     else 
-      echo "Search for matching ... "
+      echo "Searching database for matches ... "
       dir="*$dir*"
       IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE dirname GLOB '$dir';"`
       declare -a cch
@@ -71,11 +73,11 @@ c ()
         dir=${cch[0]}
         c $dir
       else 
-        echo "Give your choice [default 0] : "
+        echo "Your choice [default 0] : "
         read choice 
         if [[ $choice =~ [0-9]+ ]]; then 
           if [[ $choice -ge $count ]]; then 
-            echo "An invalid numeric choice."
+            echo "Invalid numeric choice."
             return
           fi
         else 
