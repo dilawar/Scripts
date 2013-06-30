@@ -1,0 +1,3 @@
+#!/bin/bash
+# Play high-definition media on slow computer.
+mplayer -vfm ffmpeg -lavdopts lowres=0:fast:skiploopfilter=all "$1"
