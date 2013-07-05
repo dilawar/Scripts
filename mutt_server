@@ -1,5 +1,4 @@
-# Name
-set realname = 'Dilawar Singh'
+# Name set realname = 'Dilawar Singh'
 ## set local folder.
 set header_cache = ~/.mutt/cache/headers
 set message_cachedir = ~/.mutt/cache/bodies
@@ -104,7 +103,7 @@ folder-hook imaps://sandesh.ee.iitb.ac.in " \
   from='Dilawar <dilawar@ee.iitb.ac.in>' \
   realname='Dilawar Singh' "
 
-set query_command = "~/.mutt/mutt-ldap.py '%s'"
+set query_command = "~/Scripts/mutt/mutt-ldap.py '%s'"
 set timeout=60	#Check for mail every minute
 set mail_check=5
 set sleep_time=0
