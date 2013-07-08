@@ -1,7 +1,9 @@
 # ~/Scripts/mutt/gpo 
-set from=dilawar@iitb.ac.in
-set hostname="imap.iitb.ac.in"
+set from=dilawars@iitb.ac.in
+set hostname="imaps://imap.iitb.ac.in"
 set folder="imaps://imap.iitb.ac.in/"
+set imap_user="dilawars"
+set imap_pass="$GPO_PASS"
 set postponed="=Drafts"
 set spoolfile="imaps://imap.iitb.ac.in/INBOX"
 set signature="~/Scripts/mutt/sign.txt"

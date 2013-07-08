@@ -1,0 +1,10 @@
+# ~/Scripts/mutt/ee
+set from=dilawar@ee.iitb.ac.in
+set hostname="imaps://sandesh.ee.iitb.ac.in"
+set folder="imaps://sandesh.ee.iitb.ac.in"
+set imap_user="dilawar"
+set imap_pass="$EE_PASS"
+set postponed="=Drafts"
+set spoolfile="imaps://sandesh.ee.iitb.ac.in/INBOX"
+set signature="~/Scripts/mutt/sign.txt"
+set smtp_url="smtp://dilawar@smtp.ee.iitb.ac.in" smtp_pass="$EE_PASS"
