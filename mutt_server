@@ -7,28 +7,10 @@ set mailcap_path=$HOME/.mailcap
 set mime_forward=yes
 set mime_forward_rest=yes
 
-## where mails are stored
-##set folder = ~/Mail
-mailboxes =mairix-search
-mailboxes = ~/Mail/GPO
-mailboxes = ~/Mail/EE
-source ~/.mutt/server
-source ~/.mutt/gpo 
-set sort = threads
-set postponed = +drafts
-set mbox_type = MailDir
-set content_type = "text"
-set signature="~/.mutt/sign.txt"
-set sig_on_top=yes
-
-##message-hook ~A 'set pager=vim'
-## message-hook '~f rfs' 'set pager="less"+/^ subject: .*\""'
-
 ## Editor
 set editor = "vim -c 'set spell spelllang=en syntax=mail ft=mail enc=utf-8' '+/^$'"
 ignore *
 unignore date from subject to cc
-#
 
 ###
 set folder_format = "%2C %t %N %12s %d %f"
@@ -67,41 +49,13 @@ macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
 macro index,pager A "<pipe-message>abook --add-email<return>" "add the sender address to abook"
 source $alias_file
 
-## Muttrc file for ee and gpo accounts.
-
-mailboxes 'imaps://imap.iitb.ac.in' \
-          'imaps://sandesh.ee.iitb.ac.in' 
-
 ## Folder hooks
-folder-hook imaps://imap.iitb.ac.in " \
-  set \
-  folder='imaps://imap.iitb.ac.in' \
-  spoolfile='+INBOX' \
-  record='+INBOX.Sent' \
-  imap_user=dilawars \
-  imap_pass=$GPO_PASS \
-  postponed='+INBOX.Drafts' \
-  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
-  smtp_pass=$GPO_PASS \
-  signature=~/Scripts/mutt/sign.txt \
-  from='Dilawar <dilawars@iitb.ac.in>' \
-  realname='Dilawar Singh' "
+folder-hook imap.iitb.ac.in 'source ~/Scripts/mutt/gpo'
+folder-hook sandesh.ee.imap.iitb.ac.in 'source ~/Scripts/mutt/ee'
+source ~/Scripts/mutt/gpo 
 
-## For EE. Don't use smtps instead of smtp in smtp_url. Else gnu_tls problems
-#will arise.
-folder-hook imaps://sandesh.ee.iitb.ac.in " \ 
-  set \
-  folder='imaps://sandesh.ee.iitb.ac.in' \
-  spoolfile='+INBOX' \
-  imap_user='dilawar' \
-  imap_pass=$EE_PASS \
-  record='+mail/Sent' \
-  postponed='+mail/Drafts' \
-  smtp_url=smtp://dilawars@smtp-auth.iitb.ac.in:25 \
-  smtp_pass=$GPO_PASS \
-  signature=~/Scripts/mutt/sign.txt \
-  from='Dilawar <dilawar@ee.iitb.ac.in>' \
-  realname='Dilawar Singh' "
+macro index <f2> '<sync-mailbox><enter-command>source ~/Scripts/mutt/gpo<enter><change-folder>!<enter>'
+macro index <f3> '<sync-mailbox><enter-command>source ~/Scripts/mutt/ee<enter><change-folder>!<enter>'
 
 set query_command = "~/Scripts/mutt/mutt-ldap.py '%s'"
 set timeout=60	#Check for mail every minute
@@ -135,37 +89,8 @@ alternative_order text/enriched text/plain text/html
 macro attach W <save-entry><kill-line>/home/dilawar/Attachments/
 macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
 macro index ",c" "<pipe-message>~/.mutt/parse_remind.pl<enter>"
-macro index <f2> '<change-folder>imaps://sandesh.ee.iitb.ac.in<enter>'
-macro index <f3> '<change-folder>imaps://imap.iitb.ac.in<enter>'
 
 
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
 my_hdr X-Mailer: 'mutt'
-#macro generic "1" ":set from 'Dilawar <dilawars@iitb.ac.in>'"
-#
-#color   hdrdefault      brightcyan      default
-#color   header          brightred       default "^from:"
-#color   header          brightred       default "^subject:"
-#color   quoted          brightgreen     default
-#color   quoted          brightgreen     default
-#color   signature       brightwhite     default
-#
-#color   indicator       blue            default
-#
-#color   error           red             default
-#mono    error           bold
-#color   status          cyan            default
-#mono    status          bold
-#color   tree            yellow          default
-#
-#color   tilde           brightmagenta   default
-#color   body            red             default    "[-a-z_0-9.]+@[-a-z_0-9.]+"
-#mono    body            bold                    "[-a-z_0-9.]+@[-a-z_0-9.]+"
-#color   body            red             default   "^Good signature"
-#mono    body            bold                    "^Good signature"
-#color   body            brightwhite     default     "^Bad signature from.*"
-#mono    body            bold                    "^Bad signature from.*"
-#color   normal          white          default
-#color   message         red            default
-#color   attachment      red            blue
