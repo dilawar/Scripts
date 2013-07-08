@@ -1,0 +1,8 @@
+# ~/Scripts/mutt/gpo 
+set from=dilawar@iitb.ac.in
+set hostname="imap.iitb.ac.in"
+set folder="imaps://imap.iitb.ac.in/"
+set postponed="=Drafts"
+set spoolfile="imaps://imap.iitb.ac.in/INBOX"
+set signature="~/Scripts/mutt/sign.txt"
+set smtp_url="smtp://dilawars@smtp-auth.iitb.ac.in" smtp_pass="$GPO_PASS"
