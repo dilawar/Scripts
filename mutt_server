@@ -1,4 +1,3 @@
-# Name set realname = 'Dilawar Singh'
 ## set local folder.
 set header_cache = ~/.mutt/cache/headers
 set message_cachedir = ~/.mutt/cache/bodies
@@ -23,6 +22,7 @@ set text_flowed = yes
 set smart_wrap = yes
 set pager_stop = yes
 set pager_format = " %C - %[%H:%M] %.20v, %s%* %?H? [%H] ?"
+set sign_on_top = yes
 
 ## reply
 set reply_self = no
@@ -40,7 +40,6 @@ set abort_unmodified = ask-yes
 set copy = yes
 set include = yes
 set metoo  = yes # send reply to myself.
-
 set alias_file = ~/.mutt/aliases
 set pager_index_lines = 7
 set query_command = "abook --mutt-query '%s'"
@@ -52,8 +51,7 @@ source $alias_file
 ## Folder hooks
 folder-hook imap.iitb.ac.in 'source ~/Scripts/mutt/gpo'
 folder-hook sandesh.ee.imap.iitb.ac.in 'source ~/Scripts/mutt/ee'
-source ~/Scripts/mutt/gpo 
-
+source ~/Scripts/mutt/gpo  # default
 macro index <f2> '<sync-mailbox><enter-command>source ~/Scripts/mutt/gpo<enter><change-folder>!<enter>'
 macro index <f3> '<sync-mailbox><enter-command>source ~/Scripts/mutt/ee<enter><change-folder>!<enter>'
 
@@ -82,7 +80,6 @@ macro index \Cx "<limit>~y " "Limit view to label"
 
 set index_format="%4C %Z %{%b %d} %-15.15L %?M?(#%03M)&(%4l)? %?y?(%.20Y) ?%s"
 auto_view text/html
-
 alternative_order text/enriched text/plain text/html
 
 ## macro of automatic save.
