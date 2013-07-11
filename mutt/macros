@@ -1,6 +1,0 @@
-macro index "\em"    "<shell-escape>$HOME/.mutt/msearch.sh " "Run a Mairix search"
-macro index "\ef"    "<change-folder-readonly>=mairix-search\n" "Switch to Mairix search results"
-
-macro pager "\em"    "<shell-escape>$HOME/.mutt/msearch.sh " "Run a Mairix search"
-macro pager "\ef"    "<change-folder-readonly>=mairix-search\n" "Switch to Mairix search results"
-
