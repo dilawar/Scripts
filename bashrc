@@ -144,4 +144,5 @@ xrdb ~/Scripts/Xdefaults
 export NNTPSERVER=news.iitb.ac.in
 source ~/Scripts/cd.sh
 source ~/Scripts/profile
+export PATH=$PATH:~/.mutt
 cd ~
