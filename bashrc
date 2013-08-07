@@ -137,7 +137,7 @@ export LAVA2000_Satzoo=/cad/bin/satzoo
 export LAVA2000_SMV=/cad/bin/smv
 
 
-xrdb ~/Scripts/Xdefaults
+xrdb ~/Scripts/xdefaults
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
