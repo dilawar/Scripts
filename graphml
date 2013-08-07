@@ -1,0 +1,50 @@
+#!/usr/bin/env python 
+import graph_tool.all as gt
+import sys
+import argparse 
+
+def drawMe(args) :
+  print(args)
+  graph = gt.load_graph(args.f, fmt='xml')
+  vprops = graph.vertex_properties 
+  eprops = graph.edge_properties
+  vLabels = graph.new_vertex_property("string")
+  eLabels = graph.new_edge_property("string")
+  if (args.v or args.e) :
+    if args.v :
+      for v in graph.vertices() :
+        vLabel = ""
+        for vp in args.v :
+          vProp = graph.vertex_properties[vp]
+          vLabel += (str(vProp[v])+",")
+        vLabels[v] = vLabel
+    if args.e :
+      for e in graph.edges() :
+        eLabel = ""
+        for ep in args.e :
+          eProp = graph.edge_properties[ep]
+          eLabel += (str(eProp[e])+"/")
+        eLabels[e] = eLabel 
+    if args.v and args.e :
+        #interactive_window(graph, vprops={"label":vLabels}, eprops={'label':eLabels})
+        gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":8}
+          , eprops={'label':eLabels, "fontsize":8})
+    elif args.v :
+        #interactive_window(graph, vprops={"label":vLabels})
+        gt.graphviz_draw(graph, vprops={"label":vLabels, "fontsize":8})
+    elif args.e :
+        #interactive_window(graph, eprops={'label':eLabels})
+        gt.graph_draw(graph, eprops={'label':eLabels, "fontsize":8})
+
+  else :
+    gt.graphviz_draw(graph)
+  
+
+if __name__ == "__main__" :
+  parser = argparse.ArgumentParser(description="Draw a grapml graph.")
+  parser.add_argument('-f', metavar='FileName', help='GraphML file')
+  parser.add_argument('-v', metavar='VertexProperty', action='append')
+  parser.add_argument('-e', metavar='EdgeProperty', action='append')
+
+  args = parser.parse_args()
+  drawMe(args)

@@ -1,0 +1,23 @@
+Config { 
+   font         = "-misc-fixed-*-r-*-*-12-*-*-*-*-*-*-*"
+ , bgColor      = "#000000"
+ , fgColor      = "#00FFFF"
+ , position     =  Top
+ , lowerOnStart = False
+ , commands     = [ 
+    Run Network "eth0" ["-L","0","-H","32","-l", "green", "--normal","orange","--high","red"] 3
+  , Run Cpu ["<cpu0>/<cpu1>","-L","6","-H","50","-l","green","--normal","orange","--high","red"] 2
+  , Run BatteryP ["BAT0"] 
+      ["-t", "<acstatus><watts>(<left>%)",
+      "-L","10","-H","75", "-p", "3"
+      , "--", "-O", "<fc=green>On</fc> - ", "-o", ""
+      , "-L","-15","-H","-5"
+      , "-h","green","-m","blue","-l","red"] 600
+  , Run Memory ["-t","Mem: <usedratio>%", "-l", "green", "--normal","orange","--high","red"] 3
+  , Run Date "%a %b %_d %H:%M" "date" 60 
+  , Run CpuFreq ["-t","<cpu0>|<cpu1> GH","-L","0","-H","2","-l","green","-n","orange","-h","red"] 2
+  , Run StdinReader ]
+ ,sepChar      = "%"
+ , alignSep     = "}{"
+ , template     = "%StdinReader% }{ BAT: %battery% | %cpu% @ %cpufreq% <fc=#0033FF>|</fc>  %memory% <fc=#0033FF>|</fc> %eth0% <fc=#0033FF>|</fc> %date%"
+}

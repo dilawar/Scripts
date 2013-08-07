@@ -1,0 +1,5 @@
+vhdl work ../../XSA_LIB/common.vhd
+vhdl work ../../XSA_LIB/sdramcntl.vhd
+vhdl work ../../XSA_LIB/xsasdramcntl.vhd
+vhdl work ../../XSA_LIB/vga.vhd
+vhdl work test_vga.vhd
