@@ -1,0 +1,33 @@
+#   Screen Options   ##
+shell bash                      # Tell screen your default shell
+startup_message off             # Turn off start message
+defscrollback = 5000
+shelltitle '$ |bash'    # Dynamic window titled for running program
+msgwait 1                 # Set messages timeout to one second
+nethack on                               # Turn on nethack error messages
+backtick 0 0 0 whoami                           # Set "%0`" to equal the output of "whoami"
+
+# Change the xterm initialization string to avoid window size change
+termcapinfo xterm* 'is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;4;6l'
+
+# Last line is status: green hostname, window list in cyan, and time and date right aligned:
+# hardstatus alwayslastline "%{=b}%{G}%H: %{C}%w %=%{G}%D, %m/%d %C%a"
+
+# This status is the same as the above, except it puts "<username>@" in front of the hostname
+hardstatus alwayslastline "%{=b}%{G}Screen @ %0`@%H: %{C}%w %=%{G}%D, %m/%d"
+
+# autodetach on
+# This is useful if you want a separate screen in every running terminal window
+# but not if you have 'exec screen -XRR' in your .profile
+
+
+##   Keybindings   ##
+# F7='k7', F8='k8', F9='k9', F10='k;', F11='F1', F12='F2'
+# Good things to bind to hotkeys:
+#  prev (go to previous screen)
+#  next (go to next screen)
+#  kill (kill this window)
+#  screen (create a new window)
+#  title (rename the current window)
+#  detach (detach this session from this terminal)
+

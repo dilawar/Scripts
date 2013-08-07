@@ -10,6 +10,5 @@ if find $HOME/.cabal/packages/hackage.haskell.org -maxdepth 0 -empty | read; the
 else 
   echo "Package list already exists.. Downloaing..."
 fi
-
 cabal "$@"
 pkill polipo

@@ -1,0 +1,34 @@
+JDF G
+// Created by Project Navigator ver 1.0
+PROJECT dwnldpa2
+DESIGN dwnldpa2
+DEVFAM xc9500xl
+DEVFAMTIME 1087051522
+DEVICE xc9572xl
+DEVICETIME 1087051522
+DEVPKG VQ64
+DEVPKGTIME 1087051522
+DEVSPEED -10
+DEVSPEEDTIME 1087051522
+DEVTOPLEVELMODULETYPE HDL
+TOPLEVELMODULETYPETIME 0
+DEVSYNTHESISTOOL XST (VHDL/Verilog)
+SYNTHESISTOOLTIME 0
+DEVSIMULATOR Other
+SIMULATORTIME 0
+DEVGENERATEDSIMULATIONMODEL VHDL
+GENERATEDSIMULATIONMODELTIME 0
+DOCUMENT notes.txt
+SOURCE dwnldpa2.vhd
+DEPASSOC dwnldpa2 dwnldpa2.ucf
+[Normal]
+p_impactConfigFileName=xstvhd, 9500xl, VHDL.t_impactProgrammingTool, 1087126997, C:\temp\dwnldpar\dwnldpa2.jed
+p_impactConfigMode=xstvhd, 9500xl, VHDL.t_impactProgrammingTool, 1087126997, Boundary Scan
+xcpldFitDesCreateGnd=xstvhd, 9500xl, Implementation.t_vm6File, 1087130109, False
+xcpldFitDesPrgOption=xstvhd, 9500xl, Implementation.t_crtProg, 1087126784, <4>!
+xilxNgdbld_AUL=xstvhd, 9500xl, Implementation.t_ngdFile, 1093545675, True
+[STATUS-ALL]
+dwnldpa2.ngcFile=WARNINGS,1110491785
+dwnldpa2.vm6File=WARNINGS,1110491791
+[STRATEGY-LIST]
+Normal=True

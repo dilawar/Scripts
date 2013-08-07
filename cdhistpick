@@ -1,0 +1,67 @@
+#!/usr/bin/perl -w
+use strict;
+use List::Util qw(min);
+
+#### Configurables #####################################################
+
+# Number of seconds back in time to look for candidate directories
+my $history_seconds_threshold = 3 * 60 * 60;
+
+# Ignore directories we have gone to less than this many times
+my $access_count_threshold = 1;
+
+# Number of directory options to give in pick list
+my $max_choices = 7;
+
+
+#### DO NOT OPEN. NO USER-SERVICEABLE PARTS INSIDE. ####################
+
+# Get file name our caller wants the cd choice to be sent to
+die "usage: $0 <choice_file>\n" unless $#ARGV == 0;
+my $cdhg_file = $ARGV[0];
+unlink $cdhg_file;      # don't care if it fails
+
+# Build summary stats from history file to find recent most-accessed
+my $oldest_interesting = time - $history_seconds_threshold;
+my %stats;
+open my $cdh, '<', "$ENV{HOME}/.cdhistory" or die "No cd history yet!\n";
+while (<$cdh>) {
+    chomp;
+    my ($secs, $dir) = split /\t/;
+    next unless $secs and $secs >= $oldest_interesting;
+    ++$stats{$dir};
+}
+
+# Assemble directory pick list
+my @counts = sort values %stats;
+$access_count_threshold = $counts[$max_choices - 1] - 1
+        if @counts > $max_choices;
+my @dirs = grep { $stats{$_} > $access_count_threshold } keys %stats;
+$max_choices = min($max_choices, scalar @dirs);
+
+# Show pick list, and save response to the file pick_cwd_from_history()
+# expects.  Why a file?  The shell must call chdir(2), not us, because
+# if we do, we change only our CWD.  Can't use stdio; already in use.
+my $choice;
+if ($max_choices > 1) {
+    for (my $i = 0; $i < $max_choices; ++$i) {
+        print $i + 1, '. ', $dirs[$i], "\n";
+    }
+    print "\nYour choice, O splendid one? [1-$max_choices]: ";
+    $choice = <STDIN>;
+    chomp $choice;
+    exit 0 unless $choice =~ /^[0-9]+$/ && $choice <= $max_choices;
+}
+elsif ($max_choices == 1) {
+    print "Would you like to go to $dirs[0]? [y/n]: ";
+    $choice = 1 if uc(<STDIN>) =~ /^Y/;
+}
+else {
+    die "Not enough cd history to give choices!\n";
+}
+if ($choice) {
+    open my $cdhg, '>', $cdhg_file or
+            die "Can't write to $cdhg_file: $!\n";
+    print $cdhg $dirs[$choice - 1], "\n";
+}
+

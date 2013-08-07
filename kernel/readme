@@ -1,0 +1,2 @@
+Copy this config to /usr/src/linux/.config and compile the kernel. This config
+works.

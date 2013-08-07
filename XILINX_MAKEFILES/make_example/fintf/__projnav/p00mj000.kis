@@ -1,0 +1,40 @@
+.i 0
+.o 8
+.s 8
+.p 16
+.reset Rst
+.resettype async
+.clock Clk
+.resetstate st0
+.type fdr
+.ob Out0 Out1 Out2 Out3 Out4 Out5 Out6 Out7
+.obdefault 00000000
+.ffname flash_state
+.fftype d
+.usedc 0
+.code Auto
+ st0 st1 00000000
+ st1 st2 00000000
+ st2 st3 00000000
+ st3 st4 00000000
+ st4 st5 00000000
+ st5 st6 00000000
+ st6 st7 00000000
+ st7 st0 00000000
+ st0 void 00000100
+ st1 void 01000000
+ st2 void 00100000
+ st3 void 00010000
+ st4 void 00000010
+ st5 void 00000001
+ st6 void 10000000
+ st7 void 00001000
+.e
+st0	0
+st1	1
+st2	2
+st3	3
+st4	4
+st5	5
+st6	6
+st7	7

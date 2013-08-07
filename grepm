@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# grepm - a wrapper for grepmail utilizing mutt
+
+# grepm-0.6
+
+# written 1998-11-xx by Moritz Barsnick <barsnick (at) gmx (dot) net>
+# updated 1998-12-22:	added "-m" option for grepmail
+#			added "exit 1" to trap
+# updated 1999-01-04:	added check for empty "mailbox" (don't open mutt)
+# 			added messages
+#			added umask (to keep others from reading your messages)
+# updated 1999-01-19:	added trap for SIGPIPE (any other suggestions?)
+# updated 1999-07-05:	added $TMPDIR; we're still subject to races ($TMPFILE
+# 			    might exist)
+# updated 1999-11-29:	have mutt open the temporary mailbox read-only -
+#			    there's no use in editing it anyway
+
+
+PROGNAME=`basename "$0"`
+TMPDIR=${TMPDIR-/tmp}
+
+umask 077
+
+if [ $# -lt 1 ]; then
+  echo 1>&2 "Usage: ${PROGNAME} arguments"
+  exit 1
+fi
+
+TMPFILE="${TMPDIR}/grepmail-output.$$"
+
+# I _would_ check this with "-e", but not all /bin/sh's understand it
+# so this is just a kludge
+
+if [ -f ${TMPFILE} -o -d ${TMPFILE} -o -w ${TMPFILE} ]; then
+  echo 1>&2 "Temporary file ${TMPFILE} exists for some reason! Aborting."
+  exit 1
+fi
+
+trap "rm -f ${TMPFILE}; exit 1" 1 2 3 13 15
+
+grepmail -m "$@" > "${TMPFILE}"
+if [ `wc -c "${TMPFILE}" | awk '{print $1}'` -gt 0 ]; then
+  echo 1>&2 "Calling mutt on results file (${TMPFILE})."
+  mutt -R -f "${TMPFILE}"
+else
+  echo 1>&2 "No matches."
+fi
+
+rm -f "${TMPFILE}" && echo 1>&2 "Deleted results file (${TMPFILE})."

@@ -1,0 +1,49 @@
+#
+# pin assignments for the CPLD on the XSA Board
+#
+
+net flash_a<0>    loc=p1;  
+net flash_a<1>    loc=p64; 
+net flash_a<2>    loc=p63; 
+net flash_a<3>    loc=p62; 
+net flash_a<4>    loc=p61; 
+net flash_a<5>    loc=p60; 
+net flash_a<6>    loc=p59; 
+net flash_a<7>    loc=p58; 
+net flash_a<8>    loc=p45; 
+net flash_a<9>    loc=p44; 
+net flash_a<10>   loc=p57; 
+net flash_a<11>   loc=p43; 
+net flash_a<12>   loc=p56; 
+net flash_a<13>   loc=p46; 
+net flash_a<14>   loc=p47; 
+net flash_a<15>   loc=p52; 
+net flash_a<16>   loc=p51; 
+net flash_a<17>   loc=p48; 
+
+net flash_d<0>    loc=p2;  
+net flash_d<1>    loc=p4;  
+net flash_d<2>    loc=p5;  
+net flash_d<3>    loc=p6;  
+net flash_d<4>    loc=p7;  
+net flash_d<5>    loc=p8;  
+net flash_d<6>    loc=p9;  
+net flash_d<7>    loc=p10; 
+
+net flash_ce_n    loc=p11; 
+net flash_oe_n    loc=p12; 
+net flash_we_n    loc=p49; 
+net flash_reset_n loc=p50; 
+
+net fpga_prog_n   loc=p39; 
+
+net pp_d<0>       loc=p33; 
+net pp_d<1>       loc=p32; 
+net pp_d<2>       loc=p31; 
+net pp_d<3>       loc=p27; 
+net pp_d<4>       loc=p25; 
+net pp_d<5>       loc=p24; 
+net pp_s<3>       loc=p34; 
+net pp_s<4>       loc=p20; 
+net pp_s<5>       loc=p35; 
+
