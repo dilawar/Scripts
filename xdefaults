@@ -5,7 +5,7 @@ xterm*font3: -b&h-lucidatypewriter-bold-*-*-*-11-*-*-*-*-*-*-*
 xterm*font7: -*-screen-bold-r-normal-*-14-*-*-*-*-*-iso8859-*
 xterm*font8: -*-lucidatypewriter-medium-*-*-*-14-*-*-*-*-*-*-*
 xterm*font6: -*-lucidatypewriter-medium-*-*-*-12-*-*-*-*-*-*-*
-#xterm*font8: -dec-terminal-bold-r-normal-*-10-*-*-*-*-*-iso8859-*
+xterm*font9: -dec-terminal-bold-r-normal-*-10-*-*-*-*-*-iso8859-*
 
 XTerm*background: black
 XTerm*foreground: white
