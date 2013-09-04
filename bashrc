@@ -5,8 +5,6 @@ if [ -f /etc/bashrc ]; then
 	. /etc/bashrc
 fi
 
-
-
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
@@ -28,6 +26,7 @@ HISTFILESIZE=2000
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
+xrdb ~/Scripts/xdefaults
 
 # set variable identifying the chroot you work in (used in the prompt below)
 if [ -z "$debian_chroot" ] && [ -r /etc/debian_chroot ]; then
@@ -125,9 +124,8 @@ export MIRALIB=/cad/lib/miralib
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
 #export VIM=~/Works/MyPublic/Scripts/vim
-
-source ~/.proxy
-source ~/.bsv_sh 
+#source ~/.proxy
+#source ~/.bsv_sh 
 
 export CAPEM_INSTALL=~/capem
 export CAPEM_PROJECT_DIRECTORY=~/capem/projects
@@ -137,7 +135,6 @@ export LAVA2000_Satzoo=/cad/bin/satzoo
 export LAVA2000_SMV=/cad/bin/smv
 
 
-xrdb ~/Scripts/xdefaults
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
