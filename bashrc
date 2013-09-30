@@ -138,8 +138,11 @@ export LAVA2000_SMV=/cad/bin/smv
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-export NNTPSERVER=news.iitb.ac.in
+export NNTPSERVER=pnews.iitb.ac.in
 source ~/Scripts/cd.sh
 source ~/Scripts/profile
 export PATH=$PATH:~/.mutt
 cd ~
+
+export PATH="$PATH:/opt/sbw-2.10.0/bin/"
+PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/

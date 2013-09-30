@@ -1,2 +1,2 @@
 #!/bin/bash 
-exec urxvt -e ~/Scripts/m "$@"
+exec xterm -e ~/Scripts/m "$@"
