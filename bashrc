@@ -145,3 +145,4 @@ export PATH=$PATH:~/.mutt
 cd ~
 
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
+PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
