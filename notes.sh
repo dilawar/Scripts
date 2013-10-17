@@ -1,5 +1,10 @@
 #!/bin/bash 
-(cd notes && git pull)
+(
+    cd notes && git pull
+)
 hnb ~/notes/notes.hnb.xml
-(cd notes && git add *.xml && git commit -m "updated" && git push)
+
+(
+    cd notes && git add *.xml && git commit -m "updated" && git push
+)
 
