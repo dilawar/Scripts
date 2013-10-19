@@ -1,6 +1,6 @@
 #!/bin/bash 
 (
-    cd notes && git pull
+  cd $(pwd)/notes && git pull
 )
 hnb ~/notes/notes.hnb.xml
 
