@@ -7,6 +7,8 @@ c ()
 {
   alias cd='cd'
   dbname=$HOME/.cdsqlite
+
+  # Initialize database.
   if [ ! -f $dbname ] ; then 
     tableCommand="CREATE TABLE IF NOT EXISTS \
       cdh (dirname TEXT PRIMARY KEY, count INTEGER, accessed date);" 
@@ -14,6 +16,7 @@ c ()
     echo $tableCommand > /tmp/structure
     sqlite3 $dbname < /tmp/structure 
   fi
+  
   # If no argument is given, fetch most used directory paths in last 3 days.
   if [[ $# == 0 ]] ; then 
     IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE 
@@ -43,6 +46,21 @@ c ()
     ## Good, we have a choice. Now find the directory and cd to it.
     dir=${ch[$choice]}
     c $dir
+  elif [ "$1" == "--clean" ] ; then
+    # go through each entry and check if that directory exists. If it does not
+    # exits then remove it from database.
+
+    IN=`sqlite3 $dbname "SELECT dirname FROM cdh"`
+    declare -a ch
+    read -ra choices <<< $IN 
+    for d in "${choices[@]}" 
+    do 
+      if [ ! -d "$d" ]; then 
+        echo "$d does not exits. REMOVING FROM DATABASE"
+        sqlite3 $dbname "DELETE FROM cdh WHERE dirname='$d'"
+      fi
+    done 
+
   else 
     dir=$1 
     cd $dir
