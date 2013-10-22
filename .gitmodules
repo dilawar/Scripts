@@ -1,0 +1,3 @@
+[submodule "noweb.py"]
+	path = noweb.py
+	url = git@github.com:dilawar/noweb.py
