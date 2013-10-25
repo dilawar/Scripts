@@ -11,7 +11,7 @@ XTerm*background: black
 XTerm*foreground: white
 XTerm*pointerColor: blue
 XTerm*pointerColorBackground: white
-XTerm*cursorColor: yellow
+XTerm*cursorColor: white
 XTerm*internalBorder: 3
 XTerm*loginShell: true
 XTerm*scrollBar: false
@@ -25,7 +25,7 @@ Rxvt*scrollBar_right: false
 Rxvt*scrollBar: false
 Rxvt*saveLines: 10000
 Rxvt*termName: rxvt-256color
-Rxvt*cursorColor: yellow
+Rxvt*cursorColor: white
 Rxvt*font: -*-fixed-medium-*-*-14-*-*-*-*-*-iso8859-*
 
  
