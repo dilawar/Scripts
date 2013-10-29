@@ -11,7 +11,7 @@ XTerm*background: black
 XTerm*foreground: white
 XTerm*pointerColor: blue
 XTerm*pointerColorBackground: white
-XTerm*cursorColor: white
+XTerm*cursorColor: red
 XTerm*internalBorder: 3
 XTerm*loginShell: true
 XTerm*scrollBar: false
@@ -20,7 +20,7 @@ XTerm*saveLines: 100000
 XXterm*background: #000030
 
 Rxvt*background: black
-Rxvt*foreground: white
+Rxvt*foreground: red
 Rxvt*scrollBar_right: false
 Rxvt*scrollBar: false
 Rxvt*saveLines: 100000
