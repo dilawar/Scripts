@@ -20,7 +20,7 @@ XTerm*saveLines: 100000
 XXterm*background: #000030
 
 Rxvt*background: black
-Rxvt*foreground: red
+Rxvt*foreground: white
 Rxvt*scrollBar_right: false
 Rxvt*scrollBar: false
 Rxvt*saveLines: 100000
