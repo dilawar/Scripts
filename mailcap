@@ -260,21 +260,19 @@ application/download; okular %s;
 # carefully before replacing lpr with it in the following line, because 
 # PostScript can be an enormous security hole.  It is RELATIVELY harmless
 # when sent to the printer...
-application/postscript; gv %s; test=test -n "$DISPLAY"
+#application/postscript; gv %s; test=test -n "$DISPLAY"
 #application/postscript; lpr %s \; echo SENT FILE TO PRINTER;\
 #	description="A Postscript File"
 #application/postscript; ps2ascii %s | par 72; copiousoutput
 application/postscript; pstotext %s; copiousoutput
 application/postscript;; print=lpr %s
 
-application/pdf; evince %s; 
-application/x-pdf; evince %s;
-#application/pdf; acroread %s; test=test -n "$DISPLAY"
-#application/pdf; pdftotext-filter; copiousoutput
+application/pdf; pdftotext -layout %s -; copiousoutput 
+application/x-pdf; pdftotext -layout %s -; copiousoutput 
 
-application/x-tex; cat %s; copiousoutput
+application/x-tex; gvim %s; copiousoutput
 
-application/x-dvi; evince  %s; test=test -n "$DISPLAY"
+application/x-dvi; xdvi  %s; test=test -n "$DISPLAY"
 #application/x-dvi; dvi2tty -w 132 %s; nametemplate=%s.dvi; copiousoutput
 #application/x-dvi;; print=dvips %s
 
