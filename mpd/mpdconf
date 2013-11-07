@@ -66,7 +66,7 @@ state_file			"~/.mpd/state"
 # This setting can deny access to control of the daemon.
 #
 # For network
-#bind_to_address		"127.0.0.1"
+bind_to_address		"127.0.0.1"
 #
 # And for Unix Socket
 #bind_to_address		"/var/run/mpd/socket"
@@ -74,7 +74,7 @@ state_file			"~/.mpd/state"
 # This setting is the TCP port that is desired for the daemon to get assigned
 # to.
 #
-#port				"6600"
+port				"6600"
 #
 # This setting controls the type of information which is logged. Available 
 # setting arguments are "default", "secure" or "verbose". The "verbose" setting
