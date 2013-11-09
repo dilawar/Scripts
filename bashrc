@@ -125,7 +125,7 @@ export MIRALIB=/cad/lib/miralib
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
 #export VIM=~/Works/MyPublic/Scripts/vim
-#source ~/.proxy
+source ~/.proxy
 #source ~/.bsv_sh 
 
 export CAPEM_INSTALL=~/capem
@@ -149,3 +149,4 @@ export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/texinputs:"
+
