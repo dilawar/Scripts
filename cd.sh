@@ -12,7 +12,6 @@ c ()
   if [ ! -f $dbname ] ; then 
     tableCommand="CREATE TABLE IF NOT EXISTS \
       cdh (dirname TEXT PRIMARY KEY, count INTEGER, accessed date);" 
-    cat /dev/null > $dbname
     echo $tableCommand > /tmp/structure
     sqlite3 $dbname < /tmp/structure 
   fi
