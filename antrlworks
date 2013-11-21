@@ -1,0 +1,2 @@
+#!/bin/bash
+java -jar /opt/antlrworks-1.5.jar

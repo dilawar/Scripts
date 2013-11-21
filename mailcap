@@ -502,3 +502,4 @@ x-be2;     ezview %s ; copiousoutput
 #
 # foo/bar; echo mosaic; test=test "$MM_MAILER" = ""
 # foo/bar; echo not mosaic
+x-unknown/pdf; evince %s;
