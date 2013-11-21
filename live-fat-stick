@@ -1,0 +1,354 @@
+#!/bin/bash
+# live-fat-stick
+#
+# Copyright (c) 2012 CyberOrg Info
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+#
+# Authors:      Jigish Gohil <cyberorg@opensuse.org>
+# This script creates bootable openSUSE, Fedora or Ubuntu(or clones) live usb stick on fat partition
+#
+PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin:/usr/bin:/bin
+umount_everything () {
+		sync
+                umount $isomount &>/dev/null             
+                umount $stickdevpart &>/dev/null
+		rm -rf $isomount &>/dev/null
+                umount $stickmount &>/dev/null
+		while $(mount | grep $stickmount &>/dev/null); do
+			umount $stickdevpart &>/dev/null
+			sleep 2
+		done
+		rmdir $stickmount &>/dev/null || echo "unable to remove $stickmount, please remove manually"
+}
+clean_up () {
+	if [[ $1 == user_killed ]] ; then
+		echo "aborting and cleaning up"
+		umount_everything
+		exit 1
+	else
+		echo "cleaning up"
+		umount_everything
+		echo "Your bootable usb stick is now ready"
+		echo "have a lot of fun..."
+	fi
+}
+trap "clean_up user_killed" SIGINT SIGTERM
+need_help() {
+	cat <<EOF
+	run this command as root (su -, not sudo)
+		live-fat-stick isopath stickpartition
+	e.g.: 
+		live-fat-stick /home/geeko/openSUSE-Edu-li-f-e-12.2-1-i686.iso /dev/sdXY
+
+	To add various distribution iso to the stick, run the following:
+		For openSUSE	: live-fat-stick --suse /path/to/openSUSE-filename.iso /dev/sdXY
+		For Ubuntu	: live-fat-stick --ubuntu /path/to/ubuntu-filename.iso /dev/sdXY
+		For Mint	: live-fat-stick --mint /path/to/mint-filename.iso /dev/sdXY
+		For Fedora	: live-fat-stick --fedora /path/to/fedora-filename.iso /dev/sdXY
+
+	isopath should be full absolute path of iso image and the device should be 
+	actual partition on the stick like /dev/sdb1, /dev/sdc1,/dev/sdc2...
+
+	The stick partition has to be vfat/fat32 format.
+
+	run live-fat-stick -l(or --list) to list the possible usb storage devices available.
+
+	It is possible to boot multiple distributions and iso images from same device, 
+	should work with all recent openSUSE or Ubuntu live iso images. Fedora iso is
+	not copied but is extracted as it does not support booting from iso.
+
+EOF
+}
+if [[ $(id -u) != 0 ]]; then
+	echo "run this command as root"
+	need_help
+	exit 1
+fi
+while [ $# -gt 2 ]; do
+        case $1 in
+                --fedora)
+                distroname=fedora
+                ;;
+                --suse|--opensuse)
+                distroname=suse
+                ;;
+                --ubuntu|--mint)
+                distroname=ubuntu
+                ;;
+                *)
+                echo "invalid arg -- $1"
+		need_help
+                exit 1
+                ;;
+        esac
+        shift
+done
+if [ "$1" == "-h" -o "$1" == "--help" ]; then
+        need_help
+        exit
+fi
+if [ "$1" == "-l" -o "$1" == "--list" ]; then
+        echo "Here is the list of possible usb storage devices on your computer,"
+        echo "use the correct one, usually the one with a number at the end:"
+        echo "$(for i in $(find /dev/disk/by-id/ |grep usb); do readlink -f $i;done)"
+        exit
+fi
+if [[ x"$1" == x ]]; then
+	echo "Requires first arguement as iso image path"
+	need_help
+	exit 1
+fi
+if [[ x"$2" == x ]]; then
+	echo "Requires second arguement as device partition path, /dev/sdb1 for example"
+	need_help
+	echo "Here is the list of possible usb storage devices on your computer,"
+	echo "use the correct one, usually the one with a number at the end:"
+	echo "$(for i in $(find /dev/disk/by-id/ |grep usb); do readlink -f $i;done)"
+	exit 1
+fi
+if [[ ! -e /usr/bin/syslinux ]]; then
+	echo "syslinux not found, please install syslinux package"
+	exit 1
+fi
+if [[ ! -e $1 ]]; then
+	echo "File $1 does not exist"
+	exit 1
+fi
+if [[ ! -e $2 ]]; then
+        echo "Device $2 does not exist"
+        exit 1
+fi
+distroname=${distroname:-suse}
+if [[ $distroname != suse ]] && [[ $distroname != ubuntu ]] && [[ $distroname != fedora ]]; then
+        echo "this distribution's iso is currently not supported, patch welcome"
+        exit 1
+fi
+
+#variables
+isomount=$(mktemp -d)
+stickmount=$(mktemp -d)
+stickdevice=$(echo $2 | sed 's/[0-9]*//g')
+stickbase=$(basename $2)
+isoname=$(basename $1)
+isonameshort=$(echo $isoname | cut -d "-" -f 1,2,3)
+#stickuuid=$(ls -l /dev/disk/by-uuid/ |grep $stickbase | cut -d " " -f 9)
+stickuuid=$(blkid -s UUID -o value $2)
+stickpart=$(basename $2 | sed 's/[a-z]*//g')
+syslinuxpath=$stickmount/boot/syslinux
+stickdevpart=$2
+if [[ ! -h /dev/disk/by-uuid/$stickuuid ]]; then
+        echo "wrong uuid detected, please file bug with output of: blkid $2"
+fi
+
+if echo $isoname | grep -qi "Li-f-e"; then
+	isonameshort=openSUSE-Edu-Li-f-e
+fi
+are_you_sure ()  {
+        echo  -n "$1 [$2/$3]? "
+        while true; do
+                read answer
+                case $answer in
+                        y | Y | yes | YES ) answer="y"; break;;
+                        n | N | no | NO ) exit;;
+                        *) echo "Please answer yes or no.";;
+                esac
+        done
+}
+try_cp_with_progress () {
+	if [ -x /usr/bin/rsync ]; then
+        	rsync --inplace -aP "$1" "$2" 2>/dev/null
+        	return
+	fi
+        if [[ $distroname == fedora ]]; then
+		cp -r "$1/*" "$2"
+	else
+		cp -r "$1" "$2"
+	fi
+}
+copy_kernel_initrd () {
+	mount $stickdevpart $stickmount &>/dev/null
+	mount -o loop $isopath $isomount &>/dev/null
+	echo "copying kernel and initrd from iso image to $stickdevpart"
+	if [[ $distroname == suse ]]; then
+		rm $stickmount/syslinux.cfg &>/dev/null
+		if [[ ! -f $stickmount/fatstick ]]; then
+			cp -r $isomount/boot $stickmount/
+			mv $stickmount/boot/*/loader $syslinuxpath
+			mv $syslinuxpath/linux $syslinuxpath/linux-$isonameshort
+			mv $syslinuxpath/initrd $syslinuxpath/initrd-$isonameshort
+		fi
+		cp $isomount/boot/*/loader/linux $syslinuxpath/linux-$isonameshort
+		cp $isomount/boot/*/loader/initrd $syslinuxpath/initrd-$isonameshort
+		appendsection="append initrd=initrd-$isonameshort ramdisk_size=512000 ramdisk_blocksize=4096 isofrom=/dev/disk/by-uuid/$stickuuid:/$isoname isofrom_device=/dev/disk/by-uuid/$stickuuid isofrom_system=/$isoname loader=syslinux splash=silent quiet showopts"
+		isolinux_msg="display isolinux.msg"
+		ui="ui gfxboot bootlogo isolinux.msg"
+	fi
+	if [[ $distroname == ubuntu ]]; then
+		mkdir -p $syslinuxpath
+		if [[ -e $isomount/casper/vmlinuz ]]; then
+			cp $isomount/casper/vmlinuz $syslinuxpath/linux-$isonameshort
+		else
+			cp $isomount/casper/vmlinuz.efi $syslinuxpath/linux-$isonameshort
+		fi
+		cp $isomount/casper/initrd.lz $syslinuxpath/initrd-$isonameshort
+		appendsection="append initrd=initrd-$isonameshort boot=casper iso-scan/filename=/$isoname"
+	fi
+	if [[ $distroname == fedora ]]; then
+		mkdir -p $syslinuxpath
+		mkdir -p $stickmount/$isonameshort
+		echo "copying the content of iso image, this may take a while"
+		try_cp_with_progress $isomount/ /$stickmount/$isonameshort/
+		mv $stickmount/$isonameshort/isolinux/initrd0.img $syslinuxpath/initrd-$isonameshort
+		mv $stickmount/$isonameshort/isolinux/vmlinuz0 $syslinuxpath/linux-$isonameshort
+		appendsection="append initrd=initrd-$isonameshort root=UUID=$stickuuid rootfstype=vfat rd.live.dir=/$isonameshort/LiveOS/ ro rd.live.image rd.luks=0 rd.md=0 rd.dm=0 quiet rhgb"
+	fi
+}
+syslinux_stuff () {
+	echo "installing syslinux on $stickdevpart"
+	syslinux -i $stickdevpart
+	echo "replacing mbr of $stickdevice with syslinux mbr.bin"
+	if [[ -e /usr/share/syslinux/mbr.bin ]]; then
+		dd if=/usr/share/syslinux/mbr.bin of=$stickdevice &>/dev/null
+	else
+		dd if=/usr/lib/syslinux/mbr.bin of=$stickdevice &>/dev/null
+	fi
+	echo "setting $stickdevice partition $stickpart active"
+	parted $stickdevice set $stickpart boot on &>/dev/null
+	copy_kernel_initrd
+}
+add_harddisk_section () {
+	if ! grep -q localboot $syslinuxpath/syslinux.cfg; then
+	        cat <<EOF >>$syslinuxpath/syslinux.cfg
+
+label harddisk
+  	localboot 0x80
+EOF
+	fi
+}
+add_menu_section_suse () {
+	if echo $isoname | grep -qi "Li-f-e"; then
+	cat <<EOF >>$syslinuxpath/syslinux.cfg
+label install
+	kernel linux-$isonameshort
+	$appendsection liveinstall
+
+label Gnome
+	kernel linux-$isonameshort
+	$appendsection gnome
+
+label Cinnamon
+	kernel linux-$isonameshort
+	$appendsection cinnamon
+
+label memtest
+	kernel memtest
+
+EOF
+	fi
+	add_harddisk_section
+
+}
+create_syslinux_cfg() {
+        if [[ $distroname == suse ]]; then
+        	cat <<EOF >$syslinuxpath/syslinux.cfg
+implicit 1
+prompt   1
+timeout  100
+$isolinux_msg
+$ui
+default $isonameshort
+
+EOF
+	else
+	if [[ -e /usr/share/syslinux/vesamenu.c32 ]]; then
+		cp /usr/share/syslinux/vesamenu.c32 $syslinuxpath/ || echo "/usr/share/syslinux/vesamenu.c32 is missing or cannot be copied"
+	else
+		cp /usr/lib/syslinux/vesamenu.c32 $syslinuxpath/ || echo "/usr/lib/syslinux/vesamenu.c32 is missing or cannot be copied"
+	fi
+                cat <<EOF >$syslinuxpath/syslinux.cfg
+default vesamenu.c32
+ONTIMEOUT $isonameshort
+ALLOWOPTIONS 0
+PROMPT 0
+IMPLICIT 1
+OPTIONS 1
+TIMEOUT 100
+
+EOF
+
+	fi
+}
+add_menu_section () {
+        cat <<EOF >>$syslinuxpath/syslinux.cfg
+
+LABEL $isonameshort
+        kernel linux-$isonameshort
+        $appendsection 
+
+EOF
+	if [[ $distroname == suse ]]; then
+		add_menu_section_suse
+	fi
+}
+
+echo "Please make sure the following information is correct:"
+echo "iso name: $isoname distro: $distroname stick device: $stickdevice"
+echo "stick uuid: /dev/disk/by-uuid/$stickuuid stick partition: $stickpart"
+if [ ! -f $livestickgui ]; then
+	are_you_sure "continue ?" "y" "n"
+fi
+mkdir $isomount $stickmount &>/dev/null
+if ! mount $2 $stickmount &>/dev/null; then
+        echo "unable to mount the usb stick partition"
+        exit 1
+fi
+if [[ -e $stickmount/$isoname ]];then
+	isopath=$stickmount/$isoname
+else
+	isopath=$1
+fi
+if ! mount -o loop $isopath $isomount &>/dev/null; then
+	echo "unable to mount the iso image"
+	exit 1
+fi
+if [[ -f $stickmount/fatstick ]]; then
+        echo "the stick is already bootable stick"
+	if ! grep -q $isonameshort $syslinuxpath/syslinux.cfg; then
+		copy_kernel_initrd
+		echo "adding new image to boot menu"
+		add_menu_section
+	fi
+else
+	umount $stickmount &>/dev/null || true
+	umount $stickdevpart &>/dev/null || true
+	umount $isopath &>/dev/null || true
+	syslinux_stuff
+	echo "creating menu entries"
+	create_syslinux_cfg
+	add_menu_section
+fi
+touch $stickmount/fatstick
+if [[ $distroname != fedora ]]; then
+	if [[ ! -f $stickmount/$isoname ]]; then
+		echo "copying $isoname to usb stick"
+		try_cp_with_progress $1 $stickmount/
+	else
+		echo "using existing $isoname on the stick"
+	fi
+fi
+thisscript=$(readlink -f $0)
+cp $thisscript $stickmount/ &>/dev/null || true
+clean_up
+
