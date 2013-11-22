@@ -76,7 +76,8 @@ audio/*; mplayer %s\; exit 1
 
 # The following line is for sites where xv understands jpeg but xloadimage 
 # is preferred. 
-#image/jpeg; display -viewer xv %s; test=test -n "$DISPLAY"
+image/jpeg; eog %s; test=test -n "$DISPLAY"
+image/jpg; eog %s; test=test -n "$DISPLAY"
 
 #image/x-fits; saoimage -fits %s 2> /dev/null
 image/x-xwindowdump; xwud -in %s 2> /dev/null
