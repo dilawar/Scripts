@@ -1,5 +1,9 @@
 #!/bin/bash
 musicDir=$HOME/Music
+if [[ $# -le 1 ]]; then
+    echo "USAGE: $0 (-d | -a)"
+fi
+
 if [[ "$1" == "-d" ]]
 then 
   file="$musicDir/$(mpc -h localhost -f %file% | head -n 1)"
