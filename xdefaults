@@ -9,9 +9,6 @@ xterm*font9: -dec-terminal-bold-r-normal-*-10-*-*-*-*-*-iso8859-*
 
 XTerm*background: black
 XTerm*foreground: white
-XTerm*pointerColor: blue
-XTerm*pointerColorBackground: white
-XTerm*cursorColor: red
 XTerm*internalBorder: 3
 XTerm*loginShell: true
 XTerm*scrollBar: false
