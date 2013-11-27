@@ -31,8 +31,8 @@
 
 <!-- Key bindings -->
 <Key mask="AC" key="t">exec:Terminal</Key>
-<Key mask="A" key="t">exec:xterm</Key>
-<Key mask="AC" key="r">exec:gexec</Key>
+<Key mask="AC" key="Return">exec:xterm</Key>
+<Key mask="AC" key="p">exec:gexec</Key>
 <Key key="Up">up</Key>
 <Key key="Down">down</Key>
 <Key key="Right">right</Key>
