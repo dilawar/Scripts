@@ -9,4 +9,4 @@
 
 source ~/Scripts/git_prompt.sh
 export PS1='\u@\h\[\033[01;30m\] \w\[\033[01;34m\]$(__git_ps1 " (%s)")\[\033[01;31m\]\$\[\033[00m\] \n'
-
+xrdb ~/Scripts/xdefaults
