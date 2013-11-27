@@ -32,7 +32,7 @@
 <!-- Key bindings -->
 <Key mask="AC" key="t">exec:Terminal</Key>
 <Key mask="AC" key="Return">exec:xterm</Key>
-<Key mask="AC" key="p">exec:gexec</Key>
+<Key mask="4" key="p">exec:gexec</Key>
 <Key key="Up">up</Key>
 <Key key="Down">down</Key>
 <Key key="Right">right</Key>
