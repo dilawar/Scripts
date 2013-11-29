@@ -1,7 +1,7 @@
 #   Screen Options   ##
 shell bash                      # Tell screen your default shell
 startup_message off             # Turn off start message
-defscrollback = 5000
+defscrollback = 500000
 shelltitle '$ |bash'    # Dynamic window titled for running program
 msgwait 1                 # Set messages timeout to one second
 nethack on                               # Turn on nethack error messages
@@ -14,7 +14,7 @@ termcapinfo xterm* 'is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;4;6l'
 # hardstatus alwayslastline "%{=b}%{G}%H: %{C}%w %=%{G}%D, %m/%d %C%a"
 
 # This status is the same as the above, except it puts "<username>@" in front of the hostname
-hardstatus alwayslastline "%{=b}%{G}Screen @ %0`@%H: %{C}%w %=%{G}%D, %m/%d"
+hardstatus alwayslastline "%{=b}%{G}Screen @ %0`@%H: %{C}%w %=%{G}%D, %m/%d|%c|"
 
 # autodetach on
 # This is useful if you want a separate screen in every running terminal window
