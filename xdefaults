@@ -1,8 +1,6 @@
-Urxvt.background: black
-URxvt.foreground: white
 URxvt.scrollBar: false
-URxvt.font: 9x15
 URxvt.perl-ext-common:  default,matcher,font-size
+URxvt.font: 9x15
 URxvt.url-launcher:      /usr/bin/firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #4682B4
