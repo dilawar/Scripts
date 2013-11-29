@@ -7,36 +7,4 @@ xterm*font8: -*-lucidatypewriter-medium-*-*-*-14-*-*-*-*-*-*-*
 xterm*font6: -*-lucidatypewriter-medium-*-*-*-12-*-*-*-*-*-*-*
 xterm*font9: -dec-terminal-bold-r-normal-*-10-*-*-*-*-*-iso8859-*
 
-XTerm*background: black
-XTerm*foreground: white
-XTerm*loginShell: true
-XTerm*scrollBar: false
-XTerm*scrollKey: true
-XTerm*saveLines: 100000
-XTerm*color0:			#000000
-XTerm*color1:			#c00000
-XTerm*color2:			#008000
-XTerm*color3:			#808000
-XTerm*color4:			#0000c0
-XTerm*color5:			#c000c0
-XTerm*color6:			#008080
-XTerm*color7:			#c0c0c0
-XTerm*color8:			#808080
-XTerm*color9:			#ff6060
-XTerm*color10:			#00ff00
-XTerm*color11:			#ffff00
-XTerm*color12:			#8080ff
-XTerm*color13:			#ff40ff
-XTerm*color14:			#00ffff
-XTerm*color15:			#ffffff
-Xterm*cursorColor:		Blue
-
-Rxvt*background: black
-Rxvt*foreground: white
-Rxvt*scrollBar_right: false
-Rxvt*scrollBar: false
-Rxvt*saveLines: 100000
-Rxvt*termName: rxvt-256color
-Rxvt*cursorColor: white
-Rxvt*font: -*-fixed-medium-*-*-14-*-*-*-*-*-iso8859-*
 
