@@ -1,5 +1,5 @@
 Urxvt.background: black
-URxvf.foreground: white
+URxvt.foreground: white
 URxvt.scrollBar: false
 URxvt.font: 9x15
 URxvt.perl-ext-common:  default,matcher,font-size
