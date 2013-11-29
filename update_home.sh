@@ -1,6 +1,13 @@
 #!/bin/bash
 # Run this script after editing any script in this directory.
 
+if [ $1 == "clean" ]; then
+    echo "Cleaning up everything ... "
+    rm -rf $HOME/.vim
+    rm -rf $HOME/.mutt
+    rm -rf $HOME/.config/awesome
+fi
+
 SCRIPTHOME=$HOME/Scripts
 # Update bash 
 echo "Updating bash"
