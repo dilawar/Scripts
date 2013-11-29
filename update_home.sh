@@ -6,14 +6,16 @@ if [ "$1" == "clean" ]; then
     rm -rf $HOME/.vim
     rm -rf $HOME/.mutt
     rm -rf $HOME/.config/awesome
+    rm -rf $HOME/.Xresources $HOME/.Xdefaults
 fi
 
 SCRIPTHOME=$HOME/Scripts
 
 echo "Setting up Xdefaults .."
 rm -f $HOME/.Xresources
-ln $SCRIPTHOME/xdefaults .Xresources
-ln $SCRIPTHOME/xdefaults .Xdefaults
+rm -f $HOME/.Xdefaults
+ln $SCRIPTHOME/xdefaults $HOME/.Xresources
+ln $SCRIPTHOME/xdefaults $HOME/.Xdefaults
 
 echo "Setting up urxvt terminal..."
 RXVTEXT=$HOME/.urxvt/ext
