@@ -1,10 +1,6 @@
-xterm*font: -*-fixed-medium-r-*-*-14-*-*-*-*-*-iso8859-*
-xterm*font1: -*-*-*-*-*-*-2-*-*-*-*-*-*-*
-xterm*font2: -misc-fixed-*-r-normal-*-10-*-*-*-*-*-iso8859-*
-xterm*font3: -b&h-lucidatypewriter-bold-*-*-*-11-*-*-*-*-*-*-*
-xterm*font7: -*-screen-bold-r-normal-*-14-*-*-*-*-*-iso8859-*
-xterm*font8: -*-lucidatypewriter-medium-*-*-*-14-*-*-*-*-*-*-*
-xterm*font6: -*-lucidatypewriter-medium-*-*-*-12-*-*-*-*-*-*-*
-xterm*font9: -dec-terminal-bold-r-normal-*-10-*-*-*-*-*-iso8859-*
-
-
+URxvt.scrollBar: false
+URxvt.font: 9x15
+URxvt.perl-ext-common:  default,matcher
+URxvt.url-launcher:      /usr/bin/firefox
+URxvt.matcher.button:   1
+URxvt.colorUL: #4682B4
