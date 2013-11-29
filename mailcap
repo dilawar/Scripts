@@ -78,6 +78,7 @@ audio/*; mplayer %s\; exit 1
 # is preferred. 
 image/jpeg; eog %s; test=test -n "$DISPLAY"
 image/jpg; eog %s; test=test -n "$DISPLAY"
+image/*; display %s; test=test -n "$DISPLAY"
 
 #image/x-fits; saoimage -fits %s 2> /dev/null
 image/x-xwindowdump; xwud -in %s 2> /dev/null

@@ -17,6 +17,10 @@ rm -f $HOME/.Xdefaults
 ln $SCRIPTHOME/xdefaults $HOME/.Xresources
 ln $SCRIPTHOME/xdefaults $HOME/.Xdefaults
 
+echo "Setting mailcap"
+rm -f $HOME/.mailcap
+ln $SCRIPTHOME/mailcap $HOME/.mailcap
+
 echo "Setting up urxvt terminal..."
 RXVTEXT=$HOME/.urxvt/ext
 if [ ! -d $RXVTEXT ]; then
