@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run this script after editing any script in this directory.
 
-if [ $1 == "clean" ]; then
+if [ "$1" == "clean" ]; then
     echo "Cleaning up everything ... "
     rm -rf $HOME/.vim
     rm -rf $HOME/.mutt
@@ -9,6 +9,11 @@ if [ $1 == "clean" ]; then
 fi
 
 SCRIPTHOME=$HOME/Scripts
+
+echo "Updating screenrc"
+rm -f $HOME/.screenrc
+ln $SCRIPTHOME/screenrc $HOME/.screenrc 
+
 # Update bash 
 echo "Updating bash"
 rm -f $HOME/.bashrc
