@@ -10,6 +10,15 @@ fi
 
 SCRIPTHOME=$HOME/Scripts
 
+echo "Setting up urxvt terminal..."
+RXVTEXT=$HOME/.urxvt/ext
+if [ ! -d $RXVTEXT ]; then
+    mkdir -p $RXVTEXT 
+fi 
+cd $RXVTEXT && \
+    wget https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
+    && cd 
+
 echo "Updating screenrc"
 rm -f $HOME/.screenrc
 ln $SCRIPTHOME/screenrc $HOME/.screenrc 
