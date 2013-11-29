@@ -24,7 +24,7 @@ if [ ! -d $RXVTEXT ]; then
 fi 
 if [ ! -f $RXVTEXT/font-size ]; then
     cd $RXVTEXT && \
-    wget https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
+    wget --no-check-certificate https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
     && cd 
 fi
 
