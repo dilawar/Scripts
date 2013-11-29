@@ -102,4 +102,3 @@ export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/texinputs:"
 export PATH=$PATH:~/Bhandar/anaconda/bin/
 export MYVIMRC=~/.vim/vimrc
-
