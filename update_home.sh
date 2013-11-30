@@ -38,15 +38,7 @@ if [[ $(which conky) == *"conky"* ]]; then
     ln $SCRIPTHOME/conkyrc $HOME/.conkyrc
 else
     echo "[WARN] No conky found. Install and continue ..."
-fi
-if [[ $(which dzen) == *"dzen"* ]]; then
-    echo "Dzen found"
-    if [ ! -f $SCRIPTHOME/dzconky ]; then
-        echo "[WARN] No dzen-conky script found.... Write one."
-    else
-        chmod +x $SCRIPTHOME/dzconky
-        echo "Adding dzconky to startup scripts ..."
-    fi
+    ln $SCRIPTHOME/dmenu_conky $HOME/Startup/dmenu_conky
 fi
 
 echo "Updating screenrc"
