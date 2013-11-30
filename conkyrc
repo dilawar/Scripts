@@ -6,5 +6,6 @@ total_run_times 0
 use_spacer right
  
 TEXT
-${mpd_title} | $cpu%|$running_processes|${upspeed eth1}/${downspeed eth1}|${time %a %b %d %I:%M%P}
+${execpi 300 ~/Scripts/imap.pl}|\
+${mpd_title} |$cpu%|\#$running_processes|${upspeed eth1}/${downspeed eth1}|${time %a %b %d %I:%M%P}
 
