@@ -26,9 +26,11 @@ RXVTEXT=$HOME/.urxvt/ext
 if [ ! -d $RXVTEXT ]; then
     mkdir -p $RXVTEXT 
 fi 
+
 if [ ! -f $RXVTEXT/font-size ]; then
     cd $RXVTEXT && \
-    wget --no-check-certificate https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
+    wget --no-check-certificate \
+    https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
     && cd 
 fi
 
@@ -96,6 +98,11 @@ fi
 
 
 echo "Updating vim ..."
+if [ ! -d $HOME/.backup ]; then
+    echo " + Creating backup dir"
+    mkdir $HOME/.backup 
+fi
+
 VIMDIR=$HOME/.vim
 if [ -d $VIMDIR ]; then 
     cd $VIMDIR && git pull && git submodule init && git submodule update && cd
