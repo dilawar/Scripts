@@ -6,5 +6,5 @@ total_run_times 0
 use_spacer right
  
 TEXT
-${loadavg 1 2 3} ${time %a %b %d %I:%M%P}
+${mpd_title} | $cpu%|$running_processes|${upspeed eth1}/${downspeed eth1}|${time %a %b %d %I:%M%P}
 
