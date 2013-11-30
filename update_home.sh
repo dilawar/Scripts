@@ -32,6 +32,23 @@ if [ ! -f $RXVTEXT/font-size ]; then
     && cd 
 fi
 
+echo "Setting up dzen and conky"
+if [[ $(which conky) == *"conky"* ]]; then
+    rm -f $HOME/.conkyrc 
+    ln $SCRIPTHOME/conkyrc $HOME/.conkyrc
+else
+    echo "[WARN] No conky found. Install and continue ..."
+fi
+if [[ $(which dzen) == *"dzen"* ]]; then
+    echo "Dzen found"
+    if [ ! -f $SCRIPTHOME/dzconky ]; then
+        echo "[WARN] No dzen-conky script found.... Write one."
+    else
+        chmod +x $SCRIPTHOME/dzconky
+        echo "Adding dzconky to startup scripts ..."
+    fi
+fi
+
 echo "Updating screenrc"
 rm -f $HOME/.screenrc
 ln $SCRIPTHOME/screenrc $HOME/.screenrc 
