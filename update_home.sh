@@ -26,10 +26,21 @@ RXVTEXT=$HOME/.urxvt/ext
 if [ ! -d $RXVTEXT ]; then
     mkdir -p $RXVTEXT 
 fi 
+
 if [ ! -f $RXVTEXT/font-size ]; then
     cd $RXVTEXT && \
-    wget --no-check-certificate https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
+    wget --no-check-certificate \
+    https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
     && cd 
+fi
+
+echo "Setting up dzen and conky"
+if [[ $(which conky) == *"conky"* ]]; then
+    rm -f $HOME/.conkyrc 
+    ln $SCRIPTHOME/conkyrc $HOME/.conkyrc
+else
+    echo "[WARN] No conky found. Install and continue ..."
+    ln $SCRIPTHOME/dmenu_conky $HOME/Startup/dmenu_conky
 fi
 
 echo "Updating screenrc"
@@ -88,6 +99,12 @@ fi
 
 
 echo "Updating vim ..."
+if [ ! -d $HOME/.backup ]; then
+    echo " + Creating backup git dir... "
+    mkdir $HOME/.backup 
+    cd $HOME/.backup && git init 
+fi
+
 VIMDIR=$HOME/.vim
 if [ -d $VIMDIR ]; then 
     cd $VIMDIR && git pull && git submodule init && git submodule update && cd
