@@ -7,5 +7,5 @@ use_spacer right
  
 TEXT
 ${execpi 300 ~/Scripts/imap.pl}|\
-${mpd_title} |$cpu%|\#$running_processes|${upspeed eth1}/${downspeed eth1}|${time %a %b %d %I:%M%P}
+${mpd_title} |$cpu%|$mem|\#$running_processes|${upspeed eth1}/${downspeed eth1}|${time %a %b %d %I:%M%P}
 
