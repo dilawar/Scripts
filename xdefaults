@@ -1,4 +1,5 @@
 URxvt.scrollBar: false
+URxvt.saveLines: 100000
 URxvt.perl-ext-common:  default,matcher,font-size
 URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 URxvt.url-launcher:      /usr/bin/firefox
