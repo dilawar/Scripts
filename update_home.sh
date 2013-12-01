@@ -101,7 +101,7 @@ echo "Updating vim ..."
 if [ ! -d $HOME/.backup ]; then
     echo " + Creating backup git dir... "
     mkdir $HOME/.backup 
-    cd $HOME/.backup && git init --bare 
+    cd $HOME/.backup && git init 
 fi
 
 VIMDIR=$HOME/.vim
