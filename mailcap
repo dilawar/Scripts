@@ -1,73 +1,5 @@
-#
-# Enhanced mailcap file for the use with mutt and other mailreaders which
-# support MIME as good as mutt...
-# Based on Bell's mailcap file, which can be found in the metamail
-# distribution, but heavily extended and changed
-#
-# by Roland Rosenfeld <roland@spinnaker.de> 1997-2002
-#
-# You will find the most recent version of this file at
-# http://www.spinnaker.de/mutt/mailcap
-#
-# Copyright (c) 1991 Bell Communications Research, Inc. (Bellcore)
-# 
-# Permission to use, copy, modify, and distribute this material 
-# for any purpose and without fee is hereby granted, provided 
-# that the above copyright notice and this permission notice 
-# appear in all copies, and that the name of Bellcore not be 
-# used in advertising or publicity pertaining to this 
-# material without the specific, prior written permission 
-# of an authorized representative of Bellcore.  BELLCORE 
-# MAKES NO REPRESENTATIONS ABOUT THE ACCURACY OR SUITABILITY 
-# OF THIS MATERIAL FOR ANY PURPOSE.  IT IS PROVIDED "AS IS", 
-# WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
-#
-# $ Id: mailcap,v 1.21 2002/05/30 17:18:28 roland Exp roland $
-#
-
-
-#
-# Audio
-#
-
-
-# Note that the effect of the following is to send ALL audio subtypes to the 
-# showaudio program, but to compose audio (e.g. in the mailto program) 
-# using "audio/basic" as the type.
-
-#audio/basic; showaudio %s; compose=audiocompose %s;\
-#	edit=audiocompose %s; description="An audio fragment"
-audio/basic; compose=audiocompose %s;\
-	edit=audiocompose %s; description="An audio fragment"
-#audio/basic; cat > /dev/audio
-#audio/ulaw; cat > /dev/audio
-#audio/adpcm4; /usr/local/lib/vbox/vboxplay %s 200
-#audio/x-wav; vplay %s
-#audio/x-aiff; playaiff %s; compose=recordaiff -t 60 %s;	\
-#	description="AIFF Audio"; x11-bitmap="/usr/lib/Zmail/bitmaps/sound.xbm"
-#audio/mod; /usr/bin/tracker %s
-
-audio/x-vbox; vboxplay %s
-
-audio/x-pn-realaudio; 	mplayer %s; test=test "$DISPLAY" != ""
-audio/vnd.rn-realaudio; mplayer %s; test=test "$DISPLAY" != ""
-audio/x-pn-mp3; 	mplayer %s; test=test "$DISPLAY" != ""
-
-audio/mpeg;    mplayer %s; test=test "$DISPLAY" != "" 
-audio/mpegurl; mplayer %s; test=test "$DISPLAY" != "" 
-audio/mpeg;    mpg123 -q %s
-
-audio/midi;   timidity -im %s; test=test -n "$DISPLAY"
-audio/mid;    timidity -im %s; test=test -n "$DISPLAY"
-audio/x-midi; timidity -im %s; test=test -n "$DISPLAY"
-audio/mid;    timidity %s
-audio/midi;   timidity %s
-audio/x-midi; timidity %s
-
-#audio/*; showaudio %s
-#audio/*; xmplayer %s; test=test -n "$DISPLAY"
 audio/*; mplayer %s\; exit 1
-
+audio/*; vlc %s\; exit 1
 
 
 #
@@ -107,25 +39,6 @@ image/*; display %s; test=test -n "$DISPLAY"
 # The following sends all other image subtypes to xloadimage
 #image/*; xli %s; test=test -n "$DISPLAY"
 image/*; display %s; test=test -n "$DISPLAY"
-
-# If you have only a text console:
-#image/*; image2ascii %s; copiousoutput
-
-# The following all appear AFTER the corresponding READING entries, and 
-# are for use in messages composition, e.g. in the "mailto" program
-# In the following lines, the exit 0 junk is necessary because xwd 
-# does not always exit with a valid exit status!
-# For sites with current (X11R5) pbm utilities
-#image/gif; display %s; \
-#	compose="xwd -frame | xwdtopnm | ppmtogif > %s\; exit 0"; \
-#	description="An X11 window image dump in GIF format"
-image/tiff; edit=xpaint %s; test=test -n "$DISPLAY"
-image/x-portable-pixmap; edit=xpaint %s; test=test -n "$DISPLAY"
-image/gif; edit=xpaint %s; test=test -n "$DISPLAY"
-image/x-bitmap; edit=xpaint %s; test=test -n "$DISPLAY"
-image/x-pixmap; edit=xpaint %s; test=test -n "$DISPLAY"
-image/x-windowdump; edit=xpaint %s; test=test -n "$DISPLAY"
-
 
 
 #
@@ -240,17 +153,7 @@ text/comma-separated-values; gnumeric %s; test=test -n "$DISPLAY"; \
 # Video
 #
 
-# This maps MPEG video data to the viewer 'mpeg_play'.
-# (Mpeg_play is part of the MPEG distribution from The Berkeley Plateau
-# Research Group and is available via anonymous ftp from toe.cs.berkeley.edu.)
-#video/mpeg; mpeg_play %s 2>/dev/null ; test=test -n "$DISPLAY"
-video/mpeg; gtv %s; test=test -n "$DISPLAY"
-
-video/x-msvideo; /usr/bin/aviplay '%s'; test=test "$DISPLAY" != ""
-
-# This maps all other types of video to the xanim viewer.  (Xanim is written
-# by Mark Podlipec, podlipec@wellfleet.com.)
-video/*; xanim +Av70 +Sr +Zpe %s >/dev/null; test=test -n "$DISPLAY"
+video/*; mplayer %s; 
 
 
 
