@@ -1,5 +1,5 @@
 #!/bin/bash
-musicDir=$HOME/Music
+musicDir=$HOME/Bhandar/Music
 if [[ $# -le 1 ]]; then
     echo "USAGE: $0 (-d | -a)"
 fi
