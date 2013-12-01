@@ -15,6 +15,7 @@ do
     done
     
     if [ "$alreadyAdded" == "false" ]; then
+        echo "+ Adding $song"
         mpc add $song 
     fi
 done
