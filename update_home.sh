@@ -87,6 +87,7 @@ if [ -d $MPDHOME ]; then
 else
     mkdir $MPDHOME 
     mkdir $MPDHOME/playlists 
+    touch $MPDHOME/tag_cache 
 fi
 
 echo "Setting up xfce4-terminal terminalrc ..."
