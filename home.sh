@@ -1,22 +1,28 @@
 #!/bin/bash
 
-# Run this script after editing any script in this directory.
+# This script update my HOME folder. Run it once and HOME must have all default
+# configuartion files of my faviorite tools.
+
+# Check if internet connection is available.
 if [ "$1" == "clean" ]; then
-    colorPrint "STEP" "Cleaning up everything ... "
+    colorPrint "WARN" "Cleaning up everything ... "
     rm -rf $HOME/.vim
     rm -rf $HOME/.mutt
     rm -rf $HOME/.config/awesome
     rm -rf $HOME/.Xresources $HOME/.Xdefaults
+    colorPrint "TODO" "Run the script again to setup home."
+    exit
 fi
 
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
-colorPrint "STEP" "Setting up Xdefaults .."
+colorPrint "STEP" "Setting up Xdefaults"
 rm -f $HOME/.Xresources
 rm -f $HOME/.Xdefaults
 ln $SCRIPTHOME/xdefaults $HOME/.Xresources
 ln $SCRIPTHOME/xdefaults $HOME/.Xdefaults
+xrdb $HOME/.Xresources
 
 colorPrint "STEP" "Setting mailcap"
 rm -f $HOME/.mailcap
@@ -27,7 +33,6 @@ RXVTEXT=$HOME/.urxvt/ext
 if [ ! -d $RXVTEXT ]; then
     mkdir -p $RXVTEXT 
 fi 
-
 if [ ! -f $RXVTEXT/font-size ]; then
     cd $RXVTEXT && \
     wget --no-check-certificate \
@@ -40,7 +45,7 @@ if [[ $(which conky) == *"conky"* ]]; then
     rm -f $HOME/.conkyrc 
     ln $SCRIPTHOME/conkyrc $HOME/.conkyrc
 else
-    colorPrint "WARN" "No conky found. Install and continue ..."
+    colorPrint "WARN" "No conky found." "Continuing..."
     ln $SCRIPTHOME/dmenu_conky $HOME/Startup/dmenu_conky
 fi
 
@@ -54,29 +59,34 @@ rm -f $HOME/.bashrc
 cp $SCRIPTHOME/bashrc $HOME/.bashrc 
 source $HOME/.bashrc 
 
-colorPrint "STEP"  "Setting up git"
+colorPrint "STEP"  "Configuring git."
 rm -f $HOME/.gitconfig 
 cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
 rm -f $HOME/.gitignore
 cp $SCRIPTHOME/gitignore $HOME/.gitignore 
 
-colorPrint "STEP" "Setting up mutt ..."
+colorPrint "STEP" "Setting up mutt"
 MUTTDIR=$HOME/.mutt
+if [ -d $HOME/.mail ]; then
+    mkdir -p $HOME/.mail 
+fi
 if [ -d $MUTTDIR ]; then
     cd $MUTTDIR && git pull &&  cd
 else
     git clone git@github.com:dilawar:mutt $MUTTDIR
+    cd $MUTTDIR && git submdule init && git submodule update && cd
 fi
 
 colorPrint "STEP" "Updating awesome ... "
 AWESOMEDIR=$HOME/.config/awesome 
 if [ -d $AWESOMEDIR ]; then
     cd $AWESOMEDIR && git pull 
-    colorPrint "STEP" "[INFO] Resetting awesome..."
+    colorPrint "INFO" "Resetting awesome"
     xdotool key Super_L+ctrl+r
 else
     git clone git@github.com:dilawar/awesome $AWESOMEDIR
-    colorPrint "STEP" "[TODO] Logout and login using awesome ..."
+    cd $AWESOMEDIR && git submodule init && git submodule update && cd
+    colorPrint "TODO" "Logout and login using awesome ..."
 fi
 
 colorPrint "STEP" "Setting up MPD ..."
@@ -84,10 +94,9 @@ rm -f $HOME/.mpdconf
 cp $SCRIPTHOME/mpd/mpdconf $HOME/.mpdconf
 MPDHOME=$HOME/.mpd
 if [ -d $MPDHOME ]; then
-    colorPrint "STEP" "$MPDHOME exists .. Nothing to do."
+    colorPrint "STEP" "$MPDHOME exists. Nothing to do."
 else
-    mkdir $MPDHOME 
-    mkdir $MPDHOME/playlists 
+    mkdir -p $MPDHOME/playlists 
     touch $MPDHOME/tag_cache 
 fi
 
@@ -99,11 +108,11 @@ if [ -d $XFCE4HOME ]; then
 fi
 
 
-colorPrint "STEP" "Updating vim ..."
+colorPrint "STEP" "Updating vim"
 if [ ! -d $HOME/.backup ]; then
     colorPrint "STEP" " + Creating backup git dir... "
     mkdir $HOME/.backup 
-    cd $HOME/.backup && git init 
+    cd $HOME/.backup && git init  
 fi
 
 VIMDIR=$HOME/.vim
@@ -115,5 +124,4 @@ else
     git clone -b pathogen git@github.com:dilawar/vim $VIMDIR
     cd $VIMDIR && git submodule init && git submodule update && cd
 fi
-
 colorPrint "TODO" "Open vim and run BundleInstall etc."
