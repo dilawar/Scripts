@@ -9,7 +9,9 @@ audio/*; vlc %s\; exit 1
 # The following line is for sites where xv understands jpeg but xloadimage 
 # is preferred. 
 image/jpeg; eog %s; test=test -n "$DISPLAY"
+image/jpeg; display %s; test=test -n "$DISPLAY"
 image/jpg; eog %s; test=test -n "$DISPLAY"
+image/jpg; display %s; test=test -n "$DISPLAY"
 image/*; display %s; test=test -n "$DISPLAY"
 
 #image/x-fits; saoimage -fits %s 2> /dev/null
