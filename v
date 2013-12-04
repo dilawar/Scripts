@@ -15,4 +15,7 @@ for i in $@; do
         )
     fi
 done
+if [ $# -lt 1 ]; then
+    vim ~/.vimrc
+fi
 vim $@
