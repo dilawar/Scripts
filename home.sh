@@ -74,7 +74,7 @@ if [ -d $MUTTDIR ]; then
     cd $MUTTDIR && git pull &&  cd
 else
     git clone git@github.com:dilawar/mutt $MUTTDIR
-    cd $MUTTDIR && git submdule init && git submodule update && cd
+    cd $MUTTDIR && git submodule init && git submodule update && cd
 fi
 
 colorPrint "STEP" "Updating awesome ... "
