@@ -1,1 +1,1 @@
-xrandr --output vga --mode 1028x1028 --rate 60
+xrandr --auto --mode 1028x1028 --rate 60

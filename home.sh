@@ -17,6 +17,24 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
+# Setting up ncurses agent for gnupg
+gnupgFile=$HOME/.gnupg/gpg-agent.conf
+if [ ! -f $gnupgFile ]; then
+   echo "pinentry-program /usr/bin/pinentry-curses" > $gnupgFile 
+fi
+    
+colorPrint "STEP" "Checking for flash plugin .."
+mozillaPlugin=$HOME/.mozilla/plugins
+flash_url="https://github.com/dilawar/MyPublic/blob/master/Flash/libflashplayer.so"
+if [ ! -d $mozillaPlugin ]; then
+    mkdir -p $mozillaPlugin 
+fi
+if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
+    cd $mozillaPlugin
+    wget $flash_url
+    cd 
+fi
+    
 colorPrint "STEP" "Setting up Xdefaults"
 rm -f $HOME/.Xresources
 rm -f $HOME/.Xdefaults
