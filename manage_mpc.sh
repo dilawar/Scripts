@@ -7,8 +7,11 @@ fi
 if [[ "$1" == "-d" ]]
 then 
   file="$musicDir/$(mpc -h localhost -f %file% | head -n 1)"
-  rm -f "$file"
   echo Deleteing $file
+  rm -f "$file"
+  if [ -f "$file" ]; then
+      echo "File is not deleted successfully."
+  fi
   mpc next
 fi
 
