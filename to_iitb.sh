@@ -8,6 +8,7 @@ host="127.0.0.1"
 netcat="nc.openbsd"
 if [ ! $(which $netcat) ]; then
     echo "ERROR: Not nc command found. I was checking for $netcat"
+    echo "Replace this variable with netcat-openbsd"
     exit
 fi
 p_status=`$netcat -z $host $port; echo $?`
@@ -16,7 +17,7 @@ if [[ "$p_status" == "1" ]]; then
     sshpass -pextvoxac ssh -t -t -D 5050 secure@login.iitb.ac.in -p 5022 > /dev/null &
 fi
 
-while [[ "$p_status" == "0" ]]; do
+while [[ "$p_status" == "1" ]]; do
     echo "Waiting for port to open...."
     p_status=`$netcat -z -w2 $host $port; echo $?`
 done
