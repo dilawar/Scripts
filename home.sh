@@ -84,6 +84,8 @@ rm -f $HOME/.gitignore
 cp $SCRIPTHOME/gitignore $HOME/.gitignore 
 
 colorPrint "STEP" "Setting up mutt"
+rm -f $HOME/.muttrc
+ln $SCRIPTHOME/muttrc $HOME/.muttrc
 MUTTDIR=$HOME/.mutt
 if [ ! -d $HOME/.mail ]; then
     mkdir -p $HOME/.mail 
