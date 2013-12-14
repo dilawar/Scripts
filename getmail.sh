@@ -18,10 +18,7 @@ if [ ! -d $HOME/.getmail ]; then
 fi
 
 if [ ! -d $HOME/Mail ]; then
-    mkdir -p $HOME/Mail/GPO/{cur,new,temp}
-    mkdir -p $HOME/Mail/EE/{cur,new,temp}
-    mkdir -p $HOME/Mail/NCBS/{cur,new,temp}
-    mkdir -p $HOME/Mail/GMAIL/{cur,new,temp}
+    mkdir -p $HOME/Mail/{GPO,EE,NCBS,GMAIL}/{cur,new,tmp}
     touch $HOME/Mail/{GPO,EE,NCBS,GMAIL}/backup.mbox
 fi
 
@@ -82,7 +79,7 @@ fi
 if [ ! -f $HOME/.getmail/gmail ]; then
 cat > $HOME/.getmail/gmail <<EOL
 [retriever]
-type = SimpleIMAPRetriever
+type = SimpleIMAPSSLRetriever
 server = imap.gmail.com
 username = profchaos
 password = ihatekartman
