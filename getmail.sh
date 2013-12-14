@@ -22,6 +22,7 @@ if [ ! -d $HOME/Mail ]; then
     mkdir -p $HOME/Mail/EE/{cur,new,temp}
     mkdir -p $HOME/Mail/NCBS/{cur,new,temp}
     mkdir -p $HOME/Mail/GMAIL/{cur,new,temp}
+    touch $HOME/Mail/{GPO,EE,NCBS,GMAIL}/backup.mbox
 fi
 
 if [ ! -f $HOME/.getmail/ee ]; then
@@ -79,7 +80,7 @@ EOL
 fi
 
 if [ ! -f $HOME/.getmail/gmail ]; then
-cat > $HOME/.getmail/ee <<EOL
+cat > $HOME/.getmail/gmail <<EOL
 [retriever]
 type = SimpleIMAPRetriever
 server = imap.gmail.com
