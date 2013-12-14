@@ -62,7 +62,7 @@ set include = yes
 set metoo  = yes # send reply to myself.
 set sendmail="msmtp"
 
-set alias_file = ~/.mutt/aliases
+set alias_file = ~/.mutt/alias
 set pager_index_lines = 7
 set query_command = "abook --mutt-query '%s'"
 macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
