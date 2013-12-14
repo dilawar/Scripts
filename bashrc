@@ -40,6 +40,8 @@ alias l='ls -CF'
 alias rm='rm -i'
 alias sh='bash'
 alias rsync='rsync --progress'
+alias i='sudo emerge --avu --autounmask-write'
+alias netcat='nc.openbsd'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
