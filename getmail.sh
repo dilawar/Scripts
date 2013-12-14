@@ -1,6 +1,7 @@
 #!/bin/bash
 getmail=getmail
 echo "Setting up getmail"
+
 if [ ! `which getmail` ]; then
     if [ ! `which getmail4` ]; then
         echo "No getmail program found."
@@ -23,9 +24,8 @@ if [ ! -d $HOME/Mail ]; then
     mkdir -p $HOME/Mail/GMAIL/{cur,new,temp}
 fi
 
-
 if [ ! -f $HOME/.getmail/ee ]; then
-echo "
+cat > $HOME/.getmail/ee <<EOL
 [retriever]
 type = SimpleIMAPRetriever
 server = sandesh.ee.iitb.ac.in
@@ -48,11 +48,11 @@ path = $HOME/Mail/EE/
 verbose = 2
 read_all = False
 message_log = $HOME/.getmail/ee.log 
-" > $HOME/.getmail/ee
+EOL
 fi
 
 if [ ! -f $HOME/.getmail/gpo ]; then
-echo "
+cat > $HOME/.getmail/gpo <<EOL
 [retriever]
 type = SimpleIMAPRetriever
 server = imap.iitb.ac.in
@@ -75,12 +75,11 @@ path = $HOME/Mail/GPO/
 verbose = 2
 read_all = False
 message_log = $HOME/.getmail/gpo.log 
-" > $HOME/.getmail/gpo 
+EOL
 fi
 
-
 if [ ! -f $HOME/.getmail/gmail ]; then
-echo "
+cat > $HOME/.getmail/ee <<EOL
 [retriever]
 type = SimpleIMAPRetriever
 server = imap.gmail.com
@@ -103,10 +102,11 @@ path = $HOME/Mail/GMAIL/
 verbose = 2
 read_all = False
 message_log = $HOME/.getmail/gmail.log 
-" > $HOME/.getmail/gpo 
+EOL
+fi
 
 if [ ! -f $HOME/.getmail/ncbs ]; then
-echo "
+cat > $HOME/.getmail/ncbs <<EOL
 [retriever]
 type = SimpleIMAPRetriever
 server = imap.ncbs.res.in
@@ -129,7 +129,7 @@ path = $HOME/Mail/NCBS/
 verbose = 2
 read_all = False
 message_log = $HOME/.getmail/ncbs.log 
-" > $HOME/.getmail/ncbs
+EOL
 fi
 
-echo "Edit files in $HOME/.getmail manually now."
+echo "Edit files manually in $HOME/.getmail"
