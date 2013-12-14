@@ -12,9 +12,8 @@ set mime_forward_rest=yes
 ##set folder = ~/Mail
 mailboxes =mairix-search
 mailboxes = ~/Mail/GPO
-mailboxes = ~/Mail/EE
-source ~/.mutt/server
-source ~/.mutt/gpo 
+mailboxes = ~/Mail/NCBS
+mailboxes = ~/Mail/GMAIL
 set sort = threads
 set postponed = +drafts
 set mbox_type = MailDir
@@ -61,8 +60,9 @@ set abort_unmodified = ask-yes
 set copy = yes
 set include = yes
 set metoo  = yes # send reply to myself.
+set sendmail="msmtp"
 
-set alias_file = ~/.mutt/aliases
+set alias_file = ~/.mutt/alias
 set pager_index_lines = 7
 set query_command = "abook --mutt-query '%s'"
 macro generic,index,pager \ca <shell-escape>abook<return>" "launch abook"
