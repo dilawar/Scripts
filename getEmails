@@ -1,3 +1,4 @@
 #! /bin/bash
-getmail -n -v -rgpo.getmail
-getmail -n -v -ree.getmail
+getmail -n -v -rgmail
+getmail -n -v -rncbs
+getmail -n -v -rgpo
