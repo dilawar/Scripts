@@ -74,7 +74,7 @@ ln $SCRIPTHOME/screenrc $HOME/.screenrc
 # Update bash 
 colorPrint "STEP" "Updating bash"
 rm -f $HOME/.bashrc
-cp $SCRIPTHOME/bashrc $HOME/.bashrc 
+ln $SCRIPTHOME/bashrc $HOME/.bashrc 
 source $HOME/.bashrc 
 
 colorPrint "STEP"  "Configuring git."
