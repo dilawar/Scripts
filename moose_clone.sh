@@ -10,6 +10,6 @@ if [ $1 == "git" ]; then
         git svn clone -s -r$2:HEAD $moose_url moose_git_shallow
     fi
 else
-    svn clone $moose_url moose_svn 
+    svn co $moose_url $1
 fi
 
