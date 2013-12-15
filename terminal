@@ -1,3 +1,6 @@
-#/bin/bash
-urxvt -bg black -fg white
-#xfce4-terminal
+#!/bin/sh
+urxvtc "$@"
+if [ $? -eq 2 ]; then
+   urxvtd -q -o -f
+   urxvtc "$@"
+fi
