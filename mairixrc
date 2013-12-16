@@ -1,0 +1,4 @@
+base=~/Mail
+mbox=./*
+database=~/Mail/mairix.db
+
