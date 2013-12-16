@@ -1,6 +1,6 @@
 #!/bin/bash
 moose_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code
-multi_url=svn://svn.code.sf.net/p/moose/code/moose/branches/buildQ/python/moose
+multi_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code/moose/branches/buildQ/python/moose
 
 if [ $1 == "git" ]; then
     if [ ! $2 ]; then
