@@ -1,4 +1,3 @@
 base=~/Mail
-mbox=./*
+maildir=./EE:./GPO:./NCBS:./GMAIL
 database=~/Mail/mairix.db
-
