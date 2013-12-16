@@ -1,6 +1,7 @@
 # Name
 set realname = 'Dilawar Singh'
-## set local folder.
+
+# set local folder.
 set header_cache = ~/.mutt/cache/headers
 set message_cachedir = ~/.mutt/cache/bodies
 set certificate_file = ~/.mutt/certificates
@@ -9,14 +10,18 @@ set mime_forward=yes
 set mime_forward_rest=yes
 
 ## where mails are stored
-##set folder = ~/Mail
-mailboxes =mairix-search
-mailboxes = ~/Mail/GPO
-mailboxes = ~/Mail/NCBS
-mailboxes = ~/Mail/GMAIL
+set folder="~/Mail"
+set mask="!^\\.[^.]"
+set mbox="~/Mail"
+set record="+.Sent"
+set postponed="+.Draft"
+set spoolfile="~/Mail"
+mailboxes  `echo -n "+ "; find ~/Mail -maxdepth 1 -type d -name ".*" -printf "+'%f' "`
+macro index c "<change-folder>?<toggle-mailboxes>" "open a different folder"
+macro pager c "<change-folder>?<toggle-mailboxes>" "open a different folder"
+macro compose A "<attach-message>?<toggle-mailboxes>" "attach message(s) to this message"
+
 set sort = threads
-set postponed = +drafts
-set mbox_type = MailDir
 set content_type = "text"
 set signature="~/.mutt/sign.txt"
 set sig_on_top=yes
@@ -29,8 +34,12 @@ set editor = "vim -c 'set spell spelllang=en syntax=mail ft=mail enc=utf-8' '+/^
 ignore *
 unignore date from subject to cc
 #
-folder-hook ~/Mail/GPO 'source ~/.mutt/gpo'
-folder-hook ~/Mail/EE 'source ~/.mutt/ee'
+folder-hook ~/Mail/GPO 'set from=dilawars@iitb.ac.in'
+folder-hook ~/Mail/GPO 'set sendmail=msmtp -a gpo'
+folder-hook ~/Mail/GMAIL 'set from=dilawar.s.rajput@gmail.com'
+folder-hook ~/Mail/GMAIL 'set sendmail=msmtp -a gmail'
+folder-hook ~/Mail/NCBS 'set from=dilawars@ncbs.res.in'
+folder-hook ~/Mail/NCBS 'set sendmail=msmtp -a ncbs'
 
 ###
 set folder_format = "%2C %t %N %12s %d %f"
@@ -76,7 +85,6 @@ alternative_order text/enriched text/plain text/html
 ## macro of automatic save.
 macro attach W <save-entry><kill-line>/home/dilawar/Attachments/
 macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
-macro index ",c" "<pipe-message>~/.mutt/parse_remind.pl<enter>"
 
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
