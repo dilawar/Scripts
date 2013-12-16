@@ -1,3 +1,4 @@
 base=~/Mail
-maildir=./EE:./GPO:./NCBS:./GMAIL
+maildir=EE:GPO:NCBS:GMAIL
+mfolder=mfolder
 database=~/Mail/mairix.db
