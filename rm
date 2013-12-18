@@ -1,23 +1,10 @@
 #!/bin/bash
 # This is wrapper around rm command.
 BACKUP_DIR=$HOME/.rm_backup
-DB=$BACKUP_DIR/rm.sqlite3
 PWD=$(pwd)
 
 if [ ! -d $BACKUP_DIR ]; then
     mkdir -p $BACKUP_DIR 
-fi
-rm -f $DB
-if [ ! -f $DB ]; then
-    # For time being
-    cmd=`sqlite3 $DB "CREATE TABLE IF NOT EXISTS record
-        ( path VARCHAR NOT NULL
-        , type CHARACTER NOT NULL
-        , deletedOn DATETIME 
-        , restoredOn DATETIME
-        , PRIMARY KEY (path, type)
-        )"
-        `
 fi
 
 # Great, now check the arguments. We are only interested in paths which can be
@@ -27,31 +14,47 @@ declare -a dirsToRemove
 declare -a filesToRemove
 
 args=""
+done=" ... DONE"
+
+function printDone 
+{
+    printf "%s\n" " ... done"
+}
+
+function showDir
+{
+    echo "Following dir exists in backup."
+    find $BACKUP_DIR/ -type d 
+}
+
+function showFiles 
+{
+    dir=$1
+    echo "Following files exists in dir $dir"
+    find $BACKUP_DIR/$dir -type f
+}
+
+if [[ "$1" == "--show-backup" ]] || [[ "$1" == "-b" ]]; then
+    if [ $2 ]; then
+        showFiles $2
+    else
+        showDir 
+    fi
+    exit
+fi
+
 for var in "$@" 
 do 
-    if [ -d $var ]; then
-        # Insert this to database
-        cmd=`sqlite3 $DB "INSERT OR REPLACE INTO record (path, type) 
-            VALUES ('$PWD/$var', 'd')"`
-        # Copy the file to backup dir and remove it.
-        cp -r $var $BACKUP_DIR/
-        res=`rm $args -v $var`
-
-        # If deletion is successful then record it in database.
-        if [ ! -d $var ]; then
-            cmd=`sqlite3 $DB "UPDATE record set (deletedOn='now()') WHERE
-                path='$PWD/$var"`
-        else
-            echo "[INFO] Directory is completely removed."
-        fi
-    elif [ -f $var ]; then
-        cmd=`sqlite3 $DB "INSERT OR REPLACE INTO record (path, type)
-                VALUES ('$PWD/$var', 'f')"`
+    elif [ -d $var ] || [ -f $var ]; then
+        path=$PWD/$var
+        printf "Creating backup for %s " "$var"
+        cp --parents -r $path $BACKUP_DIR/
+        printDone
+        printf " + Deleting ..."
+        deleted=`rm $args $path`
+        printDone
     else
         args="$args $var"
     fi
 done
-
-# Now execute the command 
-echo $args
 
