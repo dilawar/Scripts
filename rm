@@ -1,0 +1,9 @@
+#!/bin/bash
+# This is wrapper around rm command.
+BACKUP_DIR=$HOME/.rm_backup
+DB=$BACKUP_DIR/rm.sqlite3
+
+if [ -d $BACKUP_DIR ];
+    mkdir -p $BACKUP_DIR 
+fi
+
