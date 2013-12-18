@@ -1,3 +1,0 @@
-net clka   loc=p88; 
-net rst_n  loc=p93; 
-net strobe loc=p49; 
