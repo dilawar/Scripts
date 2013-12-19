@@ -1,5 +1,9 @@
 #!/bin/bash
-currentList=$(mpc -f %file% playlist)
+
+SCRIPT_HOME=$HOME/Scripts
+source $SCRIPT_HOME/colors.sh
+
+currentList=$(mpc -f "%file%" playlist)
 searched=$(mpc search any $1)
 IFS=$'\n'
 for song in $searched 
@@ -8,14 +12,14 @@ do
     for current in $currentList 
     do
         if [ "$song" == "$current" ]; then
-            echo "$song Already added. Ignoring"
+            colorPrint "INFO" "$song " " already added. Ignoring"
             alreadyAdded="true"
             break
         fi
     done
     
     if [ "$alreadyAdded" == "false" ]; then
-        echo "+ Adding $song"
+        colorPrint "INFO" "$song" "Added"
         mpc add $song 
     fi
 done
