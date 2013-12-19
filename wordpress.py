@@ -22,6 +22,7 @@ import lxml.html as lh
 import codecs
 import errno
 import difflib 
+import os
 
 # globals 
 blogDir = "."
@@ -217,7 +218,7 @@ password=password
       raise
   
   ## Now cleate a client 
-  wp = Client(blog, user, password)
+  wp = Client(blog, user, password, proxy=os.environ['http_proxy'])
   
   # Send a file to wordpress.
   if args.update :
