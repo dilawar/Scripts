@@ -15,7 +15,7 @@ do
         position=${current%%-*}
         colorPrint "INFO" "A matching song is found in playlist at $position"
         mpc play $position
-        break
+        exit
     fi
 done
 colorPrint "INFO" "No song found for your query." 
