@@ -71,6 +71,7 @@ export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
 export PATH=$PATH:/opt/altera10.1/modelsim_ase/bin/
 export PATH=$PATH:/opt/altera10.1/quartus/bin
 export PATH=$PATH:/usr/local/bin/gephi/bin/
+export PATH=$PATH:/Work/bin/altera9.1/bin
 
 export MMSIMHOME=/cad/cadence/mmsim
 export MMSIM_PATH=/cad/cadence/mmsim/tools/bin
@@ -104,3 +105,4 @@ export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/texinputs:"
 export PATH=$PATH:~/Bhandar/anaconda/bin/
 export MYVIMRC=~/.vim/vimrc
+
