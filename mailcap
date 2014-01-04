@@ -130,7 +130,7 @@ text/plain; kterm -geometry +0+0  -e more %s /dev/null; \
 #text/html; (netscape -noraise -remote 'openFile(%s,new-window)' \
 #	|| netscape %s)\;exit 1; test=test -n "$DISPLAY"
 # The following uses Debians special mozilla wrapper:
-text/html; elinks %s ; needsterminal;
+text/html; pandoc -f html -t markdown; copiousoutput; compose=vim %
 
 # non-interactive, basically text converter:
 #text/html; lynx -force_html -dump %s; copiousoutput
