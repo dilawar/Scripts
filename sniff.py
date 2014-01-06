@@ -6,19 +6,6 @@ import re
 # Definitions of colors in bash
 RESTORE='\033[0m'
 RED='\033[00;31m'
-GREEN='\033[00;32m'
-YELLOW='\033[00;33m'
-BLUE='\033[00;34m'
-PURPLE='\033[00;35m'
-CYAN='\033[00;36m'
-LIGHTGRAY='\033[00;37m'
-LRED='\033[01;31m'
-LGREEN='\033[01;32m'
-LYELLOW='\033[01;33m'
-LBLUE='\033[01;34m'
-LPURPLE='\033[01;35m'
-LCYAN='\033[01;36m'
-WHITE='\033[01;37m'
 
 
 class Match:
@@ -28,7 +15,6 @@ class Match:
         self.lines = list()
         self.matchIndex = 0.0
         self.nos = 0
-        self.weight = 0.0
 
     def __str__(self):
         for i in range(len(self.lines)):
@@ -36,7 +22,8 @@ class Match:
             else:
                 self.lines[i] = self.lines[i-1] + self.lines[i] - 1
         # Last entry is not the position of match. remove it
-        self.lines.pop()
+        if len(self.lines) > 1:
+            self.lines.pop()
         txt = RED+self.path+RESTORE+':'
         for l in self.lines:
             txt += '{} '.format(l)
@@ -104,7 +91,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     pattern = sys.argv[2]
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 3:
         filepattern = sys.argv[3]
     else:
         filepattern = '.*'
