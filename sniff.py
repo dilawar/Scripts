@@ -3,6 +3,24 @@ import os
 import sys
 import re
  
+# Definitions of colors in bash
+RESTORE='\033[0m'
+RED='\033[00;31m'
+GREEN='\033[00;32m'
+YELLOW='\033[00;33m'
+BLUE='\033[00;34m'
+PURPLE='\033[00;35m'
+CYAN='\033[00;36m'
+LIGHTGRAY='\033[00;37m'
+LRED='\033[01;31m'
+LGREEN='\033[01;32m'
+LYELLOW='\033[01;33m'
+LBLUE='\033[01;34m'
+LPURPLE='\033[01;35m'
+LCYAN='\033[01;36m'
+WHITE='\033[01;37m'
+
+
 class Match:
     def __init__(self):
         self.path = None
@@ -13,7 +31,16 @@ class Match:
         self.weight = 0.0
 
     def __str__(self):
-        return "{0}: {1}".format(self.path, self.nos) 
+        for i in range(len(self.lines)):
+            if i == 0: pass
+            else:
+                self.lines[i] = self.lines[i-1] + self.lines[i] - 1
+        # Last entry is not the position of match. remove it
+        self.lines.pop()
+        txt = RED+self.path+RESTORE+':'
+        for l in self.lines:
+            txt += '{} '.format(l)
+        return txt
     
     def __repr__(self):
         return self.__str__()
@@ -40,12 +67,16 @@ def filter(pat):
     for ff in files:
         with open(ff, "r") as f:
             txt = f.read()
-            l = pat.findall(txt)
+            l = pat.split(txt)
             if len(l) > 0: 
+                lines = []
+                for i in l:
+                    lines.append(len(i.split('\n')))
                 match = Match()
                 match.path = ff
                 match.filename = os.path.basename(ff)
                 match.nos = len(l)
+                match.lines = lines
                 match.matchIndex = match.nos
                 insertIntoResult(match)
 
