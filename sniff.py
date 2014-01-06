@@ -22,8 +22,7 @@ class Match:
             else:
                 self.lines[i] = self.lines[i-1] + self.lines[i] - 1
         # Last entry is not the position of match. remove it
-        if len(self.lines) > 1:
-            self.lines.pop()
+        self.lines.pop()
         txt = RED+self.path+RESTORE+':'
         for l in self.lines:
             txt += '{} '.format(l)
@@ -55,7 +54,7 @@ def filter(pat):
         with open(ff, "r") as f:
             txt = f.read()
             l = pat.split(txt)
-            if len(l) > 0: 
+            if len(l) > 1: 
                 lines = []
                 for i in l:
                     lines.append(len(i.split('\n')))
