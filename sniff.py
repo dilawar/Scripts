@@ -46,10 +46,11 @@ def insertIntoResult(match):
             result.insert(i, match)
             return
         else: i += 1
+    result.append(match)
 
 def filter(pat):
     global files
-    pat = re.compile(pat, re.IGNORECASE | re.DOTALL)
+    pat = re.compile(pat, re.DOTALL)
     for ff in files:
         with open(ff, "r") as f:
             txt = f.read()
@@ -61,7 +62,6 @@ def filter(pat):
                 match = Match()
                 match.path = ff
                 match.filename = os.path.basename(ff)
-                match.nos = len(l)
                 match.lines = lines
                 match.matchIndex = match.nos
                 insertIntoResult(match)
