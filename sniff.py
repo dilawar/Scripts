@@ -50,6 +50,9 @@ def insertIntoResult(match):
 
 def filter(pat):
     global files
+    # Do some intelligent stuff with pattern
+    #1. if space is given in pattern replace it with \s+
+    pat = re.sub('\s+', '\s+', pat)
     pat = re.compile(pat, re.DOTALL)
     for ff in files:
         with open(ff, "r") as f:
