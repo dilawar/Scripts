@@ -34,7 +34,7 @@ else
             files="$files `find . -type f -name "*$i*" \
                 -exec sh -c "file {} | grep text >/dev/null" \; -print | head -n 4`"
         else
-            files=$files $i
+            files="$files $i"
         fi
     done
     echo $files
