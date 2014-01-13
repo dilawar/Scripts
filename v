@@ -39,5 +39,5 @@ else
     done
     echo $files
     createBackup $files
-    #vim -p $files
+    vim -p $files
 fi
