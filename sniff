@@ -1,0 +1,31 @@
+#!/bin/bash
+# This scripts searches for files according to given arguements.
+
+if [[ $# -eq 2 ]]; then
+    path_pat="$1"
+    txt_pat="$2"
+elif [[ $# -eq 1 ]] || [[ $# -gt 2 ]]; then
+    path_pat="$1"
+else
+    echo "Usage: $0 path_pat [text_pat]"
+fi
+
+function reformat
+{
+    file_pat=`basename "$1"`
+    if [[ "$path_pat" == *"**"* ]]; then
+        ## Delete substring starting from ** till end.
+        dir=${path_pat%%\*\**}
+        dirs_to_search=`find $dir -maxdepth 1 -type d`
+    else
+        dirs_to_search=`ls -d $1`
+    fi
+}
+
+# This call updates the directories to be searched and a pattern which we want
+# to grep.
+reformat $path_pat
+for d in $dirs_to_search; do
+    echo $d
+done
+echo "Format $file_pat"
