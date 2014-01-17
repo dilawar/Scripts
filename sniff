@@ -13,14 +13,15 @@ function formatPath
 }
 
 
-if [ $@ -eq 2 ]; then
+if [[ $# -eq 2 ]]; then
     search_for_text=True
     txt=$2
-elif [[ $@ -lt 1 ]] || [[ $@ -gt 2 ]]; then
+elif [[ $# -lt 1 ]] || [[ $# -gt 2 ]]; then
     echo "Usage: $0 path_pattern [text_pattern]"
 fi
 file_pat=$1
 
 
 formatter_pat=$(formatPath $file_pat)
+echo $formatter_pat
 
