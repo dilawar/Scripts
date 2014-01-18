@@ -8,7 +8,6 @@ function formatPath
 {
     local dir=''
     local pat=''
-
     echo "$dir $pat"
 }
 
