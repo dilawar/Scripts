@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 textQueue = collections.deque()
 chunks = dict()
+nowebTempDir = "build"
 
 
 def doesCommandExist(command):
@@ -92,12 +93,12 @@ def finalText() :
 def executeCommand(command, outFile = None) :
     if outFile:
         with open(outFile, "w") as outF :
-            logging.info("+ Executing : {0}. Writing to {1}".format(
+            print("= Executing : {0} > {1}".format(
                 " ".join(command), outFile)
                 )
             subprocess.call(command, stdout=outF)
     else:
-        logging.info("+ Executing : {0}".format(
+        print("= Executing : {0}".format(
             " ".join(command), outFile)
             )
         subprocess.call(command, stdout=sys.stdout)
@@ -125,12 +126,18 @@ def executeNoweb(args, nowebTempDir):
             executeCommand(nowebCommand, chunks[chunk])
 
     if args['weave'] is not None:  # must be weaving 
-        wargs = args['weave']
         outFile = args.get('output', None)
         nowebCommand = ["noweave", "-latex" , "-x" ] + [mainFilepath.strip()] 
         executeCommand(nowebCommand, outFile)
     else:
-        logging.warning("Unknown option found in %s" % args)
+        logging.debug("Using default arguements")
+        args['tangle'] = 'tangle'
+        args['weave'] = 'weave'
+        args['output'] = os.path.join(
+                nowebTempDir
+                , args['file'].name+'.tex'
+                )
+        return executeNoweb(args, nowebTempDir)
 
 
 if __name__ == "__main__" :
@@ -173,7 +180,6 @@ if __name__ == "__main__" :
 
     # create a temp folder for pynoweb so that this application can work without
     # hurting others.
-    nowebTempDir = "build"
     if not os.path.exists(nowebTempDir):
         os.makedirs(nowebTempDir)
     else:
@@ -181,6 +187,5 @@ if __name__ == "__main__" :
 
     with open(os.path.join(nowebTempDir, args['file'].name), "w") as finalF:
         finalF.write(finalText())
-
     executeNoweb(args, nowebTempDir)
   
