@@ -17,7 +17,7 @@ function createBackup
             cp $i $BACKUPDIR/$file
             (
                 cd $BACKUPDIR && git add $file \
-                    && git commit -m "Backing up $file" 1&> /dev/null &
+                    && git commit -m "Backing up $file" 
             )
         fi
     done
