@@ -71,12 +71,12 @@ def mergeFiles(fileH) :
         fileH.close()
         return
     else :
-        for (filename, lineno) in files :
+        for (filename, lineno) in files:
             markB = lineno 
             text = fileTxt[markA:markB-1]
             markA = markB + 1
             textQueue.append(text)
-            with open(filename, "r") as f :
+            with open(filename, "r") as f:
                 mergeFiles(f)
         # append whatever is left in file
         textQueue.append(fileTxt[markA:])
@@ -92,7 +92,7 @@ def finalText() :
 def executeCommand(command, outFile = None) :
     if outFile:
         with open(outFile, "w") as outF :
-            logging.info("+ Executing : {0} > {1}".format(
+            logging.info("+ Executing : {0}. Writing to {1}".format(
                 " ".join(command), outFile)
                 )
             subprocess.call(command, stdout=outF)
@@ -105,17 +105,16 @@ def executeCommand(command, outFile = None) :
 
 
 def executeNoweb(args, nowebTempDir):
-    if len(vars(args)) < 2:
-        logging.debug("Neither tangling nor weaving." + 
+    if len(args) < 2:
+        logging.error("Neither tangling nor weaving." + 
                 " What the hell! Existing ..."
                 )
         sys.exit(0)
-
-    mainFilepath = os.path.join(nowebTempDir, args.file.name)
+    mainFilepath = os.path.join(nowebTempDir, args['file'].name)
     
-    if vars(args)['tangle'] is not None :
+    if args['tangle'] is not None:
         for chunk in chunks:
-            nowebCommand = ["notangle"]+(args.tangle)
+            nowebCommand = ["notangle"]+(args['tangle'])
             # Now generate files for chunk.
             logging.info("+ Writing {0} chunk to : {1}".format(
                 chunk
@@ -125,23 +124,13 @@ def executeNoweb(args, nowebTempDir):
             nowebCommand.append(mainFilepath)
             executeCommand(nowebCommand, chunks[chunk])
 
-    if vars(args)['weave'] is not None:  # must be weaving 
-        wargs = vars(args)['weave']
-        if len(wargs) > 0 :
-            args = args.weave[0].strip()
-            args = args.split(">")
-            nowebCommand = ["noweave"
-                    , "-latex"
-                    , "-x"
-                    ] + args[0].split() + [mainFilepath.strip()]
-            if len(args) > 1 :
-                outFile = args[1].strip()
-                executeCommand(nowebCommand, outFile)
-            else :
-                executeCommand(nowebCommand)
-        else :
-            nowebCommand = ["noweave"] + [mainFilepath.strip()]
-            executeCommand(nowebCommand)
+    if args['weave'] is not None:  # must be weaving 
+        wargs = args['weave']
+        outFile = args.get('output', None)
+        nowebCommand = ["noweave", "-latex" , "-x" ] + [mainFilepath.strip()] 
+        executeCommand(nowebCommand, outFile)
+    else:
+        logging.warning("Unknown option found in %s" % args)
 
 
 if __name__ == "__main__" :
@@ -172,17 +161,15 @@ if __name__ == "__main__" :
             , help = "Weave. Pass optional arguemnt to noweave."
             )
     parser.add_argument('-o'
-            '--output'
+            , '--output'
             , type = str
-            , nargs = '*'
             , help = 'Filename of latex'
             )
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
     
     # merge all noweb files.
-    print args
-    mergeFiles(args.file)
+    mergeFiles(args['file'])
 
     # create a temp folder for pynoweb so that this application can work without
     # hurting others.
@@ -192,7 +179,7 @@ if __name__ == "__main__" :
     else:
         shutil.rmtree(nowebTempDir+"/*", ignore_errors=True)
 
-    with open(os.path.join(nowebTempDir, args.file.name), "w") as finalF:
+    with open(os.path.join(nowebTempDir, args['file'].name), "w") as finalF:
         finalF.write(finalText())
 
     executeNoweb(args, nowebTempDir)
