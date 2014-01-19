@@ -106,16 +106,10 @@ def executeCommand(command, outFile = None) :
 
 
 def executeNoweb(args, nowebTempDir):
-    if len(args) < 2:
-        logging.error("Neither tangling nor weaving." + 
-                " What the hell! Existing ..."
-                )
-        sys.exit(0)
     mainFilepath = os.path.join(nowebTempDir, args['file'].name)
-    
     if args['tangle'] is not None:
         for chunk in chunks:
-            nowebCommand = ["notangle"]+(args['tangle'])
+            nowebCommand = ["notangle"]
             # Now generate files for chunk.
             logging.info("+ Writing {0} chunk to : {1}".format(
                 chunk
@@ -131,8 +125,8 @@ def executeNoweb(args, nowebTempDir):
         executeCommand(nowebCommand, outFile)
     else:
         logging.debug("Using default arguements")
-        args['tangle'] = 'tangle'
-        args['weave'] = 'weave'
+        args['tangle'] = ['tangle']
+        args['weave'] = ['weave']
         args['output'] = os.path.join(
                 nowebTempDir
                 , args['file'].name+'.tex'
@@ -177,6 +171,7 @@ if __name__ == "__main__" :
     
     # merge all noweb files.
     mergeFiles(args['file'])
+    print chunks
 
     # create a temp folder for pynoweb so that this application can work without
     # hurting others.
