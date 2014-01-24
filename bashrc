@@ -103,11 +103,8 @@ export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/texinputs:"
-<<<<<<< HEAD
-=======
 export PATH=$PATH:~/Bhandar/anaconda/bin/
 export PATH=$PATH:/usr/local/nrn/i686/bin/
->>>>>>> bd76e14d6d1418b9f3a6e86d00ff40764c9f08cd
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 

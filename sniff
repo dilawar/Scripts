@@ -1,5 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
 # This scripts searches for files according to given arguements.
 
 if [[ $# -eq 2 ]]; then
@@ -30,7 +29,6 @@ for d in $dirs_to_search; do
     echo $d
 done
 echo "Format $file_pat"
-=======
 # This script search for files in linux.
 #
 # It searches in two mode. Filename mode and pattern mode. if no pattern to
@@ -56,4 +54,3 @@ file_pat=$1
 formatter_pat=$(formatPath $file_pat)
 echo $formatter_pat
 
->>>>>>> bd76e14d6d1418b9f3a6e86d00ff40764c9f08cd
