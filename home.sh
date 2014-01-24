@@ -77,6 +77,10 @@ rm -f $HOME/.bashrc
 ln $SCRIPTHOME/bashrc $HOME/.bashrc 
 source $HOME/.bashrc 
 
+colorPrint "STEP" "Setting up mercurial"
+rm -f $HOME/.hgrc
+ln -s $SCRIPTHOME/hgrc $HOME/.hgrc 
+
 colorPrint "STEP"  "Configuring git."
 rm -f $HOME/.gitconfig 
 cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
