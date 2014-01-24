@@ -77,6 +77,10 @@ rm -f $HOME/.bashrc
 ln $SCRIPTHOME/bashrc $HOME/.bashrc 
 source $HOME/.bashrc 
 
+colorPrint "STEP" "Setting up mercurial"
+rm -f $HOME/.hgrc
+ln -s $SCRIPTHOME/hgrc $HOME/.hgrc 
+
 colorPrint "STEP"  "Configuring git."
 rm -f $HOME/.gitconfig 
 cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
@@ -148,4 +152,6 @@ else
     git clone -b pathogen git@github.com:dilawar/vim $VIMDIR
     cd $VIMDIR && git submodule init && git submodule update && cd
 fi
+echo "+ Updating snippets "
+cd $VIMDIR/snippets && git checkout master && git pull origin master
 colorPrint "TODO" "Open vim and run BundleInstall etc."
