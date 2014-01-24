@@ -1,9 +1,10 @@
 #!/usr/bin/env python 
 
 """
-This is a noweb front-end and it introduces some more language-constructs.
+This is a noweb front-end. It introduces some more language-constructs.
 
-1. Ability to include files in top-most noweb file.
+- \include{file.nw} includes another noweb file.
+- %file(file.py) writes fragmetn of code to file.py.
 
 """
 
@@ -15,8 +16,12 @@ import re
 import collections
 import shutil
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 textQueue = collections.deque()
 chunks = dict()
+nowebTempDir = "build"
 
 
 def doesCommandExist(command):
@@ -56,112 +61,126 @@ def allIncludes(nowebText) :
   return files
     
 def mergeFiles(fileH) :
-  global textQueue
-  print("Processing : {0}".format(fileH.name))
-  fileTxt = fileH.readlines()
-  markA = 0
-  markB = 0
-  files = allIncludes(fileTxt)
-  if len(files) == 0 :
-    textQueue.append(fileTxt)
-    fileH.close()
-    return
-  else :
-    for (filename, lineno) in files :
-      markB = lineno 
-      text = fileTxt[markA:markB-1]
-      markA = markB + 1
-      textQueue.append(text)
-      with open(filename, "r") as f :
-        mergeFiles(f)
-    # append whatever is left in file
-    textQueue.append(fileTxt[markA:])
-    fileH.close()
+    global textQueue
+    logging.info("Processing : {0}".format(fileH.name))
+    fileTxt = fileH.readlines()
+    markA = 0
+    markB = 0
+    files = allIncludes(fileTxt)
+    if len(files) == 0 :
+        textQueue.append(fileTxt)
+        fileH.close()
+        return
+    else :
+        for (filename, lineno) in files:
+            markB = lineno 
+            text = fileTxt[markA:markB-1]
+            markA = markB + 1
+            textQueue.append(text)
+            with open(filename, "r") as f:
+                mergeFiles(f)
+        # append whatever is left in file
+        textQueue.append(fileTxt[markA:])
+        fileH.close()
 
 def finalText() :
-  text = []
-  for t in textQueue :
-    text = text + t
-  return "".join(text)
+    text = []
+    for t in textQueue:
+        text = text + t
+    return "".join(text)
 
 
 def executeCommand(command, outFile = None) :
-  if outFile :
-    with open(outFile, "w") as outF :
-      print("+ Executing : {0} > {1}".format(" ".join(command), outFile))
-      subprocess.call(command, stdout=outF)
-  else :
-    print("+ Executing : {0}".format(" ".join(command), outFile))
-    subprocess.call(command, stdout=sys.stdout)
+    if outFile:
+        with open(outFile, "w") as outF :
+            print("= Executing : {0} > {1}".format(
+                " ".join(command), outFile)
+                )
+            subprocess.call(command, stdout=outF)
+    else:
+        print("= Executing : {0}".format(
+            " ".join(command), outFile)
+            )
+        subprocess.call(command, stdout=sys.stdout)
 
 
 
-def executeNoweb(args, nowebTempDir) :
-  
-  if len(vars(args)) < 2:
-    print("Neither tangling nor weaving. What the hell! Existing ...")
-    sys.exit(0)
+def executeNoweb(args, nowebTempDir):
+    mainFilepath = os.path.join(nowebTempDir, args['file'].name)
+    if args['tangle'] is not None:
+        for chunk in chunks:
+            nowebCommand = ["notangle"]
+            # Now generate files for chunk.
+            logging.info("+ Writing {0} chunk to : {1}".format(
+                chunk
+                , chunks[chunk])
+                )
+            nowebCommand.append("-R{0}".format(chunk))
+            nowebCommand.append(mainFilepath)
+            executeCommand(nowebCommand, chunks[chunk])
 
-  mainFilepath = os.path.join(nowebTempDir, args.top.name)
-  
-  if vars(args)['tangle'] is not None :
-    for chunk in chunks :
-      nowebCommand = ["notangle"]+(args.tangle)
-
-      # Now generate files for chunk.
-      print("+ Writing {0} chunk to : {1}".format(chunk, chunks[chunk]))
-      nowebCommand.append("-R{0}".format(chunk))
-      nowebCommand.append(mainFilepath)
-      executeCommand(nowebCommand, chunks[chunk])
-
-  if vars(args)['weave'] is not None :  # must be weaving 
-    wargs = vars(args)['weave']
-    if len(wargs) > 0 :
-      args = args.weave[0].strip()
-      args = args.split(">")
-      nowebCommand = ["noweave", "-latex", "-x"] + args[0].split() + [mainFilepath.strip()]
-      if len(args) > 1 :
-        outFile = args[1].strip()
+    if args['weave'] is not None:  # must be weaving 
+        outFile = args.get('output', None)
+        nowebCommand = ["noweave", "-latex" , "-x" ] + [mainFilepath.strip()] 
         executeCommand(nowebCommand, outFile)
-      else :
-        executeCommand(nowebCommand)
-    else :
-      nowebCommand = ["noweave"] + [mainFilepath.strip()]
-      executeCommand(nowebCommand)
+    else:
+        logging.debug("Using default arguements")
+        args['tangle'] = ['tangle']
+        args['weave'] = ['weave']
+        args['output'] = os.path.join(
+                nowebTempDir
+                , args['file'].name+'.tex'
+                )
+        return executeNoweb(args, nowebTempDir)
 
 
 if __name__ == "__main__" :
-  
-  if not doesCommandExist("noweb") :
-    print("Command noweb can not be launched on this system. Quitting...")
-    sys.exit()
+    
+    if not doesCommandExist("noweb") :
+        msg = "Command noweb can not be launched on this system. Quitting..."
+        logging.error(msg)
+        sys.exit()
 
-  # read the top-most file 
-  parser = argparse.ArgumentParser(description='Front end of noweb')
-  parser.add_argument('--top', type=argparse.FileType('r', 0)
-      , required=True , help='Just pass the top-most noweb file after --top ')
-  parser.add_argument('--tangle', type=str
-      , nargs = '*'
-      , help = "Tangle. Pass optional argument to notangle.")
-  parser.add_argument('--weave', type=str
-      , nargs = '*'
-      , help = "Weave. Pass optional arguemtn to noweave.")
+    # read the top-most file 
+    parser = argparse.ArgumentParser(description='Front end of noweb')
+    parser.add_argument('-f'
+            , '--file'
+            , type=argparse.FileType('r', 0)
+            , required = True 
+            , help = 'Just pass the top-most noweb file after --file '
+            )
+    parser.add_argument('-t'
+            , '--tangle'
+            , type = str
+            , nargs = '*'
+            , help = "Tangle. Pass optional argument to notangle."
+            )
+    parser.add_argument('-w'
+            , '--weave'
+            , type = str
+            , nargs = '*'
+            , help = "Weave. Pass optional arguemnt to noweave."
+            )
+    parser.add_argument('-o'
+            , '--output'
+            , type = str
+            , help = 'Filename of latex'
+            )
 
-  args = parser.parse_args()
-  
-  # merge all noweb files.
-  mergeFiles(args.top)
+    args = vars(parser.parse_args())
+    
+    # merge all noweb files.
+    mergeFiles(args['file'])
+    print chunks
 
-  # create a temp folder for pynoweb so that this application can work without
-  # hurting others.
-  nowebTempDir = ".noweb"
-  if not os.path.exists(nowebTempDir) :
-    os.makedirs(nowebTempDir)
-  else :
-    shutil.rmtree(nowebTempDir+"/*", ignore_errors=True)
+    # create a temp folder for pynoweb so that this application can work without
+    # hurting others.
+    if not os.path.exists(nowebTempDir):
+        os.makedirs(nowebTempDir)
+    else:
+        shutil.rmtree(nowebTempDir+"/*", ignore_errors=True)
 
-  with open(os.path.join(nowebTempDir, args.top.name), "w") as finalF :
-    finalF.write(finalText())
-
-  executeNoweb(args, nowebTempDir)
+    with open(os.path.join(nowebTempDir, args['file'].name), "w") as finalF:
+        finalF.write(finalText())
+    executeNoweb(args, nowebTempDir)
   
