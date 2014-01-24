@@ -104,6 +104,7 @@ PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/texinputs:"
 export PATH=$PATH:~/Bhandar/anaconda/bin/
+export PATH=$PATH:/usr/local/nrn/i686/bin/
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 
