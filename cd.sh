@@ -62,7 +62,7 @@ c ()
 
   else 
     dir=$1 
-    cd $dir
+    cd "$dir"
     if [[ $? == 0 ]]; then 
     {
       dir=$(pwd)
