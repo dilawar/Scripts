@@ -73,6 +73,10 @@ def filter(pat):
 def main(dir, pat, filepat):
     global files
     global result
+    dir, path = os.path.dirname(pat), os.path.basename(pat) 
+    if '**' in dir:
+        dir = dir.split('**')[0]
+
     for d, ds, fs in os.walk(dir):
         for f in fs:
             filename = os.path.join(d, f)
@@ -84,19 +88,14 @@ def main(dir, pat, filepat):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("USAGE: {0} dir pattern [file_pattern]".format(sys.argv[0]))
+        print("USAGE: {0} pattern [file_pattern]".format(sys.argv[0]))
         sys.exit(0)
 
-    dir = sys.argv[1]
-    if not os.path.isdir(dir):
-        print("First arguement should be a directory")
-        sys.exit(0)
-
-    pattern = sys.argv[2]
-    if len(sys.argv) > 3:
-        filepattern = sys.argv[3]
+    pattern = sys.argv[1]
+    if len(sys.argv) > 2:
+        filepattern = sys.argv[2]
     else:
-        filepattern = '.*'
-    main(dir, pattern, filepattern)
+        filepattern = '.+'
+    main(pattern, filepattern)
 
 
