@@ -31,7 +31,9 @@ else
     files=''
     for i in $@; do
         if [ ! -f $i ]; then
-            files="$files `find . -type f -name "*$i*" \
+            dir=`dirname "$i"`
+            pat=`basename "$i"`
+            files="$files `find $dir -type f -name "$pat" \
                 -exec sh -c "file {} | grep text >/dev/null" \; -print | head -n 4`"
         else
             files="$files $i"
