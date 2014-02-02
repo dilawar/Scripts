@@ -3,18 +3,18 @@ import re
 import os 
 import sys
 
-pat = re.compile(r'\<{5,7}\s+HEAD\n(.+?)\={5,7}\n(.+?)\>{5,7}\s\w{39,40}'
+pat = re.compile(r'\<{5,7}\s+HEAD\n(.*?)\={5,7}\n(.*?)\>{5,7}\s\w{39,40}'
         , re.IGNORECASE | re.DOTALL
         )
 
 def selectHead(txt):
     global pat
-    txt = pat.sub('\1', txt)
+    txt = pat.sub(r'\1', txt)
     return txt
 
 def selectRev(txt):
     global pat 
-    txt = pat.sub('\2', txt)
+    txt = pat.sub(r'\2', txt)
     return txt
 
 if __name__ == "__main__":
