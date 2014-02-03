@@ -89,30 +89,6 @@ macro attach E <save-entry><kill-line>/home/dilawar/Attachments/<enter>
 #set hdrs
 my_hdr Organization: EE, IIT Bombay, http://www.ee.iitb.ac.in
 my_hdr X-Mailer: 'mutt'
-#macro generic "1" ":set from 'Dilawar <dilawars@iitb.ac.in>'"
-#
-color   hdrdefault      brightcyan      default
-color   header          brightred       default "^from:"
-color   header          brightred       default "^subject:"
-color   quoted          brightgreen     default
-color   quoted          brightgreen     default
-color   signature       brightwhite     default
 
-color   indicator       blue            default
-
-color   error           red             default
-mono    error           bold
-color   status          cyan            default
-mono    status          bold
-color   tree            yellow          default
-
-color   tilde           brightmagenta   default
-color   body            red             default    "[-a-z_0-9.]+@[-a-z_0-9.]+"
-mono    body            bold                    "[-a-z_0-9.]+@[-a-z_0-9.]+"
-color   body            red             default   "^Good signature"
-mono    body            bold                    "^Good signature"
-color   body            brightwhite     default     "^Bad signature from.*"
-mono    body            bold                    "^Bad signature from.*"
-color   normal          white          default
-color   message         red            default
-color   attachment      red            blue
+# index macro to mark all read
+macro index <esc>m "T~N<enter>;WNT~0<enter>;W0\CT~T<enter>" "Mark all messages read"
