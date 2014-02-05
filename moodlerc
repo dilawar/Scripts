@@ -1,0 +1,26 @@
+# This is a configuration file for moodle.py application.
+# If you are in doubt, email to 
+# dilawar@ee.iitb.ac.in
+# usename is your moddle username.
+# password is your moddle password.
+#
+url = http://courses.ncbs.res.in/login/index.php
+username = dilawars
+password = pass
+proxy = false
+course = Basic Neuroscience Course 2014
+activities = Assignments
+activity = Lecture 1 Assignment
+#activity = Lab session 2
+#activity = Lab session 3
+#activity = Lab session 4
+#activity = Assignment 5
+#activity = Verilog 1
+#activity = Verilog Assignment 2
+#activity = Verilog Assignment 3
+#activity = VHDL Project
+#activity = VHDL _ Late submissions
+download = true
+# It must end with / character.
+downloaddir = /home/dilawar/Works/hpc21/2012ee677/Assignment01/
+extract = true
