@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo iwconfig eth0 essid "NCBSWiFi"
+sudo iwconfig wlan0 essid "NCBSWiFi"
