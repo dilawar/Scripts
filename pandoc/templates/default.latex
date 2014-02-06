@@ -3,6 +3,7 @@
 \usepackage{lmodern}
 \usepackage{circuitikz}
 \usepackage{tikz}
+\usepackage{pdfplots}
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{fixltx2e} % provides \textsubscript
