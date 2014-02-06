@@ -15,7 +15,7 @@ texFile=${filename%.markdown}.tex
 # now convert the file to pdf
 PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc"
 echo "Converting $filename to $outputFile using pandoc"
-latex="true"
+latex="false"
 if [[ $latex = "true" ]]; then
     $PANDOC -s -f markdown+tex_math_dollars+latex_macros -t latex -o $texFile $filename
     pdflatex -shell-escape $texFile
