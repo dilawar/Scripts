@@ -10,6 +10,7 @@
 	rmdir = true
 [core]
 	autocrlf = input
-    pager = cat
+        pager = cat
+        editor = vim
 [push]
 	default = matching
