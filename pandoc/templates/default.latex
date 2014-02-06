@@ -15,10 +15,11 @@
 \newtheorem{comment}{Comment}
 \newtheorem{example}{Example}
 \newtheorem{lemma}{Lemma}
-\newtheorem{prop}{Property}
+\newtheorem{property}{Property}
 \newtheorem{problem}{Problem}
 \newtheorem{remark}{Remark}
 \newtheorem{theorem}{Theorem}
+\newtheorem{script}{Script}
 
 \usepackage{fixltx2e} % provides \textsubscript
 % use upquote if available, for straight quotes in verbatim environments
