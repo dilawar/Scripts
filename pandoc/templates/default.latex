@@ -8,7 +8,6 @@
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{amsthm}
-\usepackage{hyperref}
 \usepackage{listings}
 \setlength{\parskip}{3mm}
 \newtheorem{axiom}{Axiom}
