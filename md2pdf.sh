@@ -8,7 +8,7 @@ filename=$1
 if [ $# -eq 2 ]; then
     outputFile=$2
 else
-    outputFile=$filename.pdf
+    outputFile="${filename%.markdown}.pdf"
 fi
 # now convert the file to pdf
 echo "Converting $filename to $outputFile using pandoc"
