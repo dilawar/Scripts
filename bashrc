@@ -43,6 +43,7 @@ alias rsync='rsync --progress'
 alias i='sudo emerge -avu --autounmask-write'
 alias netcat='nc.openbsd'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
+alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
