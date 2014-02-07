@@ -3,6 +3,7 @@
 \usepackage{lmodern}
 \usepackage{circuitikz}
 \usepackage{tikz}
+\usepackage{siunitx}
 \usepackage{python}
 \usepackage{pgfplots}
 \usepackage{amssymb,amsmath}
