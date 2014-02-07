@@ -12,6 +12,7 @@ else
     outputFile="${filename%.markdown}.pdf"
 fi
 texFile=${filename%.markdown}.tex
+texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
 PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc"
 echo "Converting $filename to $outputFile using pandoc"
