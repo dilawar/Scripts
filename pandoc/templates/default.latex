@@ -1,7 +1,7 @@
 \documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$$for(classoption)$$classoption$$sep$,$endfor$]{$documentclass$}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-\usepackage{circuitikz}
+%\usepackage{circuitikz}
 \usepackage{tikz}
 \usepackage{siunitx}
 \usepackage{python}
