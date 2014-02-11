@@ -25,7 +25,7 @@ p_status=`$netcat -z $host $port; echo $?`
 
 # If port is not open, create a tunnel.
 if [[ "$p_status" == "1" ]]; then
-    sshpass -pextvoxac ssh -t -t -D 5050 secure@login.iitb.ac.in -p 5022 
+    sshpass -pextvoxac ssh -t -t -D 5050 secure@login.iitb.ac.in -p 5022 &
 fi
 
 printf "Waiting for port to open "
