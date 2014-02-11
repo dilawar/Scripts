@@ -35,6 +35,11 @@ if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
     cd 
 fi
     
+colorPrint "STEP" "Download bfg to clean git repo"
+wget http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
+sudo cp /tmp/bfg /usr/local/bin/
+
+
 colorPrint "STEP" "Setting up Xdefaults"
 rm -f $HOME/.Xresources
 rm -f $HOME/.Xdefaults
