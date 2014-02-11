@@ -46,6 +46,7 @@ alias i='sudo apt-get -c ~/.aptconf install'
 alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
+alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -105,9 +106,10 @@ cd ~
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
-export TEXINPUTS=".:~/Scripts/texinputs:"
+export TEXINPUTS=".:~/Scripts/texinputs//:"
 export PATH=$PATH:~/Bhandar/anaconda/bin/
 export PATH=$PATH:/usr/local/nrn/i686/bin/
+export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 
