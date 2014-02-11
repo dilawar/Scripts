@@ -26,6 +26,7 @@ fi
 colorPrint "STEP" "Checking for flash plugin .."
 mozillaPlugin=$HOME/.mozilla/plugins
 flash_url="https://github.com/dilawar/MyPublic/blob/master/Flash/libflashplayer.so"
+
 if [ ! -d $mozillaPlugin ]; then
     mkdir -p $mozillaPlugin 
 fi
@@ -35,9 +36,13 @@ if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
     cd 
 fi
     
-colorPrint "STEP" "Download bfg to clean git repo"
-wget http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
-sudo cp /tmp/bfg /usr/local/bin/
+# Setting up bfg
+if [ ! -f /usr/local/bin/bfg ]; then
+    colorPrint "STEP" "Download bfg to clean git repo"
+    wget http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
+    sudo cp /tmp/bfg /usr/local/bin/
+    sudo chmod + /usr/local/bin/bfg
+fi
 
 
 colorPrint "STEP" "Setting up Xdefaults"
