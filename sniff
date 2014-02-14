@@ -10,35 +10,44 @@ else
     echo "Usage: $0 path_pat [text_pat]"
 fi
 
-function reformat
+function findDirsToSearch
 {
-    file_pat=`basename "$1"`
-    if [[ "$path_pat" == *"**"* ]]; then
-        ## Delete substring starting from ** till end.
-        dir=${path_pat%%\*\**}
-        dirs_to_search=`find $dir -maxdepth 1 -type d`
+    path_pat=`dirname $1`
+    if [[ "$path_pat" == *"##"* ]]; then
+        ## Delete substring starting from ## till end.
+        dir=${path_pat%%*\#\#*}
+        dirs_to_search=`find $dir -type d`
     else
-        dirs_to_search=`ls -d $1`
+        # Replace all # with *
+        path_pat=${path_pat//\#/*}
+        for l in $path_pat; do
+            if [[ -d $l ]]; then 
+                dirs_to_search="$dirs_to_search $l"
+            fi
+        done
+        echo $dirs_to_search
     fi
 }
 
 # This call updates the directories to be searched and a pattern which we want
 # to grep.
-reformat $path_pat
-for d in $dirs_to_search; do
-    echo $d
-done
-echo "Format $file_pat"
+#reformat $path_pat
+#for d in $dirs_to_search; do
+#    echo $d
+#done
+#echo "Format $file_pat"
 # This script search for files in linux.
 #
 # It searches in two mode. Filename mode and pattern mode. if no pattern to
 # search inside file is given then it searches only for name.
 
-function formatPath
+function searchForFiles
 {
-    local dir=''
-    local pat=''
-    echo "$dir $pat"
+    directories=$1
+    for dir in $directories; do
+        files="$files `find $dir -maxdepth 1 -name \"$file_pat\" -type f`"
+    done
+    echo $files
 }
 
 
@@ -48,9 +57,14 @@ if [[ $# -eq 2 ]]; then
 elif [[ $# -lt 1 ]] || [[ $# -gt 2 ]]; then
     echo "Usage: $0 path_pattern [text_pattern]"
 fi
-file_pat=$1
 
-
-formatter_pat=$(formatPath $file_pat)
-echo $formatter_pat
-
+file_pat=`basename "$1"`
+directories=`findDirsToSearch $1`
+files=`searchForFiles $directories`
+if [ $search_for_text ]; then
+    echo "Grep the text pattern"
+else
+    for f in $files; do
+        printf "$f\n"
+    done
+fi
