@@ -70,7 +70,7 @@ def filter(pat):
                 insertIntoResult(match)
 
 
-def main(dir, pat, filepat):
+def main(pat, filepat):
     global files
     global result
     dir, path = os.path.dirname(pat), os.path.basename(pat) 
@@ -88,7 +88,7 @@ def main(dir, pat, filepat):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("USAGE: {0} pattern [file_pattern]".format(sys.argv[0]))
+        print("USAGE: {0} text_to_find_pattern [file_pattern]".format(sys.argv[0]))
         sys.exit(0)
 
     pattern = sys.argv[1]
