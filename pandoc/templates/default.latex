@@ -2,6 +2,11 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 %\usepackage{circuitikz}
+\makeatletter
+\@ifpackageloaded{tex4ht}{
+    \def\pgfsysdriver{pgfsys-tex4ht.def}
+}
+\makeatother
 \usepackage{tikz}
 \usepackage{siunitx}
 \usepackage{python}
