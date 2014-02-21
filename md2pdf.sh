@@ -14,13 +14,14 @@ fi
 texFile=${filename%.markdown}.tex
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
-PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc"
+PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc --filter pandoc-citeproc"
+INFMT=markdown+tex_math_dollars+latex_macros+subscript+superscript+
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
 if [[ $latex = "true" ]]; then
-    $PANDOC -s -f markdown+tex_math_dollars+latex_macros -t latex -o $texFile $filename
+    $PANDOC -s -f $INFMT -t latex -o $texFile $filename
     pdflatex -shell-escape $texFile
 else
-    $PANDOC -s -f markdown+tex_math_dollars+latex_macros -o $outputFile $filename
+    $PANDOC -s -f $INFMT -o $outputFile $filename
 fi
 
