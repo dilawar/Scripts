@@ -17,6 +17,8 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
+# Creating getmail directories 
+
 # Setting up ncurses agent for gnupg
 gnupgFile=$HOME/.gnupg/gpg-agent.conf
 if [ ! -f $gnupgFile ]; then
