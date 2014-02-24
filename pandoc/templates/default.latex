@@ -6,7 +6,6 @@
     \def\pgfsysdriver{pgfsys-tex4ht.def}
 }
 \makeatother
-%\pgfplotsset{compat=1.8}
 \usepackage{tikz}
 \usepackage{siunitx}
 \usepackage{python}
