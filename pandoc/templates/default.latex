@@ -7,7 +7,6 @@
 }
 \makeatother
 \usepackage{pgfplots}
-\pgfplotsset{compat=1.8}
 \usepackage{tikz}
 \usepackage{siunitx}
 \usepackage{python}
