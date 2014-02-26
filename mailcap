@@ -173,6 +173,7 @@ application/download; okular %s;
 application/postscript; pstotext %s; copiousoutput
 application/postscript;; print=lpr %s
 
+application/pdf; evince %s;
 application/pdf; pdftotext -layout %s -; copiousoutput 
 application/x-pdf; pdftotext -layout %s -; copiousoutput 
 
