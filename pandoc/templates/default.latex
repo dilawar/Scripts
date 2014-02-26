@@ -6,11 +6,11 @@
     \def\pgfsysdriver{pgfsys-tex4ht.def}
 }
 \makeatother
+\usepackage{pgfplots}
 \pgfplotsset{compat=1.8}
 \usepackage{tikz}
 \usepackage{siunitx}
 \usepackage{python}
-\usepackage{pgfplots}
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{amsthm}
