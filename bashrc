@@ -48,6 +48,7 @@ alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
+alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -96,7 +97,7 @@ export LAVA2000_SMV=/cad/bin/smv
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-export NNTPSERVER=pnews.iitb.ac.in
+export NNTPSERVER=103.21.127.130
 source ~/Scripts/cd.sh
 source ~/Scripts/profile
 export PATH=$PATH:~/.mutt
