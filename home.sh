@@ -18,8 +18,19 @@ SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
 colorPrint "Appending names of host to /etc/hosts file"
-echo "kalu 172.16.206.173" | sudo tee -a /etc/hosts 
-echo "hobbes 172.16.206.179" | sudo tee -a /etc/hosts 
+
+IFS=$,
+hosts="kaalu 172.16.206.173,hobbes 172.16.234.52"
+for h in $hosts; do
+    echo "Trying host $h"
+    if [[ `grep "$h" /etc/hosts` == *"$h"* ]]; then 
+        echo "$h already exists in file. Ignoring ..."
+    else
+        echo "Appending $h to /etc/hosts"
+        echo $h | sudo tee -a /etc/hosts 
+    fi
+done
+unset IFS
 
 # Creating getmail directories 
 
