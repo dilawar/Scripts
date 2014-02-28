@@ -17,6 +17,10 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
+colorPrint "Appending names of host to /etc/hosts file"
+echo "kalu 172.16.206.173" | sudo tee -a /etc/hosts 
+echo "hobbes 172.16.206.179" | sudo tee -a /etc/hosts 
+
 # Creating getmail directories 
 
 # Setting up ncurses agent for gnupg
@@ -165,3 +169,4 @@ else
     cd $VIMDIR && git submodule init && git submodule update && cd
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
+
