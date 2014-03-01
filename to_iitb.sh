@@ -9,7 +9,7 @@ host="127.0.0.1"
 
 # On some platform nc-traditional is installed as default netcat. We are using
 # netcat-openbsd.
-netcat="nc.openbsd"
+netcat="nc"
 if [ ! $(which $netcat) ]; then
     echo "ERROR: Not nc command found. I was checking for $netcat"
     echo "Replace this variable with netcat-openbsd"
@@ -25,7 +25,9 @@ p_status=`$netcat -z $host $port; echo $?`
 
 # If port is not open, create a tunnel.
 if [[ "$p_status" == "1" ]]; then
-    sshpass -pextvoxac ssh -t -t -D 5050 secure@login.iitb.ac.in -p 5022 &
+    sshpass -pextvoxac ssh -o UserKnownHostsFile=/dev/null \
+        -o StrictHostKeyChecking=no \
+        -t -t -D 5050 secure@login.iitb.ac.in -p 5022 &
 fi
 
 printf "Waiting for port to open "
