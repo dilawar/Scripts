@@ -131,10 +131,10 @@ text/plain; kterm -geometry +0+0  -e more %s /dev/null; \
 # The following uses Debians special mozilla wrapper:
 
 # non-interactive, basically text converter:
-text/html; pandoc -f html -t markdown; copiousoutput; compose=vim %
 text/html; lynx -force_html -dump %s; copiousoutput
 text/html; w3m -dump -T text/html; copiousoutput
-#text/html; html2text %s; copiousoutput
+text/html; pandoc -f html -t markdown; copiousoutput; compose=vim %
+text/html; html2text %s; copiousoutput
 
 text/x-sgml; cat %s; copiousoutput
 text/x-chdr; cat %s; copiousoutput
