@@ -32,7 +32,9 @@ for h in $hosts; do
 done
 unset IFS
 
-# Creating getmail directories 
+colorPrint "STEP" "Copynt pylintrc file"
+rm -f $HOME/.pylintrc
+ln -s $SCRIPTHOME/pylintrc $HOME/.pylintrc
 
 # Setting up ncurses agent for gnupg
 gnupgFile=$HOME/.gnupg/gpg-agent.conf
