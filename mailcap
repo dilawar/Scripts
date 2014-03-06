@@ -122,6 +122,7 @@ text/plain; kterm -geometry +0+0  -e more %s /dev/null; \
 	test=test "`echo %{charset} | tr '[A-Z]' '[a-z]'`" = iso-2022-jp
 
 # Interactive viewer:
+text/html; lynx %s; test=test -n "$DISPLAY"; needsterminal;
 #text/html; (netscape -remote 'openURL(%s)' || netscape %s)\;exit 1; \
 #	test=test -n "$DISPLAY"
 # "exit 1" is needed to get a "Press key" prompt in mutt, otherwise the 
