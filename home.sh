@@ -183,3 +183,6 @@ else
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
+colorPrint "STEP" "Replacing gui grub with text only grup"
+sudo cp -b t $SCRIPTHOME/grub /etc/default/grub
+colorPrint "TODO" "Run update-grub if you have already done so"
