@@ -1,0 +1,2 @@
+#!/bin/bash
+urxvt -bg black -fg white
