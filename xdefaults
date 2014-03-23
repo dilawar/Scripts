@@ -11,3 +11,7 @@ URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
 URxvt.cursorColor: #fefefe
 Rxvt.cursorColor: #dcddcc
+Rxvt.background: black
+Rxvt.foreground: white
+Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
+xterm.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
