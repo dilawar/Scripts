@@ -1,2 +1,2 @@
 #!/bin/bash
-urxvt -bg black -fg white
+xterm -bg black -fg white
