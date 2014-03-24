@@ -17,8 +17,21 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
-colorPrint "Appending names of host to /etc/hosts file"
+# Update bash 
+colorPrint "STEP" "Updating bash"
+rm -f $HOME/.bashrc
+ln $SCRIPTHOME/bashrc $HOME/.bashrc 
+source $HOME/.bashrc 
 
+WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
+
+colorPrint "STEP"  "Configuring git."
+rm -f $HOME/.gitconfig 
+cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
+rm -f $HOME/.gitignore
+cp $SCRIPTHOME/gitignore $HOME/.gitignore 
+
+colorPrint "STEP" "Appending names of host to /etc/hosts file"
 IFS=$,
 hosts="kaalu 172.16.206.173,hobbes 172.16.234.52"
 for h in $hosts; do
@@ -51,14 +64,14 @@ if [ ! -d $mozillaPlugin ]; then
 fi
 if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
     cd $mozillaPlugin
-    wget $flash_url
+    $WGET $flash_url
     cd 
 fi
     
 # Setting up bfg
 if [ ! -f /usr/local/bin/bfg ]; then
     colorPrint "STEP" "Download bfg to clean git repo"
-    wget http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
+    $WGET http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
     sudo cp /tmp/bfg /usr/local/bin/
     sudo chmod + /usr/local/bin/bfg
 fi
@@ -82,7 +95,7 @@ if [ ! -d $RXVTEXT ]; then
 fi 
 if [ ! -f $RXVTEXT/font-size ]; then
     cd $RXVTEXT && \
-    wget --no-check-certificate \
+    $WGET --no-check-certificate \
     https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
     && cd 
 fi
@@ -100,22 +113,9 @@ colorPrint "STEP" "Updating screenrc"
 rm -f $HOME/.screenrc
 ln $SCRIPTHOME/screenrc $HOME/.screenrc 
 
-# Update bash 
-colorPrint "STEP" "Updating bash"
-rm -f $HOME/.bashrc
-ln $SCRIPTHOME/bashrc $HOME/.bashrc 
-source $HOME/.bashrc 
-
 colorPrint "STEP" "Setting up mercurial"
 rm -f $HOME/.hgrc
 ln -s $SCRIPTHOME/hgrc $HOME/.hgrc 
-
-colorPrint "STEP"  "Configuring git."
-rm -f $HOME/.gitconfig 
-cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
-rm -f $HOME/.gitignore
-cp $SCRIPTHOME/gitignore $HOME/.gitignore 
-
 colorPrint "STEP" "Setting up mairix"
 rm $HOME/.mairixrc
 ln $SCRIPTHOME/mairixrc $HOME/.mairixrc
@@ -183,3 +183,6 @@ else
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
+colorPrint "STEP" "Replacing gui grub with text only grup"
+sudo cp -b t $SCRIPTHOME/grub /etc/default/grub
+colorPrint "TODO" "Run update-grub if you have already done so"
