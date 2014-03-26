@@ -64,7 +64,7 @@ if [ ! -d $mozillaPlugin ]; then
 fi
 if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
     cd $mozillaPlugin
-    $WGET $flash_url
+    #$WGET $flash_url
     cd 
 fi
     
@@ -183,6 +183,6 @@ else
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
-colorPrint "STEP" "Replacing gui grub with text only grup"
-sudo cp -b t $SCRIPTHOME/grub /etc/default/grub
-colorPrint "TODO" "Run update-grub if you have already done so"
+colorPrint "STEP" "Configuring awesome to be used with slim"
+cp $SCRIPTHOME/xsession $HOME/.xsession
+
