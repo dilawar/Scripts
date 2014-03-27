@@ -18,6 +18,6 @@ elif [[ $1 = "async" ]]; then
     echo "git svn clone $async_url"
     git svn clone $async_url moose_async_multiscale_git_svn
 else
-    svn co $moose_url $1
+    svn co --username=dilawar $moose_url $1
 fi
 
