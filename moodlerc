@@ -4,13 +4,13 @@
 # usename is your moddle username.
 # password is your moddle password.
 #
-url = http://courses.ncbs.res.in/login/index.php
-username = dilawars
-password = pass
-proxy = false
-course = Basic Neuroscience Course 2014
-activities = Assignments
-activity = Lecture 1 Assignment
+url = http://moodle.lyceejeanbart.fr/login/index.php
+username = zzdilawar
+password = dilawar1
+proxy = true
+course = MPSDEM2013
+activities = Fiches de trivial
+activity = all submissions
 #activity = Lab session 2
 #activity = Lab session 3
 #activity = Lab session 4
@@ -22,5 +22,5 @@ activity = Lecture 1 Assignment
 #activity = VHDL _ Late submissions
 download = true
 # It must end with / character.
-downloaddir = /home/dilawar/Works/hpc21/2012ee677/Assignment01/
+downloaddir = /tmp/
 extract = true
