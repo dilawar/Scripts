@@ -37,8 +37,14 @@ class Moodle():
         self.br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux 1686; en-US;\
             rv:1.9.0.1) Gecko/201171615 Ubuntu/11.10-1 Firefox/3.0.1')]
     
-    def set_proxy(self):
-        self.br.set_proxies({})
+    def set_proxy(self, proxy=None):
+        if not proxy:
+            self.br.set_proxies({})
+        else:
+            self.br.set_proxies({"http": os.environ['http_proxy']
+                , "ftp": os.environ['ftp_proxy']
+                , "https" : os.environ['https_proxy']}
+                )
 
     def read_configuration(self):
         """ This function reads a config file and set the values needed for
@@ -141,8 +147,8 @@ class Moodle():
 
 
     def make_connection(self):
-        if self.proxy == "true" :
-            print("Acquiring proxy variables from environment ...")
+        if self.proxy != "false" :
+            print("Using proxy variables from environment ...")
         else :
             print("Ignoring proxy variables...")
             self.set_proxy()
