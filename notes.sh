@@ -1,4 +1,5 @@
 #!/bin/bash 
+irct
 (
   cd $(pwd)/notes && git pull
 )
