@@ -6,9 +6,9 @@ if [ -f /etc/bashrc ]; then
 fi
 
 if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$\n'
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$'
 else
-	PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$\n' 
+	PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$' 
 fi
 
 # If this is an xterm set the title to user@host:dir
@@ -86,6 +86,8 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
 #export VIM=~/Works/MyPublic/Scripts/vim
 source ~/.proxy
+source ~/Scripts/svn_prompt.sh
+
 #source ~/.bsv_sh 
 
 export CAPEM_INSTALL=~/capem
