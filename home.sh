@@ -186,3 +186,6 @@ colorPrint "TODO" "Open vim and run BundleInstall etc."
 colorPrint "STEP" "Configuring awesome to be used with slim"
 cp $SCRIPTHOME/xsession $HOME/.xsession
 
+colorPrint "STEP" "Setting up gdb"
+rm -f $HOME/.gdbinit
+cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
