@@ -2,7 +2,7 @@
 # Find a file recursively containing a pattern
 if [ $# -eq 1 ]; then
     pattern="$1"
-    glob_pattern=".*"
+    glob_pattern="*"
     dir_pattern="."
 elif [ $# -eq 2 ]; then
     pattern="$1"
