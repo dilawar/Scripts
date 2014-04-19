@@ -36,3 +36,4 @@ rsync -azv --progress $1 $2
 FINISH=$(date +%s)
 echo "total time: $(( ($FINISH-$START) / 60 )) minutes, $(( ($FINISH-$START) % 60 )) seconds"
 touch $2/"Backup from $(date '+%A, %d %B %Y, %T')"
+notify-send "Done backing up $1 to $2"
