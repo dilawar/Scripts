@@ -34,7 +34,7 @@ def main():
     # get the you tube tab
     for url in tabsURL:
         if "youtube.com/watch?" in url:
-            print("I can download : {}".format(url))
+            print("I can download audio from: {}".format(url))
             downloadUrl(url)
 
 def downloadUrl(url, outputDir=os.path.join(home, "Downloads")):
@@ -42,7 +42,10 @@ def downloadUrl(url, outputDir=os.path.join(home, "Downloads")):
     http://stackoverflow.com/questions/18054500/how-to-use-youtube-dl-from-a-python-programm
     '''
     outputFile = os.path.join(outputDir, '%(title)s-%(id)s.%(ext)s')
-    opts = ["-x", "-o", "{}".format(outputFile), "--no-playlist", url]
+    opts = ["-x", "-o", "{}".format(outputFile)
+            , "--audio-format", "mp4"
+            , "--no-playlist", url
+            ]
     youtube_dl.main(opts)
 
 if __name__ == "__main__":
