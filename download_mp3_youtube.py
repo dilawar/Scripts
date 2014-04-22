@@ -42,8 +42,8 @@ def downloadUrl(url, outputDir=os.path.join(home, "Downloads")):
     http://stackoverflow.com/questions/18054500/how-to-use-youtube-dl-from-a-python-programm
     '''
     outputFile = os.path.join(outputDir, '%(title)s-%(id)s.%(ext)s')
-    opts = ["-x", "-o", "{}".format(outputFile)
-            , "--audio-format", "mp4"
+    opts = ["-k", "-x", "-o", "{}".format(outputFile)
+            , "--audio-format", "mp3"
             , "--no-playlist", url
             ]
     youtube_dl.main(opts)
