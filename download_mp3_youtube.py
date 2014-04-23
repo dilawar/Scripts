@@ -16,6 +16,7 @@ home = os.environ.get('HOME')
 firefoxDir = os.path.join(home, ".mozilla/firefox")
 if not os.path.isdir(firefoxDir):
     # Try for Mac
+    print("Trying mac")
     firefoxDir = os.path.join(home, "Library/Application\ Support/Firefox")
 
 profileFile = os.path.join(firefoxDir, "profiles.ini")
@@ -28,7 +29,7 @@ sessionFile = os.path.join(firefoxDir, profileDir, "sessionstore.js")
 with open(sessionFile, "r") as sf:
     data = json.loads(sf.read())
 
-def main():
+def main(args):
     tabsURL = set()
     for win in data.get("windows"):
         for tab in win.get("tabs"):
@@ -39,9 +40,9 @@ def main():
     for url in tabsURL:
         if "youtube.com/watch?" in url:
             print("I can download audio from: {}".format(url))
-            downloadUrl(url)
+            downloadUrl(url, args)
 
-def downloadUrl(url, outputDir=os.path.join(home, "Downloads")):
+def downloadUrl(url, args, outputDir=os.path.join(home, "Downloads")):
     ''' Fragment from here
     http://stackoverflow.com/questions/18054500/how-to-use-youtube-dl-from-a-python-programm
     '''
@@ -49,8 +50,9 @@ def downloadUrl(url, outputDir=os.path.join(home, "Downloads")):
     opts = ["-k", "-x", "-o", "{}".format(outputFile)
             , "--audio-format", "mp3"
             , "--no-playlist", url
-            ]
+            ] + args
     youtube_dl.main(opts)
 
 if __name__ == "__main__":
-    main()
+    args = sys.argv[1:]
+    main(args)
