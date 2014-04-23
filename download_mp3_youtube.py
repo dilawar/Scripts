@@ -12,9 +12,13 @@ import youtube_dl
 import re
 
 home = os.environ.get('HOME')
-firefoxDir = os.path.join(home, ".mozilla/firefox")
-profileFile = os.path.join(firefoxDir, "profiles.ini")
 
+firefoxDir = os.path.join(home, ".mozilla/firefox")
+if not os.path.isdir(firefoxDir):
+    # Try for Mac
+    firefoxDir = os.path.join(home, "Library/Application\ Support/Firefox")
+
+profileFile = os.path.join(firefoxDir, "profiles.ini")
 profileParser = cfg.ConfigParser()
 profileParser.read(profileFile)
 profileDir = profileParser.get('Profile0', 'Path')
