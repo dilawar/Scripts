@@ -49,8 +49,7 @@ def downloadUrl(url, args, outputDir=os.path.join(home, "Downloads")):
     outputFile = os.path.join(outputDir, '%(title)s-%(id)s.%(ext)s')
     opts = ["-k", "-x", "-o", "{}".format(outputFile)
             , "--audio-format", "mp3"
-            , "--no-playlist", url
-            ] + args
+            , "--no-playlist" ] + args + [ url ]
     youtube_dl.main(opts)
 
 if __name__ == "__main__":
