@@ -4,3 +4,6 @@
 [submodule "latex"]
 	path = latex
 	url = git@github.com:dilawar/latex
+[submodule "data"]
+	path = data
+	url = git@github.com:dilawar/data
