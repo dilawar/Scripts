@@ -17,6 +17,9 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
+colorPrint "STEP" "Updating submodules in Scripts"
+cd $SCRIPTHOME && git submodule init && git submodule update && cd
+
 # Update bash 
 colorPrint "STEP" "Updating bash"
 rm -f $HOME/.bashrc
