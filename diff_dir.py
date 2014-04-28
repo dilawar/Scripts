@@ -10,30 +10,31 @@ import os
 import sys
 import argparse
 import subprocess
-
 import string 
+import mimetypes
+
+def dump(msg, verbosityLevel = 1):
+    ''' Print messages onto console
+    '''
+    global args
+    for i in range(verbosityLevel):
+        msg = '+' + msg
+
+    if verbosityLevel >= args.verbosity:
+        print(msg)
 
 def istext(filename):
-    ''' This function is from 
-    http://stackoverflow.com/questions/1446549/how-to-identify-binary-and-text-files-using-python
-    '''
-    s=open(filename).read(512)
-    text_characters = "".join(map(chr, range(32, 127)) + list("\n\r\t\b"))
-    _null_trans = string.maketrans("", "")
-    if not s:
-        # Empty files are considered text
+    global args
+    dump("Checking type of {}".format(filename), 2)
+    m = mimetypes.MimeTypes()
+    type, subtype = m.guess_type(filename)
+    dump("mimetypes returns {} ".format(type), 2)
+    if type and ('text' in type):
+        dump("Retuning True", 3)
         return True
-    if "\0" in s:
-        # Files with null bytes are likely binary
+    else:
+        dump("Retuning False", 3)
         return False
-    # Get the non-text characters (maps a character to itself then
-    # use the 'remove' option to get rid of the text characters.)
-    t = s.translate(_null_trans, text_characters)
-    # If more than 30% non-text characters, then
-    # this is considered a binary file
-    if len(t)/len(s) > 0.30:
-        return False
-    return True
 
 def insertIntoDict(fileName, dirName, dictName):
     """Insert a filename inside dirName into a dict
@@ -50,17 +51,22 @@ def filterExtensions(dict, extensions):
     global args
 
     textFileDict = {}
-    if args.enable_binary:
+    if args.enable_binary is True:
         textFileDict = dict
     else:
         # Collect only binary files.
         for f in dict:
-            if not istext(dict[f]):
+            if istext(dict[f]):
                 textFileDict[f] = dict[f]
+            else:
+                if args.verbosity > 1:
+                    dump("{} is not a text file".format(f), 2)
 
     if extensions is None:
-        print("No extensions found")
-        return dict
+        if args.verbosity >  0: 
+            dump("No extensions are given on command line e.g. -e cpp h etc.", 2)
+        return textFileDict
+    
     newDict = {}
     for f in textFileDict:
         ext = f.split('.')[-1]
@@ -112,6 +118,8 @@ def checkFilesAndLaunchDiff(fileAPath, fileBPath):
     with open(fileBPath, "r") as f2:
         textB = f2.read()
 
+    if args.verbosity > 0:
+        print("Comparing {} and {}".format(fileAPath, fileBPath))
     seq = difflib.SequenceMatcher(None, textA, textB).ratio()
     if seq == 1.0:
         msg = "{} and {} are same. \n".format(fileAPath, fileBPath)
@@ -137,7 +145,9 @@ def launchDiffTool(fileA, fileB, diffTool='vimdiff'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Diff two directories")
-    parser.add_argument("-v", "--verbose"
+    parser.add_argument("-v", "--verbosity"
+            , default = 0
+            , type = int
             , help="Verbose output"
             )
     parser.add_argument("-A", "--directoryA"
