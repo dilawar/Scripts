@@ -50,7 +50,7 @@ def filterExtensions(dict, extensions):
     global args
 
     textFileDict = {}
-    if args.binary:
+    if args.enable_binary:
         textFileDict = dict
     else:
         # Collect only binary files.
