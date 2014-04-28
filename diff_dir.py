@@ -4,13 +4,13 @@ This script compares two directories.
 
 Launch vimdiff if there are moderate changes in two files with same name.
 '''
+from __future__ import division
 import difflib
 import os
 import sys
 import argparse
 import subprocess
 
-from __future__ import division
 import string 
 
 def istext(filename):
