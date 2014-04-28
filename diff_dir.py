@@ -18,9 +18,8 @@ def dump(msg, verbosityLevel = 1):
     '''
     global args
     for i in range(verbosityLevel):
-        msg = '+' + msg
-
-    if verbosityLevel >= args.verbosity:
+        msg = '| ' + msg
+    if verbosityLevel <= args.verbosity:
         print(msg)
 
 def istext(filename):
