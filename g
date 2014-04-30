@@ -1,5 +1,6 @@
 #!/bin/bash
 # Find a file recursively containing a pattern
+set -f
 if [ $# -eq 1 ]; then
     pattern="$1"
     glob_pattern="*"
