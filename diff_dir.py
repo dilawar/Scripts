@@ -77,15 +77,15 @@ def filterExtensions(dict, extensions):
 
 def main():
     global args
-    assert args.directoryA
-    assert args.directoryB
+    assert args.dirA
+    assert args.dirB
 
     filesA = dict()
-    for root, subdir, file in os.walk(args.directoryA):
+    for root, subdir, file in os.walk(args.dirA):
         [ insertIntoDict(f, root, filesA) for f in file ]
 
     filesB = dict()
-    for root, subdir, file in os.walk(args.directoryB):
+    for root, subdir, file in os.walk(args.dirB):
         [ insertIntoDict(f, root, filesB) for f in file ]
 
     filesA, filesB = [ filterExtensions(d, args.extension) 
@@ -137,9 +137,11 @@ def printAndExit(msg):
     else:
         sys.exit(0)
         
-def launchDiffTool(fileA, fileB, diffTool='vimdiff'):
+def launchDiffTool(fileA, fileB):
     ''' Given two file paths, launch them in a difftool '''
-    cmd = [diffTool, fileA, fileB]
+    global args
+    diffTool = args.diff
+    cmd = diffTool.split() + [fileA, fileB]
     subprocess.call(cmd)
 
 if __name__ == "__main__":
@@ -149,11 +151,11 @@ if __name__ == "__main__":
             , type = int
             , help="Verbose output"
             )
-    parser.add_argument("-A", "--directoryA"
+    parser.add_argument("-A", "--dirA"
             , required = True
             , help = "Directory A"
             )
-    parser.add_argument("-B", "--directoryB"
+    parser.add_argument("-B", "--dirB"
             , required = True
             , help = "Directory B"
             )
@@ -164,6 +166,12 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--enable_binary"
             , default = False
             , help = "Enable comparisions of binary files. Untested feature"
+            )
+    parser.add_argument("-d", "--diff"
+            , default = "vimdiff"
+            , nargs = "+"
+            , help = "Tool to do diff. It should be able to run in terminal. " +
+                    " Extra command can be passed e.g. --diff diff -b"
             )
     args = parser.parse_args()
     main()
