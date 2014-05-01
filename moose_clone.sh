@@ -2,6 +2,7 @@
 moose_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code
 multi_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code/moose/branches/buildQ/python/moose
 async_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async_multiscale_cmake
+async13_url=svn+ssh://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async13
 
 if [[ $1 = "git" ]]; then
     if [ ! $2 ]; then
@@ -17,6 +18,9 @@ elif [[ $1 = "multiscale" ]]; then
 elif [[ $1 = "async" ]]; then
     echo "git svn clone $async_url"
     git svn clone $async_url moose_async_multiscale_git_svn
+elif [[ $1 = "async13" ]]; then
+    echo "git svn clone $async13_url"
+    git svn clone $async13_url moose_async_git_svn
 else
     svn co --username=dilawar $moose_url $1
 fi
