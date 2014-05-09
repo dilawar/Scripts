@@ -1,2 +1,2 @@
 auto-reload yes
-browser "elinks %u"
+browser "lynx %u"
