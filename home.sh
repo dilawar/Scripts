@@ -34,6 +34,10 @@ cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
 rm -f $HOME/.gitignore
 cp $SCRIPTHOME/gitignore $HOME/.gitignore 
 
+colorPrint "STEP" "Configuring newsbeuter"
+rm -rf $HOME/.newsbeuter 
+ln -s $SCRIPTHOME/newsbeuter $HOME/.newsbeuter
+
 colorPrint "STEP" "Appending names of host to /etc/hosts file"
 IFS=$,
 hosts="kaalu 172.16.206.173,hobbes 172.16.234.52"
