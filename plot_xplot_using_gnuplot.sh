@@ -8,7 +8,7 @@ fi
 
 data_file="$1"
 if [ $# -eq 2 ]; then
-    outfile="$2"
+    outfile="$2".eps
 else
     outfile="$data_file".eps
 fi
@@ -20,4 +20,3 @@ gnuplot << EOF
     set output '${outfile}'
     plot '${data_file}' using 1:2 with lines 
 EOF
-
