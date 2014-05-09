@@ -16,7 +16,7 @@ echo "Plotting $data_file and saving it to $outfile"
 
 gnuplot << EOF
     set terminal postscript eps color solid 
-    set view 80,100
+    set view 200,200
     set output '${outfile}'
     plot '${data_file}' using 1:2 with lines 
 EOF
