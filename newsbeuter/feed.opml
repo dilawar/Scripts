@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<opml version="1.0">
+    <head>
+        <title>Dilawar subscriptions in feedly Cloud</title>
+    </head>
+    <body>
+        <outline text="News" title="News">
+            <outline type="rss" text="The New York Times" title="The New York Times" xmlUrl="http://www.nytimes.com/services/xml/rss/nyt/HomePage.xml" htmlUrl="http://www.nytimes.com/pages/index.html?partner=rss&amp;emc=rss"/>
+        </outline>
+        <outline text="global.must" title="global.must">
+            <outline type="rss" text="The Hindu - Editorial" title="The Hindu - Editorial" xmlUrl="http://www.thehindu.com/opinion/editorial/?service=rss" htmlUrl="http://www.thehindu.com/"/>
+            <outline type="rss" text="Editorials" title="Editorials" xmlUrl="http://www.epw.in/taxonomy/term/1/all/feed" htmlUrl="http://www.epw.in/taxonomy/term/1/all"/>
+            <outline type="rss" text="The Guardian World News" title="The Guardian World News" xmlUrl="http://www.guardian.co.uk/rssfeed/0,,1,00.xml" htmlUrl="http://www.theguardian.com/"/>
+            <outline type="rss" text="Insight" title="Insight" xmlUrl="http://www.epw.in/taxonomy/term/14/feed" htmlUrl="http://www.epw.in/sections/insight"/>
+            <outline type="rss" text="Pass notes | The Guardi..." title="Pass notes | The Guardi..." xmlUrl="http://www.theguardian.com/theguardian/shortcuts+series/pass-notes/rss" htmlUrl="http://www.theguardian.com/theguardian/shortcuts+series/pass-notes"/>
+            <outline type="rss" text="Book Reviews" title="Book Reviews" xmlUrl="http://www.epw.in/taxonomy/term/4/feed" htmlUrl="http://www.epw.in/sections/book-reviews"/>
+            <outline type="rss" text="Nature Neuroscience - Issue - natur..." title="Nature Neuroscience - Issue - natur..." xmlUrl="http://www.nature.com/neuro/current_issue/rss/" htmlUrl="http://www.nature.com/neuro/current_issue/"/>
+            <outline type="rss" text="Editorials" title="Editorials" xmlUrl="http://www.epw.in/taxonomy/term/1/feed" htmlUrl="http://www.epw.in/sections/editorials"/>
+            <outline type="rss" text="Calvin and Hobbes (Unofficial)" title="Calvin and Hobbes (Unofficial)" xmlUrl="http://wdr1.com/blog/calvin_and_hobbes.rdf" htmlUrl="http://www.ucomics.com/calvinandhobbes/"/>
+        </outline>
+        <outline text="Work" title="Work">
+            <outline type="rss" text="Private Feed for dilawar" title="Private Feed for dilawar" xmlUrl="https://github.com/dilawar.private.atom?token=895681__eyJzY29wZSI6IkF0b206L2RpbGF3YXIucHJpdmF0ZS5hdG9tIiwiZXhwaXJlcyI6Mjk3Njg1Nzk1N30=--87e6370df44c3a189873af25b1e874ff00466b63" htmlUrl="https://github.com/dilawar"/>
+            <outline type="rss" text="moose Code changes" title="moose Code changes" xmlUrl="http://sourceforge.net/p/moose/code/feed" htmlUrl="http://sourceforge.net/p/moose/code/"/>
+        </outline>
+        <outline text="Opinion" title="Opinion">
+            <outline type="rss" text="The Telegraph - Calcutta (Kolkata) ..." title="The Telegraph - Calcutta (Kolkata) ..." xmlUrl="http://www.telegraphindia.com/feeds/rss.jsp?id=6" htmlUrl="http://www.telegraphindia.com"/>
+        </outline>
+        <outline text="Humour" title="Humour">
+            <outline type="rss" text="Dilbert Daily Strip" title="Dilbert Daily Strip" xmlUrl="http://feeds.feedburner.com/DilbertDailyStrip" htmlUrl="http://dilbert.com/"/>
+            <outline type="rss" text="Savage Chickens - Cartoons on Stick..." title="Savage Chickens - Cartoons on Stick..." xmlUrl="http://www.savagechickens.com/feed" htmlUrl="http://www.savagechickens.com"/>
+            <outline type="rss" text="xkcd.com" title="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
+            <outline type="rss" text="Calvin and Hobbes (Unofficial)" title="Calvin and Hobbes (Unofficial)" xmlUrl="http://wdr1.com/blog/calvin_and_hobbes.rdf" htmlUrl="http://www.ucomics.com/calvinandhobbes/"/>
+        </outline>
+        <outline type="rss" text="The Guardian World News" title="The Guardian World News" xmlUrl="http://www.guardian.co.uk/rssfeed/0,,1,00.xml" htmlUrl="http://www.theguardian.com/"/>
+        <outline type="rss" text="The Hindu - Editorial" title="The Hindu - Editorial" xmlUrl="http://www.thehindu.com/opinion/editorial/?service=rss" htmlUrl="http://www.thehindu.com/"/>
+        <outline type="rss" text="Editorials" title="Editorials" xmlUrl="http://www.epw.in/taxonomy/term/1/feed" htmlUrl="http://www.epw.in/sections/editorials"/>
+        <outline type="rss" text="Insight" title="Insight" xmlUrl="http://www.epw.in/taxonomy/term/14/feed" htmlUrl="http://www.epw.in/sections/insight"/>
+        <outline type="rss" text="Book Reviews" title="Book Reviews" xmlUrl="http://www.epw.in/taxonomy/term/4/feed" htmlUrl="http://www.epw.in/sections/book-reviews"/>
+        <outline type="rss" text="Editorials" title="Editorials" xmlUrl="http://www.epw.in/taxonomy/term/1/all/feed" htmlUrl="http://www.epw.in/taxonomy/term/1/all"/>
+        <outline type="rss" text="Pass notes | The Guardi..." title="Pass notes | The Guardi..." xmlUrl="http://www.theguardian.com/theguardian/shortcuts+series/pass-notes/rss" htmlUrl="http://www.theguardian.com/theguardian/shortcuts+series/pass-notes"/>
+        <outline type="rss" text="Nature Neuroscience - Issue - natur..." title="Nature Neuroscience - Issue - natur..." xmlUrl="http://www.nature.com/neuro/current_issue/rss/" htmlUrl="http://www.nature.com/neuro/current_issue/"/>
+    </body>
+</opml>
