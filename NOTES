@@ -1,0 +1,17 @@
+WIRELESS:
+
+    To see the list of blocked/unblocked devices.
+    $ sudo rfkill -l
+
+    Command `rfkill` can be used to soft- or hard-unblock wireless devices.
+
+
+SOUND:
+    
+    To unmute the laptop.
+
+    $ amixer set Master unmute
+
+    See its man page for more details. 
+
+
