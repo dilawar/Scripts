@@ -1,2 +1,3 @@
 #!/bin/bash
-xterm -bg black -fg white
+#xterm -bg black -fg white
+xfce4-terminal
