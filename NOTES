@@ -14,4 +14,7 @@ SOUND:
 
     See its man page for more details. 
 
-
+SVN:
+    
+    Resolve working-tree conflict
+    $ svn resolve --accept working -R .
