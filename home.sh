@@ -40,7 +40,7 @@ ln -s $SCRIPTHOME/newsbeuter $HOME/.newsbeuter
 
 colorPrint "STEP" "Appending names of host to /etc/hosts file"
 IFS=$,
-hosts="kaalu 172.16.206.173,hobbes 172.16.234.52"
+hosts=""
 for h in $hosts; do
     echo "Trying host $h"
     if [[ `grep "$h" /etc/hosts` == *"$h"* ]]; then 
@@ -196,9 +196,6 @@ cp $SCRIPTHOME/xsession $HOME/.xsession
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
 cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
-
-colorPrint "STEP" "Downloading gdbinit file"
-wget https://raw.githubusercontent.com/gdbinit/Gdbinit/master/gdbinit -O $HOME/.gdbinit
 
 colorPrint "STEP" "Setting up elinks.. "
 rm $HOME/.elinks/elinks.conf
