@@ -196,3 +196,6 @@ cp $SCRIPTHOME/xsession $HOME/.xsession
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
 cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
+
+colorPrint "STEP" "Downloading gdbinit file"
+wget https://raw.githubusercontent.com/gdbinit/Gdbinit/master/gdbinit -O $HOME/.gdbinit
