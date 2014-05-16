@@ -196,3 +196,7 @@ cp $SCRIPTHOME/xsession $HOME/.xsession
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
 cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
+
+colorPrint "STEP" "Setting up elinks.. "
+rm $HOME/.elinks/elinks.conf
+ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
