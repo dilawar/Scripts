@@ -199,3 +199,7 @@ cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
 
 colorPrint "STEP" "Downloading gdbinit file"
 wget https://raw.githubusercontent.com/gdbinit/Gdbinit/master/gdbinit -O $HOME/.gdbinit
+
+colorPrint "STEP" "Setting up elinks.. "
+rm $HOME/.elinks/elinks.conf
+ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
