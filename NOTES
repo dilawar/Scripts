@@ -18,3 +18,7 @@ SVN:
     
     Resolve working-tree conflict
     $ svn resolve --accept working -R .
+
+DISK:
+    
+    To get the disk ids use `blkid` command.
