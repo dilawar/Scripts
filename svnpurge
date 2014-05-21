@@ -4,7 +4,7 @@
 # current directory is not in a svn working directory
 svn info >/dev/null || exit 1
 
-svn status | grep '^[I?]' | cut -c 9- |
+svn status --no-ignore | grep '^[I?]' | cut -c 9- |
 # setting IFS to the empty string ensures that any leading or
 # trailing whitespace is not trimmed from the filename
 while IFS= read -r f; do
