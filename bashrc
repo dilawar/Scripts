@@ -50,7 +50,6 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias notepal="elinks https://doqcs.ncbs.res.in/notepal2013"
-alias gdb='gdb -tui'
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like
