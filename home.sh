@@ -40,7 +40,7 @@ ln -s $SCRIPTHOME/newsbeuter $HOME/.newsbeuter
 
 colorPrint "STEP" "Appending names of host to /etc/hosts file"
 IFS=$,
-hosts="kaalu 172.16.206.173,hobbes 172.16.234.52"
+hosts=""
 for h in $hosts; do
     echo "Trying host $h"
     if [[ `grep "$h" /etc/hosts` == *"$h"* ]]; then 
