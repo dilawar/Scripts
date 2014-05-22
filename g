@@ -17,8 +17,8 @@ else
     echo "Usage: $0 text_pattern [glob_pattern] [dir_pattern]"
     exit
 fi
-#echo "Searching $dir_pattern for text $pattern in files $glob_pattern"
+echo "Searching $dir_pattern for text $pattern in files $glob_pattern"
 files=`find $dir_pattern -type f -name "$glob_pattern"` 
 for f in $files; do
-    grep -Hnr -B 1 -A 1 "$pattern" $f
+    grep -Hnr -B 0 -A 0 "$pattern" $f
 done

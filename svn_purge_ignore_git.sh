@@ -12,8 +12,10 @@ while IFS= read -r f; do
     # instead of echo because different implementations of echo do
     # different things if the arguments begin with hyphens or
     # contain backslashes; the behavior of printf is consistent
-    printf '%s\n' "Deleting ${f}..."
-    # if rm -rf can't delete the file, something is wrong so bail
-    echo "Deleting ${f}"
-    rm -rf "${f}" || exit 1
+    if [[ "\.git" =~ "{f}" ]]; then
+        printf '%s\n' "Deleting ${f}..."
+        # if rm -rf can't delete the file, something is wrong so bail
+        echo "Deleting ${f}"
+        rm -rf "${f}" || exit 1
+    fi
 done 
