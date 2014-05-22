@@ -9,4 +9,4 @@ fi
 inputFile="$1"
 anansi weave $inputFile -o $inputFile.pandoc
 anansi tangle $inputFile 
-~/Scripts/markdown_to_pdf.sh $inputFile.padoc
+pandoc -f markdown $inputFile.pandoc -o $inputFile.pdf
