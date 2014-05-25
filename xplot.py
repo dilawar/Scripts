@@ -28,6 +28,8 @@ def buildData( file ):
         xvec = []
         yvec = []
         for line in f:
+            if line[0] == ';':
+                continue
             line = line.strip()
             line = line.split()
             xvec.append(float(line[0]))
