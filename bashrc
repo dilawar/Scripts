@@ -73,7 +73,7 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
 fi
 export PATH=$PATH:/usr/local/bin/bin:/usr/bin:/usr/sbin:/usr/local/bin/Leo:/cad:/cad/bin:/cad/lib:/usr/local/mosml/bin
 export PATH=$PATH:/sbin
-export PATH=$PATH:~/Scripts/
+export PATH=~/Scripts:$PATH
 export PATH=$PATH:/opt/Xilinx/13.4/ISE_DS/ISE/bin/lin
 export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
 export PATH=$PATH:/opt/altera10.1/modelsim_ase/bin/
@@ -116,5 +116,4 @@ export PATH=$PATH:/usr/local/nrn/i686/bin/
 export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
-let g:haddock_browser=elinks
-
+export PYTHONPATH=~/Work/NCBS/moose_svn_1.8/moose/branches/async13/python
