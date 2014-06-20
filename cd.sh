@@ -5,7 +5,7 @@
 
 c () 
 {
-  alias cd='cd'
+  #alias cd='cd'
   dbname=$HOME/.cdsqlite
 
   # Initialize database.
