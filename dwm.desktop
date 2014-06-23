@@ -1,0 +1,6 @@
+# Desktop entry for lightdm. Save it as /usr/share/xsessions/dwm.desktop file.
+[Desktop Entry]
+Name=Suckless Window Manager
+Comment=Suckless Window Manager
+Exec=dwm
+Type=Application
