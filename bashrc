@@ -117,3 +117,4 @@ export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export PYTHONPATH=~/Work/NCBS/moose_svn_1.8/moose/branches/async13/python
+export EDITOR=vim
