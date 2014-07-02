@@ -118,3 +118,4 @@ export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export PYTHONPATH=$PYTHONPATH:~/LocalWork/NCBS/moose_svn_1.8/moose/branches/async13/python
 export PYTHONPATH=~/Work/NCBS/moose_svn_1.8/moose/branches/async13/python
+export EDITOR=vim

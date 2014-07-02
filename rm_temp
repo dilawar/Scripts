@@ -45,7 +45,7 @@ fi
 
 for var in "$@" 
 do 
-    elif [ -d $var ] || [ -f $var ]; then
+    if [ -d $var ] || [ -f $var ]; then
         path=$PWD/$var
         printf "Creating backup for %s " "$var"
         cp --parents -r $path $BACKUP_DIR/
