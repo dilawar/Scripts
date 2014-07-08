@@ -1,3 +1,4 @@
 #!/bin/bash
-urxvt256c -bg black -fg white
+#urxvt256c -bg black -fg white
+urxvt -bg black -fg white
 #xfce4-terminal
