@@ -1,3 +1,5 @@
+[https_proxy]
+host = http://proxy.ncbs.res.in:3128
 [http_proxy]
 host = http://proxy.ncbs.res.in:3128
 
