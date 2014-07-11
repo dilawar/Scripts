@@ -1,4 +1,4 @@
-set logging file "gbd.log"
+set logging file gbd.log
 set logging on
 set confirm off
 set verbose off
