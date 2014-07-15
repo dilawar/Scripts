@@ -1,7 +1,6 @@
-#!/usr/bin/env python2.7
-#
+#!/usr/bin/env python
 # Copyright (C) 2008-2011  W. Trevor King
-# Copyright (C) 2013       Dilawar Singh
+# Copyright (C) 2013 - 2014      Dilawar Singh
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,17 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""LDAP address searchers.
+""" Search NCBS LDAP server for information.
 
-Search for addresses with `^t`, optionally after typing part of the
-name.  Configure your connection by creating :file:`~/.mutt-ldap.py`
-contaning something like::
-
-  [connection]
-  server = myserver.example.net
-  basedn = ou=people,dc=example,dc=net
-
-See the `CONFIG` options for other available settings.
+    Just pass whatever you want to search on NCBS LDAP as first arguement.
 """
 
 import email.utils
@@ -93,11 +84,11 @@ def format_entry(entry):
     if data.get('givenName'):
         givenName = " ".join(data.get('givenName', []))
         line.append("{:10}: {} ".format("Name", givenName))
-        email = " ".join(data['mail'])
+        email = " ".join(data.get('mail', []))
         line.append("{:10}: {} ".format("Email", email))
-        alternateEmail = " ".join(data['profileAlternateemail'])
+        alternateEmail = " ".join(data.get('profileAlternateemail', []))
         line.append("{:10}: {} ".format("Email", alternateEmail))
-        lab = " ".join(data['profileLaboffice'])
+        lab = " ".join(data.get('profileLaboffice', []))
         line.append("{:10}: {} ".format("Lab", lab))
     elif data.get('macAddress', None):
         macId = " ".join(data['macAddress'])
@@ -106,7 +97,9 @@ def format_entry(entry):
 
 if __name__ == '__main__':
     import sys
-
+    if len(sys.argv) < 2:
+        print("USAGE: {} query_words".format(sys.argv[0]))
+        sys.exit(0)
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
     entries = search(query)
     addresses = [format_entry(e) for e in sorted(entries)]
