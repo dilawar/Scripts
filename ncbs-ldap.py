@@ -16,12 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""LDAP address searches for Mutt. Customised for ncbs ldap server.
-
-Add :file:`mutt-ldap.py` to your ``PATH`` and add the following line
-to your :file:`.muttrc`::
-
-  set query_command = "ncbs-ldap.py '%s'"
+"""LDAP address searchers.
 
 Search for addresses with `^t`, optionally after typing part of the
 name.  Configure your connection by creating :file:`~/.mutt-ldap.py`
@@ -37,12 +32,16 @@ See the `CONFIG` options for other available settings.
 import email.utils
 import itertools
 import os.path
-import ConfigParser
+
+try:
+    import ConfigParser as cfg
+except Exception:
+    import configparser as cfg
 
 import ldap
 
 
-CONFIG = ConfigParser.SafeConfigParser()
+CONFIG = cfg.SafeConfigParser()
 CONFIG.add_section('connection')
 CONFIG.set('connection', 'server', 'ldap.ncbs.res.in')
 CONFIG.set('connection', 'port', '389')  # set to 636 for default over SSL
@@ -89,10 +88,21 @@ def search(query, connection=None):
     return r
 
 def format_entry(entry):
+    line = []
     cn, data = entry
-    print("Line: {} and data::: {}".format(cn, data))
-    return "A"
-
+    if data.get('givenName'):
+        givenName = " ".join(data.get('givenName', []))
+        line.append("{:10}: {} ".format("Name", givenName))
+        email = " ".join(data['mail'])
+        line.append("{:10}: {} ".format("Email", email))
+        alternateEmail = " ".join(data['profileAlternateemail'])
+        line.append("{:10}: {} ".format("Email", alternateEmail))
+        lab = " ".join(data['profileLaboffice'])
+        line.append("{:10}: {} ".format("Lab", lab))
+    elif data.get('macAddress', None):
+        macId = " ".join(data['macAddress'])
+        #line.append("{:30}: {}".format("MacId", macId))
+    return "\n".join(line)
 
 if __name__ == '__main__':
     import sys
@@ -100,6 +110,7 @@ if __name__ == '__main__':
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
     entries = search(query)
     addresses = [format_entry(e) for e in sorted(entries)]
-    print("{0} addresses found:".format(len(addresses)))
-    for i in addresses :
-        print("{0}".format(i))
+    addresses = filter(lambda x: x != "", addresses)
+    for add in addresses:
+        print(".....................................")
+        print(add)
