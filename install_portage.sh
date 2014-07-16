@@ -82,7 +82,8 @@ myldpath="/lib:/usr/lib"
 for i in $(cat /etc/ld.so.conf);do myldpath=$myldpath:$i;done
 echo "LDPATH=\"${myldpath}\"" > /etc/env.d/10ldpath
 . /etc/env.d/compilers.sh
-emerge sync
+#emerge sync
+emerge-webrsync
 #
 # emerge sync should get /usr/portage/profiles
 #
