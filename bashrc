@@ -6,9 +6,9 @@ if [ -f /etc/bashrc ]; then
 fi
 
 if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$'
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$\n'
 else
-	PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$' 
+	PS1='${debian_chroot:+($debian_chroot)}\[\033[000;32m\]\u@\h\[\033[00m\]:\[\033[001;34m\]\w\[\033[00m\]\$\n' 
 fi
 
 # If this is an xterm set the title to user@host:dir
@@ -42,15 +42,13 @@ alias sh='bash'
 alias src='source ~/.bashrc'
 alias rsync='rsync --progress'
 alias i='sudo emerge -avu --autounmask-write'
-#alias netcat='nc.openbsd'
+alias netcat='nc.openbsd'
 alias ii='sudo apt-get -c ~/.aptconf install'
 alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias notepal="elinks https://doqcs.ncbs.res.in/notepal2013"
-
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -73,7 +71,7 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
 fi
 export PATH=$PATH:/usr/local/bin/bin:/usr/bin:/usr/sbin:/usr/local/bin/Leo:/cad:/cad/bin:/cad/lib:/usr/local/mosml/bin
 export PATH=$PATH:/sbin
-export PATH=~/Scripts:$PATH
+export PATH=$PATH:~/Scripts/
 export PATH=$PATH:/opt/Xilinx/13.4/ISE_DS/ISE/bin/lin
 export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
 export PATH=$PATH:/opt/altera10.1/modelsim_ase/bin/
@@ -84,12 +82,10 @@ export PATH=$PATH:~/Work/bin/modelsim_ase
 export MMSIMHOME=/cad/cadence/mmsim
 export MMSIM_PATH=/cad/cadence/mmsim/tools/bin
 export MIRALIB=/cad/lib/miralib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib/openmpi/lib/
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
 #export VIM=~/Works/MyPublic/Scripts/vim
 source ~/.proxy
-source ~/Scripts/svn_prompt.sh
-
 #source ~/.bsv_sh 
 
 export CAPEM_INSTALL=~/capem
@@ -108,7 +104,7 @@ export PATH=$PATH:~/.mutt
 cd ~
 
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
-#PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
+PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
 export PATH=$PATH:~/Bhandar/anaconda/bin/
@@ -116,6 +112,4 @@ export PATH=$PATH:/usr/local/nrn/i686/bin/
 export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
-export PYTHONPATH=$PYTHONPATH:~/LocalWork/NCBS/moose_svn_1.8/moose/branches/async13/python
-export PYTHONPATH=~/Work/NCBS/moose_svn_1.8/moose/branches/async13/python
-export EDITOR=vim
+export EPREFIX=$HOME/gentoo
