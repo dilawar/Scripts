@@ -58,9 +58,7 @@ ln -s $SCRIPTHOME/pylintrc $HOME/.pylintrc
 
 # Setting up ncurses agent for gnupg
 gnupgFile=$HOME/.gnupg/gpg-agent.conf
-if [ ! -f $gnupgFile ]; then
-   echo "pinentry-program /usr/bin/pinentry-curses" > $gnupgFile 
-fi
+echo "pinentry-program /usr/bin/pinentry-curses" >> $gnupgFile 
     
 colorPrint "STEP" "Checking for flash plugin .."
 mozillaPlugin=$HOME/.mozilla/plugins
