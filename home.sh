@@ -73,13 +73,13 @@ if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
     cd 
 fi
     
-# Setting up bfg
-if [ ! -f /usr/local/bin/bfg ]; then
-    colorPrint "STEP" "Download bfg to clean git repo"
-    $WGET http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
-    sudo cp /tmp/bfg /usr/local/bin/
-    sudo chmod + /usr/local/bin/bfg
-fi
+## Setting up bfg
+#if [ ! -f /usr/local/bin/bfg ]; then
+#    colorPrint "STEP" "Download bfg to clean git repo"
+#    $WGET http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
+#    sudo cp /tmp/bfg /usr/local/bin/
+#    sudo chmod + /usr/local/bin/bfg
+#fi
 
 
 colorPrint "STEP" "Setting up Xdefaults"
