@@ -196,5 +196,6 @@ rm -f $HOME/.gdbinit
 cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
 
 colorPrint "STEP" "Setting up elinks.. "
+mkdir -p $HOME/.elinks
 rm -f $HOME/.elinks/elinks.conf
 ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
