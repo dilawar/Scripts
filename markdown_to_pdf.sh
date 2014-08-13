@@ -5,7 +5,11 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     exit
 fi
 
-LATEX=pdflatex -shell-escappe -output-directory=.temp
+LATEX="pdflatex -shell-escappe -output-directory=.temp"
+if [ ! -d .temp ]; then
+    mkdir -p .temp
+fi
+
 filename=$1
 if [ $# -eq 2 ]; then
     outputFile=$2
