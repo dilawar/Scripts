@@ -8,7 +8,9 @@
 \makeatother
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
-\usepackage{tikz}
+\usepackage{pgf,tikz}
+\usetikzlibrary{shapes,backgrounds,positioning,matrix,decorations}
+
 \usepackage{siunitx}
 \usepackage{python}
 \usepackage{amssymb,amsmath}
