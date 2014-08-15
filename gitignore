@@ -8,6 +8,8 @@
 *.so
 *.Tpo
 *.Po
+*.pyx
+*.jar
 
 # Packages #
 ############
@@ -37,3 +39,57 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# cpp and cmake 
+# # Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+# Fortran module files
+*.mod
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+# Executables
+*.exe
+*.out
+*.app
+
+# Cmake ignore files.
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+# latex 
+# *.aux
+*.glo
+*.idx
+*.log
+*.toc
+*.ist
+*.acn
+*.acr
+*.alg
+*.bbl
+*.blg
+*.dvi
+*.glg
+*.gls
+*.ilg
+*.ind
+*.lof
+*.lot
+*.maf
+*.mtc
+*.mtc1
+*.out
+*.synctex.gz
