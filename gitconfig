@@ -12,5 +12,6 @@
 	autocrlf = input
         pager = cat
         editor = vim
+        excludesfile = ~/.gitignore
 [push]
 	default = matching
