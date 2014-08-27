@@ -19,8 +19,8 @@ fi
 texFile=${filename%.markdown}.tex
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
-PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc"
-INFMT=markdown+tex_math_dollars+latex_macros+header_attributes
+PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc --filter=pandoc-citeproc"
+INFMT=markdown+tex_math_dollars+latex_macros+header_attributes+yaml_metadata_block+table_captions
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
 if [[ $latex = "true" ]]; then
