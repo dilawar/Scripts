@@ -113,3 +113,4 @@ export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export EPREFIX=$HOME/Opt/gentoo
+export PYTHONPATH=/home/dilawar/Work/NCBS/moose_async_git_svn/python/
