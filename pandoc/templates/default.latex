@@ -13,9 +13,8 @@
 
 \usepackage{siunitx}
 \usepackage{python}
-\usepackage{amssymb,amsmath}
+\usepackage{amsmath,amssymb,amsthm}
 \usepackage{ifxetex,ifluatex}
-\usepackage{amsthm}
 \usepackage{listings}
 \setlength{\parskip}{3mm}
 \newtheorem{axiom}{Axiom}
