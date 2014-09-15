@@ -42,7 +42,7 @@ def main(args):
             print("I can download audio from: {}".format(url))
             downloadUrl(url, args)
 
-def downloadUrl(url, args, outputDir=os.path.join(home, "Bhandar/Music/Downloads")):
+def downloadUrl(url, args, outputDir=os.path.join(home, "Music/Downloads")):
     ''' Fragment from here
     http://stackoverflow.com/questions/18054500/how-to-use-youtube-dl-from-a-python-programm
     '''
