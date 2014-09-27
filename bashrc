@@ -49,6 +49,7 @@ alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
+alias vim='$HOME/bin/bin/vim'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -82,7 +83,7 @@ export PATH=$PATH:~/Work/bin/modelsim_ase
 export MMSIMHOME=/cad/cadence/mmsim
 export MMSIM_PATH=/cad/cadence/mmsim/tools/bin
 export MIRALIB=/cad/lib/miralib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin:$HOME/bin/lib
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
 #export VIM=~/Works/MyPublic/Scripts/vim
 source ~/.proxy
@@ -107,9 +108,12 @@ export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
-export PATH=$PATH:~/Bhandar/anaconda/bin/
+export PATH=$PATH:$HOME/bin/bin
 export PATH=$PATH:/usr/local/nrn/i686/bin/
 export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export EPREFIX=$HOME/Opt/gentoo
+export HDF5_HOME=/cluster/share/software/hdf51813
+export GSL_HOME=/cluster/share/software/gsl116
+export PATH=$PATH:/cluster/share/software/subversion189/bin
