@@ -1,6 +1,6 @@
 [user]
-	name = Dilawar
-	email = dilawars@iitb.ac.in
+	name = Dilawar Singh
+	email = dilawars@ncbs.res.in
 [http]
 	proxy = http://proxy.ncbs.res.in:3128
 	sslVerify = false

@@ -42,16 +42,22 @@ def main(args):
             print("I can download audio from: {}".format(url))
             downloadUrl(url, args)
 
-def downloadUrl(url, args, outputDir=os.path.join(home, "Bhandar/Music/Downloads")):
+def downloadUrl(url, args, outputDir=os.path.join(home, "Music/Downloads")):
     ''' Fragment from here
     http://stackoverflow.com/questions/18054500/how-to-use-youtube-dl-from-a-python-programm
     '''
     if not os.path.isdir(outputDir):
         os.makedirs(outputDir)
     outputFile = os.path.join(outputDir, '%(title)s-%(id)s.%(ext)s')
-    opts = ["-k", "-x", "-o", "{}".format(outputFile)
-            , "--audio-format", "mp3"
-            , "--no-playlist" ] + args + [ url ]
+    if "--playlist" not in args:
+        opts = ["-k", "-x", "-o", "{}".format(outputFile)
+                , "--audio-format", "mp3"
+                , "--no-playlist" ] + [ url ]
+    else:
+        print("[INFO] Downloading playlist from youtube.")
+        opts = ["-k", "-x", "-o", "{}".format(outputFile)
+                , "--audio-format", "mp3" ] + [ url ]
+
     youtube_dl.main(opts)
 
 if __name__ == "__main__":
