@@ -3,7 +3,7 @@
 cd ~/Scripts
 notification=$(grep 'notification:' notification|awk '{print $2}')
 
-cd /proc/acpi/ac_adapter/ADP1;
+cd /sys/class/power_supply/ADP1;
 power=$(grep 'state:' state|awk '{print $2}')
 s1="$power"
 
@@ -14,7 +14,7 @@ s4="on"
 export DISPLAY=:0
 
 if [ "$s1" = "on-line" ]; then
-  cd /proc/acpi/battery/BAT0;
+  cd /sys/class/power_supply/BAT0;
   state=$(grep 'charging state:' state|awk '{print $3}')
   if [ $state = $s2 ] && [ "$notification" = "$s4" ];
     then
@@ -24,7 +24,7 @@ if [ "$s1" = "on-line" ]; then
     fi
 
 else
-  if [ $notification != "on" ]; then
-    echo "notification: on" >~/Scripts/notification
+  if [[ "$notification" != "on" ]]; then
+    echo "notification: on" > ~/Scripts/notification
   fi
 fi

@@ -36,8 +36,8 @@ critical_threshold=4
 timeout=59
 shutdown_cmd='/usr/sbin/pm-hibernate'
 
-level=$(cat /sys/devices/platform/smapi/BAT0/remaining_percent)
-state=$(cat /sys/devices/platform/smapi/BAT0/state)
+level=$(cat /sys/class/power_supply/BAT0/capacity)
+state=$(cat /sys/class/power_supply/BAT0/status)
 
 if [ x"$state" != x'discharging' ]; then
   exit 0
