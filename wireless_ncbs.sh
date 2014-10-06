@@ -1,2 +1,3 @@
 #!/bin/bash
-sudo iwconfig wlan0 essid "NCBSWiFi"
+set +x
+sudo iwconfig wlan0 essid "NCBSWiFi" key s:1234567890

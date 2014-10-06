@@ -22,7 +22,7 @@ def connect(interface, con):
         cmd = ["sudo", "/sbin/iwconfig", interface, essid, "key", key]
     else:
         cmd = ["sudo", "/sbin/iwconfig", interface, essid]
-    subprocess.command(cmd)
+    subprocess.check_call(cmd)
 
 print("+ Checking for network cards ...")
 lspciOutput = subprocess.check_output("lspci | grep Network", shell=True)
