@@ -1,4 +1,5 @@
 #!/bin/sh
+set -x
 
 # http://unix.stackexchange.com/questions/84437/how-do-i-make-my-laptop-sleep-when-it-reaches-some-low-battery-threshold
 
@@ -31,31 +32,32 @@ if [ -r ~/.dbus/Xdbus ]; then
   . ~/.dbus/Xdbus
 fi
 
-low_threshold=10
-critical_threshold=4
-timeout=59
-shutdown_cmd='/usr/sbin/pm-hibernate'
+low_threshold=20
+critical_threshold=5
+timeout=30
+suspend_cmd='/usr/sbin/pm-suspend'
 
 level=$(cat /sys/class/power_supply/BAT0/capacity)
 state=$(cat /sys/class/power_supply/BAT0/status)
 
-if [ x"$state" != x'discharging' ]; then
+if [ x"$state" != x'Discharging' ]; then
   exit 0
 fi
 
 do_shutdown() {
   sleep $timeout && kill $zenity_pid 2>/dev/null
 
-  if [ x"$state" != x'discharging' ]; then
+  if [ x"$state" != x'Discharging' ]; then
     exit 0
   else
-    $shutdown_cmd
+    sudo $suspend_cmd
   fi
 }
 
 if [ "$level" -gt $critical_threshold ] && [ "$level" -lt $low_threshold ]; then
   notify-send "Battery level is low: $level%"
 fi
+
 
 if [ "$level" -lt $critical_threshold ]; then
 
