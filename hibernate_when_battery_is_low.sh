@@ -14,7 +14,7 @@ set -x
 # does nothing.
 #
 # This script is supposed to be called from a cron job.
-#
+# 
 ###########################################################################
 
 # This is required because the script is invoked by cron. Dbus information
@@ -28,6 +28,11 @@ set -x
 # echo 'export DBUS_SESSION_BUS_ADDRESS' >> $HOME/.dbus/Xdbus
 # exit 0
 #
+
+# User should be able to run pm-suspend command without password. Add the
+# following to sudoer file using visudo command.
+# dilawar ALL=(ALL) NOPASSWD: ALL
+
 if [ -r ~/.dbus/Xdbus ]; then
   . ~/.dbus/Xdbus
 fi
