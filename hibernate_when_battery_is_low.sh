@@ -69,9 +69,10 @@ if [ "$level" -lt $critical_threshold ]; then
   notify-send -u critical -t 20000 "Battery level is low: $level%" \
     'The system is going to shut down in 1 minute.'
 
-  DISPLAY=:0 zenity --question --ok-label 'OK' --cancel-label 'Cancel' \
-    --text "Battery level is low: $level%.\n\n The system is going to shut down in 1 minute." &
-  zenity_pid=$!
+  #DISPLAY=:0 zenity --question --ok-label 'OK' --cancel-label 'Cancel' \
+    #--text "Battery level is low: $level%.\n\n The system is going to shut down in 1 minute." &
+  #zenity_pid=$!
+  sleep 60
 
   do_shutdown &
   shutdown_pid=$!
