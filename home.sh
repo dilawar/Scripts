@@ -1,4 +1,5 @@
 #!/bin/bash
+set +x 
 
 # This script update my HOME folder. Run it once and HOME must have all default
 # configuartion files of my faviorite tools.
@@ -199,3 +200,9 @@ colorPrint "STEP" "Setting up elinks.. "
 mkdir -p $HOME/.elinks
 rm -f $HOME/.elinks/elinks.conf
 ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
+
+colorPrint "STEP" "Setting up i3."
+I3HOME=$HOME/.i3
+mkdir -p $I3HOME
+rm -f $I3HOME/config
+ln $SCRIPTHOME/i3config $I3HOME/config
