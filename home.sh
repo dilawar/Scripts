@@ -140,17 +140,17 @@ else
     cd $MUTTDIR && git submodule init && git submodule update && cd
 fi
 
-colorPrint "STEP" "Updating awesome ... "
-AWESOMEDIR=$HOME/.config/awesome 
-if [ -d $AWESOMEDIR ]; then
-    cd $AWESOMEDIR && git pull 
-    colorPrint "INFO" "Resetting awesome"
-    xdotool key Super_L+ctrl+r
-else
-    git clone git@github.com:dilawar/awesome $AWESOMEDIR
-    cd $AWESOMEDIR && git submodule init && git submodule update && cd
-    colorPrint "TODO" "Logout and login using awesome ..."
-fi
+#colorPrint "STEP" "Updating awesome ... "
+#AWESOMEDIR=$HOME/.config/awesome 
+#if [ -d $AWESOMEDIR ]; then
+#    cd $AWESOMEDIR && git pull 
+#    colorPrint "INFO" "Resetting awesome"
+#    xdotool key Super_L+ctrl+r
+#else
+#    git clone git@github.com:dilawar/awesome $AWESOMEDIR
+#    cd $AWESOMEDIR && git submodule init && git submodule update && cd
+#    colorPrint "TODO" "Logout and login using awesome ..."
+#fi
 
 colorPrint "STEP" "Setting up MPD ..."
 rm -f $HOME/.mpdconf
@@ -204,4 +204,4 @@ ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
 colorPrint "STEP" "Setting up i3."
 I3HOME=$HOME/.i3
 rm -rf $I3HOME
-rsync -azv $SCRIPTHOME/i3/ $I3HOME
+cp -r $SCRIPTHOME/i3/* $I3HOME
