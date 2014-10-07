@@ -204,4 +204,4 @@ ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
 colorPrint "STEP" "Setting up i3."
 I3HOME=$HOME/.i3
 rm -rf $I3HOME
-cp -r $SCRIPTHOME/i3/* $I3HOME
+rsync -az $SCRIPTHOME/i3/ $I3HOME
