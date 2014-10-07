@@ -33,12 +33,15 @@ set -x
 # following to sudoer file using visudo command.
 # dilawar ALL=(ALL) NOPASSWD: ALL
 
+# let crontab know whom to talk to
+export DISPLAY=:0
+
 if [ -r ~/.dbus/Xdbus ]; then
   . ~/.dbus/Xdbus
 fi
 
-low_threshold=10
-critical_threshold=5
+low_threshold=20
+critical_threshold=15
 timeout=15
 suspend_cmd='/usr/sbin/pm-suspend'
 
@@ -67,8 +70,7 @@ fi
 if [ "$level" -lt $critical_threshold ]; then
 
   notify-send -u critical -t 20000 "Battery level is low: $level%" \
-    'The system is going to shut down in $timeout seconds'
-  sleep $timeout
+    'The system is going to hibernate in 15 seconds.'
   do_shutdown &
   shutdown_pid=$!
 
@@ -77,7 +79,5 @@ if [ "$level" -lt $critical_threshold ]; then
   if ! wait $zenity_pid; then
     kill $shutdown_pid 2>/dev/null
   fi
-
 fi
-
 exit 0
