@@ -65,13 +65,13 @@ do_shutdown() {
 }
 
 if [ "$level" -gt $critical_threshold ] && [ "$level" -lt $low_threshold ]; then
-  i3-nagbar -m "Battery level is low: $level%" -b "Out of power" &
+  i3-nagbar -m "Battery level is low: $level%" -b "low POWER!!" &
 fi
 
 
 if [ "$level" -lt $critical_threshold ]; then
 
-  i3-nagbar -m "Battery level is low: $level%. The system is going to hibernate in 15 seconds." -b "Out of power" &
+  i3-nagbar -m "Battery level is low: $level%. Screw you! I am going to hibernate in 15 seconds." -b "Out of power" &
   do_shutdown &
   shutdown_pid=$!
 
