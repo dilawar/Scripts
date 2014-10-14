@@ -44,6 +44,8 @@ bindsym Mod1+Control+l exec "amixer set Master 2dB+"
 bindsym Mod1+Control+n exec "mpc next"
 bindsym Mod1+Control+p exec "mpc previous"
 bindsym Mod1+Control+t exec "mpc toggle"
+bindsym Mod4+Control+n exec "tomboy --new-note"
+
 
 # change focus
 bindsym $mod+j focus left
