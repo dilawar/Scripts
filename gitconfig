@@ -13,5 +13,6 @@
         pager = cat
         editor = vim
         excludesfile = ~/.gitignore
+        difftool = vimdiff
 [push]
 	default = matching
