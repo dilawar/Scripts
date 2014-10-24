@@ -17,7 +17,6 @@ MiscTabPosition=GTK_POS_TOP
 MiscHighlightUrls=TRUE
 ScrollingBar=TERMINAL_SCROLLBAR_NONE
 CommandUpdateRecords=FALSE
-FontName=Liberation Mono 12
 FontAllowBold=FALSE
 ScrollingLines=10010
 ScrollingOnOutput=FALSE
