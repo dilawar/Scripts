@@ -3,7 +3,7 @@
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
 
-cd () 
+dilawar_cd () 
 {
   #alias cd='cd'
   dbname=$HOME/.cdsqlite
