@@ -37,6 +37,7 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
+source ~/Scripts/cd.sh
 # some more ls aliases
 alias ls='ls --color=auto'
 alias ll='ls -alF'
@@ -54,6 +55,7 @@ alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
+alias cd='dilawar_cd'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -103,10 +105,8 @@ export LAVA2000_SMV=/cad/bin/smv
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
 export NNTPSERVER=103.21.127.130
-source ~/Scripts/cd.sh
 source ~/Scripts/profile
 export PATH=$PATH:~/.mutt
-cd ~
 
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
