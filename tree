@@ -1,0 +1,3 @@
+#!/bin/bash
+# This script shows tree output of a dir
+find /path/to/folder -type f -print0 | xargs -0 ls -l --time-style="+%F %T"
