@@ -94,17 +94,17 @@ colorPrint "STEP" "Setting mailcap"
 rm -f $HOME/.mailcap
 ln $SCRIPTHOME/mailcap $HOME/.mailcap
 
-colorPrint "STEP" "Setting up urxvt terminal..."
-RXVTEXT=$HOME/.urxvt/ext
-if [ ! -d $RXVTEXT ]; then
-    mkdir -p $RXVTEXT 
-fi 
-if [ ! -f $RXVTEXT/font-size ]; then
-    cd $RXVTEXT && \
-    $WGET --no-check-certificate \
-    https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
-    && cd 
-fi
+#colorPrint "STEP" "Setting up urxvt terminal..."
+#RXVTEXT=$HOME/.urxvt/ext
+#if [ ! -d $RXVTEXT ]; then
+#    mkdir -p $RXVTEXT 
+#fi 
+#if [ ! -f $RXVTEXT/font-size ]; then
+#    cd $RXVTEXT && \
+#    $WGET --no-check-certificate \
+#    https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
+#    && cd 
+#fi
 
 colorPrint "STEP" "Setting up dzen and conky"
 if [[ $(which conky) == *"conky"* ]]; then
