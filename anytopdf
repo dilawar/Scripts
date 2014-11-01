@@ -1,0 +1,182 @@
+#!/usr/bin/perl
+#
+# anytopdf : convert any openoffice.org readable document to a PDF file using the current user's macro library (license: LGPL)
+# 
+# http://code.google.com/p/anytopdf
+#
+#  known issues (MAJOR - READ THIS!):
+#   - does not support attempts to use file names with commas, quotes, brackets, or newlines
+#   - for some unknown reason, using perl system() fails silently, so we use backticks, which is REALLY bad!
+#
+#  notes:
+#   - auto creates or extends the current user's Standard/AnyToPDF.xba macro libary
+#
+#  requirements:
+#   - openoffice.org 3+ (with macro support, and support for the file format you want to use)
+#   - standard perl install
+#   - unix style system
+#  
+#  changelog:
+#   1.0    2009-04     initial version
+#  
+#  thanks:
+#   - http://www.togaware.com/linux/survivor/Convert_MS_Word.html / DannyB : original macro code
+#   - openoffice.org contributors
+#   - unix hackers with a conscience who don't work for morally bankrupt corporations, governments and militaries.
+#
+#  ... dedicated to peace, love, understanding and respect for all beings.
+
+# requirements
+use Cwd;
+use File::Basename; # present in default perl distribution - should be present on every machine
+
+# basic configuration and initialisation (you probably won't need to change this)
+$VERSION = '1.0';
+$OPENOFFICE_BINARY_NAME = 'soffice.bin';
+$HOME = $ENV{'HOME'};
+$MACRO_FILE = $HOME . '/.openoffice.org/3/user/basic/Standard/AnyToPDF.xba';
+if(! -e $MACRO_FILE) {
+ $MACRO_FILE = $HOME . '/.ooo3/user/basic/Standard/AnyToPDF.xba';
+ if(! -e $MACRO_FILE) {
+  print "ERROR: Unable to locate macro file.\n";
+  exit(1);
+ }
+}
+
+# macro definitions
+$MACRO_HEADER = '<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="AnyToPDF" script:language="StarBasic">REM  *****  BASIC  *****
+' . "\n";
+$MACROS = 'Sub ConvertAnyToPDF(inFile,outFile)
+   inURL = ConvertToURL(inFile)
+   oDoc = StarDesktop.loadComponentFromURL(inURL, &quot;_blank&quot;, 0, Array(AnyToPDFMPV(&quot;Hidden&quot;, True), ))
+   outURL = ConvertToURL(outFile)
+   oDoc.storeToURL(outURL, Array(AnyToPDFMPV(&quot;FilterName&quot;, &quot;writer_pdf_Export&quot;), ))
+   oDoc.close(True)
+End Sub
+Function AnyToPDFMPV( Optional cName As String, Optional uValue ) As com.sun.star.beans.PropertyValue
+   Dim oPropertyValue As New com.sun.star.beans.PropertyValue
+   If Not IsMissing( cName ) Then
+      oPropertyValue.Name = cName
+   EndIf
+   If Not IsMissing( uValue ) Then
+      oPropertyValue.Value = uValue
+   EndIf
+   AnyToPDFMPV() = oPropertyValue
+End Function' . "\n";
+$MACRO_FOOTER = '</script:module>';
+
+# check that the openoffice program is in the path
+$OPENOFFICE_BINARY = `which $OPENOFFICE_BINARY_NAME 2>/dev/null`;
+if(length($OPENOFFICE_BINARY)<=2) {
+ $OPENOFFICE_BINARY = `locate soffice.bin 2>/dev/null |grep '^/usr/' |head -n 1`;
+ if(length($OPENOFFICE_BINARY)<=2) {
+  $path = $ENV{'PATH'}; error("Could not find openoffice.org binary '$OPENOFFICE_BINARY_NAME' in PATH ($path) or via slocate.",100);
+ }
+}
+chop($OPENOFFICE_BINARY);
+# check that we can execute it
+if(!-x $OPENOFFICE_BINARY) { error("openoffice.org binary '$OPENOFFICE_BINARY_NAME' found in PATH at '$OPENOFFICE_BINARY', but cannot be executed!",101); }
+
+# check that we have an input file argument and that it's a real file we can actually read
+$infile = $ARGV[0];
+if($infile eq '' || $infile eq '-h' || $infile eq '--help' || $infile eq '/?') { usage(); }
+if($infile eq '') { error("Must supply input file name!",90); }
+if($infile =~ /[,\(\)'"\r\n]/) { error("Input file name ($infile) cannot include comma, brackets, new lines or quotes.",94); }
+if(!(-e $infile)) { error("Input file '$infile' does not exist!",91); }
+if(!(-r $infile)) { error("Input file '$infile' is not readable!",92); }
+
+# check that we have an output file argument and that it's in a real directory we can actually write, or it exists and we can overwrite it
+$outfile = $ARGV[1];
+if($outfile eq '' || $outfile eq '-h' || $outfile eq '--help' || $outfile eq '/?') { usage(); }
+if($outfile eq '') { error("Must supply output file name!",95); }
+if($outfile =~ /[,\(\)'"\r\n]/) { error("Outfile file name ($outfile) cannot include comma, brackets, new lines or quotes.",94); }
+$outdir = dirname($outfile);
+# prepends output directory to file should it be relative vs absolute (x.pdf vs. /some/place/x.pdf) - macro needs absolute
+if($outdir eq '.') { $outdir = getcwd(); }
+$outfile = $outdir . '/' . basename($outfile);
+if(!(-e $outdir)) { error("Output directory '$outdir' does not exist!",96); }
+else {
+ if(!(-w $outdir)) { error("Output directory '$outdir' exists but is not writable!",97); }
+ if((-e $outfile) && !(-w $outfile)) { error("Output file '$outfile' exists but is not writable!",98); }
+}
+
+# now check that we're installed in the user's openoffice settings
+if(!(-e $MACRO_FILE)) { warning("Macro file '$MACRO_FILE' not present, will attempt to create."); }
+else { if(!(-r $MACRO_FILE)) { error("Macro file '$MACRO_FILE' exists but is not readable.",80); } }
+$MACRO_DIR = dirname($MACRO_FILE);
+if(-e $MACRO_DIR) {
+ if(!(-d $MACRO_DIR)) { error("openoffice.org macro directory '$MACRO_DIR' is not a directory!",81); }
+}
+else {
+ `mkdir -p '$MACRO_DIR'`;
+ if(!(-e $MACRO_DIR)) { error("Unable to create openoffice.org macro directory '$MACRO_DIR'!",82); }
+}
+if(-e $MACRO_FILE) {
+ # check we're inside
+ $data = `grep 'AnyToPDF' '$MACRO_FILE'`;
+ if(!($data =~ /AnyToPDF/)) {
+  $data = `cat '$MACRO_FILE'`;
+  $data =~ s/$MACRO_FOOTER.*?$//msg;
+  $data .= $MACROS;
+  $data .= $MACRO_FOOTER;
+  open(MACROS,">$MACRO_FILE") || error("Unable to open existing openoffice.org macro file '$MACRO_FILE' for writing!",83);
+  print MACROS $data;
+  close(MACROS);
+ }
+}
+else {
+ # attempt to create
+ open(MACROS,">$MACRO_FILE") || error("Unable to open new openoffice.org macro file '$MACRO_FILE' for writing!",84);
+ print MACROS $MACRO_HEADER . $MACROS . $MACRO_FOOTER;
+ close(MACROS);
+}
+
+# finally, check that our script file is registered
+$data = `cat '$MACRO_DIR/script.xlb'`;
+if(!($data =~ /library:name="AnyToPDF"/)) {
+ warning("Extending user's openoffice.org scripts registry with AnyToPDF macro module.");
+ $data =~ s/<\/library:library>.*?$//msg;
+ $data .= " <library:element library:name=\"AnyToPDF\"/>\n";
+ $data .= "</library:library>";
+ open(SCRIPTS,">$MACRO_DIR/script.xlb") || error("Unable to open openoffice.org macro registry file '$MACRO_FILE' for writing!",85);
+ print SCRIPTS $data;
+ close(SCRIPTS);
+}
+
+# now perform the conversion
+#  ... 1st add dirname if not present.
+if(!($infile =~ /^\//)) { $infile = getcwd() . '/' . $infile; }
+$cmd = "$OPENOFFICE_BINARY -headless -invisible -norestore " . "\"macro:///Standard.AnyToPDF.ConvertAnyToPDF(" . $infile . "," . $outfile . ")\"";
+`$cmd`;
+# unsure why this doesn't work, fails silently.
+#@args = ($OPENOFFICE_BINARY,'-headless','-invisible','-norestore','"macro:///Standard.AnyToPDF.ConvertAnyToPDF('.$infile.','.$outfile.')"');
+#print system(@args) . "\n";
+exit(0);
+
+sub usage {
+ print STDERR "anytopdf v$VERSION (LGPL) - converts arbitrary documents to PDF format using openoffice.org v3 macros.\n";
+ print STDERR " http://code.google.com/p/anytopdf\n\n";
+ print STDERR "usage: $0 <infile> <outfile>\n";
+ print STDERR " <infile>   input file in any format that openoffice.org can read (doc/xls/odt/rtf/html/txt/etc.)\n";
+ print STDERR " <outfile>  output file (will be written in PDF format)\n\n";
+ print STDERR "return values: (more details will be returned via STDERR)\n";
+ print STDERR " 0          success\n";
+ print STDERR " 80-89      problem with writing openoffice.org macro file\n";
+ print STDERR " 90-94      problem relating to input file\n";
+ print STDERR " 95-99      problem relating to output file\n";
+ print STDERR " 100-109    problem finding/executing openoffice binary\n";
+ exit(1);
+}
+
+sub error {
+ ($str,$code) = @_;
+ print STDERR "ERROR: $str\n";
+ exit($code);
+}
+
+sub warning {
+ print STDERR "WARNING: " . shift(@_) . "\n";
+}
+
