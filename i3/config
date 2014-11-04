@@ -39,8 +39,8 @@ bindsym $mod+p exec dmenu_run
 
 # User defined keys
 bindsym $mod+shift+l exec "~/Scripts/i3/locker.sh"
-bindsym Mod1+Control+m exec "amixer set Master 2dB-"
-bindsym Mod1+Control+l exec "amixer set Master 2dB+"
+bindsym Mod1+Control+m exec "amixer sset Master 10%-"
+bindsym Mod1+Control+l exec "amixer sset Master 10%+"
 bindsym Mod1+Control+n exec "mpc next"
 bindsym Mod1+Control+p exec "mpc previous"
 bindsym Mod1+Control+t exec "mpc toggle"
