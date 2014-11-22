@@ -1,3 +1,3 @@
 #!/bin/bash
 echo "GPGing ssh keys"
-tar zvcf - $HOME/.ssh | gpg -c _ssh.tar.gz.gpg
+tar zcvf - $HOME/.ssh | gpg -c >  _ssh.tar.gz.gpg
