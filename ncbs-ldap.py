@@ -81,6 +81,7 @@ def search(query, connection=None):
 def format_entry(entry):
     line = []
     cn, data = entry
+    #print data
     if data.get('givenName'):
         givenName = " ".join(data.get('givenName', []))
         line.append("{:10}: {} ".format("Name", givenName))
