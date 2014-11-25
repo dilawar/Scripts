@@ -37,7 +37,6 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
-source ~/Scripts/cd.sh
 # some more ls aliases
 alias ls='ls --color=auto'
 alias ll='ls -alF'
@@ -115,3 +114,28 @@ export HDF5_HOME=/cluster/share/software/hdf51813
 export GSL_HOME=/cluster/share/software/gsl116
 export PATH=$PATH:/cluster/share/software/subversion189/bin
 export EDITOR=vim
+
+#source ~/Scripts/dilawar_cd.sh
+
+# some more ls aliases
+alias ls='ls --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias rm='rm -i'
+alias sh='bash'
+alias src='source ~/.bashrc'
+alias rsync='rsync --progress'
+alias i='sudo emerge -avu --autounmask-write'
+alias netcat='nc.openbsd'
+alias ii='sudo apt-get -c ~/.aptconf install'
+alias s='apt-cache search'
+alias u='sudo apt-get upgrade'
+alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
+alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
+alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
+alias c='\cd ~'
+#alias cd='dilawar_cd'
+
+export OSC_ROOT=/var/tmp/build-root/
+>>>>>>> 6067c81e064fbffd60811f4344ee4d5987a37670

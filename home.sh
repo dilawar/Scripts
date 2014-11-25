@@ -26,6 +26,19 @@ colorPrint "STEP" "Updating bash"
 rm -f $HOME/.bashrc
 ln $SCRIPTHOME/bashrc $HOME/.bashrc 
 source $HOME/.bashrc 
+colorPrint "STEP" "Adding proxy information"
+echo "export http_proxy=http://proxy.ncbs.res.in:3128" > $HOME/.proxy
+echo "export https_proxy=http://proxy.ncbs.res.in:3128" >> $HOME/.proxy
+source $HOME/.proxy
+
+colorPrint "STEP" "Setting up ssh keys"
+gpg -d $SCRIPTHOME/_ssh.tar.gz.gpg > /tmp/_ssh.tar.gz
+tar xzvf /tmp/_ssh.tar.gz  -C $HOME
+echo "STEP" "Setting up permissions"
+chmod 700 $HOME/.ssh
+chmod 600 $HOME/.ssh/*
+chmod 644 $HOME/.ssh/*.pub
+chmod 640 $HOME/.ssh/authorized_keys
 
 WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
 
@@ -205,3 +218,4 @@ colorPrint "STEP" "Setting up i3."
 I3HOME=$HOME/.i3
 rm -rf $I3HOME
 rsync -az $SCRIPTHOME/i3/ $I3HOME
+
