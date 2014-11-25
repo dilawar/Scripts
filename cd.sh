@@ -62,7 +62,7 @@ dilawar_cd ()
 
   else 
     dir=$1 
-    cd "$dir"
+    dilawar_cd "$dir"
     if [[ $? == 0 ]]; then 
     {
       dir=$(pwd)
