@@ -1,9 +1,9 @@
-#!/bin/bash 
+#!/bin/bash
 # GNU-GPL
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
 
-dilawar_cd () 
+function dilawar_cd 
 {
   #alias cd='cd'
   dbname=$HOME/.cdsqlite
