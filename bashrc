@@ -55,7 +55,6 @@ alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias cd='dilawar_cd'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -79,11 +78,6 @@ fi
 export PATH=$PATH:/usr/local/bin/bin:/usr/bin:/usr/sbin:/usr/local/bin/Leo:/cad:/cad/bin:/cad/lib:/usr/local/mosml/bin
 export PATH=$PATH:/sbin
 export PATH=$PATH:~/Scripts/
-export PATH=$PATH:/opt/Xilinx/13.4/ISE_DS/ISE/bin/lin
-export PATH=$PATH:/opt/Bluespec-2012.01.A/bin/
-export PATH=$PATH:/opt/altera10.1/modelsim_ase/bin/
-export PATH=$PATH:/opt/altera10.1/quartus/bin
-export PATH=$PATH:/usr/local/bin/gephi/bin/
 export PATH=$PATH:~/.cabal/bin
 
 export MMSIMHOME=/cad/cadence/mmsim
@@ -109,7 +103,6 @@ source ~/Scripts/profile
 export PATH=$PATH:~/.mutt
 
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
-PATH=$PATH:/usr/local/texlive/2013/bin/i386-linux/
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
 export PATH=$PATH:$HOME/bin/bin
@@ -121,3 +114,4 @@ export EPREFIX=$HOME/Opt/gentoo
 export HDF5_HOME=/cluster/share/software/hdf51813
 export GSL_HOME=/cluster/share/software/gsl116
 export PATH=$PATH:/cluster/share/software/subversion189/bin
+export EDITOR=vim
