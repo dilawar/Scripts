@@ -93,7 +93,7 @@ def format_entry(entry):
         line.append("{:10}: {} ".format("Lab", lab))
     elif data.get('macAddress', None):
         macId = " ".join(data['macAddress'])
-        #line.append("{:30}: {}".format("MacId", macId))
+        line.append("{:30}: {}".format("MacId", macId))
     return "\n".join(line)
 
 if __name__ == '__main__':
