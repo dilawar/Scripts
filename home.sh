@@ -33,7 +33,7 @@ source $HOME/.proxy
 
 colorPrint "STEP" "Setting up ssh keys"
 gpg -d $SCRIPTHOME/_ssh.tar.gz.gpg > /tmp/_ssh.tar.gz
-tar xzvf /tmp/_ssh.tar.gz  -C $HOME
+tar xzvf /tmp/_ssh.tar.gz -C /
 echo "STEP" "Setting up permissions"
 chmod 700 $HOME/.ssh
 chmod 600 $HOME/.ssh/*

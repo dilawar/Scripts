@@ -22,8 +22,8 @@ WORKDIR=Work/NISHMA/$TIMESTAMP
 mkdir -p $WORKDIR
 echo "Sending file to NARGIS server"
 rsync -azv $file command nargis:$WORKDIR
-ssh nargis << EOF
-( cd $WORKDIR && /opt/bio/mrbayes/mb < command > log.txt &)
+ssh -T nargis << EOF
+( cd $WORKDIR && nohup mpirun -n 10 /opt/bio/mrbayes/mb < command > log.txt ) &
 EOF
 #echo "Now I am fetching the result from server"
 #rsync -azv nargis:$WORKDIR .
