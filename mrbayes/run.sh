@@ -1,2 +1,2 @@
 #!/bin/bash
-mb < command | tee mrbayes.log
+mb < command > mrbayes.log
