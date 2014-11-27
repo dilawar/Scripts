@@ -3,12 +3,7 @@
 # dilawars@ncbs.res.in
 
 ## This is command template.
-command="charset CR = 1-732;
-charset cytB = 733-1846;
-charset struct = 1847-2716;
-[charset 12S  1847-2218;
-charset 16S 2219-2716; ]
-partition mtgenes = 3: CR, cytB, struct;
+command="partition mtgenes = 3: CR, cytB, struct;
 set partition = mtgenes;
 exclude  1-160 211-260 364-384;
 lset applyto=(1,2,3) nst=6 rates=gamma;
@@ -48,12 +43,12 @@ mkdir -p $WORKDIR
 
 echo "Generating files to be sent to server"
 rm -f command.txt run.sh
-echo "execute $file;\n$command" > command.txt
+printf "execute $file;\n$command\n" > command.txt
 echo "$run" > run.sh
 chmod +x run.sh
 
 echo "Sending file to NARGIS server"
-rsync -azv $file run.sh sge.sh command.txt nargis:$WORKDIR
+rsync -azv $file plot*.sh run.sh sge.sh command.txt nargis:$WORKDIR
 ssh -T nargis << EOF
 cd $WORKDIR && qsub sge.sh
 EOF
