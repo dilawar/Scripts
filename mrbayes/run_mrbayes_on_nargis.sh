@@ -13,15 +13,17 @@ if [ ! -f ./command ]; then
 fi
 
 file="$1"
+echo "Copying input file to current directory"
+cp $file .
+file=`basename $file`
 COMMAND="$2"
 TIMESTAMP=`date +%Y%m%d%H%M%S`
 
 echo "I am going to execute following command on server"
-
 WORKDIR=Work/NISHMA/$TIMESTAMP
 mkdir -p $WORKDIR
 echo "Sending file to NARGIS server"
-rsync -azv $file command nargis:$WORKDIR
+rsync -azv $file run.sh sge.sh command nargis:$WORKDIR
 ssh -T nargis << EOF
 ( cd $WORKDIR && nohup mpirun -n 10 /opt/bio/mrbayes/mb < command > log.txt ) &
 EOF
