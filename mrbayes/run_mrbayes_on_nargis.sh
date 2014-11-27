@@ -25,10 +25,8 @@ mkdir -p $WORKDIR
 echo "Sending file to NARGIS server"
 rsync -azv $file run.sh sge.sh command nargis:$WORKDIR
 ssh -T nargis << EOF
-( cd $WORKDIR && nohup mpirun -n 10 /opt/bio/mrbayes/mb < command > log.txt ) &
+cd $WORKDIR && qsub sge.sh
 EOF
-#echo "Now I am fetching the result from server"
-#rsync -azv nargis:$WORKDIR .
 echo "Done"
 	
 	
