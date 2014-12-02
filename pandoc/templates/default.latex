@@ -17,7 +17,8 @@
 \usepackage{python}
 \usepackage{ifxetex,ifluatex}
 \usepackage{listings}
-\usepackage{makeidx,glossaries}
+\usepackage{makeidx}
+\usepackage[xindy]{glossaries}
 \setlength{\parskip}{3mm}
 \newtheorem{axiom}{Axiom}
 \newtheorem{definition}{Definition}
