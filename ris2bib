@@ -1,0 +1,3 @@
+#!/bin/bash
+filename="$1"
+cat $filename | ris2xml | xml2bib 
