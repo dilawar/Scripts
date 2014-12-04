@@ -1,9 +1,0 @@
-[submodule "noweb.py"]
-	path = noweb.py
-	url = git@github.com:dilawar/noweb.py
-[submodule "latex"]
-	path = latex
-	url = git@github.com:dilawar/latex
-[submodule "data"]
-	path = data
-	url = git@github.com:dilawar/data
