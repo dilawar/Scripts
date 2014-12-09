@@ -14,5 +14,7 @@
         editor = vim
         excludesfile = ~/.gitignore
         difftool = vimdiff
+[merge]
+    tool = vimdiff
 [push]
 	default = matching
