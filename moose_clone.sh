@@ -3,6 +3,7 @@ moose_url=https://dilawars@svn.code.sf.net/p/moose/code
 trunk=https://dilawars@svn.code.sf.net/p/moose/code/moose/trunk
 alpha=https://dilawars@svn.code.sf.net/p/moose/code/moose/pre3.0.0
 multiscale=https://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async_multiscale_cmake
+packages=https://dilawars@svn.code.sf.net/p/moose/code/packaging
 
 CLONER=git svn
 if [[ $2 = "svn" ]]; then
@@ -22,9 +23,12 @@ elif [[ $1 = "alpha" ]]; then
 elif [[ $1 = "trunk" ]]; then
     echo "$CLONER $trunk"
     $CLONER $trunk moose_trunk_git
-elif
-    echo "$CLONER clone $multiscale"
+elif [[ $1 = "multiscale" ]]; then
+    echo "$CLONER  $multiscale"
     $CLONER $multiscale moose_multiscale_git
+elif [[ $1 = "packaging" ]]; then
+    echo "$CLONER $packages"
+    $CLONER $packages moose_packaging
 else
     $CLONER --username=dilawars $moose_url $1
 fi
