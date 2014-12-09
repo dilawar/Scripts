@@ -5,10 +5,9 @@ alpha=https://dilawars@svn.code.sf.net/p/moose/code/moose/pre3.0.0
 multiscale=https://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async_multiscale_cmake
 packages=https://dilawars@svn.code.sf.net/p/moose/code/packaging
 
-CLONER=git svn
 if [[ $2 = "svn" ]]; then
     echo "Using svn."
-    CLONER=svn co
+    CLONER="svn co"
 else
     echo "Using git-svn"
     CLONER="git svn clone"
