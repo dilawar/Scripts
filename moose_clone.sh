@@ -4,6 +4,7 @@ trunk=https://dilawars@svn.code.sf.net/p/moose/code/moose/trunk
 alpha=https://dilawars@svn.code.sf.net/p/moose/code/moose/pre3.0.0
 multiscale=https://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async_multiscale_cmake
 packages=https://dilawars@svn.code.sf.net/p/moose/code/packaging
+branch=https://dilawars@svn.code.sf.net/p/moose/code/moose/branches
 
 if [[ $2 = "svn" ]]; then
     echo "Using svn."
@@ -28,6 +29,10 @@ elif [[ $1 = "multiscale" ]]; then
 elif [[ $1 = "packaging" ]]; then
     echo "$CLONER $packages"
     $CLONER $packages moose_packaging
+elif [[ $1 = "branch" ]]; then
+    read -p "Which branch? " br
+    echo "Cloning $branch/$br"
+    $CLONER $branch/$br
 else
     $CLONER --username=dilawars $moose_url $1
 fi
