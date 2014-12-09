@@ -138,4 +138,3 @@ alias c='\cd ~'
 #alias cd='dilawar_cd'
 
 export OSC_ROOT=/var/tmp/build-root/
->>>>>>> 6067c81e064fbffd60811f4344ee4d5987a37670
