@@ -21,9 +21,9 @@ xterm*|rxvt*)
 esac
 
 # History support
-export HISTCONTROL=ignoredups:erasedups
-shopt -s histappend 
-export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
+#export HISTCONTROL=ignoredups:erasedups
+#shopt -s histappend 
+#export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
