@@ -219,3 +219,6 @@ I3HOME=$HOME/.i3
 rm -rf $I3HOME
 rsync -az $SCRIPTHOME/i3/ $I3HOME
 
+colorPrint "STEP" "Setting up latexmkrc"
+rm -rf $HOME/.latekmkrc
+ln $SCRIPTHOME/latexmkrc $HOME/.latexmkrc

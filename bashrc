@@ -104,14 +104,11 @@ export PATH=$PATH:~/.mutt
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
-export PATH=$PATH:$HOME/bin/bin:$HOME/.local/bin
+export PATH=$HOME/.local/bin:$HOME/bin/bin:$HOME/.local/bin:$PATH
 export PATH=$PATH:/usr/local/nrn/i686/bin/
 export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
-export EPREFIX=$HOME/Opt/gentoo
-export HDF5_HOME=/cluster/share/software/hdf51813
-export GSL_HOME=/cluster/share/software/gsl116
 export PATH=$PATH:/cluster/share/software/subversion189/bin
 export EDITOR=vim
 
