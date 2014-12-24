@@ -42,6 +42,7 @@ def allIncludes(nowebText) :
     if m :
       filepath = os.getcwd() + '/' + m.group('filename')
       if os.path.isfile(filepath) :
+        print("Appending {} to files".format(filepath))
         files.append((filepath, lineno))
       else :
         print("Warn : Can't open included file {0}. Ignoring it. It will cause \
