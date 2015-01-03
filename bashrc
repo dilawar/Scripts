@@ -51,7 +51,7 @@ alias netcat='nc.openbsd'
 alias ii='sudo apt-get -c ~/.aptconf install'
 alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
-alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
+alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 # Alias definitions.
@@ -112,7 +112,7 @@ export LYNX_CFG=~/Scripts/lynx.cfg
 export PATH=$PATH:/cluster/share/software/subversion189/bin
 export EDITOR=vim
 
-source ~/Scripts/dilawar_cd.sh
+source ~/Scripts/cd.sh
 
 # some more ls aliases
 alias ls='ls --color=auto'
