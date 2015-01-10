@@ -1,2 +1,2 @@
 #!/bin/bash
-vboxmanage startvm ubuntu --type gui
+vboxmanage startvm ubuntu-14.04-64 --type gui
