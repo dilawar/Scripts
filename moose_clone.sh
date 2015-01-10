@@ -1,5 +1,5 @@
 #!/bin/bash
-moose_url=https://dilawars@svn.code.sf.net/p/moose/code
+moose_url=https://dilawars@svn.code.sf.net/p/moose/code/moose
 trunk=https://dilawars@svn.code.sf.net/p/moose/code/moose/trunk
 alpha=https://dilawars@svn.code.sf.net/p/moose/code/moose/pre3.0.0
 multiscale=https://dilawars@svn.code.sf.net/p/moose/code/moose/branches/async_multiscale_cmake
@@ -16,7 +16,7 @@ fi
 
 if [[ $1 = "git" ]]; then
     echo "Cloning from $2 to HEAD"
-    git svn clone -r$2:HEAD $moose_url moose_git_shallow
+    git svn clone -s $moose_url --prefix=origin/ moose_git_stdlayout
 elif [[ $1 = "alpha" ]]; then
     echo "$CLONER $alpha"
     $CLONER clone $alpha moose_3.0.0_git_svn
