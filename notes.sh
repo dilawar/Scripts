@@ -1,7 +1,12 @@
 NOTEDIR=$HOME/Work/notes
-EXT=txt
+EXT=pandoc
+[ -z "$EDITOR" ] && echo "You need to export EDITOR" && exit 1;
+
 n() {
-    $EDITOR $NOTEDIR/"$*".$EXT
+    # Remove the extension from the input.
+    ARG="$*"
+    ARG=${ARG%$EXT}
+    $EDITOR $NOTEDIR/"$ARG".$EXT
 }
 
 # Searches for notes with given pattern. Using agrep is recommened.
