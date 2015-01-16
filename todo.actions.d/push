@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+action=$1
+
+function usage {
+	echo "  $(basename $0)"
+	echo "    Pushes all changes at $TODO_DIR to a remote repository."
+	echo "    Changes are always pushed to origin master."
+	echo ""
+	exit
+}
+
+[ "$action" = "usage" ] && usage
+
+cd "$TODO_DIR"
+git push -u origin master 
