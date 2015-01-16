@@ -1,11 +1,13 @@
-#!/bin/bash 
-irct
-(
-  cd $(pwd)/notes && git pull
-)
-hnb ~/notes/notes.hnb.xml
+NOTEDIR=notes
+EXT=txt
+n() {
+    $EDITOR $NOTEDIR/"$*".$EXT
+}
 
-(
-    cd notes && git add *.xml && git commit -m "updated" && git push
-)
+nls() {
+    ls -c $NOTEDIR | grep "$*"
+}
 
+nsync() {
+    cd $NOTEDIR && git pull && git diff && git add . && git commit -m "updating" && git push 
+}
