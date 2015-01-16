@@ -7,3 +7,6 @@
 [submodule "data"]
 	path = data
 	url = git@github.com:dilawar/data
+[submodule "notes"]
+	path = notes
+	url = git@bitbucket.org:dilawar/notes
