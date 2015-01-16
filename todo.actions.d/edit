@@ -1,0 +1,16 @@
+#!/bin/bash
+case $1 in
+"usage")
+  echo "$(basename $0) [BASENAME]"
+  echo "  Open \$TODO_DIR/BASENAME.txt in \$EDITOR."
+  echo "  If BASENAME is not given, defaults to 'todo'."
+  ;;
+*)
+  FILE=${2:-todo}.txt
+  if [ -n "$EDITOR" ]; then
+    $EDITOR $TODO_DIR/$FILE
+  else
+    echo "Error: The EDITOR environment variable is not set"
+  fi
+  ;;
+esac
