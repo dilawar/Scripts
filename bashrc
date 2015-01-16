@@ -133,4 +133,4 @@ alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
 
-export OSC_ROOT=/var/tmp/build-root/
+export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
