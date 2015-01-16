@@ -3,6 +3,8 @@
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
 
+set -x
+set -e
 function dilawar_cd 
 {
   #alias cd='cd'
