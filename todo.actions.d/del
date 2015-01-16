@@ -1,0 +1,14 @@
+#!/bin/bash
+
+[ "$1" = "usage" ] && exit 0
+
+item="$2"
+
+# Take into account "del #ITEM TERM"
+if [ -z "$3" ]; then
+    getTodo "$item"
+fi
+
+"$TODO_SH" command "$@"
+
+[ $? -eq 0 ] && [ -z "$3" ] && "$TODO_SH" note __rmfromtext "DDDD$todo"
