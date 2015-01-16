@@ -38,6 +38,7 @@ if [ -x /usr/bin/dircolors ]; then
 fi
 
 # some more ls aliases
+export $SCRIPTHOME=$HOME/Scripts
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
@@ -54,6 +55,7 @@ alias u='sudo apt-get upgrade'
 alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
+alias todo='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
