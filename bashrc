@@ -38,7 +38,7 @@ if [ -x /usr/bin/dircolors ]; then
 fi
 
 # some more ls aliases
-export $SCRIPTHOME=$HOME/Scripts
+export SCRIPTHOME=$HOME/Scripts
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
