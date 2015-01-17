@@ -84,7 +84,8 @@ def format_entry(entry):
     #print data
     if data.get('givenName'):
         givenName = " ".join(data.get('givenName', []))
-        line.append("{:10}: {} ".format("Name", givenName))
+        name = " ".join(data.get('cn', []))
+        line.append("{:10}: {} ".format("Name", givenName+" "+name))
         email = " ".join(data.get('mail', []))
         line.append("{:10}: {} ".format("Email", email))
         alternateEmail = " ".join(data.get('profileAlternateemail', []))

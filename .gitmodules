@@ -10,3 +10,9 @@
 [submodule "notes"]
 	path = notes
 	url = git@bitbucket.org:dilawar/notes
+[submodule "ghonchu"]
+	path = ghonchu
+	url = git@github.com:dilawar/ghonchu
+[submodule "manage.cli"]
+	path = manage.cli
+	url = git@github.com:dilawar/manage.cli
