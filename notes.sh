@@ -1,6 +1,6 @@
 NOTEDIR=$HOME/Work/notes
 EXT=pandoc
-[ -z "$EDITOR" ] && echo "You need to export EDITOR" && exit 1;
+[ -z "$EDITOR" ] && echo "You need to export EDITOR";
 
 n() {
     # Remove the extension from the input.
@@ -19,7 +19,7 @@ nls() {
     if [[ "$GREP" == *"agrep"* ]]; then
         GREP="$GREP -4"
     fi
-    ( cd $NOTEDIR && $GREP -l "$*" *.$EXT )
+    ( cd $NOTEDIR && $GREP "$*" *.$EXT )
 }
 
 nsync() {
