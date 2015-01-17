@@ -39,7 +39,7 @@ fi
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
-source $SCRIPTHOME/notes.sh
+export EDITOR=vim
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
@@ -114,7 +114,6 @@ export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export PATH=$PATH:/cluster/share/software/subversion189/bin
-export EDITOR=vim
 
 source ~/Scripts/cd.sh
 
@@ -136,5 +135,6 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
+source $SCRIPTHOME/notes.sh
 
 export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
