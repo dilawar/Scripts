@@ -1,3 +1,4 @@
+
 #.bashrc
 
 # Source global definitions
@@ -57,7 +58,6 @@ alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
-alias note='terminal_velocity'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.

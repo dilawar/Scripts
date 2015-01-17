@@ -17,7 +17,7 @@ if [ $# -eq 2 ]; then
 else
     outputFile="${filename%.markdown}.pdf"
 fi
-texFile=${filename%.markdown}.tex
+#texFile=${filename%.markdown}.tex
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
 PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc --filter=pandoc-citeproc --number-sections"
@@ -27,6 +27,8 @@ latex="true"
 if [[ $latex = "true" ]]; then
     $PANDOC -s -f $INFMT -t latex -o $texFile $filename
     $LATEX  $texFile
+    echo "Making glossaries"
+    ( cd .temp && makeglossaries ${filename%.pandoc} )
     mv .temp/*.pdf .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
