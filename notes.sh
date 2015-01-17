@@ -4,6 +4,7 @@ EXT=pandoc
 
 n() {
     # Remove the extension from the input.
+    [ -z "$EDITOR" ] && echo "You need to export EDITOR" 
     ARG="$*"
     ARG=${ARG%$EXT}
     $EDITOR $NOTEDIR/"$ARG".$EXT
