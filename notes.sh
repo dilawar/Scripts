@@ -12,6 +12,12 @@ n() {
 
 # Searches for notes with given pattern. Using agrep is recommened.
 nls() {
+
+    if [[ ! "$1" ]]; then
+        ( cd $NOTEDIR && ls -c *.$EXT )
+        return 
+    fi
+
     GREP=`which agrep`
     if [ ! -f  $GREP ]; then
         echo "I use $GREP. Please install it. Continuing with grep"
