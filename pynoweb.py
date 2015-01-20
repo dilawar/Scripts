@@ -50,20 +50,20 @@ def allIncludes(nowebText) :
     else : pass
 
     # check if a chunk is to be written to file 
-    chunkRegex = re.compile(r'^%file:(?P<tofile>[\w\.\/]+)\s*')
+    chunkRegex = re.compile(r'^%outfile\s*(?P<tofile>[\w\.\/]+)\s*')
     mm = chunkRegex.match(line)
     if mm :
-      # look-ahed in next line to get the name of the chunk
-      mmm = re.match(r'^<<(?P<name>[\w\.]+)>>=\s*$', nowebText[lineno])
+      # look-ahead in next line to get the name of the chunk
+      mmm = re.match(r'^\<\<(?P<name>[\w\.]+)\>\>=\s*$', nowebText[lineno])
       if mmm :
-        chunkName = mmm.group('name')
-        chunks[chunkName] = mm.group('tofile')
-
+          logging.debug("++ Found a chunk %s" % mmm)
+          chunkName = mmm.group('name')
+          chunks[chunkName] = mm.group('tofile')
   return files
     
 def mergeFiles(fileH) :
     global textQueue
-    logging.info("Processing : {0}".format(fileH.name))
+    logging.info("Processing for merging: {0}".format(fileH.name))
     fileTxt = fileH.readlines()
     markA = 0
     markB = 0
@@ -172,7 +172,8 @@ if __name__ == "__main__" :
     
     # merge all noweb files.
     mergeFiles(args['file'])
-    print chunks
+    if len(chunks) == 0:
+        logging.warning("++ No chunks found in files")
 
     # create a temp folder for pynoweb so that this application can work without
     # hurting others.
