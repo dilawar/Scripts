@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.DEBUG)
 textQueue = collections.deque()
 chunks = dict()
 nowebTempDir = "build"
+nowebSrcDir = 'src'
+nowebDocDir = 'docs'
 
 
 def doesCommandExist(command):
