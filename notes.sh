@@ -30,5 +30,7 @@ nls() {
 }
 
 nsync() {
+    (
     cd $NOTEDIR && git pull && git diff && git add . && git commit -m "updating" && git push 
+    )
 }
