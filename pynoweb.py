@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 textQueue = collections.deque()
 chunks = dict()
-nowebTempDir = "build"
+nowebTempDir = "_build"
 nowebSrcDir = 'src'
 nowebDocDir = 'docs'
 
@@ -124,7 +124,7 @@ def executeNoweb(args, nowebTempDir):
 
     if args['weave'] is not None:  # must be weaving 
         outFile = args.get('output', None)
-        nowebCommand = ["noweave", "-latex" , "-x" ] + [mainFilepath.strip()] 
+        nowebCommand = ["noweave", "-latex" , "-delay", "-x"] + [mainFilepath.strip()] 
         executeCommand(nowebCommand, outFile)
     else:
         logging.debug("Using default arguements")
