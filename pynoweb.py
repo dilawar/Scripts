@@ -4,7 +4,7 @@
 This is a noweb front-end. It introduces some more language-constructs.
 
 - \include{file.nw} includes another noweb file.
-- %file(file.py) writes fragmetn of code to file.py.
+- %outfile file.py writes fragment of code to file.py.
 
 """
 
