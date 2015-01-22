@@ -9,6 +9,7 @@ function dilawar_cd
 {
   #alias cd='cd'
   dbname=$HOME/.cdsqlite
+  echo "A"
 
   # Initialize database.
   if [ ! -f $dbname ] ; then 
@@ -63,6 +64,7 @@ function dilawar_cd
     done 
 
   else 
+      echo "B"
     dir=$1 
     dilawar_cd "$dir"
     if [[ $? == 0 ]]; then 
