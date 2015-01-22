@@ -21,7 +21,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 textQueue = collections.deque()
 chunks = dict()
-nowebTempDir = "_build"
+
+# Following are not used.
+nowebTempDir = "."
 nowebSrcDir = 'src'
 nowebDocDir = 'docs'
 
@@ -51,14 +53,15 @@ def allIncludes(nowebText) :
             error with noweb".format(filepath))
     else : pass
 
-    # check if a chunk is to be written to file 
+    # Find all chunks which are to be written to separate output file. 
     chunkRegex = re.compile(r'^%outfile\s*(?P<tofile>[\w\.\/]+)\s*')
     mm = chunkRegex.match(line)
     if mm :
+      logging.debug("Found a output src file to be created for this chunk")
       # look-ahead in next line to get the name of the chunk
-      mmm = re.match(r'^\<\<(?P<name>[\w\.]+)\>\>=\s*$', nowebText[lineno])
+      mmm = re.match(r'^\<\<(?P<name>[\w\.\ ]+)\>\>=\s*$', nowebText[lineno])
       if mmm :
-          logging.debug("++ Found a chunk %s" % mmm)
+          logging.debug("|- Found a chunk %s" % mmm.group(0))
           chunkName = mmm.group('name')
           chunks[chunkName] = mm.group('tofile')
   return files
@@ -122,7 +125,7 @@ def executeNoweb(args, nowebTempDir):
             nowebCommand.append(mainFilepath)
             executeCommand(nowebCommand, chunks[chunk])
 
-    if args['weave'] is not None:  # must be weaving 
+    elif args['weave'] is not None:  # must be weaving 
         outFile = args.get('output', None)
         nowebCommand = ["noweave", "-latex" , "-delay", "-x"] + [mainFilepath.strip()] 
         executeCommand(nowebCommand, outFile)
