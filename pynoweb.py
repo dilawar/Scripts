@@ -46,10 +46,10 @@ def allIncludes(nowebText) :
     if m :
       filepath = os.getcwd() + '/' + m.group('filename')
       if os.path.isfile(filepath) :
-        print("Appending {} to files".format(filepath))
+        logging.debug("Appending {} to files".format(filepath))
         files.append((filepath, lineno))
       else :
-        print("Warn : Can't open included file {0}. Ignoring it. It will cause \
+        logging.warn("Warn : Can't open included file {0}. Ignoring it. It will cause \
             error with noweb".format(filepath))
     else : pass
 
@@ -99,12 +99,12 @@ def finalText() :
 def executeCommand(command, outFile = None) :
     if outFile:
         with open(outFile, "w") as outF :
-            print("= Executing : {0} > {1}".format(
+            logging.debug("= Executing : {0} > {1}".format(
                 " ".join(command), outFile)
                 )
             subprocess.call(command, stdout=outF)
     else:
-        print("= Executing : {0}".format(
+        logging.debug("= Executing : {0}".format(
             " ".join(command), outFile)
             )
         subprocess.call(command, stdout=sys.stdout)
@@ -177,6 +177,7 @@ if __name__ == "__main__" :
     
     # merge all noweb files.
     mergeFiles(args['file'])
+
     if len(chunks) == 0:
         logging.warning("++ No chunks found in files")
 
