@@ -28,7 +28,7 @@ def buildData( file ):
         xvec = []
         yvec = []
         for line in f:
-            if line[0] == ';':
+            if line[0] == ';' or line[0] == '#':
                 continue
             line = line.strip()
             line = line.split()
