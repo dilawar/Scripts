@@ -17,10 +17,10 @@
 \usepackage{python}
 \usepackage{ifxetex,ifluatex}
 \usepackage{listings}
-\usepackage[xindy,acronym,nomain,toc]{glossaries}
-\makeglossaries
-\usepackage[xindy]{imakeidx}
-\makeindex
+% \usepackage[xindy,acronym,nomain,toc]{glossaries}
+% \makeglossaries
+%\usepackage[xindy]{imakeidx}
+%\makeindex
 \setlength{\parskip}{3mm}
 \newtheorem{axiom}{Axiom}
 \newtheorem{definition}{Definition}
