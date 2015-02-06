@@ -78,11 +78,6 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=$PATH:/usr/local/bin/bin:/usr/bin:/usr/sbin:/usr/local/bin/Leo:/cad:/cad/bin:/cad/lib:/usr/local/mosml/bin
-export PATH=$PATH:/sbin
-export PATH=$PATH:~/Scripts/
-export PATH=$PATH:~/.cabal/bin
-
 export MMSIMHOME=/cad/cadence/mmsim
 export MMSIM_PATH=/cad/cadence/mmsim/tools/bin
 export MIRALIB=/cad/lib/miralib
@@ -94,7 +89,6 @@ source ~/.proxy
 
 export CAPEM_INSTALL=~/capem
 export CAPEM_PROJECT_DIRECTORY=~/capem/projects
-export PATH=$PATH:~/cad
 export alias_file
 export LAVA2000_Satzoo=/cad/bin/satzoo
 export LAVA2000_SMV=/cad/bin/smv
@@ -103,13 +97,11 @@ export LAVA2000_SMV=/cad/bin/smv
 #export PROMPT_COMMAND="history -n; history -a"
 export NNTPSERVER=103.21.127.130
 source ~/Scripts/profile
-export PATH=$PATH:~/.mutt
 
 export PATH="$PATH:/opt/sbw-2.10.0/bin/"
 export FTP_PROXY=
 export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
-export PATH=$HOME/.local/bin:$HOME/bin/bin:$HOME/.local/bin:$PATH
-export PATH=$PATH:/usr/local/nrn/i686/bin/
+export PATH=$PATH:$HOME/Scripts:$HOME/.local/bin:$HOME/bin/bin:$HOME/.local/bin
 export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
@@ -137,4 +129,5 @@ alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
 source $SCRIPTHOME/notes.sh
 
-export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+#export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+unset LD_LIBRARY_PATH

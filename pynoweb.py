@@ -66,8 +66,9 @@ def allIncludes(nowebText) :
           chunks[chunkName] = mm.group('tofile')
   return files
     
-def mergeFiles(fileH) :
+def mergeFiles(file) :
     global textQueue
+    fileH = open(file, "r")
     logging.info("Processing for merging: {0}".format(fileH.name))
     fileTxt = fileH.readlines()
     markA = 0
@@ -88,6 +89,7 @@ def mergeFiles(fileH) :
         # append whatever is left in file
         textQueue.append(fileTxt[markA:])
         fileH.close()
+        return
 
 def finalText() :
     text = []
@@ -112,7 +114,7 @@ def executeCommand(command, outFile = None) :
 
 
 def executeNoweb(args, nowebTempDir):
-    mainFilepath = os.path.join(nowebTempDir, args['file'].name)
+    mainFilepath = os.path.join(nowebTempDir, args['file'])
     if args['tangle'] is not None:
         for chunk in chunks:
             nowebCommand = ["notangle"]
@@ -135,7 +137,7 @@ def executeNoweb(args, nowebTempDir):
         args['weave'] = ['weave']
         args['output'] = os.path.join(
                 nowebTempDir
-                , args['file'].name+'.tex'
+                , args['file']+'.tex'
                 )
         return executeNoweb(args, nowebTempDir)
 
@@ -151,7 +153,7 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description='Front end of noweb')
     parser.add_argument('-f'
             , '--file'
-            , type=argparse.FileType('r', 0)
+            , type=str
             , required = True 
             , help = 'Just pass the top-most noweb file after --file '
             )
@@ -188,7 +190,7 @@ if __name__ == "__main__" :
     else:
         shutil.rmtree(nowebTempDir+"/*", ignore_errors=True)
 
-    with open(os.path.join(nowebTempDir, args['file'].name), "w") as finalF:
+    with open(os.path.join(nowebTempDir, args['file']), "w") as finalF:
         finalF.write(finalText())
     executeNoweb(args, nowebTempDir)
   
