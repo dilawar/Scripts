@@ -28,7 +28,7 @@ if [[ $latex = "true" ]]; then
     $PANDOC -s -f $INFMT -t latex -o $texFile $filename
     $LATEX  $texFile
     echo "Making glossaries"
-    ( cd .temp && makeglossaries ${filename%.pandoc} )
+    #( cd .temp && makeglossaries ${filename%.pandoc} )
     mv .temp/*.pdf .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
