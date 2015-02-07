@@ -2,14 +2,12 @@
 # GNU-GPL
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
-
 set -x
 set -e
 function dilawar_cd 
 {
   #alias cd='cd'
   dbname=$HOME/.cdsqlite
-  echo "A"
 
   # Initialize database.
   if [ ! -f $dbname ] ; then 
@@ -64,9 +62,8 @@ function dilawar_cd
     done 
 
   else 
-      echo "B"
     dir=$1 
-    dilawar_cd "$dir"
+    cd "$dir"
     if [[ $? == 0 ]]; then 
     {
       dir=$(pwd)
