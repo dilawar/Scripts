@@ -31,7 +31,8 @@ if [[ $latex = "true" ]]; then
         $PANDOC -s -f $INFMT -t latex -o $texFile $filename
         $LATEX  $texFile
     )
-    dvips .temp/$outputFile  -o $outputFile{%.dvi}.ps
+    outfile=${outputFile%.dvi}.ps
+    dvips .temp/$outputFile  -o $outfile
     cp .temp/*.tex .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
