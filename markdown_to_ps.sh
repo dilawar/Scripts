@@ -29,11 +29,10 @@ if [[ $latex = "true" ]]; then
     (
         cd .temp
         $PANDOC -s -f $INFMT -t latex -o $texFile $filename
-        $LATEX  $texFile
+        latexmk -ps -shell-escape  $texFile
     )
-    outfile=${outputFile%.dvi}.ps
-    dvips .temp/$outputFile  -o $outfile
     cp .temp/*.tex .
+    mv .temp/*.ps .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
 fi
