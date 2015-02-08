@@ -6,7 +6,7 @@ if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     exit
 fi
 
-LATEX="pdflatex -shell-escape -output-directory=.temp"
+LATEX="pdflatex -shell-escape"
 if [ ! -d .temp ]; then
     mkdir -p .temp
 fi
@@ -17,7 +17,7 @@ if [ $# -eq 2 ]; then
 else
     outputFile="${filename%.markdown}.pdf"
 fi
-#texFile=${filename%.markdown}.tex
+
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
 PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc --filter=pandoc-citeproc --number-sections"
@@ -31,7 +31,7 @@ if [[ $latex = "true" ]]; then
         $PANDOC -s -f $INFMT -t latex -o $texFile $filename
         $LATEX  $texFile
     )
-    mv .temp/*.pdf .
+    cp .temp/*.pdf .
     cp .temp/*.tex .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
