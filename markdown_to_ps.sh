@@ -15,7 +15,7 @@ filename=$1
 if [ $# -eq 2 ]; then
     outputFile=$2
 else
-    outputFile="${filename%.pandoc}.ps"
+    outputFile="${filename%.pandoc}.dvi"
 fi
 
 texFile=${filename%.pandoc}.tex
@@ -31,7 +31,7 @@ if [[ $latex = "true" ]]; then
         $PANDOC -s -f $INFMT -t latex -o $texFile $filename
         $LATEX  $texFile
     )
-    mv .temp/*.ps .
+    dvips .temp/$outputFile  -o $outputFile{%.dvi}.ps
     cp .temp/*.tex .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
