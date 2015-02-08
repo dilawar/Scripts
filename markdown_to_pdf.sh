@@ -25,11 +25,14 @@ INFMT=markdown+tex_math_dollars+latex_macros+header_attributes+yaml_metadata_blo
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
 if [[ $latex = "true" ]]; then
-    $PANDOC -s -f $INFMT -t latex -o $texFile $filename
-    $LATEX  $texFile
-    echo "Making glossaries"
-    #( cd .temp && makeglossaries ${filename%.pandoc} )
+    cp *.pandoc .temp
+    (
+        cd .temp
+        $PANDOC -s -f $INFMT -t latex -o $texFile $filename
+        $LATEX  $texFile
+    )
     mv .temp/*.pdf .
+    cp .temp/*.tex .
 else
     $PANDOC -s -f $INFMT -o $outputFile $filename
 fi
