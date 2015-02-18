@@ -22,7 +22,7 @@ elif [[ $1 = "alpha" ]]; then
     $CLONER clone $alpha moose_3.0.0_git_svn
 elif [[ $1 = "trunk" ]]; then
     echo "$CLONER $trunk"
-    $CLONER $trunk moose_trunk_git
+    $CLONER $trunk moose3.1.0
 elif [[ $1 = "multiscale" ]]; then
     echo "$CLONER  $multiscale"
     $CLONER $multiscale moose_multiscale_git
