@@ -21,19 +21,19 @@ elif [ ! -w "$2" ]; then
 fi
 
 # Enable it if you are backing up in /media mount point.
-#case "$2" in
-#  "/mnt") ;;
-#  "/mnt/"*) ;;
-#  "/media") ;;
-#  "/media/"*) ;;
-#  *) echo "Destination not allowed." >&2 
-#     exit 1 
-#     ;;
-#esac
+case "$2" in
+  "/mnt") ;;
+  "/mnt/"*) ;;
+  "/media") ;;
+  "/media/"*) ;;
+  *) echo "Destination not allowed." >&2 
+     exit 1 
+     ;;
+esac
 
 START=$(date +%s)
-rsync -azv --progress $1 $2
+outfile=$2/"Backup_$(date '+%A,%d%B%Y,%T')"
+rsync -azv --progress $1 $2 | tee $outfile
 FINISH=$(date +%s)
 echo "total time: $(( ($FINISH-$START) / 60 )) minutes, $(( ($FINISH-$START) % 60 )) seconds"
-touch $2/"Backup from $(date '+%A, %d %B %Y, %T')"
 notify-send "Done backing up $1 to $2"
