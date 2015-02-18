@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "Synching this computer with various clouds."
 google=$HOME/GOOGLE_DRIVE
-if [ -d $google ]; then
+if [ ! -d $google ]; then
     echo "No GRIVE downloaded google-drive found at $google"
 else
     ( cd $google && grive )
