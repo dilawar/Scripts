@@ -25,7 +25,7 @@ INFMT=markdown+tex_math_dollars+latex_macros+header_attributes+yaml_metadata_blo
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
 if [[ $latex = "true" ]]; then
-    cp *.pandoc .temp
+    cp -r * .temp
     (
         cd .temp
         $PANDOC -s -f $INFMT -t latex -o $texFile $filename
