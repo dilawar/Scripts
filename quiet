@@ -1,0 +1,4 @@
+#!/bin/bash
+# This script launches an application in terminal silently
+( bash "$@" &> /dev/null & )
+
