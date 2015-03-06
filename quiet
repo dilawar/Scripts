@@ -1,4 +1,3 @@
 #!/bin/bash
 # This script launches an application in terminal silently
-( bash "$@" &> /dev/null & )
-
+"$@" &> /dev/null | tee /tmp/"$1.log" &
