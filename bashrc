@@ -115,3 +115,4 @@ fi
 export ftp_proxy=""
 export http_proxy=http://proxy.ncbs.res.in:3128/
 export https_proxy=http://proxy.ncbs.res.in:3128/
+export PATH=$HOME/Scripts:$PATH
