@@ -2,7 +2,7 @@
 
 # This script opens the labnote.
 dir=_labnote
-filename=$dit/experiment.note
+filename=$dir/experiment.pandoc
 if [ -d $dir ]; then 
     mkdir -p $dir
 fi
