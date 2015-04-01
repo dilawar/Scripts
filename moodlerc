@@ -5,8 +5,8 @@
 # password is your moddle password.
 #
 url = http://moodle.lyceejeanbart.fr/login/index.php
-username = zzdilawar
-password = dilawar1
+username = username
+password = password
 proxy = true
 course = MPSDEM2013
 activities = Fiches de trivial

@@ -6,7 +6,7 @@ set -x
 set -e
 function dilawar_cd 
 {
-  #alias cd='cd'
+  alias cd='cd'
   dbname=$HOME/.cdsqlite
 
   # Initialize database.
