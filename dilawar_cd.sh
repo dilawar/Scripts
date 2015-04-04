@@ -66,45 +66,45 @@ function dilawar_cd
     cd "$dir"
     if [[ $? == 0 ]]; then 
     {
-      ##dir=$(pwd)
-      ##(
-      ##  sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
-      ##    VALUES ('$dir', '0', datetime('now')); 
-      ##    UPDATE cdh SET count=count + 1, accessed=datetime('now') 
-      ##    where dirname LIKE '$dir';" &
-      ##)
+      dir=$(pwd)
+      (
+        sqlite3 $dbname "INSERT OR IGNORE INTO cdh (dirname, count, accessed) 
+          VALUES ('$dir', '0', datetime('now')); 
+          UPDATE cdh SET count=count + 1, accessed=datetime('now') 
+          where dirname LIKE '$dir';" &
+      )
     }
     else 
-      #echo "Searching database for matches ... "
-      #dir="*$dir*"
-      #IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE dirname GLOB '$dir';"`
-      #declare -a cch
-      #read -ra ccc <<< $IN 
-      #count=0
-      #for d in "${ccc[@]}" 
-      #do 
-      #  cch[count]=$d 
-      #  echo "$count :" $d 
-      #  let count++
-      #done 
-      #if [[ $count -eq 1 ]]; then 
-      #  dir=${cch[0]}
-      #  dilawar_cd $dir
-      #else 
-      #  echo "Your choice [default 0] : "
-      #  read choice 
-      #  if [[ $choice =~ [0-9]+ ]]; then 
-      #    if [[ $choice -ge $count ]]; then 
-      #      echo "Invalid numeric choice."
-      #      return
-      #    fi
-      #  else 
-      #    echo "Invalid choice. Using default 0."
-      #    choice=0
-      #  fi
-      #  ## Good, we have a choice. Now find the directory and cd to it.
-      #  dir=${cch[$choice]}
-      #  dilawar_cd $dir
+      echo "Searching database for matches ... "
+      dir="*$dir*"
+      IN=`sqlite3 $dbname "SELECT dirname FROM cdh WHERE dirname GLOB '$dir';"`
+      declare -a cch
+      read -ra ccc <<< $IN 
+      count=0
+      for d in "${ccc[@]}" 
+      do 
+        cch[count]=$d 
+        echo "$count :" $d 
+        let count++
+      done 
+      if [[ $count -eq 1 ]]; then 
+        dir=${cch[0]}
+        dilawar_cd $dir
+      else 
+        echo "Your choice [default 0] : "
+        read choice 
+        if [[ $choice =~ [0-9]+ ]]; then 
+          if [[ $choice -ge $count ]]; then 
+            echo "Invalid numeric choice."
+            return
+          fi
+        else 
+          echo "Invalid choice. Using default 0."
+          choice=0
+        fi
+        ## Good, we have a choice. Now find the directory and cd to it.
+        dir=${cch[$choice]}
+        dilawar_cd $dir
       fi
     fi
   fi
