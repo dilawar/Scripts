@@ -227,3 +227,7 @@ rsync -az $SCRIPTHOME/i3/ $I3HOME
 colorPrint "STEP" "Setting up latexmkrc"
 rm -rf $HOME/.latekmkrc
 ln $SCRIPTHOME/latexmkrc $HOME/.latexmkrc
+
+colorPrint "STEP" "Setting up tmux"
+rm -f $HOME/.tmux.conf
+ln $SCRIPTHOME/tmux.conf $HOME/.tmux.conf
