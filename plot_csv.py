@@ -18,11 +18,12 @@ def getHeader(filename):
         header = f.read().split("\n")[0]
     header = header.split(",")
     args.header = header
+    print("INFO Found header %s" % header)
     return header
 
 def main(args):
     if not args.ycolumns:
-        usecols = args.xcolumn 
+        usecols = [ args.xcolumn ]
     else:
         usecols = [ args.xcolumn ] + args.ycolumns 
 
@@ -37,8 +38,10 @@ def main(args):
             , usecols = usecols
             )
     data = np.transpose(data)
+    print data
     xvec = data[0]
     for i, d in enumerate(data[1:]):
+        print "Plotting %s" % i
         pylab.plot(xvec, d, '.', label = args.header[i+1])
         pylab.legend(loc='best', framealpha=0.4)
     if args.header:
@@ -74,6 +77,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('--ycolumns', '-y'
         , nargs = '+'
+        , default = [1]
         , type = int
         , help = "Colums to plot as y-axis"
         )
