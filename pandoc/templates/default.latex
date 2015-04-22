@@ -2,7 +2,7 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-%\usepackage{circuitikz}
+\usepackage{circuitikz}
 \makeatletter
 \@ifpackageloaded{tex4ht}{
     \def\pgfsysdriver{pgfsys-tex4ht.def}
@@ -10,6 +10,11 @@
 \makeatother
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
+
+\IfFileExists{dot2texi.sty}{
+    \usepackage{dot2texi}
+}{ }
+
 \usepackage{pgf,tikz}
 \usetikzlibrary{shapes,backgrounds,positioning,matrix,decorations}
 
@@ -32,7 +37,6 @@
 \newtheorem{remark}{Remark}
 \newtheorem{theorem}{Theorem}
 \newtheorem{script}{Script}
-
 \usepackage{fixltx2e} % provides \textsubscript
 % use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
