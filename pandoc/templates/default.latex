@@ -29,7 +29,7 @@
 \setlength{\parskip}{3mm}
 \newtheorem{axiom}{Axiom}
 \newtheorem{definition}{Definition}
-\newtheorem{comment}{Comment}
+%\newtheorem{comment}{Comment}
 \newtheorem{example}{Example}
 \newtheorem{lemma}{Lemma}
 \newtheorem{property}{Property}
