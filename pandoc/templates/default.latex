@@ -11,6 +11,11 @@
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
 
+%% Include newcommands.
+\IfFileExists{tex_newcommands.tex}{
+    \input{tex_newcommands.tex}
+}
+
 \IfFileExists{dot2texi.sty}{
     \usepackage{dot2texi}
 }{ }
@@ -32,6 +37,7 @@
 %\newtheorem{comment}{Comment}
 \newtheorem{example}{Example}
 \newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
 \newtheorem{property}{Property}
 \newtheorem{problem}{Problem}
 \newtheorem{remark}{Remark}
