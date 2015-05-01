@@ -22,16 +22,20 @@ def getHeader(filename):
     return header
 
 def main(args):
-    if not args.ycolumns:
-        usecols = [ args.xcolumn ]
-    else:
-        usecols = [ args.xcolumn ] + args.ycolumns 
-
     header = getHeader(args.input_file)
     if not header:
         skiprows = 0
     else:
         skiprows = 1
+
+    if not args.ycolumns:
+        usecols = [ args.xcolumn ]
+    else:
+        for y in args.ycolumns:
+            usecols = [ args.xcolumn ] + args.ycolumns 
+    labels = [ args.header[i] for i in usecols ]
+    print("[INFO] lables: %s" % labels)
+
     data = np.loadtxt(args.input_file
             , skiprows = skiprows
             , delimiter = args.delimiter
@@ -41,11 +45,11 @@ def main(args):
     print data
     xvec = data[0]
     for i, d in enumerate(data[1:]):
-        print "Plotting %s" % i
-        pylab.plot(xvec, d, '.', label = args.header[i+1])
+        print("Plotting %s" % i)
+        pylab.plot(xvec, d, '.', label = labels[i+1])
         pylab.legend(loc='best', framealpha=0.4)
     if args.header:
-        pylab.xlabel("%s" % args.header[0])
+        pylab.xlabel("%s" % labels[0])
 
     if not args.outfile:
         pylab.show()
