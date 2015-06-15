@@ -1,18 +1,39 @@
 #!/bin/bash
-filename="$1"
-echo "plotting $filename"
-TERM=eps
+FILES="$@"
+filename="$1_$#"
+OUTFILE="$filename.png"
+TERM="svg"
+RANGE="1:2"
+case $TERM in
+    "eps") 
+        TERMSTRING="postscript eps enhanced color"
+        OUTFILE="$filename.eps"
+        ;;
+    "png")
+        TERMSTRING="pngcairo"
+        OUTFILE="$filename.png"
+        ;;
+    "svg")
+        TERMSTRING="svg"
+        OUTFILE="$filename.svg"
+        ;;
+    "*")
+        TERMSTRING="png"
+        OUTFILE="$filename.png"
+        ;;
+esac
 SEP=","
 
-plot ()
-{
-    gnuplot <<EOF
-        set xlabel $2
-        set ylabel $3
-        set term $TERM
-        set datafile separator "$SEP"
-        set output "$filename.$TERM"
-        plot "$filename" using 1:$1 with lines
-EOF
-}
-plot 2
+SCRIPT="
+set term $TERMSTRING \n
+set output \"$OUTFILE\" \n
+set datafile separator \"$SEP\" \n
+plot 
+"
+for file in $@; do
+    echo "Plotting $file to $OUTFILE"
+    SCRIPT="$SCRIPT 
+    \"$file\" using $RANGE with lines, "
+done
+echo -e  $SCRIPT > plot.gnuplot
+gnuplot plot.gnuplot
