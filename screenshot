@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# This script takes screenshot. It depends on ImageMagick package.
+
 DIR="${HOME}/Pictures/screenshots"
 if [ ! -d $DIR ]; then
     mkdir -p $DIR
