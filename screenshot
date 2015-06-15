@@ -21,3 +21,5 @@ if [ "$1" = "scr" ]; then import -window root "${NAME}"; fi
 if [ "$1" = "area" ]; then import +repage "${NAME}"; fi
 
 if [[ $# = 0 ]]; then import -window root "${NAME}"; fi
+
+notify-send "Screenshot is stored at $NAME"
