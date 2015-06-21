@@ -131,5 +131,10 @@ alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
 source $SCRIPTHOME/notes.sh
 
-#export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
 unset LD_LIBRARY_PATH
+
+# More aliases
+if [ -f $SCRIPTHOME/bash_alias_arch ]; then 
+    source $SCRIPTHOME/bash_alias_arch
+fi
