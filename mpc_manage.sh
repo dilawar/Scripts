@@ -7,6 +7,9 @@ if [ -z "$MUSIC_DIR" ]; then
 fi
 
 collectionDir=$MUSIC_DIR/MyCollection
+if [ ! -d $collectionDir ]; then
+    mkdir -p $collectionDir 
+fi
 
 if [[ "$1" == "-d" ]]; then 
     file="$MUSIC_DIR/$(mpc -h localhost -f %file% | head -n 1)"
@@ -22,7 +25,7 @@ elif [[ "$1" == "-a" ]]; then
     file="$MUSIC_DIR/$thisFile"
     cp "$file" "$collectionDir/$targetFile"
     if [ ! -f "$collectionDir/$targetFile" ]; then
-        xmessage -timeout 1 "Failed to copy $thisFile"
+        xmessage -timeout 1 "Failed to copy $thisFile to $collectionDir"
     fi
 else
     echo "USAGE: $0 (-d | -a)"
