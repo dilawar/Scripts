@@ -233,4 +233,4 @@ rm -f $HOME/.tmux.conf
 ln $SCRIPTHOME/tmux.conf $HOME/.tmux.conf
 
 colorPrint "STEP" "Setting up urxvt"
-git clone https://github.com/dilawar/rxvt-ext $HOME/.rxvt/ext
+git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
