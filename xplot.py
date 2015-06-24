@@ -32,8 +32,11 @@ def buildData( file ):
                 continue
             line = line.strip()
             line = line.split()
-            xvec.append(float(line[0]))
-            yvec.append(line[1:])
+            try:
+                xvec.append(float(line[0]))
+                yvec.append(line[1:])
+            except:
+                pass
         assert len(xvec) == len(yvec)
         data[file] = (xvec, yvec)
 
