@@ -31,8 +31,11 @@ def buildData( file ):
 
     for p in plots:
         xvec, yvec = [], []
+        if not p:
+            continue
         p = filter(None, p.split('\n'))
         plotname, data = p[0].replace('/plotname', '').strip(), p[1:]
+        plotname = plotname.split('/')[-1]
         for d in data:
             d = d.strip()
             if d:
@@ -61,7 +64,7 @@ def plotData( outFile = None ):
         pylab.show()
     else:
         print("[INFO] Saving plots to: {}".format( outFile ))
-        pylab.savefig(outFile)
+        pylab.savefig(outFile, transparent=True)
 
 if __name__ == "__main__":
     import argparse
