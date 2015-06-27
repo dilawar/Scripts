@@ -1,12 +1,11 @@
-#!/bin/bash
+#!/bin/bash 
 # GNU-GPL
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
-set -x
-set -e
-function dilawar_cd 
+
+cd () 
 {
-  alias cd='cd'
+  #alias cd='cd'
   dbname=$HOME/.cdsqlite
 
   # Initialize database.
@@ -45,7 +44,7 @@ function dilawar_cd
 
     ## Good, we have a choice. Now find the directory and cd to it.
     dir=${ch[$choice]}
-    dilawar_cd $dir
+    c $dir
   elif [ "$1" == "--clean" ] ; then
     # go through each entry and check if that directory exists. If it does not
     # exits then remove it from database.
@@ -89,7 +88,7 @@ function dilawar_cd
       done 
       if [[ $count -eq 1 ]]; then 
         dir=${cch[0]}
-        dilawar_cd $dir
+        c $dir
       else 
         echo "Your choice [default 0] : "
         read choice 
@@ -104,7 +103,7 @@ function dilawar_cd
         fi
         ## Good, we have a choice. Now find the directory and cd to it.
         dir=${cch[$choice]}
-        dilawar_cd $dir
+        c $dir
       fi
     fi
   fi
