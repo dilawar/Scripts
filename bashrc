@@ -109,7 +109,7 @@ export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 export PATH=$PATH:/cluster/share/software/subversion189/bin
 
-source ~/Scripts/cd.sh
+source ~/Scripts/dilawar_cd.sh
 
 # some more ls aliases
 alias ls='ls --color=auto'
