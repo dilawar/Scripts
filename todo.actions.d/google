@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+data=`gpg -d ./bumbum.gpg`
+eval $data
+echo "passing python script to $@"
+./google.py "$@"
