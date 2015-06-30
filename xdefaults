@@ -22,3 +22,6 @@ xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 xterm*scrollBar: false
 xterm*background: black
 xterm*foreground: white
+URxvt*scrollTtyOutput:      false
+URxvt*scrollWithBuffer:     true
+URxvt*scrollTtyKeypress:    true
