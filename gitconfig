@@ -14,13 +14,8 @@
         editor = vim
         excludesfile = ~/.gitignore
         difftool = vimdiff
-[merge]
-	tool = diffconflicts
 [push]
-	default = matching
-[mergetool "diffconflicts"]
-	cmd = diffconflicts vim $BASE $LOCAL $REMOTE $MERGED
-	trustExitCode = true
+	default = simple
 [mergetool]
 	keepBackup = false
 [alias]
@@ -31,3 +26,5 @@
     diff = auto
     interactive = auto
     status = auto
+[merge]
+	tool = vimdiff
