@@ -6,15 +6,15 @@ if [ ! "$1" ] ; then
     exit
 fi
 
-#pass=`gpg -d ./shares.ncbs.res.in.gpg`
-#eval $pass
+pass=`gpg -d ./shares.ncbs.res.in.gpg`
+eval $pass
 
 BACKUPDIR=$HOME/bhandar
 USER=dilawars
 HOST=shares.ncbs.res.in
 
-read -a log -p "Log: " 
-echo "${log[@]}"
+#read -a log -p "Log: " 
+#echo "${log[@]}"
 
 ## 
-#sshpass -e ssh -Y $USER@$HOST
+sshpass -e rsync -azv "$1" $USER@$HOST:~/bhandar/
