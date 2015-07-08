@@ -1,6 +1,4 @@
-
 #.bashrc
-
 # Source global definitions
 if [ -f /etc/bashrc ]; then
 	. /etc/bashrc
@@ -41,7 +39,6 @@ fi
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
 export EDITOR=vim
-alias sudo='sudo -E'
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
@@ -50,16 +47,18 @@ alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
 alias rsync='rsync --progress'
-alias i='sudo -E emerge -avuND '
-alias s='sudo emerge --search '
+alias i='sudo -E emerge -avuD '
 alias netcat='nc.openbsd'
 alias ii='sudo apt-get -c ~/.aptconf install'
-alias ss='apt-cache search'
-alias uu='sudo apt-get upgrade'
+alias ss='sudo -E emerge --search'
+alias uu='sudo -E emerge -avuND @world'
 alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
+alias sudo='sudo -E'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
+alias note='terminal_velocity'
+alias pylint='pylint -E'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -80,36 +79,27 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export MMSIMHOME=/cad/cadence/mmsim
-export MMSIM_PATH=/cad/cadence/mmsim/tools/bin
-export MIRALIB=/cad/lib/miralib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/bin:$HOME/bin/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Bluespec-2012.01.A/lib
+export PATH=$PATH:~/Scripts/
 #export VIM=~/Works/MyPublic/Scripts/vim
-source ~/.proxy
-#source ~/.bsv_sh 
 
-export CAPEM_INSTALL=~/capem
-export CAPEM_PROJECT_DIRECTORY=~/capem/projects
-export alias_file
-export LAVA2000_Satzoo=/cad/bin/satzoo
-export LAVA2000_SMV=/cad/bin/smv
+if [ -f ~/.proxy ]; then
+    source ~/.proxy
+fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-export NNTPSERVER=103.21.127.130
 source ~/Scripts/profile
-
-export PATH="$PATH:/opt/sbw-2.10.0/bin/"
-export FTP_PROXY=
-export TEXINPUTS=".:~/Scripts/latex/texinputs//:"
-export PATH=$PATH:$HOME/Scripts:$HOME/.local/bin:$HOME/bin/bin:$HOME/.local/bin
-export PATH=$PATH:~/Work/bin/sage-6.0-i686-Linux
+export PATH=$PATH:~/.mutt
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
-export PATH=$PATH:/cluster/share/software/subversion189/bin
 
-source ~/Scripts/dilawar_cd.sh
+if [ -f ~/Scripts/dilawar_cd.sh ]; then 
+    source ~/Scripts/dilawar_cd.sh
+fi
+
+if [ -f $SCRIPTHOME/notes.sh ]; then
+    source $SCRIPTHOME/notes.sh
+fi
 
 # some more ls aliases
 alias ls='ls --color=auto'
@@ -119,6 +109,7 @@ alias l='ls -CF'
 alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
+alias gist='gist -c'
 alias rsync='rsync --progress'
 alias i='sudo emerge -avu --autounmask-write'
 alias netcat='nc.openbsd'
@@ -129,12 +120,8 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
-source $SCRIPTHOME/notes.sh
-
-export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
-unset LD_LIBRARY_PATH
-
-# More aliases
-if [ -f $SCRIPTHOME/bash_alias_arch ]; then 
-    source $SCRIPTHOME/bash_alias_arch
+#export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+export GOPATH=$HOME/go
+if [ -f /etc/profile.d/bash-completion.sh ]; then
+    source /etc/profile.d/bash-completion.sh 
 fi
