@@ -1,12 +1,15 @@
 #!/bin/bash
 
+SCRIPTDIR=`dirname $0`
 if [ ! "$1" ] ; then
-    echo "No filename or dir given"
+    echo "No filename or dir given. Assuming $HOME/Work"
     echo "Usage: $0 path"
-    exit
+    SRC=$HOME/Work
+else
+    SRC="$1"
 fi
 
-pass=`gpg -d ./shares.ncbs.res.in.gpg`
+pass=`gpg -d $SCRIPTDIR/shares.ncbs.res.in.gpg`
 eval $pass
 
 BACKUPDIR=$HOME/bhandar
@@ -17,4 +20,4 @@ HOST=shares.ncbs.res.in
 #echo "${log[@]}"
 
 ## 
-sshpass -e rsync -azv "$1" $USER@$HOST:~/bhandar/
+sshpass -e rsync -azLv "$SRC" $USER@$HOST:~/bhandar/
