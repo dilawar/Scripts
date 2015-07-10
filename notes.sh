@@ -1,11 +1,17 @@
 NOTEDIR=$HOME/Work/notes
-EXT=pandoc
+EXT=md
 [ -z "$EDITOR" ] && echo "You need to export EDITOR";
 
 n() {
+    # if no argument is given then open file for this week.
+    if [ ! "$1" ]; then
+        $ARG=`date +%Y%h`
+    else
+        ARG="$*"
+    fi
+
     # Remove the extension from the input.
     [ -z "$EDITOR" ] && echo "You need to export EDITOR" 
-    ARG="$*"
     ARG=${ARG%$EXT}
     $EDITOR $NOTEDIR/"$ARG".$EXT
 }
