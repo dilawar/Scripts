@@ -5,7 +5,7 @@ EXT=md
 n() {
     # if no argument is given then open file for this week.
     if [ ! "$1" ]; then
-        $ARG=`date +%Y%h`
+        ARG=`date +%Y%h`
     else
         ARG="$*"
     fi
