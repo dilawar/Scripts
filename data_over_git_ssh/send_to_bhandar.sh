@@ -9,8 +9,7 @@ else
     SRC="$1"
 fi
 
-pass=`gpg -d $SCRIPTDIR/shares.ncbs.res.in.gpg`
-eval $pass
+source shares.env
 
 BACKUPDIR=$HOME/bhandar
 USER=dilawars
