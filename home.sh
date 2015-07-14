@@ -234,3 +234,6 @@ ln $SCRIPTHOME/tmux.conf $HOME/.tmux.conf
 
 colorPrint "STEP" "Setting up urxvt"
 git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
+
+colorPrint "STEP" "Setting up inputrc. bash in vi mode"
+cp $SCRIPTHOME/inputrc $HOME/.inputrc
