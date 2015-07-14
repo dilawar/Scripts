@@ -22,6 +22,9 @@ source $SCRIPTHOME/colors.sh
 colorPrint "STEP" "Setting up TODO"
 sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
 
+colorPrint "STEP" "Copying todo and notes"
+git clone git@bitbucket.org:dilawar/todo $HOME/Work/todo
+git clone git@bitbucket.org:dilawar/notes $HOME/Work/notes
 
 colorPrint "STEP" "Updating submodules in Scripts"
 cd $SCRIPTHOME && git submodule init && git submodule update && cd
