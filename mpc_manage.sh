@@ -23,7 +23,7 @@ elif [[ "$1" == "-a" ]]; then
     thisFile=`mpc -h localhost -f %file% | head -n 1`
     targetFile=$(basename "$thisFile")
     file="$MUSIC_DIR/$thisFile"
-    cp "$file" \"$collectionDir/$targetFile\"
+    cp "$file" "$collectionDir/$targetFile"
     if [ ! -f "$collectionDir/$targetFile" ]; then
         notify-send "Failed to copy $thisFile to $collectionDir"
     else
