@@ -16,6 +16,3 @@
 [submodule "manage.cli"]
 	path = manage.cli
 	url = git@github.com:dilawar/manage.cli
-[submodule "data_over_git_ssh"]
-	path = data_over_git_ssh
-	url = git@github.com:dilawar/data_over_git_ssh
