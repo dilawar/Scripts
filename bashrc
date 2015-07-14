@@ -79,7 +79,7 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=$PATH:~/Scripts/
+export PATH=$PATH:~/Scripts/:$HOME/.mutt
 #export VIM=~/Works/MyPublic/Scripts/vim
 
 if [ -f ~/.proxy ]; then
@@ -89,7 +89,7 @@ fi
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
 source ~/Scripts/profile
-export PATH=$PATH:~/.mutt
+export PATH=$PATH:~/.mutt:$HOME/.local/bin
 export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 
@@ -120,7 +120,7 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
-#export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
