@@ -14,8 +14,6 @@
         editor = vim
         excludesfile = ~/.gitignore
         difftool = vimdiff
-[push]
-	default = simple
 [mergetool]
 	keepBackup = false
 [alias]
