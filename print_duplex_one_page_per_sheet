@@ -3,14 +3,7 @@ PRINT_COMMAND="lp -o media=A4 -o prettyprint"
 FILE="$1"
 PAGES=`pdfinfo "$FILE" | grep "Pages:" | cut -d':' -f2 | tr -d ' '`
 
-function print_page()
-{
-    PAGEID="$1"
-    echo "Printing page no $1 of $FILE"
-    $PRINT_COMMAND -P "$1" "$FILE"
-}
-
-ODD_PAGES=`seq -s","1 2 $PAGES`;
+ODD_PAGES=`seq -s"," 1 2 $PAGES`;
 echo "Printing odd pages first $ODD_PAGES"
 $PRINT_COMMAND -P $ODD_PAGES "$FILE"
 
@@ -22,12 +15,11 @@ read response
 uneven=$(($PAGES % 2))
 if [ $uneven == 1 ]; then
     echo "DEBUG: Sending an empty page since total pages are odd"
-    #echo "" | $PRINT_COMMAND
+    echo "" | $PRINT_COMMAND
     PAGES=$(($PAGES-1))
 fi
 
 # reversing the even pages.
-EVEN_PAGES=`seq $PAGES -2 2`
-for page in $EVEN_PAGES; do
-    print_page $page
-done
+EVEN_PAGES=`seq -s"," $PAGES -2 2`
+echo "Printing even pages in reverse order"
+$PRINT_COMMAND -o outputorder=reverse -P $EVEN_PAGES "$FILE"
