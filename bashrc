@@ -79,7 +79,7 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=$PATH:~/Scripts/:$HOME/.mutt
+export PATH=$PATH:~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh
 #export VIM=~/Works/MyPublic/Scripts/vim
 
 if [ -f ~/.proxy ]; then
