@@ -1,6 +1,6 @@
 URxvt.scrollBar: false
 URxvt.saveLines: 100000
-URxvt.perl-ext-common:  default,matcher,font-size,clipboard
+URxvt.perl-ext-common: default,matcher,font-size,clipboard
 URxvt.iso14755: False
 URxvt.keysym.Shift-Control-C: perl:clipboard:copy
 URxvt.keysym.Shift-Control-V: perl:clipboard:paste
