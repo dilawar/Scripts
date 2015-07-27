@@ -1,3 +1,3 @@
 #!/bin/bash
 echo "Disabling touch click"
-sysnlient MaxTapTime=0
+synclient MaxTapTime=0
