@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-ncDir=$HOME/Work/OTHERS/neuroConstruct
+ncDir=/opt/neuroConstruct
 if [ ! -d $ncDir ]; then
     echo "I can't find $ncDir. Make sure neuroConstruct is kept here"
     exit
