@@ -11,5 +11,10 @@ sshpass
 agrep
 vim
 mutt
-maildirs-utils
-
+maildir-utils
+elinks 
+lynx
+w3m
+python-ldap
+screen
+tmux
