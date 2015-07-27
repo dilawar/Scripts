@@ -21,10 +21,11 @@ function createBackup
 {
     for f in "$@"; do 
         file=`readlink -f $f`
+        # Remove the $HOME from the front.
         if [ -f $file ]; then
             cp $file --parents $BACKUPDIR
             (
-                cd $BACKUPDIR && git add $file \
+                cd $BACKUPDIR && git add ${file#/} \
                     && git commit -m "Backing up $file on `date`" 
             )
         fi
