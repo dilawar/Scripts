@@ -1,0 +1,25 @@
+#!/bin/bash
+PRINT_COMMAND="lp -o media=A4 -o prettyprint"
+FILE="$1"
+PAGES=`pdfinfo "$FILE" | grep "Pages:" | cut -d':' -f2 | tr -d ' '`
+
+ODD_PAGES=`seq -s"," 1 2 $PAGES`;
+echo "Printing odd pages first $ODD_PAGES"
+$PRINT_COMMAND -P $ODD_PAGES "$FILE"
+
+# If no of total pages are odd, then add a black page at the end of file.
+echo "Please collect the odd pages and put them back on. Then press any key to
+continue."
+read response
+
+uneven=$(($PAGES % 2))
+if [ $uneven == 1 ]; then
+    echo "DEBUG: Sending an empty page since total pages are odd"
+    echo "" | $PRINT_COMMAND
+    PAGES=$(($PAGES-1))
+fi
+
+# reversing the even pages.
+EVEN_PAGES=`seq -s"," $PAGES -2 2`
+echo "Printing even pages in reverse order"
+$PRINT_COMMAND -o outputorder=reverse -P $EVEN_PAGES "$FILE"
