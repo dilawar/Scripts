@@ -31,7 +31,10 @@ def buildData( file ):
             if line[0] == ';' or line[0] == '#':
                 continue
             line = line.strip()
-            line = line.split()
+            if "," in line:
+                line = line.split(",")
+            else:
+                line = line.split()
             try:
                 xvec.append(float(line[0]))
                 yvec.append(line[1:])

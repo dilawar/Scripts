@@ -1,3 +1,7 @@
+TOUCHPAD:
+    
+    install `gpointing-device-settings` and enable-disable touchpad options.
+
 WIRELESS:
 
     To see the list of blocked/unblocked devices.
