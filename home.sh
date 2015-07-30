@@ -1,5 +1,4 @@
 #!/bin/bash
-set +x 
 
 # This script update my HOME folder. Run it once and HOME must have all default
 # configuartion files of my faviorite tools.
@@ -18,6 +17,23 @@ fi
 
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
+
+set +x
+colorPrint "STEP" "Setting up crontab"
+# disable glob pattern.
+set -f
+CRONOUT=`crontab -l`
+CRONTEXT=`cat $SCRIPTHOME/crontab.txt`
+echo $CRONTEXT
+echo $CRONOUT
+if [[ "$CRONTEXT" == "$CRONOUT" ]]; then
+    colorPrint "INFO" "Crontab is already installed"
+else
+    colorPrint "INFO" "Installing crontab"
+    crontab $SCRIPTHOME/crontab.txt
+fi
+#enable glob again.
+set +f
 
 colorPrint "STEP" "Setting up TODO"
 sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
@@ -240,3 +256,4 @@ git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
 
 colorPrint "STEP" "Setting up inputrc. bash in vi mode"
 cp $SCRIPTHOME/inputrc $HOME/.inputrc
+
