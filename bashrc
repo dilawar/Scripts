@@ -39,6 +39,7 @@ fi
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
 export EDITOR=vim
+alias vim="$SCRIPTHOME/v"
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
