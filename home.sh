@@ -18,6 +18,13 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
+colorPrint "STEP" "Adding myself to cool groups"
+sudo addgroup wheel power 
+sudo addgroup sound
+sudo gpasswd -a $USER sound 
+sudo gpasswd -a $USER power 
+sudo gpasswd -a $USER wheel
+
 set +x
 colorPrint "STEP" "Setting up crontab"
 # disable glob pattern.
