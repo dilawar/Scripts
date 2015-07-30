@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 #   A simple file for converting any XML file via an XSL stylesheet
 #   Has also features for compiling teh generated file, if it's a 
