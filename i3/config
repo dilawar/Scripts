@@ -44,6 +44,8 @@ bindsym Mod1+Control+l exec "amixer sset Master 10%+"
 bindsym Mod1+Control+n exec "mpc next"
 bindsym Mod1+Control+p exec "mpc previous"
 bindsym Mod1+Control+t exec "mpc toggle"
+bindsym Mod1+Control+d exec "$HOME/Scripts/mpc_manage.sh -d"
+bindsym Mod1+Control+a exec "$HOME/Scripts/mpc_manage.sh -a"
 bindsym Mod4+Control+n exec "tomboy --new-note"
 
 
@@ -122,7 +124,7 @@ bindsym $mod+Shift+9 move container to workspace 9
 bindsym $mod+Shift+0 move container to workspace 10
 
 # reload the configuration file
-#bindsym $mod+Shift+r reload
+bindsym $mod+Shift+r reload
 # restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
 bindsym $mod+Shift+r restart
 # exit i3 (logs you out of your X session)
