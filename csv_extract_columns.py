@@ -19,8 +19,9 @@ import numpy as np
 from collections import defaultdict
 
 def main(args):
+    print("[DEBUG]: %s" % args)
     results = defaultdict(list)
-    with open(args['input'], 'r') as f:
+    with open(args['input_file'], 'r') as f:
         lines = f.read().split('\n')
     header, lines = lines[0].split(','), lines[1:]
     colsToExtract, newHeader = [], []
@@ -30,11 +31,15 @@ def main(args):
                 colsToExtract.append(i)
                 newHeader.append(h)
 
-    data = np.genfromtxt(args['input'], delimiter=','
+    data = np.genfromtxt(args['input_file'], delimiter=','
             , skip_header=True, usecols=colsToExtract
             )
 
-    outfile = "%s_out.csv" % args['input']
+    if not args.get('output-file', None):
+        outfile = "%s_out.csv" % args['input_file']
+    else:
+        outfile = args.get('outfile-file')
+
     print("Writing extracted data to %s" % outfile)
     np.savetxt(outfile, data, delimiter=',', header=",".join(newHeader))
 
@@ -43,13 +48,18 @@ if __name__ == '__main__':
     # Argument parser.
     description = '''Select columns from csv file.'''
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--input', '-in'
+    parser.add_argument('--input_file', '-in'
         , required = True
         , help = 'Input csv file'
         )
     parser.add_argument('--col', '-c'
         , action = 'append'
         , help = 'Column to select. All columns matching this pattern will be selected'
+        )
+    parser.add_argument('--output_file', '-out'
+        , required = False
+        , default = None
+        , help = 'Output file'
         )
 
     class Args: pass 
