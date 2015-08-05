@@ -121,7 +121,7 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
-export PYTHONPATH="$HOME/moose3.0.1/python:$PYTHONPATH"
+export PYTHONPATH="$HOME/Work/MOOSE/moose/python:$PYTHONPATH"
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
