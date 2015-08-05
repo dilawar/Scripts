@@ -63,7 +63,8 @@ def plotData( outFile = None ):
             print("[FATAL] Failed to zip the given elements")
             sys.exit(0)
         for yvec in yvecs:
-            pylab.plot(xvec, yvec)
+            pylab.plot(xvec, yvec, label='%s' % file)
+    pylab.legend(loc='best', framealpha=0.4)
     if not outFile:
         pylab.show()
     else:
