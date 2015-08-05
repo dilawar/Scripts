@@ -16,6 +16,9 @@ __status__           = "Development"
 
 import csv
 import numpy as np
+import re
+import sys
+
 from collections import defaultdict
 
 def main(args):
@@ -27,7 +30,7 @@ def main(args):
     colsToExtract, newHeader = [], []
     for i, h in enumerate(header):
         for c in args['col']:
-            if c in h: 
+            if re.search(r'%s' % c, h):
                 colsToExtract.append(i)
                 newHeader.append(h)
 
@@ -35,13 +38,11 @@ def main(args):
             , skip_header=True, usecols=colsToExtract
             )
 
-    if not args.get('output-file', None):
-        outfile = "%s_out.csv" % args['input_file']
-    else:
-        outfile = args.get('outfile-file')
-
+    outfile = args['output_file']
     print("Writing extracted data to %s" % outfile)
-    np.savetxt(outfile, data, delimiter=',', header=",".join(newHeader))
+    np.savetxt(outfile, data, delimiter=',', header=",".join(newHeader),
+            comments='')
+
 
 if __name__ == '__main__':
     import argparse
@@ -54,12 +55,14 @@ if __name__ == '__main__':
         )
     parser.add_argument('--col', '-c'
         , action = 'append'
-        , help = 'Column to select. All columns matching this pattern will be selected'
+        , help = '''Column to select. All columns matching this pattern (regex
+        python) will be selected'''
         )
     parser.add_argument('--output_file', '-out'
         , required = False
-        , default = None
-        , help = 'Output file'
+        , default = sys.stdout
+        , type = argparse.FileType('w')
+        , help = 'Output file to write to'
         )
 
     class Args: pass 
