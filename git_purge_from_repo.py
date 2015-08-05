@@ -38,5 +38,4 @@ else :
 subprocess.call("rm -rf ./.git/refs/original", shell=True)
 subprocess.call("git reflog expire --expire=now --all", shell=True)
 subprocess.call("git gc --prune=now", shell=True)
-#subprocess.call("git push origin master --force", shell=True)
 
