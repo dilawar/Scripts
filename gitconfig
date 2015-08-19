@@ -19,6 +19,7 @@
 [alias]
     lol = log --graph --decorate --pretty=oneline --abbrev-commit
     lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+    clean = ls-files --others --exclude-standard -z | xargs -0 tar rvf ~/Backup/git-backup.tar
 [color]
     branch = auto
     diff = auto
@@ -26,3 +27,5 @@
     status = auto
 [merge]
 	tool = vimdiff
+[push]
+	default = simple
