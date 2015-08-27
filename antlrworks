@@ -1,2 +1,2 @@
 #!/bin/bash
-java -jar /opt/antlrworks-1.5.jar
+java -jar /opt/antlr/antlrworks-1.5.2-complete.jar

@@ -6,6 +6,20 @@ import re
 import os
 import numpy as np
 
+import logging
+logging.basicConfig(level=logging.DEBUG,
+    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+    datefmt='%m-%d %H:%M',
+    filename='default.log',
+    filemode='w')
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+_logger = logging.getLogger('')
+_logger.addHandler(console)
+
+
 class Args: pass 
 args = Args()
 
@@ -18,7 +32,7 @@ def getHeader(filename):
         header = f.read().split("\n")[0]
     header = header.split(",")
     args.header = header
-    print("INFO Found header %s" % header)
+    _logger.debug("INFO Found header %s" % header)
     return header
 
 def main(args):
@@ -34,18 +48,17 @@ def main(args):
         for y in args.ycolumns:
             usecols = [ args.xcolumn ] + args.ycolumns 
     labels = [ args.header[i] for i in usecols ]
-    print("[INFO] lables: %s" % labels)
-
+    _logger.info("[INFO] Using columns: %s" % usecols)
+    _logger.debug("[INFO] lables: %s" % labels)
     data = np.loadtxt(args.input_file
             , skiprows = skiprows
             , delimiter = args.delimiter
             , usecols = usecols
             )
     data = np.transpose(data)
-    print data
     xvec = data[0]
     for i, d in enumerate(data[1:]):
-        print("Plotting %s" % i)
+        _logger.info("Plotting %s" % i)
         pylab.plot(xvec, d, '.', label = labels[i+1])
         pylab.legend(loc='best', framealpha=0.4)
     if args.header:
@@ -54,7 +67,7 @@ def main(args):
     if not args.outfile:
         pylab.show()
     else:
-        print("[INFO] Saving figure to %s" % args.outfile)
+        _logger.info("Saving figure to %s" % args.outfile)
         pylab.savefig(args.outfile)
 
 if __name__ == '__main__':
@@ -83,7 +96,7 @@ if __name__ == '__main__':
         , nargs = '+'
         , default = [1]
         , type = int
-        , help = "Colums to plot as y-axis"
+        , help = "Columns to plot as y-axis"
         )
     parser.add_argument('--outfile', '-o'
         , required = False
