@@ -1,5 +1,6 @@
 #.bashrc
 # Source global definitions
+export EDITOR=vim
 if [ -f /etc/bashrc ]; then
 	. /etc/bashrc
 fi
@@ -38,8 +39,6 @@ fi
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
-export EDITOR=vim
-alias vim="$SCRIPTHOME/v"
 alias ls='ls --color=auto'
 alias ll='ls -alF'
 alias la='ls -A'
@@ -81,7 +80,6 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
 export PATH=$PATH:~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh
-#export VIM=~/Works/MyPublic/Scripts/vim
 
 if [ -f ~/.proxy ]; then
     source ~/.proxy
@@ -91,7 +89,6 @@ fi
 #export PROMPT_COMMAND="history -n; history -a"
 source ~/Scripts/profile
 export PATH=$PATH:~/.mutt:$HOME/.local/bin
-export MYVIMRC=~/.vim/vimrc
 export LYNX_CFG=~/Scripts/lynx.cfg
 
 if [ -f ~/Scripts/dilawar_cd.sh ]; then 
@@ -121,9 +118,10 @@ alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
-export PYTHONPATH="$HOME/Work/MOOSE/moose/python:$PYTHONPATH"
+alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
+alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
+export PYTHONPATH="$HOME/Work/GITHUB/moose-core/python"
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
 fi
-
