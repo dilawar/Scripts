@@ -1,4 +1,2 @@
 #!/bin/bash
-google-chrome \
-  --proxy-server="http=proxy.ncbs.res.in:3128;https=proxy.ncbs.res.in:3128;ftp=proxy.ncbs.res.in:3128" \
-  --proxy-bypass-list="*.iitb.ac.in;10.0.0.0/8;localhost;10.*.*.*"
+google-chrome --proxy-server="proxy.ncbs.res.in:3128"
