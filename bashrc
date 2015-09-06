@@ -121,6 +121,8 @@ alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 export PYTHONPATH="$HOME/Work/GITHUB/moose-core/python"
+alias gcal='gcalcli --calendar="dilawar"'
+export PYTHONPATH="$HOME/Work/MOOSE/moose/python:$PYTHONPATH"
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
