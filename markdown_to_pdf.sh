@@ -21,7 +21,7 @@ fi
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
 PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc --filter=pandoc-citeproc --number-sections"
-INFMT=markdown+tex_math_dollars+latex_macros+header_attributes+yaml_metadata_block+table_captions
+INFMT=markdown+tex_math_dollars+multiline_tables+latex_macros+header_attributes+yaml_metadata_block+table_captions
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
 if [[ $latex = "true" ]]; then
