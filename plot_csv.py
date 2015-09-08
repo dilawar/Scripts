@@ -59,8 +59,18 @@ def main(args):
     xvec = data[0]
     for i, d in enumerate(data[1:]):
         _logger.info("Plotting %s" % i)
-        pylab.plot(xvec, d, '.', label = labels[i+1])
+        if args.subplot:
+            _logger.info("plotting in subplot")
+            pylab.subplot(len(data[1:]), 1, i)
+        if args.marker:
+            pylab.plot(xvec, d, args.marker, label = labels[i+1])
+        else:
+            pylab.plot(xvec, d, label = labels[i+1])
         pylab.legend(loc='best', framealpha=0.4)
+
+    if args.title:
+        pylab.title(args.title)
+
     if args.header:
         pylab.xlabel("%s" % labels[0])
 
@@ -75,32 +85,54 @@ if __name__ == '__main__':
     # Argument parser.
     description = '''A csv file plotter'''
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--input_file', '-in', metavar='input csv file'
-        , required = True
-        , help = 'File to plot'
-        )
+
+    parser.add_argument('--input_file', '-i', metavar='input csv file'
+            , required = True
+            , help = 'File to plot'
+            )
     parser.add_argument('--delimiter', '-d'
-        , default = ','
-        , help = 'Delimiter'
-        )
-    parser.add_argument('--header', '-t'
+            , default = ','
+            , help = 'Delimiter'
+            )
+    parser.add_argument('--header'
             , default = True
             , help = "Is first line header?"
             )
-    parser.add_argument('--xcolumn', '-x'
-        , default =  0
-        , type = int
-        , help = 'Which column is x-axis'
-        )
+    parser.add_argument('--xcolumn', '-xs'
+            , default =  0
+            , type = int
+            , help = 'Which column is x-axis'
+            )
     parser.add_argument('--ycolumns', '-y'
-        , nargs = '+'
-        , default = [1]
-        , type = int
-        , help = "Columns to plot as y-axis"
-        )
+            , nargs = '+'
+            , default = [1]
+            , type = int
+            , help = "Columns to plot as y-axis"
+            )
     parser.add_argument('--outfile', '-o'
-        , required = False
-        , help = 'Save plot as this file'
-        )
+            , required = False
+            , help = 'Save plot as this file'
+            )
+
+    parser.add_argument('--marker', '-m'
+            , required = False
+            , default = None
+            , type = str
+            , help  = 'Which marker to use in matplotlib'
+            )
+
+    parser.add_argument('--title', '-t'
+            , required = False
+            , default = None
+            , type = str
+            , help = 'Tile for plot'
+            )
+
+    parser.add_argument('--subplot', '-s'
+            , action = 'store_true'
+            , help = 'Plot each plot as subplot'
+            )
+
     parser.parse_args(namespace=args)
     main(args)
+
