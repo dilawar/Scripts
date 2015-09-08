@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # A quick plotting of csv files.
 import sys
-import pylab
+import matplotlib.pyplot as plt
 import re
 import os
 import numpy as np
@@ -19,6 +19,10 @@ console.setFormatter(formatter)
 _logger = logging.getLogger('')
 _logger.addHandler(console)
 
+try:
+    plt.style.use('ggplot')
+except:
+    _logger.warn("Style 'ggplot' not found. Using default")
 
 class Args: pass 
 args = Args()
@@ -61,24 +65,24 @@ def main(args):
         _logger.info("Plotting %s" % i)
         if args.subplot:
             _logger.info("plotting in subplot")
-            pylab.subplot(len(data[1:]), 1, i)
+            plt.subplot(len(data[1:]), 1, i)
         if args.marker:
-            pylab.plot(xvec, d, args.marker, label = labels[i+1])
+            plt.plot(xvec, d, args.marker, label = labels[i+1])
         else:
-            pylab.plot(xvec, d, label = labels[i+1])
-        pylab.legend(loc='best', framealpha=0.4)
+            plt.plot(xvec, d, label = labels[i+1])
+        plt.legend(loc='best', framealpha=0.4)
 
     if args.title:
-        pylab.title(args.title)
+        plt.title(args.title)
 
     if args.header:
-        pylab.xlabel("%s" % labels[0])
+        plt.xlabel("%s" % labels[0])
 
     if not args.outfile:
-        pylab.show()
+        plt.show()
     else:
         _logger.info("Saving figure to %s" % args.outfile)
-        pylab.savefig(args.outfile)
+        plt.savefig(args.outfile)
 
 if __name__ == '__main__':
     import argparse
