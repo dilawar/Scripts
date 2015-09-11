@@ -3,6 +3,13 @@ PRINT_COMMAND="lp -o media=A4 -o prettyprint"
 FILE="$1"
 PAGES=`pdfinfo "$FILE" | grep "Pages:" | cut -d':' -f2 | tr -d ' '`
 
+function split_into_even()
+{
+    filename="$1"
+    echo "Generating even pages in reverse order"
+    pdftk A="$filename" cat Aend-1even output /tmp/even_pages.pdf
+}
+
 function print_page()
 {
     PAGEID="$1"
@@ -23,12 +30,19 @@ read response
 uneven=$(($PAGES % 2))
 if [ $uneven == 1 ]; then
     echo "DEBUG: Sending an empty page since total pages are odd"
-    #echo "" | $PRINT_COMMAND
+    echo "" | $PRINT_COMMAND
     PAGES=$(($PAGES-1))
 fi
 
-# reversing the even pages.
-EVEN_PAGES=`seq $PAGES -2 2`
-for page in $EVEN_PAGES; do
-    print_page $page
-done
+## If pdftk is available then split the pdf using pdftk and print the even pages
+## separately.
+if `which pdftk` then
+    split_into_even "$FILE"
+    $PRINT_COMMAND /tmp/even_pages.pdf
+else
+    # reversing the even pages.
+    EVEN_PAGES=`seq $PAGES -2 2`
+    for page in $EVEN_PAGES; do
+        print_page $page
+    done
+fi
