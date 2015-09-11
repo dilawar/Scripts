@@ -39,6 +39,17 @@ def getHeader(filename):
     _logger.debug("INFO Found header %s" % header)
     return header
 
+def get_ycols(colexpr):
+    ranges = colexpr.split(',')
+    cols = []
+    for r in ranges:
+        if "-" in r:
+            low, high = r.split('-')
+            cols += range(int(low), int(high)+1)
+        else:
+            cols.append(int(r))
+    return cols
+
 def main(args):
     header = getHeader(args.input_file)
     if not header:
@@ -49,8 +60,8 @@ def main(args):
     if not args.ycolumns:
         usecols = [ args.xcolumn ]
     else:
-        for y in args.ycolumns:
-            usecols = [ args.xcolumn ] + args.ycolumns 
+        ycols = get_ycols(args.ycolumns)
+        usecols = [ args.xcolumn ] + ycols
     labels = [ args.header[i] for i in usecols ]
     _logger.info("[INFO] Using columns: %s" % usecols)
     _logger.debug("[INFO] lables: %s" % labels)
@@ -108,9 +119,8 @@ if __name__ == '__main__':
             , help = 'Which column is x-axis'
             )
     parser.add_argument('--ycolumns', '-y'
-            , nargs = '+'
-            , default = [1]
-            , type = int
+            , default = ","
+            , type = str
             , help = "Columns to plot as y-axis"
             )
     parser.add_argument('--outfile', '-o'
