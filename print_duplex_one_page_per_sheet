@@ -7,7 +7,7 @@ function print_page()
 {
     PAGEID="$1"
     echo "Printing page no $1 of $FILE"
-    #$PRINT_COMMAND -P "$1" "$FILE"
+    $PRINT_COMMAND -P "$1" "$FILE"
 }
 
 echo "Total pages: $PAGES"
