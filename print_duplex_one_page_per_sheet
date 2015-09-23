@@ -1,13 +1,19 @@
 #!/bin/bash
-PRINT_COMMAND="lp -o media=A4 -o prettyprint"
+set -x
+if [[ "-x" == "$1" ]]; then
+    echo "Debug mode"
+    PRINT_COMMAND="echo"
+else
+    PRINT_COMMAND="lp -o media=A4 -o prettyprint"
+fi
+
 FILE="$1"
 PAGES=`pdfinfo "$FILE" | grep "Pages:" | cut -d':' -f2 | tr -d ' '`
 
 function split_into_even()
 {
-    filename="$1"
     echo "Generating even pages in reverse order"
-    pdftk A="$filename" cat Aend-1even output /tmp/even_pages.pdf
+    pdftk A="$1" cat Aend-1even output /tmp/even_pages.pdf
 }
 
 function print_page()
@@ -36,7 +42,7 @@ fi
 
 ## If pdftk is available then split the pdf using pdftk and print the even pages
 ## separately.
-if `which pdftk` then
+if [[ `which pdftk` ]]; then
     split_into_even "$FILE"
     $PRINT_COMMAND /tmp/even_pages.pdf
 else
