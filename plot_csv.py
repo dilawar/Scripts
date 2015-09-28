@@ -62,7 +62,12 @@ def main(args):
     else:
         ycols = get_ycols(args.ycolumns)
         usecols = [ args.xcolumn ] + ycols
-    labels = [ args.header[i] for i in usecols ]
+    labels = []
+    try:
+        labels = [ args.header[i] for i in usecols ]
+    except:
+        labels = args.header
+
     _logger.info("[INFO] Using columns: %s" % usecols)
     _logger.debug("[INFO] lables: %s" % labels)
 
