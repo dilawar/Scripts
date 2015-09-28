@@ -65,11 +65,19 @@ def main(args):
     labels = [ args.header[i] for i in usecols ]
     _logger.info("[INFO] Using columns: %s" % usecols)
     _logger.debug("[INFO] lables: %s" % labels)
-    data = np.loadtxt(args.input_file
-            , skiprows = skiprows
-            , delimiter = args.delimiter
-            , usecols = usecols
-            )
+
+    try:
+        data = np.loadtxt(args.input_file
+                , skiprows = skiprows
+                , delimiter = args.delimiter
+                , usecols = usecols
+                )
+    except:
+        print("[WARN] Can get given ranges. Getting default.")
+        data = np.loadtxt(args.input_file
+                , skiprows = skiprows
+                , delimiter = args.delimiter
+                )
     data = np.transpose(data)
     xvec = data[0]
     for i, d in enumerate(data[1:]):
