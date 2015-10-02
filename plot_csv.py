@@ -1,7 +1,5 @@
-
-
-
 #!/usr/bin/env python
+
 # A quick plotting of csv files.
 import sys
 import matplotlib.pyplot as plt
