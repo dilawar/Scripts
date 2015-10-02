@@ -1,7 +1,11 @@
+
+
+
 #!/usr/bin/env python
 # A quick plotting of csv files.
 import sys
 import matplotlib.pyplot as plt
+import matplotlib 
 import re
 import os
 import numpy as np
@@ -50,6 +54,14 @@ def get_ycols(colexpr):
             cols.append(int(r))
     return cols
 
+def modify_convas(header, nplots, args):
+    if not args.subplot:
+        return
+    matplotlib.rcParams['figure.figsize'] = 10, 1.3*nplots
+    matplotlib.rcParams['lines.linewidth'] = 1
+    matplotlib.rcParams['font.size'] = 8
+    #matplotlib.rcParams['savefig.frameon'] = False
+
 def main(args):
     header = getHeader(args.input_file)
     if not header:
@@ -85,16 +97,17 @@ def main(args):
                 )
     data = np.transpose(data)
     xvec = data[0]
+    modify_convas(header, len(data), args)
     for i, d in enumerate(data[1:]):
         _logger.info("Plotting %s" % i)
         if args.subplot:
             _logger.info("plotting in subplot")
-            plt.subplot(len(data[1:]), 1, i)
+            plt.subplot(len(data[1:]), 1, i, frameon=True)
         if args.marker:
             plt.plot(xvec, d, args.marker, label = labels[i+1])
         else:
             plt.plot(xvec, d, label = labels[i+1])
-        plt.legend(loc='best', framealpha=0.4)
+        plt.legend(framealpha=0.4)
 
     if args.title:
         plt.title(args.title)
