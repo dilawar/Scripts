@@ -41,7 +41,7 @@ def getHeader(filename):
     _logger.debug("INFO Found header %s" % header)
     return header
 
-def get_ycols(colexpr):
+def get_ycols(colexpr, header=None):
     ranges = colexpr.split(',')
     cols = []
     for r in ranges:
@@ -49,7 +49,15 @@ def get_ycols(colexpr):
             low, high = r.split('-')
             cols += range(int(low), int(high)+1)
         else:
-            cols.append(int(r))
+            try:
+                cols.append(int(r))
+            except:
+                assert header
+                try:
+                    cols.append(header.index(r))
+                except:
+                    print("[WARN] Could not find %s in %s" % (r, header))
+                    sys.exit(0)
     return cols
 
 def modify_convas(header, nplots, args):
@@ -70,7 +78,7 @@ def main(args):
     if not args.ycolumns:
         usecols = [ args.xcolumn ]
     else:
-        ycols = get_ycols(args.ycolumns)
+        ycols = get_ycols(args.ycolumns, header)
         usecols = [ args.xcolumn ] + ycols
     labels = []
     try:
