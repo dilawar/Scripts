@@ -127,3 +127,5 @@ if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
 fi
 export SSHPASS=jH7qMYpF
+
+export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"

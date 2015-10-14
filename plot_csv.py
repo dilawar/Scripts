@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # A quick plotting of csv files.
 import sys
 import matplotlib.pyplot as plt
@@ -36,7 +35,9 @@ def getHeader(filename):
         return None
     with open(filename, "r") as f:
         header = f.read().split("\n")[0]
-    header = header.split(",")
+    if '#' == header[0]:
+        header = header[1:]
+    header = [x.strip() for x in header.split(",")]
     args.header = header
     _logger.debug("INFO Found header %s" % header)
     return header
@@ -151,7 +152,7 @@ if __name__ == '__main__':
             , help = 'Which column is x-axis'
             )
     parser.add_argument('--ycolumns', '-y'
-            , default = ","
+            , default = "1"
             , type = str
             , help = "Columns to plot as y-axis"
             )
