@@ -1,0 +1,4 @@
+#!/bin/bash
+INTERFACE=`ip link show | cut -d' ' -f2 | sort -u | grep -v '^$' | head -1`
+echo "Ping $1"
+arping -I $INTERFACE -c 3 "$1"
