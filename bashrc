@@ -57,7 +57,7 @@ alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias sudo='sudo -E'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
-alias note='terminal_velocity'
+alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -129,3 +129,4 @@ fi
 export SSHPASS=jH7qMYpF
 
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
+export PATH=$PATH:$HOME/.cabal/bin

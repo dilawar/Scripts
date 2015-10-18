@@ -105,8 +105,10 @@ def main(args):
     data = np.transpose(data)
     xvec = data[0]
     modify_convas(header, len(data), args)
+    _logger.debug(xvec)
     for i, d in enumerate(data[1:]):
         _logger.info("Plotting %s" % i)
+        _logger.debug(d)
         if args.subplot:
             _logger.info("plotting in subplot")
             plt.subplot(len(data[1:]), 1, i, frameon=True)
