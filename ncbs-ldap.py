@@ -92,7 +92,7 @@ def format_entry(entry):
         lab = " ".join(data.get('profileLaboffice', []))
         line.append("{:10}: {} ".format("Lab", lab))
     elif data.get('macAddress', None):
-        macId = " ".join(data['macAddress'])
+        macId = " ".join(data['macAddress']).replace('-', ':')
         line.append("{:30}: {}".format("MacId", macId))
     return "\n".join(line)
 
