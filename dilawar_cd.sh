@@ -3,7 +3,7 @@
 # (c) Dilawar Singh, 2013
 # dilawar@ee.iitb.ac.in
 
-function dilawar_cd
+function dilawar_cdilawar_cd
 {
   #alias cd='cd'
   dbname=$HOME/.cdsqlite
@@ -44,7 +44,7 @@ function dilawar_cd
 
     ## Good, we have a choice. Now find the directory and cd to it.
     dir=${ch[$choice]}
-    c $dir
+   dilawar_cd $dir
   elif [ "$1" == "--clean" ] ; then
     # go through each entry and check if that directory exists. If it does not
     # exits then remove it from database.
@@ -88,7 +88,7 @@ function dilawar_cd
       done 
       if [[ $count -eq 1 ]]; then 
         dir=${cch[0]}
-        c $dir
+       dilawar_cd $dir
       else 
         echo "Your choice [default 0] : "
         read choice 
@@ -103,7 +103,7 @@ function dilawar_cd
         fi
         ## Good, we have a choice. Now find the directory and cd to it.
         dir=${cch[$choice]}
-        c $dir
+        dilawar_cd $dir
       fi
     fi
   fi
