@@ -80,6 +80,7 @@ def partition_plots(mat):
     ranges = zip(mins, maxs, avgs)
     cluster = { 0 : [ranges[0]] }
     cluster = do_clustering(ranges[1:], cluster)
+    _logger.debug("Clusters: %s" % cluster)
     
     # Return the results clustered according to indices.
     result = []
@@ -88,21 +89,21 @@ def partition_plots(mat):
         for v in cluster[k]:
             c.append(ranges.index(v))
         result.append(c)
+    _logger.info("Clustes: %s" % result)
     return result
 
 def mergable(x, rngs):
     import math
-    merge = True
+    merge = False
     assert type(rngs) == list
     for r in rngs:
         lx = x[1] - x[0]
         xbar = x[2]
         lr = r[1] - r[0]
         lbar = r[2]
-        if abs(math.log(float(lr)/lx, 2)) > 1.3:
-            merge = False
-        if max(x+r) - min(x+r) > abs(lr) + abs(lbar):
-            merge = False
+        if abs(math.log(float(lr)/lx, 2)) < 1.3:
+            if max(x+r) - min(x+r) < abs(lr) + abs(lbar):
+                merge = True
     return merge
         
 
