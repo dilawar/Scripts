@@ -69,6 +69,64 @@ def modify_convas(header, nplots, args):
     matplotlib.rcParams['font.size'] = 8
     #matplotlib.rcParams['savefig.frameon'] = False
 
+def partition_plots(mat):
+    """Partition plots according to min and max of columns """
+    mins, maxs, avgs = [], [], []
+    for i, col in enumerate(mat):
+        mins.append(col.min())
+        maxs.append(col.max())
+        avgs.append(col.mean())
+
+    ranges = zip(mins, maxs, avgs)
+    cluster = { 0 : [ranges[0]] }
+    cluster = do_clustering(ranges[1:], cluster)
+    
+    # Return the results clustered according to indices.
+    result = []
+    for k in cluster:
+        c = []
+        for v in cluster[k]:
+            c.append(ranges.index(v))
+        result.append(c)
+    return result
+
+def mergable(x, rngs):
+    import math
+    merge = True
+    assert type(rngs) == list
+    for r in rngs:
+        lx = x[1] - x[0]
+        xbar = x[2]
+        lr = r[1] - r[0]
+        lbar = r[2]
+        if abs(math.log(float(lr)/lx, 2)) > 1.3:
+            merge = False
+        if max(x+r) - min(x+r) > abs(lr) + abs(lbar):
+            merge = False
+    return merge
+        
+
+def do_clustering(ranges, cluster):
+    #print cluster
+    if len(ranges) == 0:
+        return cluster
+
+    newranges = []
+    for r in ranges:
+        merged = False
+        for k in cluster:
+            if mergable(r, cluster[k]):
+                cluster[k].append(r)
+                merged = True
+        if not merged:
+            newranges.append(r)
+
+    if not newranges:
+        return cluster
+    cluster[len(cluster)] = [newranges[0]]
+    return do_clustering(newranges[1:], cluster)
+
+
 def main(args):
     header = getHeader(args.input_file)
     if not header:
@@ -106,17 +164,29 @@ def main(args):
     xvec = data[0]
     modify_convas(header, len(data), args)
     _logger.debug(xvec)
-    for i, d in enumerate(data[1:]):
-        _logger.info("Plotting %s" % i)
-        _logger.debug(d)
-        if args.subplot:
-            _logger.info("plotting in subplot")
-            plt.subplot(len(data[1:]), 1, i, frameon=True)
-        if args.marker:
-            plt.plot(xvec, d, args.marker, label = labels[i+1])
-        else:
-            plt.plot(xvec, d, label = labels[i+1])
-        plt.legend(framealpha=0.4)
+
+    if args.auto:
+        ## Partition colums to reduces the numbers of subplots
+        _logger.info("Clustering plots to save space --auto/-a was given")
+        clusters = partition_plots(data[1:])
+        for j, subs in enumerate(clusters):
+            plt.subplot(len(clusters), 1, j+1)
+            for i in subs:
+                plt.plot(xvec, data[i+1], label = labels[i+1])
+            plt.legend(framealpha=0.4)
+    else:
+        for i, d in enumerate(data[1:]):
+            _logger.info("Plotting %s" % i)
+            _logger.debug(d)
+
+            if args.subplot:
+                _logger.info("plotting in subplot")
+                plt.subplot(len(data[1:]), 1, i, frameon=True)
+            if args.marker:
+                plt.plot(xvec, d, args.marker, label = labels[i+1])
+            else:
+                plt.plot(xvec, d, label = labels[i+1])
+            plt.legend(framealpha=0.4)
 
     if args.title:
         plt.title(args.title)
@@ -148,7 +218,7 @@ if __name__ == '__main__':
             , default = True
             , help = "Is first line header?"
             )
-    parser.add_argument('--xcolumn', '-xs'
+    parser.add_argument('--xcolumn', '-x'
             , default =  0
             , type = int
             , help = 'Which column is x-axis'
@@ -180,6 +250,11 @@ if __name__ == '__main__':
     parser.add_argument('--subplot', '-s'
             , action = 'store_true'
             , help = 'Plot each plot as subplot'
+            )
+
+    parser.add_argument('--auto', '-a'
+            , action = 'store_true'
+            , help = 'Cluster subplots together according to range'
             )
 
     parser.parse_args(namespace=args)
