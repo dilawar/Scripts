@@ -130,3 +130,6 @@ export SSHPASS=jH7qMYpF
 
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
+export HASKELLPATH=$HOME/Work/Haskell
+alias ghci='ghci -i$HASKELLPATH'
+alias ghc='ghc -i$HASKELLPATH'
