@@ -1,2 +1,2 @@
 #!/bin/bash 
-exec xterm -e ~/Scripts/m "$@"
+exec xterm -e ~/.mutt/m "$@"
