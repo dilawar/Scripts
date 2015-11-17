@@ -2,7 +2,7 @@
 \usepackage{mathtools,amsmath,amssymb,amsthm,mathrsfs}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\usepackage{circuitikz}
+%\usepackage{circuitikz}
 \makeatletter
 \@ifpackageloaded{tex4ht}{
     \def\pgfsysdriver{pgfsys-tex4ht.def}
