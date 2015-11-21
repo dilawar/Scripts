@@ -11,5 +11,6 @@ mkdir -p _build
 (
     cd _build
     cmake "$@" ..
-    make -j`nproc`
+    make -j`nproc` | tee ../__build__.log
+    ctest -V 
 )
