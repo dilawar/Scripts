@@ -2,9 +2,4 @@
 echo '{"version":1}'
 echo '['
 echo '[],'
-
-if which conky; then
-    exec conky -c $HOME/Scripts/conkyrc
-else
-    echo "Conky not found. Can not execute status command"
-fi
+exec conky -c $HOME/Scripts/conkyrc
