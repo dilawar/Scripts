@@ -4,7 +4,8 @@ SCRIPT_HOME=$HOME/Scripts
 source $SCRIPT_HOME/colors.sh
 
 currentList=$(mpc -f "%file%" playlist)
-searched=$(mpc search any $1)
+mpc update
+searched=$(mpc listall | grep -i -e "$1")
 IFS=$'\n'
 for song in $searched 
 do 
