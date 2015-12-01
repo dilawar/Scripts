@@ -26,6 +26,11 @@ profileDir = profileParser.get('Profile0', 'Path')
 
 # Now get the list of tabs
 sessionFile = os.path.join(firefoxDir, profileDir, "sessionstore.js")
+if not os.path.exists( sessionFile ):
+    sessionFile = os.path.join(firefoxDir, profileDir
+            , 'sessionstore-backups', 'recovery.js'
+            )
+
 with open(sessionFile, "r") as sf:
     data = json.loads(sf.read())
 
