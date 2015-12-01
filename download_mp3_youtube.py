@@ -54,13 +54,15 @@ def downloadUrl(url, args, outputDir=os.path.join(home, "Music/Downloads")):
     if not os.path.isdir(outputDir):
         os.makedirs(outputDir)
     outputFile = os.path.join(outputDir, '%(title)s-%(id)s.%(ext)s')
+    outputFile = outputFile.replace("'", "_")
+
     if "--playlist" not in args:
-        opts = ["-k", "-x", "-o", "{}".format(outputFile)
+        opts = ["-k", "-x", "-o", "{0}".format(outputFile)
                 , "--audio-format", "mp3"
                 , "--no-playlist" ] + [ url ]
     else:
         print("[INFO] Downloading playlist from youtube.")
-        opts = ["-k", "-x", "-o", "{}".format(outputFile)
+        opts = ["-k", "-x", "-o", "{0}".format(outputFile)
                 , "--audio-format", "mp3" ] + [ url ]
 
     youtube_dl.main(opts)
