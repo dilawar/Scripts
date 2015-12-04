@@ -24,7 +24,6 @@
 \usetikzlibrary{shapes,backgrounds,positioning,matrix,decorations}
 
 \usepackage{siunitx}
-\usepackage{python}
 \usepackage{ifxetex,ifluatex}
 \usepackage{listings}
 % \usepackage[xindy,acronym,nomain,toc]{glossaries}
