@@ -182,7 +182,7 @@ def main(args):
 
             if args.subplot:
                 _logger.info("plotting in subplot")
-                plt.subplot(len(data[1:]), 1, i+1, frameon=True)
+                plt.subplot(len(data[1:]), 1, i, frameon=True)
             if args.marker:
                 plt.plot(xvec, d, args.marker, label = labels[i+1])
             else:
