@@ -8,10 +8,10 @@ audio/*; vlc %s\; exit 1
 
 # The following line is for sites where xv understands jpeg but xloadimage 
 # is preferred. 
-image/jpeg; display %s; test=test -n "$DISPLAY"
-image/jpeg; eog %s; test=test -n "$DISPLAY"
+image/jpeg; feh %s; test=test -n "$DISPLAY"
+image/jpeg; feh %s; test=test -n "$DISPLAY"
 image/jpg; feh %s; test=test -n "$DISPLAY"
-image/*; display %s; test=test -n "$DISPLAY"
+image/*; feh %s; test=test -n "$DISPLAY"
 
 #image/x-fits; saoimage -fits %s 2> /dev/null
 image/x-xwindowdump; xwud -in %s 2> /dev/null
@@ -24,7 +24,7 @@ image/tiff; qiv %s; test=test -n "$DISPLAY"
 image/x-tiff; xv %s; test=test -n "$DISPLAY"
 
 # For receiving X11 window image dumps from older versions of Andrew messages
-image/x-xwd; display %s; \
+image/x-xwd; feh %s; \
 	description="An X11 window image dump in X-XWD format"
 
 #image/x-sgi; ipaste %s; compose=imgworks %s; description="SGI image"; \
@@ -35,11 +35,11 @@ image/x-xwd; display %s; \
 #	x11-bitmap="/usr/lib/Zmail/bitmaps/bitmap.xbm"
 
 # The following sends all other image subtypes to display.
-image/*; display %s; test=test -n "$DISPLAY"
+image/*; feh %s; test=test -n "$DISPLAY"
 
 # The following sends all other image subtypes to xloadimage
 #image/*; xli %s; test=test -n "$DISPLAY"
-image/*; display %s; test=test -n "$DISPLAY"
+image/*; feh %s; test=test -n "$DISPLAY"
 
 
 #
