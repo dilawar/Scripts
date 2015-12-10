@@ -1,0 +1,546 @@
+#! /bin/bash 
+shopt -s extglob # for case pattern matching 
+
+# CONFIG
+
+# AUTO-IMPORT NEXT ACTIONS
+OL_AUTO_IMPORT=1 # Automatically import after every action that changes an outline
+
+## TEXT EDITOR ##
+# When creating a new outline file ($file) with the outline command,
+# the command $EDITOR $TODO_DIR/$file will be run. By default, the environmental variable EDITOR 
+# will be checked, otherwise vi will be called.
+EDITOR=${EDITOR:-"vim"} # set EDITOR, if not already set
+
+## OUTLINE FILES ##
+# File name format is <project>[<delimiter><priority>][<delimiter><context>..]<file_ending>
+#   e.g. buymilk-A.outline.txt
+# Take care that file ending does not conflict with other files, and that the delimiter
+# does not conflict with your project names.
+OL_FILENAME_ENDING=".ol.txt" # ending of outline file names
+OL_FILENAME_DELIMITER="." # delimits project names in filename
+OL_INDENT_CHAR="\t" # how indentations in the outline are marked for awk. TAB character by default
+OL_NEXT_TAG="#next" # identifies this item's task tree as active. Use ##next to activate all subtrees
+OL_LIST_TAG="#list" # direct child task trees are active when task is active. Useful for shopping lists, etc 
+OL_BLOCK_TAG="#block" # Prevents item from bieng identified as next action
+OL_WAITFOR_LABEL="#waitfor"	 # "#waitfor:PROJECT" will block identification as next action until there is no 
+				# outline corresonding to PROJECT in todo directory. ##waitfor:project to apply to 
+				# entire task tree.
+
+## FUNCTIONS ##
+getNextActionsFromOutline(){
+    # next actions are first item with no subtasks
+    #   of an active node of the task tree, or the child of
+    #   an active node with the #list tag.
+    #   A node is active if it is the 1st
+    #   line of the outline, tagged with #next,
+    #   the first subtask of an active node, or any subtask
+    #   of a node with the @list tag.
+    # Input: $1 is name of outline file in todo directory
+    # Postconditions: nextActionArray contains next actions
+    #                 and blank lines (to indicate line number)
+	local outline_file="$1"
+
+	local nextActionsString="$(
+  gawk --re-interval -v indent="$OL_INDENT_CHAR" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
+  FS=indent
+  }
+  function processPrevTask(){
+    # identify if prev next action
+    ## was on active trunk
+    ## current is not subtask of prev
+    if (prevActive && NF <= prevNF)
+    {
+      sub(/^[(][A-Z][)] /,"", prev)
+      if ( prevPriorityArray[prevNF] != "")
+        priority= prevPriorityArray[prevNF] " " 
+      else
+        priority=""
+      nextAction = priority prev prevTagArray[prevNF]
+      gsub(/\+\+/,"+", nextAction)
+      gsub(/@@/,"@", nextAction)
+      gsub(/##/,"#", nextAction)
+      # check for #wait tags 
+      regex=blockTag
+      m=match($0 tagArray[NF], blockTag) 
+      if (m != 0)
+      {
+        print ""
+	}
+else
+        print nextAction
+    } 
+    else
+      print ""
+  } { #- Get and inherit attributes -# 
+    # kill any lists at or below this level
+    for ( i=NF; i <= 20; i++)
+    {
+      activeListNFArray[i] = 0
+    }
+
+    # if inActive get new attributes
+    if (1==1) # (inActive==1)
+    {
+      # copy previous tags
+      for (i=1; i < NF; i++)
+      {
+        tagArray[i]=prevTagArray[i]
+      }
+      # if has priority, add to array, otherwise inherit
+      m=match($NF, /^[(][A-Z][)]/)
+      if (m != 0 )
+        priorityArray[NF]=substr($NF, m, RLENGTH)
+      else if (NF > 1) # if NF is 1, nothing to inherit
+        priorityArray[NF]=priorityArray[NF-1]
+      else
+        priorityArray[NF]=""
+
+      # copy previous projects
+      for (i=1; i < NF; i++)
+      {
+        projectsArray[i]=prevProjectsArray[i]
+      }
+      # store current projects 
+      ## loop to get all heritable tags
+      tagList= ""
+      RSTART=1
+      RLENGTH=0
+      substring=$NF
+      do {
+        substring =substr(substring, RSTART+RLENGTH)
+        match(substring, /[+@#]{2}[A-Za-z0-9_.-]+/ )
+        if(RSTART != 0)
+        {
+          tag = substr(substring, RSTART, RLENGTH)
+          tagList = tagList " " tag
+        }
+      } while (RSTART != 0)
+      tagArray[NF]= tagList tagArray[NF-1]
+
+      # determine if this is the root of a list
+      m=match($0 tagArray[NF], checklistTag)
+      if (m != 0) # matched checklist tag
+      {
+        activeListNFArray[NF] = 1
+      }  
+
+    }
+
+    #- Determine if in Active Task Trunk -#
+
+    inActive=0
+
+    # check if 1st task
+    if (NR==1 ) 
+    { 
+      inActive=1
+    }
+
+    # first subtask of prev active
+    else if(prevActive==1 && NF > prevNF)
+    {
+      inActive=1
+    }
+
+    # check for #next tags 
+    m=match($0 tagArray[NF], newTaskTreeTag) 
+    if (m != 0)
+    {
+      inActive=1
+    }
+
+    # subtask of active list ?
+    if (activeListNFArray[NF-1] == 1)
+    {
+      inActive=1
+    }
+
+    #-- Process --#
+    if (NR > 1)
+      processPrevTask()   
+
+    #-- Previous -> Current --#
+    prev=$NF
+    prevprev=prev
+    prevNF=NF
+    prevActive=inActive
+    for (i=1; i<= NF ; i++)
+      prevPriorityArray[i]=priorityArray[i]
+    
+    for (i=1; i<= NF ; i++)
+    {
+      prevTagArray[i]=tagArray[i]
+    }
+  }END{
+    # if (prevprev != prev ) # workaround for trailing blank lines
+      processPrevTask()
+  } ' "$TODO_DIR/$outline_file"
+    )"
+
+    nextActionArray=() # todos will go in here
+    while read -r ; do
+        if [[ -n "$REPLY" ]]; then
+			# this line is not blank
+
+	    	# check for waitfor tag
+	    	local waitprj=$(echo $REPLY | grep -Eo "${OL_WAITFOR_LABEL}:.*" | cut -d: -f2)
+	    	if [[ -n $waitprj && -e "$TODO_DIR/${waitprj}${OL_FILENAME_ENDING}" ]]; then 
+		    	nextActionArray+=("")
+			else
+				# strip hashtags from output
+				local nextAction="$REPLY"
+				nextAction=${nextAction//$OL_WAITFOR_LABEL:$waitprj/}
+				nextAction=${nextAction//$OL_BLOCK_TAG/}
+				nextAction=${nextAction//$OL_LIST_TAG/}
+				nextAction=${nextAction//$OL_NEXT_TAG/}
+				nextActionArray+=("$nextAction")
+			fi	
+
+        else 
+            # blank lines are used to preserve line number for _format()
+            nextActionArray+=("")
+        fi
+    done <<< "$nextActionsString"
+}
+
+usage(){
+    cat <<ENDUSAGE
+	outline|ol addto|append PROJECT "TEXT..."
+	outline|ol edit PROJECT
+	outline|ol help
+	outline|ol import
+	outline|ol mkol PROJECT [#ITEM]
+	outline|ol mv #ITEM PROJECT
+	outline|ol prepend PROJECT "TEXT..."
+	outline|ol ls
+ENDUSAGE
+}
+
+help(){
+    cat <<ENDHELP
+	outline|ol addto|append PROJECT "TEXT..."
+		Append TEXT to outline with name containing PROJECT.
+		
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+		
+	outline|ol edit PROJECT
+		Open outline with name containing PROJECT using program specified
+		in \$EDITOR.
+		
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+
+	outline|ol help
+		Display this page
+		
+	outline|ol import
+		Next actions, as defined below, are imported into todo.txt from outline
+		files in todo directory, unless blocked by an existing subtask.
+	outline|ol ls [TERM]
+		List names of outlines in todo directory, with name containing TERM if given.
+		
+	outline|ol mkol PROJECT [#ITEM]
+		Create an outline file corresponding to PROJECT, and move task at line
+		#ITEM in todo.txt to the outline. A menu to select a parent outline from
+		the existing outlines is presented.	
+
+	outline|ol mv #ITEM PROJECT
+		Move todo task at #ITEM in todo.txt to outline with name containing 
+		PROJECT.
+
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+
+	outline|ol prepend PROJECT "TEXT..."
+		Add TEXT as a line to the begging of outline with name containing PROJECT.
+	
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+
+	Outline files:
+
+		Files in the todo directory ending in "$OL_FILENAME_ENDING" are regarded 
+		as outline files.  Each file should be a tab-indented outline without 
+		blank lines.
+
+		The outline filename format is:
+		"grandparentproject.parentproject.project${OL_FILENAME_ENDING}"
+
+		Parent projects in the filename indicate task dependency, and tasks from
+		"parent${OL_FILENAME_ENDING}" will be blocked from import as long as
+		"parent.child${OL_FILENAME_ENDING}" is present in the todo directory.
+	
+	Next Actions:
+
+		A next action is identified as an active task with no subtask, where 
+		an active task is the first item in the outline or the first subtask
+		of another active task. 
+
+		An item's status as an active task or next action can be modified by
+		various tags described below.
+
+	Outline tags:
+
+		$OL_NEXT_TAG	Marks an outline item as active.
+		$OL_LIST_TAG	Marks every direct subtask of an item as active.
+		$OL_BLOCK_TAG   Blocks the item from being identified as a next action.
+		${OL_WAITFOR_LABEL}:PROJECT   Blocks item as next action until 
+		"+PROJECT" is absent from todo.txt and there is no outline file in the 
+		todo directory corresponding to PROJECT.
+
+		Tag and priority inheritancej:
+
+		Tags are words that have been prepended with the sigil #, @, or +. 
+		Tags with doubled sigils, as in @@context, are inherited by subtasks. 
+		This includes the special outline tags described above, and their 
+		effects. Tasks with priority indicated by, e.g. "(A)" have their 
+		prioirty inherited by any subtasks. 
+
+	outline|ol ls
+		List all outlined projects in todo directory
+	
+ENDHELP
+}
+
+importNextActions(){
+
+	# Adds next action(s) from specified outline into todo.txt
+	# Input: $1 is the name of an outline file in the todo directory
+
+	local outline_filename="$1"
+	local file="$TODO_DIR/$outline_filename"
+
+	
+	# defragment blank lines
+	sed -i.bak -e '/./!d' "$file"
+	[ $TODOTXT_VERBOSE -gt 0 ] && grep "^[[:space:]]*x " "$file"
+	grep "^[[:space:]]*x " "$file" >> "$DONE_FILE"
+	sed -i.bak '/^\s*x /d' "$file"
+
+	[[ ! -e $file ]] && die "No outline files in $TODO_DIR"
+
+	# if file is just ".ol.txt" let's just skip it
+	[[ "$outline_filename" == "${OL_FILENAME_ENDING}" ]] && continue
+
+	# if file is empty, prompt to remove and skip 
+	if [[ ! -s "$TODO_DIR/$outline_filename" ]]; then 
+		echo "$(basename $outline_filename) is empty"
+
+		# check if forcing on
+		if [[ "$TODOTXT_FORCE" = 0 ]]; then
+			echo "remove $(basename "$outline_filename")? (y/n)"
+			read
+			if [[ ! "$REPLY" =~ ^[Yy] ]]; then
+				echo "edit $(basename "$outline_filename")? (y/n)"
+				[[ "$REPLY" =~ ^[Yy] ]] && $EDITOR "$TODO_DIR/$outline_filename" 
+				return
+			fi
+		fi
+		rm -fv "$TODO_DIR/$outline_filename" # remove file
+		return
+	fi
+
+	# get outline project info
+	local project=${outline_filename%%${OL_FILENAME_ENDING}}
+
+	# check if child outlines exist in todo folder
+	local matching_files=()
+	matching_files=( $TODO_DIR/${project}${OL_FILENAME_DELIMITER}*${OL_FILENAME_ENDING})
+	if [[ -f ${matching_files[0]} || ${#matching_files[@]} > 1 ]] ; then
+		# child outlines (dependencies) exist in todo dir, skip this one
+		if [[ $TODOTXT_VERBOSE -gt 1 ]]; then
+			printf '%s\n' "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z): Import blocked by ${matching_files[0]##*/}"
+		fi
+		return
+	fi
+
+	# check if todo.txt already has imported item from this outline
+	blocking_items="$(grep -n "outline:${project}" $TODO_FILE)"
+	if [[ -n ${blocking_items[@]} ]]; then
+		if [[ $TODOTXT_VERBOSE -gt 1 ]]; then
+			echo "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z): Import blocked by ${blocking_items[0]}"
+		fi
+
+		return	 
+	fi
+
+	# get nextActionArray
+	nextActionArray=()
+	getNextActionsFromOutline $outline_filename
+	# loop over nextActionArray and add items, remove from outline
+	for (( j = 0; j < ${#nextActionArray[@]}; j++ )); do  
+		# if not blank, corresponds to next action
+		if [[ "${nextActionArray[$j]}" =~ [A-Za-z0-9]+ ]]; then 
+			# add item to todo.txt
+			$TODO_FULL_SH add "${nextActionArray[$j]} outline:${project}" 
+			# remove from outline
+			sed -i.bak "$((j+1))d" $TODO_DIR/$outline_filename
+		fi
+	done
+}
+
+shift # $@ is now args after "ol" or "outline" 
+
+case "$1" in
+	"help" | "h" | "usage" )    
+		if [ -t 1 ] ; then # STDOUT is a TTY
+			if which "${PAGER:-less}" >/dev/null 2>&1; then
+				# we have a working PAGER (or less as a default)
+				help | "${PAGER:-less}" && exit 0
+			fi
+		fi
+
+		help | more
+		;;
+
+	"import" )
+		for file in $TODO_DIR/*${OL_FILENAME_ENDING}; do
+			# if file doesnt't exist, globbing failed, let's bail
+			[[ ! -f $file ]] && exit
+			importNextActions ${file##*/}
+		done
+		;;
+	"addto" | "append" ) 
+		errmsg="Usage: outline|ol append PROJ \"TEXT ...\""
+		shift
+		[[ -n $1 ]] || die $errmsg
+		outlines=()
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING} )
+		[[ -f ${outlines[0]} ]] || die "Unable to find outline file corresponding to \"$1\""
+		shift
+		echo "Append \"$@\" to which outline:"
+		select file in ${outlines[@]##*/} "CANCEL"; do
+			[[ $file = "CANCEL" ]] && exit
+			echo "$@" >> $TODO_DIR/$file
+			break
+		done
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		;;
+
+	"prepend")	
+
+		errmsg="Usage: outline|ol prepend PROJ \"TEXT ...\""
+		shift
+		[[ -n $1 ]] || die $errmsg
+		outlines=()
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING} )
+		shift
+		[[ -f ${outlines[0]} ]] || die "Unable to find outline file corresponding to \"$1\""
+
+		select file in ${outlines[@]##*/}; do
+			touch $TODO_DIR/${file}.tmp
+			echo "$@" > $TODO_DIR/${file}.tmp
+			cat $TODO_DIR/$file >> $TODO_DIR/${file}.tmp
+			mv -f $TODO_DIR/${file}.tmp $TODO_DIR/$file 
+			break
+		done
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		;;
+
+	"edit" | "e" )
+		errmsg="Usage: outline|ol edit PROJ"
+		shift
+		[[ -n $1 ]] || die "$errmsg"
+
+		outline_files=()
+		outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
+		[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
+
+		if [[ ${#outline_files[@]} > 1 ]] ; then
+			echo "Choose outline to edit:"
+			select file in ${outline_files[@]##*/}; do
+				$EDITOR $TODO_DIR/$file
+				break
+			done
+		else
+			$EDITOR ${outline_files[0]}
+		fi
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+				
+		;;
+
+	"ls" )
+		shift
+		outlines=()
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING})
+		[[ ! -f ${outlines[0]} ]] && echo "No outline files ending in ${OL_FILENAME_ENDING} in todo directory"
+		echo "$(for outline in ${outlines[@]##*/}; do
+			echo  ${outline[@]%%${OL_FILENAME_ENDING}}
+		done)" | sort
+		;;
+
+	"mv" )
+
+		errmsg="Usage: outline|ol mv #ITEM PROJ"
+		shift
+		[[ $1 =~ ^[0-9]+$ ]] || die "$errmsg"
+		item=$1
+		shift
+
+		[[ -n $1 ]] || die "$errmsg"
+
+		outline_files=()
+		outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
+		[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
+		getTodo $item
+		echo "$(getPrefix $TODO_FILE): $todo"
+		echo "Select target outline:"
+		select file in ${outline_files[@]##*/} "CANCEL"; do
+			[[ $file = "CANCEL" ]] && exit
+			outline_filename=$file
+			break
+		done
+		label=$(head -n$item $TODO_FILE | tail -n1 | grep -o "outline:.*" )
+		while [[ -n $label ]]; do 
+			$TODO_FULL_SH rm ${item} ${label} # todo ITEM outline:PROJ
+			label=$(head -n$item $TODO_DIR/$outline_filename| tail -n1 | grep -o "outline:.*") 
+		done
+		$TODO_FULL_SH -f mv $item $outline_filename
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		;;
+	"mkol" )
+		errmsg="Usage: outline|ol mkol PROJ [#ITEM]"
+		shift
+
+		[[ -n $1 ]] || die "$errmsg"
+
+		[[ "$1" =~ "${OL_FILENAME_DELIMITER}" ]] && die "Outline project names with \"${OL_FILENAME_DELIMITER}\" not permitted"
+		[[ "$1" =~ [[:space:]] ]] && die "Spaces not permitted in outline project name."
+
+		outline_files=()
+		outline_files=( $TODO_DIR/*${OL_FILENAME_ENDING} ) 
+
+		if [[ -f ${outline_files[0]} ]] ; then 
+			echo "Choose parent project outline:"
+			select file in ${outline_files[@]##*/} "NONE"; do
+				if [[ $file == "NONE" ]] ; then
+					outline_file="${1}${OL_FILENAME_ENDING}"
+					break
+				else
+					file=${file%%${OL_FILENAME_ENDING}}
+					outline_file=${file}${OL_FILENAME_DELIMITER}${1}${OL_FILENAME_ENDING}
+					break
+				fi
+			done
+		else 
+			outline_file="${1}${OL_FILENAME_ENDING}"
+		fi
+
+		 touch $TODO_DIR/$outline_file
+		if [[ -f "$TODO_DIR/$outline_file" ]] ; then
+			echo "$outline_file created"
+			shift
+			[[ "$1" =~ ^[0-9]+$ ]] && $TODO_FULL_SH mv $1 $outline_file 
+			$EDITOR $TODO_DIR/$outline_file
+			[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		else
+			echo "Unable to create $outline_file"
+		fi
+		;;
+
+		* )
+			usage
+			;;
+	esac
