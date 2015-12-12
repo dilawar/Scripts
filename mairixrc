@@ -1,4 +1,4 @@
 base=~/Mail
-maildir=EE:GPO:NCBS:GMAIL
-mfolder=mfolder
+maildir=NCBS:GMAIL
+mformat=maildir
 database=~/Mail/mairix.db

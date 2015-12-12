@@ -18,10 +18,14 @@ import os
 import re
 import mechanize
 import html2text
+import lxml.html as lhtml
 import cookielib
 import sys, os, shutil, getpass, glob, subprocess
 from bs4 import BeautifulSoup
 import urllib2 as urllib
+
+def fix_html( htmlText ):
+    return htmlText.decode( errors = 'ignore' )
 
 class Notepal():
 
@@ -90,14 +94,24 @@ class Notepal():
 
     def start(self, args):
         print("[INFO] Doing thingy")
+        links = []
         if 'list' in args:
             print("[INFO] Getting list of all notes")
             res = self.br.follow_link( text_regex = 'Recent posts')
             baseurl = self.br.geturl()
             for i, l in enumerate(self.br.links( url_regex = 'content\/' )):
                 print("%3s: %s" % (i, l.text))
+                links.append( l )
         else:
             print("[INFO] Unsupported args: %s" % args.keys())
+        res = raw_input( "Which post you want to read [None]")
+        if res:
+            postId = int(res)
+            link = links[ postId ]
+            html = lxml.parse( self.br.follow_link( link ).read() )
+        else:
+            return
+
 
 def main(args):
     notepal = Notepal()
