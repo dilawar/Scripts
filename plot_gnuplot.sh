@@ -2,8 +2,8 @@
 FILES="$@"
 filename="$1_$#"
 OUTFILE="$filename.png"
-TERM="svg"
-RANGE="1:2"
+TERM="png"
+RANGE="1:5"
 case $TERM in
     "eps") 
         TERMSTRING="postscript eps enhanced color"
