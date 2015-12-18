@@ -89,6 +89,8 @@ def format_entry(entry):
         line.append("{:10}: {} ".format("Email", email))
         alternateEmail = " ".join(data.get('profileAlternateemail', []))
         line.append("{:10}: {} ".format("Email", alternateEmail))
+        landline = data.get('profileLandline', [])
+        line.append("{:10}: {} ".format("Landline",landline) )
         lab = " ".join(data.get('profileLaboffice', []))
         line.append("{:10}: {} ".format("Lab", lab))
     elif data.get('macAddress', None):
