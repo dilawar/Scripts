@@ -2,6 +2,7 @@
 # This  script removes animal RNA from a given fasta file.
 import sys
 import os
+import read_fasta
 
 seqs_ = {}
 plants_ = {}
@@ -23,15 +24,8 @@ def parse_config():
     print("[INFO] Generated the dict having acceptable plants")
 
 def remove_animal( fasta_file ):
-    print("[INFO] Processing %s" % fasta_file)
-    with open( fasta_file, "r") as f:
-        text = f.read()
-    blocks = text.split('>')
-    for b in blocks:
-        data = filter(None, b.split('\n'))
-        if data:
-            header, seq = data[0], data[1:]
-            seqs_[header] = "".join(seq)
+    global seqs_
+    seqs_ = read_fasta.read_fasta( fasta_file )
     for k in seqs_:
         pId = k.split('-')[0]
         if pId in plants_:
