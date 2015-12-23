@@ -120,7 +120,6 @@ alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
-#export PYTHONPATH="$HOME/Work/GITHUB/moose-core/python:$HOME/Work/GITHUB/YACML"
 alias gcal='gcalcli --calendar="dilawar"'
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
@@ -131,4 +130,5 @@ export SSHPASS=jH7qMYpF
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
 #export PYTHONPATH=~/Work/GITHUB/BhallaLab/moose-core/python
+export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/python:$HOME/Work/GITHUB/YACML"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
