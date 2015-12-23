@@ -101,7 +101,10 @@ def mergable(x, rngs):
         xbar = x[2]
         lr = r[1] - r[0]
         lbar = r[2]
-        if abs(math.log(float(lr)/lx, 2)) < 1.3:
+        ratio = float(lr)/lx
+        if ratio <= 0:
+            return merge
+        if abs(math.log(ratio, 2)) < 1.3:
             if max(x+r) - min(x+r) < abs(lr) + abs(lbar):
                 merge = True
     return merge
