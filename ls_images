@@ -1,0 +1,4 @@
+#!/bin/bash
+# List all image files in directory.
+
+find . -type f -print0 | xargs -0 file --mime-type | grep -i image/
