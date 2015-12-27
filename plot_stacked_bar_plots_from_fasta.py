@@ -105,7 +105,7 @@ def barplot_gc(size, outfile):
 
     outfile = '%s_GC.png' % outfile
     print("Saving figures to %s" % outfile)
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile) #, transparent=True)
     
 def main(sequencefile, outfile):
     ReadSeparater(sequencefile)
