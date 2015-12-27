@@ -93,6 +93,7 @@ def barplot_gc(size, outfile):
     plt.legend( plots, legends , bbox_to_anchor = (0, 0.88, 1, 0.11)
             , ncol = 4, mode = 'expand'
             , borderaxespad = 0.
+            , fancybox = False
             )
 
     plt.ylim( [0, 110 ] )
