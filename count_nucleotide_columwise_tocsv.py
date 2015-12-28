@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python
     
 __author__           = "Anushree Narjala"
 __copyright__        = "Copyright 2015, Anushree Narjala and NCBS Bangalore"
@@ -66,17 +66,16 @@ def sort_according_to_size( seq ):
 
 def count_gc(size, sequences):
     """Count GC content of columns"""
-    print('[INFO] Counting nucleotide content in %s seqs (%s nuc long)' % (len(sequences), size ))
+    print('[LOG] Counting nucleotide content in %s seqs (%s nuc long)' % (len(sequences), size ))
     data = np.matrix([ list(x) for x in sequences])
     # Inverse the matrix
     counts = []
     for col in data.T:
         counts.append(Counter(col.getA1()))
     return counts
-
     
 def savecount(data, outfile):
-    print("Writing count to file %s" % outfile)
+    print("Writing nuc-count to file %s" % outfile)
     header = [ "G", "C", "A", "U"]
     keys = [ "G", "C", "A", "T"]
     with open(outfile, "w") as f:
@@ -87,46 +86,9 @@ def savecount(data, outfile):
             for key in keys:
                 line.append(str(count.get(key, 0)))
             f.write("{0}\n".format(",".join(line)))
-            
-def barplot_gc(size, outfile):
-    data = np.genfromtxt(outfile, delimiter=',', skiprows=1)
-    title = outfile.split('/')[-1]
-
-    plt.figure( )
-    ind = np.arange( size )
-
-    colors = [ 'tomato', 'firebrick', 'lightgreen', 'forestgreen' ]
-    legends = [ 'G', 'C', 'A', 'U' ]
-    width = 0.4
-    bottom = np.zeros( size )
-    nNuc = data[0].sum()
-    plots = []
-    for i, k in enumerate(data.T):
-        k = 100 * k / nNuc 
-        p = plt.bar(ind, k, width, bottom=bottom, color = colors[i])
-        bottom += k
-        plots.append( p[0] )
-
-    plt.legend( plots, legends , bbox_to_anchor = (0, 0.87, 1, 0.11)
-            , ncol = 4, mode = 'expand'
-            , borderaxespad = 0.
-            , fancybox = False
-            )
-
-    plt.ylim( [0, 110 ] )
-    plt.xlim( [0 - width , size ] )
-    plt.title("Position Specific Nucleotide Preference (%s seqs)", fontsize=15)
-    plt.xlabel("Position", fontsize=13)
-    plt.ylabel("Percentage", fontsize=13)
-    plt.xticks( ind + width/2, [ str(x) for x in range(1, size+1) ] )
-
-    outfile = '%s_GC.png' % outfile
-    print("Saving figures to %s" % outfile)
-    plt.savefig(outfile) #, transparent=True)
     
 def main(sequencefile, outfile):
     ReadSeparater(sequencefile)
-    
 
 if __name__ == '__main__':
     sequencefile = sys.argv[1]

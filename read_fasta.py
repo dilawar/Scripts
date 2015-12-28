@@ -1,6 +1,11 @@
-def read_fasta( filename ):
-    print("[INFO] Reading fasta file %s" % filename)
-    seqs = {}
+from collections import defaultdict 
+
+def read_fasta( filename, unique = False ):
+    print("[INFO] Reading %s, Collecting only unique?=" % (filename, unique))
+    if unique == True:
+        seqs = defaultdict( set )
+    else:
+        seqs = defaultdict(list)
     with open( filename, "r") as f:
         text = f.read()
     blocks = text.split('>')
@@ -8,6 +13,9 @@ def read_fasta( filename ):
         data = filter(None, b.split('\n'))
         if data:
             header, seq = data[0], data[1:]
-            seqs[header] = "".join(seq)
+            if unique == True:
+                seq[header].add("".join(seq))
+            else:
+                seqs[header].append("".join(seq))
     return seqs
 
