@@ -14,7 +14,7 @@ import scipy
 import sys
 import os
 from collections import defaultdict
-import read_fasta
+import read_seq
 
 try:
     from collections import Counter
@@ -24,11 +24,14 @@ except Exception as e:
 
 sorted_seq_ = defaultdict(list)
 
-def ReadSeparater(sequencefile):
+def ReadSeparater(sequencefile, filetype = 'fasta'):
     global sequences_
     global sorted_seq_ 
 
-    sequences_ = read_fasta.read_fasta(sequencefile, unique = False)
+    if filetype == 'fasta':
+        sequences_ = read_seq.read_fasta(sequencefile, unique = False)
+    else:
+        sequences_ = read_seq.read_text( sequencefile, unique = False)
 
     for k in sequences_:
         for seq in sequences_[k]:
@@ -69,7 +72,13 @@ def savecount(data, outfile):
             f.write("{0}\n".format(",".join(line)))
     
 def main(sequencefile, outfile):
-    ReadSeparater(sequencefile)
+    ext = sequencefile.split('.')[-1]
+    if ext in [ 'fasta', 'fa' ]:
+        filetype = 'fasta'
+    else:
+        filetype = 'txt'
+    ReadSeparater(sequencefile, filetype)
+
 
 if __name__ == '__main__':
     sequencefile = sys.argv[1]
