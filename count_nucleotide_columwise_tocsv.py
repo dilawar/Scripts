@@ -13,18 +13,15 @@ import numpy as np
 import scipy
 import sys
 import os
-from Bio import SeqIO, SeqUtils
 from collections import defaultdict
-import matplotlib.pyplot as plt
+import read_fasta
+
 try:
     from collections import Counter
 except Exception as e:
     print('[INFO] On python 2.6')
     from backport_collections import Counter
 
-#plt.style.use('ggplot')
-import read_fasta
-listoflist = []
 sorted_seq_ = defaultdict(list)
 
 def ReadSeparater(sequencefile):
@@ -32,21 +29,6 @@ def ReadSeparater(sequencefile):
     global sorted_seq_ 
 
     sequences_ = read_fasta.read_fasta(sequencefile, unique = False)
-from collections import defaultdict 
-
-def read_fasta( filename ):
-    print("[INFO] Reading fasta file %s" % filename)
-    seqs = defaultdict(list)
-    with open( filename, "r") as f:
-        text = f.read()
-    blocks = text.split('>')
-    for b in blocks:
-        data = filter(None, b.split('\n'))
-        if data:
-            header, seq = data[0], data[1:]
-            seqs[header].append("".join(seq))
-    return seqs
-
 
     for k in sequences_:
         for seq in sequences_[k]:
@@ -58,7 +40,6 @@ def read_fasta( filename ):
         counts = count_gc( size, sorted_seq_[size] )
         outfile = '%s_size_%s.csv' % (sequencefile, size)
         savecount( counts, outfile )
-        barplot_gc(size, outfile)
 
 def sort_according_to_size( seq ):
     global sorted_seq_ 

@@ -1,7 +1,7 @@
 from collections import defaultdict 
 
 def read_fasta( filename, unique = False ):
-    print("[INFO] Reading %s, Collecting only unique?=" % (filename, unique))
+    print("[INFO] Reading %s, Are collecting only unique: %s" % (filename, unique))
     if unique == True:
         seqs = defaultdict( set )
     else:
