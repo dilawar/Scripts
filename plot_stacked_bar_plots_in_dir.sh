@@ -12,7 +12,7 @@ for f in $FASTAFILES; do
     ./count_nucleotide_columwise_tocsv.py $f
 done
 
-CSVFILES=`find $1 type f -name "*.csv"`
+CSVFILES=`find $1 -type f -name "*.csv"`
 for f in $CSVFILES; do
     echo "plotting $f"
     ./plot_stackedbar_nucleotide_csv.py $f

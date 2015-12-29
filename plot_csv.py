@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.6
 # A quick plotting of csv files.
 import sys
 import matplotlib.pyplot as plt
@@ -174,7 +174,7 @@ def main(args):
             plt.subplot(len(clusters), 1, j+1)
             for i in subs:
                 plt.plot(xvec, data[i+1], label = labels[i+1])
-            plt.legend(framealpha=0.4)
+            # plt.legend(framealpha=0.4)
     else:
         for i, d in enumerate(data[1:]):
             _logger.info("Plotting %s" % i)
@@ -187,7 +187,7 @@ def main(args):
                 plt.plot(xvec, d, args.marker, label = labels[i+1])
             else:
                 plt.plot(xvec, d, label = labels[i+1])
-            plt.legend(framealpha=0.4)
+            # plt.legend(framealpha=0.4)
 
     if args.title:
         plt.title(args.title)

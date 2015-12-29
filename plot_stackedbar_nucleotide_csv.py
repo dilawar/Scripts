@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 def barplot_gc(csvfile):
 
-    data = np.genfromtxt(csvfile, delimiter=',', skiprows=1)
+    data = np.genfromtxt(csvfile, delimiter=',', skip_header=1)
     title = csvfile.split('/')[-1] 
     size = data.shape[0]
 
@@ -43,7 +43,7 @@ def barplot_gc(csvfile):
 
     plt.ylim( [0, 110 ] )
     plt.xlim( [0 - width , size ] )
-    plt.title("Position Specific Nucleotide Preference (%s seqs)", fontsize=15)
+    plt.title("Position Specific Nucleotide Preference (%s seqs)" %nNuc, fontsize=15)
     plt.xlabel("Position", fontsize=13)
     plt.ylabel("Percentage", fontsize=13)
     plt.xticks( ind + width/2, [ str(x) for x in range(1, size+1) ] )

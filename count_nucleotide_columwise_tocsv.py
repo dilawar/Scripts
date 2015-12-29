@@ -29,7 +29,7 @@ def ReadSeparater(sequencefile, filetype = 'fasta'):
     global sorted_seq_ 
 
     if filetype == 'fasta':
-        sequences_ = read_seq.read_fasta(sequencefile, unique = False)
+        sequences_ = read_seq.read_fasta(sequencefile, unique = True)
     else:
         sequences_ = read_seq.read_text( sequencefile, unique = False)
 
