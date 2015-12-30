@@ -7,8 +7,12 @@ ARCHS="x86_64 i586"
 for r in $REPOS; do
     for arch in $ARCHS; do
         echo "Downloading $r, $arch"
-        osc getbinaries home:dilawar/moose/$r/$arch
-        osc getbinaries home:moose/moose-python/$r/$arch
+        (
+            mkdir -p $r
+            cd $r
+            osc getbinaries home:dilawar/moose/$r/$arch
+            osc getbinaries home:moose/moose-python/$r/$arch
+        )
     done
 done
 
