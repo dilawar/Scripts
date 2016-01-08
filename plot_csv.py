@@ -179,8 +179,7 @@ def main(args):
                 )
     data = np.transpose(data)
     xvec = data[0]
-    modify_convas(header, len(data), args)
-    _logger.debug(xvec)
+    modify_convas(header, len(usecols), args)
 
     if args.auto:
         ## Partition colums to reduces the numbers of subplots
@@ -189,18 +188,16 @@ def main(args):
         for j, subs in enumerate(clusters):
             ax = plt.subplot(len(clusters), 1, j+1)
             for i in subs:
-                yvec = data[i+1]
-                plot_on_axes( ax, xvec, yvec, label = args.header[usecols[i+1]])
+                plot_on_axes( ax, xvec, data[i+1], label = args.header[usecols[i+1]])
     else:
         for j, i in enumerate(usecols[1:]):
-            d = data[i]
             _logger.info("Plotting %s" % args.header[i])
             if args.subplot:
                 _logger.info("plotting in subplot %s" % j)
                 ax = plt.subplot(len(usecols[1:]), 1, j, frameon=True)
             else:
                 ax = plt.gca()
-            plot_on_axes( ax, xvec, d, label = args.header[i] )
+            plot_on_axes( ax, xvec, data[i], label = args.header[i] )
 
     if args.title:
         plt.title(args.title)
