@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib 
 import re
 import os
+import datetime
 import numpy as np
 
 import logging
@@ -77,9 +78,9 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
 def modify_convas(header, nplots, args):
     if not args.subplot:
         return
-    matplotlib.rcParams['figure.figsize'] = 10, 1.3*nplots
+    matplotlib.rcParams['figure.figsize'] = 10, 1.5*nplots
     matplotlib.rcParams['lines.linewidth'] = 1
-    matplotlib.rcParams['font.size'] = 8
+    matplotlib.rcParams['font.size'] = 10
     #matplotlib.rcParams['savefig.frameon'] = False
 
 def partition_plots(mat):
@@ -179,7 +180,8 @@ def main(args):
                 )
     data = np.transpose(data)
     xvec = data[0]
-    modify_convas(header, len(usecols), args)
+    if len(usecols) > 5:
+        modify_convas(header, len(usecols[1:]), args)
 
     if args.auto:
         ## Partition colums to reduces the numbers of subplots
@@ -193,14 +195,17 @@ def main(args):
         for j, i in enumerate(usecols[1:]):
             _logger.info("Plotting %s" % args.header[i])
             if args.subplot:
-                _logger.info("plotting in subplot %s" % j)
-                ax = plt.subplot(len(usecols[1:]), 1, j, frameon=True)
+                _logger.info("plotting in subplot %s" % (j+1))
+                ax = plt.subplot(len(usecols[1:]), 1, j+1, frameon=True)
             else:
                 ax = plt.gca()
             plot_on_axes( ax, xvec, data[i], label = args.header[i] )
 
-    if args.title:
-        plt.title(args.title)
+    stamp = datetime.datetime.now().isoformat()
+    if args.subplot:
+        plt.suptitle( args.title or stamp + ' ' + str(args.input_file), fontsize = 8)
+    else:
+        plt.title(args.title or stamp + ' ' + str( args.input_file), fontsize = 8 )
 
     if args.header:
         plt.xlabel("%s" % args.header[0])
