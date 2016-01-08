@@ -2,7 +2,7 @@
 # Download all packages.
 set -x
 REPOS="Debian_7.0 Debian_8.0 \
-    xUbuntu_12.04 xUbuntu_14.0 xUbuntu_15.05 xUbuntu_15.10 \
+    xUbuntu_12.04 xUbuntu_14.04 xUbuntu_15.04 xUbuntu_15.10 \
     Fedora_22 Fedora_23 \
     openSUSE_13.2 openSUSE_Leap_42.1 \
     CentOS_7 RHEL_7 ScientificLinux_7"

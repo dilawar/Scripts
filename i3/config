@@ -124,8 +124,10 @@ bindsym $mod+Shift+9 move container to workspace 9
 bindsym $mod+Shift+0 move container to workspace 10
 
 # floating windows
-for_windows [ class="[.]*ImageJ" ] floating enable
-for_windows [ class="[.]*gimp"] floating enable
+for_window [ class="[.]*ImageJ[.]*" ] floating enable
+for_window [ class="[.]*gimp[.]*"] floating enable
+for_window [ class="[.]*scribus[.]*"] floating enable
+for_window [ class="[.]*\.py$"] floating enable
 
 # reload the configuration file
 bindsym $mod+Shift+r reload
