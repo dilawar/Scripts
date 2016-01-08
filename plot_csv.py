@@ -190,7 +190,7 @@ def main(args):
             ax = plt.subplot(len(clusters), 1, j+1)
             for i in subs:
                 yvec = data[i+1]
-                plot_on_axes( ax, xvec, yvec, label = args.header[i+1])
+                plot_on_axes( ax, xvec, yvec, label = args.header[usecols[i+1]])
     else:
         for j, i in enumerate(usecols[1:]):
             d = data[i]
