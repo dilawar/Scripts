@@ -50,6 +50,8 @@ def get_ycols(colexpr, header=None):
             low, high = r.split('-')
             cols += range(int(low), int(high)+1)
         else:
+            # If not an integer, then search in column for a match. Must match
+            # with column name.
             try:
                 cols.append(int(r))
             except:
@@ -160,14 +162,14 @@ def main(args):
     except:
         labels = args.header
 
-    _logger.info("[INFO] Using columns: %s" % usecols)
-    _logger.debug("[INFO] lables: %s" % labels)
+    _logger.info("Using columns: %s" % usecols)
+    _logger.info("lables: %s" % labels)
 
     try:
         data = np.loadtxt(args.input_file
                 , skiprows = skiprows
                 , delimiter = args.delimiter
-                , usecols = usecols
+                # , usecols = usecols
                 )
     except:
         print("[WARN] Can get given ranges. Getting default.")
@@ -183,29 +185,28 @@ def main(args):
     if args.auto:
         ## Partition colums to reduces the numbers of subplots
         _logger.info("Clustering plots to save space --auto/-a was given")
-        clusters = partition_plots(data[1:])
+        clusters = partition_plots(data[usecols[1:]])
         for j, subs in enumerate(clusters):
             ax = plt.subplot(len(clusters), 1, j+1)
             for i in subs:
                 yvec = data[i+1]
-                plot_on_axes( ax, yvec, xvec, label = labels[i+1])
+                plot_on_axes( ax, xvec, yvec, label = args.header[i+1])
     else:
-        for i, d in enumerate(data[1:]):
-            _logger.info("Plotting %s" % i)
-            _logger.debug(d)
-
+        for j, i in enumerate(usecols[1:]):
+            d = data[i]
+            _logger.info("Plotting %s" % args.header[i])
             if args.subplot:
-                _logger.info("plotting in subplot")
-                ax = plt.subplot(len(data[1:]), 1, i, frameon=True)
+                _logger.info("plotting in subplot %s" % j)
+                ax = plt.subplot(len(usecols[1:]), 1, j, frameon=True)
             else:
                 ax = plt.gca()
-            plot_on_axes( ax, xvec, d, label = labels[i+1] )
+            plot_on_axes( ax, xvec, d, label = args.header[i] )
 
     if args.title:
         plt.title(args.title)
 
     if args.header:
-        plt.xlabel("%s" % labels[0])
+        plt.xlabel("%s" % args.header[0])
 
     if not args.outfile:
         plt.show()
@@ -239,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--ycolumns', '-y'
             , default = "1"
             , type = str
-            , help = "Columns to plot as y-axis"
+            , help = "Columns to plot on y-axis. Index or names of columns."
             )
     parser.add_argument('--outfile', '-o'
             , required = False
