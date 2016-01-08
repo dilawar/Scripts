@@ -61,6 +61,17 @@ def get_ycols(colexpr, header=None):
                     sys.exit(0)
     return cols
 
+def plot_on_axes( ax, xvec, yvec, **kwargs):
+    # Plot yvec, xvec on given axes.
+    global args
+    ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    ax.set_ylim( [ yvec.min() - 0.1 * (abs( yvec.min() ))
+        , yvec.max() + 0.1 * (abs( yvec.max() )) ]
+        )
+    if kwargs.get('label', None):
+        plt.legend(loc='best', framealpha=0.4)
+    return ax
+
 def modify_convas(header, nplots, args):
     if not args.subplot:
         return
@@ -174,10 +185,10 @@ def main(args):
         _logger.info("Clustering plots to save space --auto/-a was given")
         clusters = partition_plots(data[1:])
         for j, subs in enumerate(clusters):
-            plt.subplot(len(clusters), 1, j+1)
+            ax = plt.subplot(len(clusters), 1, j+1)
             for i in subs:
-                plt.plot(xvec, data[i+1], label = labels[i+1])
-            plt.legend(framealpha=0.4)
+                yvec = data[i+1]
+                plot_on_axes( ax, yvec, xvec, label = labels[i+1])
     else:
         for i, d in enumerate(data[1:]):
             _logger.info("Plotting %s" % i)
@@ -185,12 +196,10 @@ def main(args):
 
             if args.subplot:
                 _logger.info("plotting in subplot")
-                plt.subplot(len(data[1:]), 1, i, frameon=True)
-            if args.marker:
-                plt.plot(xvec, d, args.marker, label = labels[i+1])
+                ax = plt.subplot(len(data[1:]), 1, i, frameon=True)
             else:
-                plt.plot(xvec, d, label = labels[i+1])
-            plt.legend(framealpha=0.4)
+                ax = plt.gca()
+            plot_on_axes( ax, xvec, d, label = labels[i+1] )
 
     if args.title:
         plt.title(args.title)
@@ -239,9 +248,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--marker', '-m'
             , required = False
-            , default = None
+            , default = '-'
             , type = str
-            , help  = 'Which marker to use in matplotlib'
+            , help  = 'Which marker to use in matplotlib. default "-"'
             )
 
     parser.add_argument('--title', '-t'
