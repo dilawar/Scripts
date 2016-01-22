@@ -7,12 +7,12 @@ URxvt.keysym.M-C-v: perl:clipboard:paste_command
 URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 URxvt.url-launcher:      /usr/bin/firefox
 URxvt.matcher.button:   1
-URxvt.colorUL: #4682B4
+URxvt.colorUL: #1682B4
 URxvt.keysym.C-Up:     perl:font-size:increase
 URxvt.keysym.C-Down:   perl:font-size:decrease
 URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
-URxvt.cursorColor: #000080
+URxvt.cursorColor: #F00080
 URxvt*scrollTtyOutput: false
 Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
