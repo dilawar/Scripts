@@ -67,10 +67,10 @@ ${endif}
         "full_text": " HDD:${fs_free /} "
     },
     {
-        "full_text": " IP: ${if_up enp0s25}${addr enp0s25}${endif},${if_up wlan0}${addr wlan0}${endif}"
+        "full_text": " IP: ${if_up eth0}${addr eth0}${endif},${if_up wlan0}${addr wlan0}${endif}"
     },
     {
-        "full_text": " D: ${downspeed enp0s25},${downspeed wlan0}/s U: ${upspeed enp0s25},${upspeed wlan0}/s T: ${totaldown enp0s25},${totaldown wlan0}"
+        "full_text": " D: ${downspeed eth0},${downspeed wlan0}/s U: ${upspeed eth0},${upspeed wlan0}/s T: ${totaldown enp0s25},${totaldown wlan0}"
     },
     {
         "full_text": " CPU: ${cpu cpu0}% ",

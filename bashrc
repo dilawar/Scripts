@@ -129,6 +129,5 @@ export SSHPASS=jH7qMYpF
 
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
-#export PYTHONPATH=~/Work/GITHUB/BhallaLab/moose-core/python
-export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/python:$HOME/Work/GITHUB/YACML"
+export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/python"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
