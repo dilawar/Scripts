@@ -30,16 +30,17 @@ class Args: pass
 args = Args()
 
 def getHeader(filename):
+    skip_header = False
     d = args.delimiter
     hline = args.header
-    if not hline:
-        return None
+    if hline:
+        header = hline.split(',')
+        return header
     with open(filename, "r") as f:
         header = f.read().split("\n")[0]
     if '#' == header[0]:
         header = header[1:]
     header = [x.strip() for x in header.split(",")]
-    args.header = header
     _logger.debug("INFO Found header %s" % header)
     return header
 
@@ -67,7 +68,10 @@ def get_ycols(colexpr, header=None):
 def plot_on_axes( ax, xvec, yvec, **kwargs):
     # Plot yvec, xvec on given axes.
     global args
-    ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    if not args.semilogx:
+        ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    else:
+        ax.semilogx(xvec, yvec, args.marker, label = kwargs.get('label', ''))
     ax.set_ylim( [ yvec.min() - 0.1 * (abs( yvec.min() ))
         , yvec.max() + 0.1 * (abs( yvec.max() )) ]
         )
@@ -147,11 +151,12 @@ def do_clustering(ranges, cluster):
 
 def main(args):
     header = getHeader(args.input_file)
-    if not header:
-        skiprows = 0
+    if args.header:
+        skipheader = False
     else:
-        skiprows = 1
+        skipheader = True
 
+    args.header = header
     if not args.ycolumns:
         usecols = [ args.xcolumn ]
     else:
@@ -167,15 +172,15 @@ def main(args):
     _logger.info("lables: %s" % labels)
 
     try:
-        data = np.loadtxt(args.input_file
-                , skiprows = skiprows
+        data = np.genfromtxt(args.input_file
+                , skip_header = skipheader
                 , delimiter = args.delimiter
-                # , usecols = usecols
+                , usecols = usecols
                 )
     except:
         print("[WARN] Can get given ranges. Getting default.")
-        data = np.loadtxt(args.input_file
-                , skiprows = skiprows
+        data = np.genfromtxt(args.input_file
+                , skip_header = skipheader
                 , delimiter = args.delimiter
                 )
     data = np.transpose(data)
@@ -231,8 +236,10 @@ if __name__ == '__main__':
             , help = 'Delimiter'
             )
     parser.add_argument('--header'
-            , default = True
-            , help = "Is first line header?"
+            , default = ""
+            , type = str
+            , help = "CSV line as header. If not give, first line is treated "
+            " as header"
             )
     parser.add_argument('--xcolumn', '-x'
             , default =  0
@@ -273,6 +280,11 @@ if __name__ == '__main__':
             , help = 'Cluster subplots together according to range'
             )
 
+    parser.add_argument('--semilogx'
+        , required = False
+        , action = 'store_true'
+        , help = 'Semilogx on x-axis?'
+        )
     parser.parse_args(namespace=args)
     main(args)
 

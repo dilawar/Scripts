@@ -4,7 +4,7 @@ URxvt.perl-ext-common:  default,matcher,font-size,clipboard
 URxvt.keysym.M-c: perl:clipboard:copy
 URxvt.keysym.M-v: perl:clipboard:paste
 URxvt.keysym.M-C-v: perl:clipboard:paste_command
-URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
+!URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 URxvt.url-launcher:      /usr/bin/firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #1682B4
@@ -14,6 +14,6 @@ URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
 URxvt.cursorColor: #F00080
 URxvt*scrollTtyOutput: false
-Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
+!Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
+!xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 xterm*scrollBar: false
