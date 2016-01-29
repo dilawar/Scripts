@@ -171,18 +171,10 @@ def main(args):
     _logger.info("Using columns: %s" % usecols)
     _logger.info("lables: %s" % labels)
 
-    try:
-        data = np.genfromtxt(args.input_file
-                , skip_header = skipheader
-                , delimiter = args.delimiter
-                , usecols = usecols
-                )
-    except:
-        print("[WARN] Can get given ranges. Getting default.")
-        data = np.genfromtxt(args.input_file
-                , skip_header = skipheader
-                , delimiter = args.delimiter
-                )
+    data = np.genfromtxt(args.input_file
+            , skip_header = skipheader
+            , delimiter = args.delimiter
+            )
     data = np.transpose(data)
     xvec = data[0]
     if len(usecols) > 5:
