@@ -31,6 +31,9 @@ def process( data_file, column ):
         print(l[column])
 
 def main():
+    if len(sys.argv) < 3:
+        print("USAGE: %s csv_file column_name|col_id " % sys.argv[0])
+        quit()
     infile = sys.argv[1]
     column = sys.argv[2]
     process( infile, column)
