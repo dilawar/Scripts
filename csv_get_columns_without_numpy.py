@@ -15,28 +15,37 @@ __maintainer__       = "Dilawar Singh"
 __email__            = "dilawars@ncbs.res.in"
 __status__           = "Development"
 
-import numpy as np
 import sys
 
-def process( data_file, column ):
+def process( data_file, columns ):
     with open( data_file, "r") as f:
         lines = f.read().split('\n')
-    header, data = lines[0], lines[1:]
-    if column not in header:
-        column = int(column)
-    else:
-        column = header.index( column )
-    print("Fetching column: %s" % column)
+    header, data = lines[0].split(','), lines[1:]
+    colIds = []
+    for column in columns:
+        if column not in header:
+            column = int(column)
+            colIds.append( column )
+        else:
+            column = header.index( column )
+            colIds.append( column )
+    print("Fetching columns: %s" % colIds)
     for l in data:
-        print(l[column])
+        if not l:
+            continue
+        data = l.split(',')
+        ys = []
+        for c in colIds:
+            ys.append( data[c] )
+        print("\t".join(ys))
 
 def main():
     if len(sys.argv) < 3:
         print("USAGE: %s csv_file column_name|col_id " % sys.argv[0])
         quit()
     infile = sys.argv[1]
-    column = sys.argv[2]
-    process( infile, column)
+    columns = sys.argv[2:]
+    process( infile, columns)
 
 if __name__ == '__main__':
     main()
