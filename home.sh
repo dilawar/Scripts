@@ -72,6 +72,7 @@ source $HOME/.proxy
 ###chmod 640 $HOME/.ssh/authorized_keys
 
 WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
+WGET="$WGET  --no-check-ertificate"
 
 colorPrint "STEP"  "Configuring git."
 rm -f $HOME/.gitconfig 
@@ -143,12 +144,7 @@ RXVTEXT=$HOME/.urxvt/ext
 if [ ! -d $RXVTEXT ]; then
     mkdir -p $RXVTEXT 
 fi 
-if [ ! -f $RXVTEXT/font-size ]; then
-    cd $RXVTEXT && \
-    $WGET --no-check-certificate \
-    https://raw.github.com/majutsushi/urxvt-font-size/master/font-size \
-    && cd 
-fi
+rsync -azv --progress  $SCRIPTHOME/rxvt/ $RXVTEXT/
 
 colorPrint "STEP" "Setting up dzen and conky"
 if [[ $(which conky) == *"conky"* ]]; then
