@@ -26,19 +26,19 @@ sudo gpasswd -a $USER power
 sudo gpasswd -a $USER wheel
 
 set +x
-colorPrint "STEP" "Setting up crontab"
-# disable glob pattern.
-set -f
-CRONOUT=`crontab -l`
-CRONTEXT=`cat $SCRIPTHOME/crontab.txt`
-echo $CRONTEXT
-echo $CRONOUT
-if [[ "$CRONTEXT" == "$CRONOUT" ]]; then
-    colorPrint "INFO" "Crontab is already installed"
-else
-    colorPrint "INFO" "Installing crontab"
-    crontab $SCRIPTHOME/crontab.txt
-fi
+##colorPrint "STEP" "Setting up crontab"
+### disable glob pattern.
+##set -f
+##CRONOUT=`crontab -l`
+##CRONTEXT=`cat $SCRIPTHOME/crontab.txt`
+##echo $CRONTEXT
+##echo $CRONOUT
+##if [[ "$CRONTEXT" == "$CRONOUT" ]]; then
+##    colorPrint "INFO" "Crontab is already installed"
+##else
+##    colorPrint "INFO" "Installing crontab"
+##    crontab $SCRIPTHOME/crontab.txt
+##fi
 #enable glob again.
 set +f
 
@@ -106,18 +106,18 @@ ln -s $SCRIPTHOME/pylintrc $HOME/.pylintrc
 gnupgFile=$HOME/.gnupg/gpg-agent.conf
 echo "pinentry-program /usr/bin/pinentry-curses" >> $gnupgFile 
     
-colorPrint "STEP" "Checking for flash plugin .."
-mozillaPlugin=$HOME/.mozilla/plugins
-flash_url="https://github.com/dilawar/MyPublic/blob/master/Flash/libflashplayer.so"
-
-if [ ! -d $mozillaPlugin ]; then
-    mkdir -p $mozillaPlugin 
-fi
-if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
-    cd $mozillaPlugin
-    #$WGET $flash_url
-    cd 
-fi
+##colorPrint "STEP" "Checking for flash plugin .."
+##mozillaPlugin=$HOME/.mozilla/plugins
+##flash_url="https://github.com/dilawar/MyPublic/blob/master/Flash/libflashplayer.so"
+##
+##if [ ! -d $mozillaPlugin ]; then
+##    mkdir -p $mozillaPlugin 
+##fi
+##if [ ! -f $mozillaPlugin/libflashplayer.so ]; then
+##    cd $mozillaPlugin
+##    #$WGET $flash_url
+##    cd 
+##fi
     
 ## Setting up bfg
 #if [ ! -f /usr/local/bin/bfg ]; then
@@ -261,6 +261,6 @@ colorPrint "STEP" "Setting up inputrc. bash in vi mode"
 cp $SCRIPTHOME/inputrc $HOME/.inputrc
 
 colorPrint "STEP" "Setting up local tex paths"
-MYTEX=$HOME/texmf/latex/mystuff
+MYTEX=$HOME/texmf/tex/latex/local/
 mkdir -p $MYTEX
-ln -s /home1/dilawars/Scripts/latex/poisson.* $MYTEX/
+cp $SCRIPTHOME/latex/poisson.* $MYTEX/
