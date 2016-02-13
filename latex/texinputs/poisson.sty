@@ -1,0 +1,4 @@
+\directlua{dofile("poisson.lua")}
+\newcommand{\poissonpointslist}[4]{
+    \directlua{poisson_points_list(#1,#2,#3,#4)}
+}
