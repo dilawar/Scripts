@@ -262,5 +262,5 @@ cp $SCRIPTHOME/inputrc $HOME/.inputrc
 
 colorPrint "STEP" "Setting up local tex paths"
 MYTEX=$HOME/texmf/tex/latex/local/
-mkdir -p $MYTEX
+mkdir -p $MYTEX 
 cp $SCRIPTHOME/latex/poisson.* $MYTEX/
