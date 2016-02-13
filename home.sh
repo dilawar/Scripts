@@ -260,3 +260,7 @@ git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
 colorPrint "STEP" "Setting up inputrc. bash in vi mode"
 cp $SCRIPTHOME/inputrc $HOME/.inputrc
 
+colorPrint "STEP" "Setting up local tex paths"
+MYTEX=$HOME/texmf/latex/mystuff
+mkdir -p $MYTEX
+ln -s /home1/dilawars/Scripts/latex/poisson.* $MYTEX/
