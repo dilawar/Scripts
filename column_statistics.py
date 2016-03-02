@@ -18,6 +18,7 @@ def main():
         print("[WARN] Could not convert %s lines to float" % (len(lines) - len(data)))
     data = np.array( data, np.float )
 
+    print( "N   : %s" % len(data) )
     print( "Sum : %s" % data.sum() )
     print( "Mean: %s" % data.mean() )
     print( "Std : %s" % data.std( ) )
