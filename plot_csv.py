@@ -48,8 +48,8 @@ def get_ycols(colexpr, header=None):
     ranges = colexpr.split(',')
     cols = []
     for r in ranges:
-        if "-" in r:
-            low, high = r.split('-')
+        if ":" in r:
+            low, high = r.split(':')
             cols += range(int(low), int(high)+1)
         else:
             # If not an integer, then search in column for a match. Must match
@@ -62,7 +62,6 @@ def get_ycols(colexpr, header=None):
                     cols.append(header.index(r))
                 except:
                     print("[WARN] Could not find %s in %s" % (r, header))
-                    sys.exit(0)
     return cols
 
 def plot_on_axes( ax, xvec, yvec, **kwargs):
@@ -85,7 +84,7 @@ def modify_convas(header, nplots, args):
     matplotlib.rcParams['figure.figsize'] = 10, 1.5*nplots
     matplotlib.rcParams['lines.linewidth'] = 1
     matplotlib.rcParams['font.size'] = 10
-    #matplotlib.rcParams['savefig.frameon'] = False
+    # matplotlib.rcParams['savefig.frameon'] = False
 
 def partition_plots(mat):
     """Partition plots according to min and max of columns """
@@ -190,7 +189,11 @@ def main(args):
                 plot_on_axes( ax, xvec, data[i+1], label = args.header[usecols[i+1]])
     else:
         for j, i in enumerate(usecols[1:]):
-            _logger.info("Plotting %s" % args.header[i])
+            try:
+                _logger.info("Plotting %s" % args.header[i])
+            except Exception as e:
+                _logger.warn('Could not find anything at index %d. ingoring' % i)
+                continue
             if args.subplot:
                 _logger.info("plotting in subplot %s" % (j+1))
                 ax = plt.subplot(len(usecols[1:]), 1, j+1, frameon=True)
@@ -211,6 +214,7 @@ def main(args):
         plt.show()
     else:
         _logger.info("Saving figure to %s" % args.outfile)
+        # plt.tight_layout( )
         plt.savefig(args.outfile)
 
 if __name__ == '__main__':
