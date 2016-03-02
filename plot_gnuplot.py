@@ -86,7 +86,8 @@ def main(args):
     gnuplot_.append('set datafile separator "%s"' % args.delimiter)
 
     if args.outfile:
-        gnuplot_.append('set terminal %s' % (args.outfile.split('.')[-1]))
+        gnuplot_.append('set terminal %s size 1000,%d' %
+                (args.outfile.split('.')[-1], 150*len(labels) ))
         gnuplot_.append('set output "%s"' % args.outfile)
 
     if args.subplot:
