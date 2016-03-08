@@ -3,4 +3,4 @@ set -e
 (
 "$@"
 )
-notify-send "Done $@" 
+notify-send "Done doing whatever was requested by $1" 
