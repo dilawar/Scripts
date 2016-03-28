@@ -82,9 +82,10 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
         _logger.warn( " Using default" )
         ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
 
-    ax.set_ylim( [ yvec.min() - 0.1 * (abs( yvec.min() ))
-        , yvec.max() + 0.1 * (abs( yvec.max() )) ]
-        )
+    # ax.set_ylim( [ yvec.min() - 0.1 * (abs( yvec.min() ))
+        # , yvec.max() + 0.1 * (abs( yvec.max() )) ]
+        # )
+
     if kwargs.get('label', None):
         plt.legend(loc='best', framealpha=0.4)
     return ax
