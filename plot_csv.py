@@ -21,10 +21,11 @@ console.setFormatter(formatter)
 _logger = logging.getLogger('')
 _logger.addHandler(console)
 
+style = 'seaborn-darkgrid'
 try:
-    plt.style.use('ggplot')
+    plt.style.use( style )
 except:
-    _logger.warn("Style 'ggplot' not found. Using default")
+    _logger.warn("Style '%s' not found. Using default" % style)
 
 class Args: pass 
 args = Args()
@@ -66,11 +67,21 @@ def get_ycols(colexpr, header=None):
 
 def plot_on_axes( ax, xvec, yvec, **kwargs):
     # Plot yvec, xvec on given axes.
+    _logger.debug("Plotting %s" %  yvec )
     global args
-    if not args.semilogx:
+    if args.plot_type == 'linear':
         ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
-    else:
+    elif args.plot_type == 'semilogx':
         ax.semilogx(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    elif args.plot_type == 'semilogy':
+        ax.semilogy(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    elif args.plot_type == 'loglog':
+        ax.loglog(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    else:
+        _logger.warn( "Plot type %s is not supported. " % args.plot_type )
+        _logger.warn( " Using default" )
+        ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+
     ax.set_ylim( [ yvec.min() - 0.1 * (abs( yvec.min() ))
         , yvec.max() + 0.1 * (abs( yvec.max() )) ]
         )
@@ -97,7 +108,7 @@ def partition_plots(mat):
     ranges = zip(mins, maxs, avgs)
     cluster = { 0 : [ranges[0]] }
     cluster = do_clustering(ranges[1:], cluster)
-    _logger.debug("Clusters: %s" % cluster)
+    _logger.debug("Clusters (index of usecols): %s" % cluster)
     
     # Return the results clustered according to indices.
     result = []
@@ -106,7 +117,7 @@ def partition_plots(mat):
         for v in cluster[k]:
             c.append(ranges.index(v))
         result.append(c)
-    _logger.info("Clustes: %s" % result)
+    _logger.info("Clusters:(index of usecols) %s" % result)
     return result
 
 def mergable(x, rngs):
@@ -170,8 +181,10 @@ def main(args):
     _logger.info("Using columns: %s" % usecols)
     _logger.info("lables: %s" % labels)
 
-    data = np.genfromtxt(args.input_file
-            , skip_header = skipheader
+    if skipheader:
+        skipRows = 1
+    data = np.loadtxt(args.input_file
+            , skiprows = skipRows
             , delimiter = args.delimiter
             )
     data = np.transpose(data)
@@ -186,7 +199,9 @@ def main(args):
         for j, subs in enumerate(clusters):
             ax = plt.subplot(len(clusters), 1, j+1)
             for i in subs:
-                plot_on_axes( ax, xvec, data[i+1], label = args.header[usecols[i+1]])
+                _logger.debug( 'Plotting %s' % i )
+                # print i, usecols[i+1]
+                plot_on_axes( ax, xvec, data[usecols[i+1]], label = args.header[usecols[i+1]])
     else:
         for j, i in enumerate(usecols[1:]):
             try:
@@ -210,11 +225,12 @@ def main(args):
     if args.header:
         plt.xlabel("%s" % args.header[0])
 
+    plt.tight_layout( )
     if not args.outfile:
         plt.show()
     else:
         _logger.info("Saving figure to %s" % args.outfile)
-        # plt.tight_layout( )
+        plt.tight_layout( )
         plt.savefig(args.outfile)
 
 if __name__ == '__main__':
@@ -276,10 +292,12 @@ if __name__ == '__main__':
             , help = 'Cluster subplots together according to range'
             )
 
-    parser.add_argument('--semilogx'
+    parser.add_argument('--plot_type', '-pt'
         , required = False
-        , action = 'store_true'
-        , help = 'Semilogx on x-axis?'
+        , type = str
+        , default = 'linear'
+        # , action = 'store_true'
+        , help = 'semilogx, semilogy, loglog, linear. Deafult: linear'
         )
     parser.parse_args(namespace=args)
     main(args)
