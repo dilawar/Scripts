@@ -79,6 +79,7 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
         ax.loglog(xvec, yvec, args.marker, label = kwargs.get('label', ''))
     else:
         _logger.warn( "Plot type %s is not supported. " % args.plot_type )
+        _logger.info( "|- Avilable: linear, semilogx, semilogy, loglog" )
         _logger.warn( " Using default" )
         ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
 
@@ -184,12 +185,20 @@ def main(args):
 
     if skipheader:
         skipRows = 1
-    data = np.loadtxt(args.input_file
-            , skiprows = skipRows
-            , delimiter = args.delimiter
-            )
+    data = None
+    try:
+        data = np.loadtxt(args.input_file
+                , skiprows = skipRows
+                , delimiter = args.delimiter
+                )
+    except ValueError as e:
+        data = np.genfromtxt( args.input_file 
+                , skip_header = skipheader
+                , delimiter = args.delimiter
+                )
+    _logger.debug( 'Got data %s' % data )
     data = np.transpose(data)
-    xvec = data[0]
+    xvec = data[ args.xcolumn ]
     if len(usecols) > 5:
         modify_convas(header, len(usecols[1:]), args)
 
@@ -224,7 +233,10 @@ def main(args):
         plt.title(args.title or stamp + ' ' + str( args.input_file), fontsize = 8 )
 
     if args.header:
-        plt.xlabel("%s" % args.header[0])
+        plt.xlabel("%s" % args.header[args.xcolumn])
+
+    if args.ylabel:
+        plt.ylabel( args.ylabel )
 
     plt.tight_layout( )
     if not args.outfile:
@@ -300,6 +312,19 @@ if __name__ == '__main__':
         # , action = 'store_true'
         , help = 'semilogx, semilogy, loglog, linear. Deafult: linear'
         )
+
+    parser.add_argument('--ylabel', '-yl'
+        , required = False
+        , default = '' , type = str
+        , help = 'Label for y-axis.'
+        )
+
+    parser.add_argument('--error', '-e'
+        , required = False
+        , default = None
+        , help = '[TODO] Column indices for error vals: zipped with --ycolumns'
+        )
+
     parser.parse_args(namespace=args)
     main(args)
 
