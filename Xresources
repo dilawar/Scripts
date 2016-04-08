@@ -5,7 +5,7 @@ URxvt.keysym.M-c: perl:clipboard:copy
 URxvt.keysym.M-v: perl:clipboard:paste
 URxvt.keysym.M-C-v: perl:clipboard:paste_command
 !URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-URxvt.url-launcher:      /usr/bin/firefox
+URxvt.url-launcher: /usr/loca/bin/firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #1682B4
 URxvt.keysym.C-Up:     perl:font-size:increase
