@@ -126,6 +126,7 @@ bindsym $mod+Shift+0 move container to workspace 10
 # floating windows
 for_window [ class="[.]*ImageJ[.]*" ] floating enable
 for_window [ class="[.]*gimp[.]*"] floating enable
+for_window [ class="[.]*scilab[.]*"] floating enable
 for_window [ class="[.]*scribus[.]*"] floating enable
 for_window [ class="[.]*\.py$"] floating enable
 
@@ -164,7 +165,7 @@ mode "resize" {
 bindsym $mod+r mode "resize"
 
 # Autolauches.
-exec xautolock -time 15 -locker "~/Scripts/i3/locker.sh" &
+exec xautolock -time 5 -locker xscreensaver-command -l
 exec $HOME/Scripts/touchpad_disable_touch_click.sh
 exec --no-startup-id feh --bg-fill ~/Scripts/wallpapers/jake_dude_sucking.jpg
 # Start i3bar to display a workspace bar (plus the system information i3status

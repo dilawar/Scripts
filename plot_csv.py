@@ -68,6 +68,12 @@ def get_ycols(colexpr, header=None):
 def plot_on_axes( ax, xvec, yvec, **kwargs):
     # Plot yvec, xvec on given axes.
     _logger.debug("Plotting %s" %  yvec )
+    if kwargs.get('sorted', False):
+        # See, http://stackoverflow.com/questions/2828059/sorting-arrays-in-numpy-by-column
+        _logger.info('Sorting (xvec, yvec) so lines do not break')
+        data = np.vstack(( xvec, yvec )).T
+        data = data[data[:,0].argsort()]
+        xvec, yvec = data[:,0], data[:,1]
     global args
     if args.plot_type == 'linear':
         ax.plot(xvec, yvec, args.marker, label = kwargs.get('label', ''))
@@ -77,6 +83,8 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
         ax.semilogy(xvec, yvec, args.marker, label = kwargs.get('label', ''))
     elif args.plot_type == 'loglog':
         ax.loglog(xvec, yvec, args.marker, label = kwargs.get('label', ''))
+    elif args.plot_type == 'bar':
+        ax.bar(xvec, yvec, label = kwargs.get('label', ''), alpha = 0.3)
     else:
         _logger.warn( "Plot type %s is not supported. " % args.plot_type )
         _logger.info( "|- Avilable: linear, semilogx, semilogy, loglog" )
@@ -211,7 +219,9 @@ def main(args):
             for i in subs:
                 _logger.debug( 'Plotting %s' % i )
                 # print i, usecols[i+1]
-                plot_on_axes( ax, xvec, data[usecols[i+1]], label = args.header[usecols[i+1]])
+                plot_on_axes( ax, xvec, data[usecols[i+1]], label = args.header[usecols[i+1]]
+                        , sorted = args.sortx
+                        )
     else:
         for j, i in enumerate(usecols[1:]):
             try:
@@ -224,7 +234,9 @@ def main(args):
                 ax = plt.subplot(len(usecols[1:]), 1, j+1, frameon=True)
             else:
                 ax = plt.gca()
-            plot_on_axes( ax, xvec, data[i], label = args.header[i] )
+            plot_on_axes( ax, xvec, data[i], label = args.header[i] 
+                    , sorted = args.sortx
+                    )
 
     stamp = datetime.datetime.now().isoformat()
     if args.subplot:
@@ -319,12 +331,11 @@ if __name__ == '__main__':
         , help = 'Label for y-axis.'
         )
 
-    parser.add_argument('--error', '-e'
-        , required = False
-        , default = None
-        , help = '[TODO] Column indices for error vals: zipped with --ycolumns'
+    parser.add_argument('--sortx', '-sx'
+        , action = 'store_true'
+        , help = 'Sort x column before plotting. All y-cols will be sorted '
+                 'accordingly'
         )
-
     parser.parse_args(namespace=args)
     main(args)
 
