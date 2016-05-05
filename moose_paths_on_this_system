@@ -1,0 +1,3 @@
+#!/bin/bash
+python -c 'import moose; print( "Using MOOSE from %s" % moose.__file__ )' 
+python -c 'import moose; print( " VERSION: %s" % moose.__version__ )' 
