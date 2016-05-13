@@ -1,0 +1,62 @@
+#!/usr/bin/env zsh
+
+dirdiff() {
+    # cd to the temporary directory immediately to make things simpler
+    cd ${1%%/left*}
+    vimcmdsfile="vimcommands.vim"
+
+    # If the following test is false then either right/ is empty or it only
+    # contains symlinks meaning that we are diffing against the work tree. We
+    # don't set readonly on those buffers in order to keep modifications.
+    right_files=( right/**/*(.ND) )
+    if (( $#right_files )); then
+        per_tab_ro_cmds='windo setlocal readonly | wincmd h'
+    else
+        per_tab_ro_cmds='wincmd h | setlocal readonly'
+    fi
+
+    all_files=( left/**/*(-.ND) right/**/*(-.ND) )
+    all_files=( ${(u)all_files#*/} )
+
+    {
+    # If a file doesn't exist, diff against /dev/null instead. This is what
+    # difftool without --dir-diff does
+    print 'augroup vdwrap'
+    print 'autocmd! BufNewFile * view /dev/null | bdelete #'
+    print 'augroup END'
+
+    for f in $all_files; do
+        printf 'tabnew %q | vsplit %q\n' left/$f right/$f
+        print 'windo diffthis'
+        print $per_tab_ro_cmds
+    done
+
+    print 'autocmd! vdwrap'
+
+    print 'tabfirst | tabclose'
+    } \
+    > $vimcmdsfile
+    vim -c "silent source $vimcmdsfile"
+    rm $vimcmdsfile
+}
+
+# Hacky way getting the default vimdiff behaviour. TODO: Can it be prettied
+# without hardcoding what vim command it ends up executing (Which by the way
+# is `vim -R -f -d -c 'wincmd l' -c 'cd $GIT_PREFIX' "$@"`) ? Should I remove
+# it and just ask people to use an alias instead?
+regulardiff() {
+    gitexecpath="$(git --exec-path)"
+    path=( $gitexecpath $path )
+    export LOCAL=$1
+    export REMOTE=$2
+    sh -c '. git-mergetool--lib;  run_merge_tool vimdiff'
+}
+
+# If there are only two arguments and both are directories then --dir-diff has
+# been given to 'git difftool'. Otherwise we use vimdiff as usual.
+if [[ -d $1 && -d $2 && -z $3 ]]
+then
+    dirdiff "$@"
+else
+    regulardiff "$@"
+fi
