@@ -1,0 +1,24 @@
+Host v3
+    Hostname 172.16.204.230
+    User dilawars
+    IdentityFile ~/.ssh/id_rsa
+
+Host motichoor
+    Hostname 172.16.206.132
+    User dilawars
+
+Host shares
+    Hostname shares.ncbs.res.in
+    User dilawars
+
+Host bitbucket.org
+    Hostname bitbucket.org
+    User git
+    IdentityFile ~/.ssh/bitbucket
+
+Host srna
+    Hostname srna.ncbs.res.in
+    User anushree
+    IdentityFile ~/.ssh/id_rsa
+
+
