@@ -35,13 +35,13 @@ def getHeader(filename):
     d = args.delimiter
     hline = args.header
     if hline:
-        header = hline.split(',')
+        header = hline.split( d )
         return header
     with open(filename, "r") as f:
         header = f.read().split("\n")[0]
     if '#' == header[0]:
         header = header[1:]
-    header = [x.strip() for x in header.split(",")]
+    header = [x.strip() for x in header.split( d )]
     _logger.debug("INFO Found header %s" % header)
     return header
 
@@ -269,7 +269,7 @@ if __name__ == '__main__':
             , help = 'File to plot'
             )
     parser.add_argument('--delimiter', '-d'
-            , default = ','
+            , default = ' '
             , help = 'Delimiter'
             )
     parser.add_argument('--header'

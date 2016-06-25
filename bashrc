@@ -46,7 +46,7 @@ alias l='ls -CF'
 alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
-alias rsync='rsync --progress'
+alias copy='rsync -azv --progress'
 alias i='sudo -E emerge -avuD '
 alias netcat='nc.openbsd'
 alias ii='sudo apt-get -c ~/.aptconf install'
@@ -133,5 +133,8 @@ export PATH=$PATH:$HOME/.cabal/bin
 export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
 export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
-export PATH=/opt/texlive/bin/x86_64-linux:$PATH
+export PATH=$HOME/.local/bin:/opt/texlive/bin/x86_64-linux:$PATH
 #export TEXMF=/usr/share/texmf
+
+# added by travis gem
+[ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh

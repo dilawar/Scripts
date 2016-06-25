@@ -70,6 +70,8 @@ source $HOME/.proxy
 ###chmod 600 $HOME/.ssh/*
 ###chmod 644 $HOME/.ssh/*.pub
 ###chmod 640 $HOME/.ssh/authorized_keys
+ln -s $SCRIPTHOME/ssh_config $HOME/.ssh/config
+chmod 600 $HOME/.ssh/config
 
 WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
 WGET="$WGET  --no-check-ertificate"
