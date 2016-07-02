@@ -105,6 +105,7 @@ if __name__ == '__main__':
         sys.exit(0)
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
     entries = search(query)
+    print entries
     addresses = [format_entry(e) for e in sorted(entries)]
     addresses = filter(lambda x: x != "", addresses)
     for add in addresses:

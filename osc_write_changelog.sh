@@ -19,4 +19,5 @@
 
 set -o nounset                              # Treat unset variables as an error
 osc vc
-
+echo "Writing debian changelog"
+dch --changelog debian.changelog
