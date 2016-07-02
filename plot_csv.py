@@ -1,7 +1,9 @@
 #!/usr/bin/env python
-# A quick plotting of csv files.
+
+import datetime
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib 
 import re
 import os
@@ -168,6 +170,21 @@ def do_clustering(ranges, cluster):
     cluster[len(cluster)] = [newranges[0]]
     return do_clustering(newranges[1:], cluster)
 
+def save_figure( outfile ):
+    plt.tight_layout( )
+    ext = outfile.split( '.' )[-1]
+    if ext.lower() == 'pdf':
+        with PdfPages( outfile ) as pdf:
+            if args.pdf_note:
+                with open( args.pdf_note, 'r') as note:
+                    pdf.attach_note( note.read( ) )
+            pdf.savefig( )
+            d = pdf.infodict( )
+            d['Author'] = 'Dilawar Singh'
+            d['CreationDate'] = datetime.datetime.today( )
+            d['ModDate'] = datetime.datetime.today( )
+    else:
+        plt.savefig( outfile )
 
 def main(args):
     header = getHeader(args.input_file)
@@ -255,8 +272,7 @@ def main(args):
         plt.show()
     else:
         _logger.info("Saving figure to %s" % args.outfile)
-        plt.tight_layout( )
-        plt.savefig(args.outfile)
+        save_figure( args.outfile )
 
 if __name__ == '__main__':
     import argparse
@@ -264,7 +280,7 @@ if __name__ == '__main__':
     description = '''A csv file plotter'''
     parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('--input_file', '-i', metavar='input csv file'
+    parser.add_argument('--input-file', '-i', metavar='input csv file'
             , required = True
             , help = 'File to plot'
             )
@@ -317,7 +333,7 @@ if __name__ == '__main__':
             , help = 'Cluster subplots together according to range'
             )
 
-    parser.add_argument('--plot_type', '-pt'
+    parser.add_argument('--plot-type', '-pt'
         , required = False
         , type = str
         , default = 'linear'
@@ -330,6 +346,12 @@ if __name__ == '__main__':
         , default = '' , type = str
         , help = 'Label for y-axis.'
         )
+
+    parser.add_argument( '--pdf-note', '-pn'
+            , default = None
+            , help = "Txt file to attach to pdf document. Only works when "
+                    " figure is saved to PDF format."
+            ) 
 
     parser.add_argument('--sortx', '-sx'
         , action = 'store_true'
