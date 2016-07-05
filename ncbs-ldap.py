@@ -93,6 +93,8 @@ def format_entry(entry):
         line.append("{:10}: {} ".format("Landline",landline) )
         lab = " ".join(data.get('profileLaboffice', []))
         line.append("{:10}: {} ".format("Lab", lab))
+        joinDate = " ".join(data.get('profileDateofjoin', []))
+        line.append("{:10}: {} ".format("Date of join", joinDate ))
     elif data.get('macAddress', None):
         macId = " ".join(data['macAddress']).replace('-', ':')
         line.append("{:30}: {}".format("MacId", macId))
@@ -105,7 +107,7 @@ if __name__ == '__main__':
         sys.exit(0)
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
     entries = search(query)
-    print entries
+    # print entries
     addresses = [format_entry(e) for e in sorted(entries)]
     addresses = filter(lambda x: x != "", addresses)
     for add in addresses:

@@ -52,8 +52,10 @@ def get_ycols(colexpr, header=None):
     cols = []
     for r in ranges:
         if ":" in r:
-            low, high = r.split(':')
-            cols += range(int(low), int(high)+1)
+            ranges = filter(None, r.strip().split(':') )
+            ranges.append( len(header) - 1)
+            low, high = ranges[0], ranges[1]
+            cols += range(int(low), int(high))
         else:
             # If not an integer, then search in column for a match. Must match
             # with column name.
