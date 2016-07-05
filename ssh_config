@@ -3,9 +3,15 @@ Host v3
     User dilawars
     IdentityFile ~/.ssh/id_rsa
 
+Host v4
+    Hostname 172.16.204.73
+    User labadmin
+    IdentityFile ~/.ssh/id_rsa
+
 Host motichoor
     Hostname 172.16.206.132
     User dilawars
+
 
 Host shares
     Hostname shares.ncbs.res.in
