@@ -24,7 +24,7 @@ set -e
 VIDEOFILE=$1
 NTH=$2
 
-FRAMEDIR="$VIDEOFILE_FRAMES"
+FRAMEDIR="${VIDEOFILE}_FRAMES"
 mkdir -p "$FRAMEDIR"
 
 if [ $# -lt 2 ]; then
