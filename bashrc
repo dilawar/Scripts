@@ -60,6 +60,7 @@ alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
+alias pdflatex='pdflatex -shell-escape'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -138,3 +139,14 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 
 # added by travis gem
 [ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh
+
+# Open JDK.
+export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
+export PATH=$PATH:/opt/android-studio/gradle/gradle-2.10/bin/
+
+if [ -d /opt/android-sdk-linux/ ]; then
+    export PATH=$PATH:/opt/android-sdk-linux/tools 
+else
+    echo "Directory /opt/android-sdk-linux/ is not found"
+fi
+
