@@ -210,6 +210,7 @@ def main(args):
     _logger.info("Using columns: %s" % usecols)
     _logger.info("lables: %s" % labels)
 
+    skipRows = 0
     if skipheader:
         skipRows = 1
     data = None
