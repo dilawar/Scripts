@@ -22,6 +22,9 @@
 \usepackage{pgf,tikz}
 \usetikzlibrary{shapes,backgrounds,positioning,matrix,decorations}
 
+\providecommand{\tightlist}{%
+\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
 \usepackage{siunitx}
 \usepackage{ifxetex,ifluatex}
 \usepackage{listings}

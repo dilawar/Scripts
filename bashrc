@@ -61,6 +61,7 @@ alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
 alias pdflatex='pdflatex -shell-escape'
+alias ghci='stack ghci'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -132,6 +133,7 @@ export SSHPASS=jH7qMYpF
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
 export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
+export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
 export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
@@ -142,11 +144,5 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 
 # Open JDK.
 export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
-export PATH=$PATH:/opt/android-studio/gradle/gradle-2.10/bin/
-
-if [ -d /opt/android-sdk-linux/ ]; then
-    export PATH=$PATH:/opt/android-sdk-linux/tools 
-else
-    echo "Directory /opt/android-sdk-linux/ is not found"
-fi
-
+export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
+alias java='java ${JAVA_FLAGS}'
