@@ -84,6 +84,9 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
 fi
 export PATH=$PATH:~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh
 
+# My pandoc filters.
+export PATH=$PATH:~/Scripts/pandoc
+
 if [ -f ~/.proxy ]; then
     source ~/.proxy
 fi
