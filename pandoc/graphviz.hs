@@ -16,12 +16,14 @@ getFileExtension fileName = reverse ext
 
 insertDot :: Block -> IO Block
 insertDot (CodeBlock (ident, ["showDot"] , attrs) code) = do
+    writeFile "log" $ show attrs
     let Just (_,outFile) = find (\(key, value) -> key == "outFile") attrs
     let ext = getFileExtension outFile
 
     writeFile "tmp.dot" code
     system $ "dot tmp.dot -T" ++ ext ++ " > " ++ outFile
     return $ Para $ [Image [Str "test"] (outFile,"test title")]
+
 insertDot (CodeBlock (ident, ["showDotCode"] , attrs) code) = do
     let Just (_,outFile) = find (\(key, value) -> key == "outFile") attrs
     let ext = getFileExtension outFile
