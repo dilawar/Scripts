@@ -4,18 +4,19 @@ set -x
 unset TEXMF
 # This script uses pandoc to convert markdown to pdf. 
 if [ $# -lt 1 ]; then
-    echo "USAGE: ./$0 filename.markdown [optional]"
+    echo "USAGE: ./$0 filename.pandoc [optional]"
     exit
 fi
+
 
 LATEX="lualatex -shell-escape"
 
 filename=$1
-outputFile="${filename%.markdown}.pdf"
+outputFile="${filename%.pandoc}.pdf"
 
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
-PANDOC="pandoc ${@:2} --data-dir=$HOME/Scripts/pandoc --filter=pandoc-citeproc --number-sections"
+PANDOC="pandoc ${@:2} --data-dir=$HOME/Scripts/pandoc --number-sections"
 INFMT=markdown+citations+tex_math_dollars+multiline_tables+latex_macros+header_attributes+yaml_metadata_block+table_captions
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
