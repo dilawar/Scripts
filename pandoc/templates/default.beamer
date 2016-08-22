@@ -250,4 +250,9 @@ $for(include-after)$
 $include-after$
 
 $endfor$
+
+%% Add support for columns. See here http://stackoverflow.com/questions/15142134/slides-with-columns-in-pandoc
+\newcommand{\columnsbegin}{\begin{columns}}
+\newcommand{\columnsend}{\end{columns}}
+
 \end{document}
