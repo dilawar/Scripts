@@ -210,6 +210,10 @@ $endif$
 \newcommand{\columnsbegin}{\begin{columns}}
 \newcommand{\columnsend}{\end{columns}}
 
+%% No default caption
+\usepackage{caption}
+\DeclareCaptionLabelFormat{nolabel}{}
+\captionsetup{labelformat=nolabel}
 
 \begin{document}
 $if(title)$
