@@ -215,6 +215,11 @@ $endif$
 \DeclareCaptionLabelFormat{nolabel}{}
 \captionsetup{labelformat=nolabel}
 
+%% Use tikz related stuff
+\usepackage{tikz}
+\usetikzlibrary{calc,positioning,arrows,shapes,backgrounds}
+\tikzstyle{every picture}+=[remember picture]
+
 \begin{document}
 $if(title)$
 \frame{\titlepage}

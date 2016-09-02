@@ -69,10 +69,12 @@ def search(query, connection=None):
         filterstr = '(|%s)' % (
             u' '.join([u'(%s=*%s%s)' % (field, query, post)
                        for field in ['cn', 'rdn', 'uid', 'mail']]))
-        r = connection.search_s(
+        r = connection.search_ext_s(
             CONFIG.get('connection', 'basedn'),
             ldap.SCOPE_SUBTREE,
-            filterstr.encode('utf-8'))
+            filterstr.encode('utf-8')
+            ,sizelimit = 2
+            )
     finally:
         if local_connection and connection:
             connection.unbind()

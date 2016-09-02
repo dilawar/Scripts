@@ -214,6 +214,7 @@ def main(args):
     if skipheader:
         skipRows = 1
     data = None
+    skipRows += args.skip_rows
     try:
         data = np.loadtxt(args.input_file
                 , skiprows = skipRows
@@ -355,6 +356,13 @@ if __name__ == '__main__':
             , help = "Txt file to attach to pdf document. Only works when "
                     " figure is saved to PDF format."
             ) 
+
+    parser.add_argument('--skip-rows', '-sr'
+        , required = False
+        , default = 0
+        , type = int
+        , help = 'How many rows to skip'
+        )
 
     parser.add_argument('--sortx', '-sx'
         , action = 'store_true'
