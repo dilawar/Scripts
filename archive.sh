@@ -27,6 +27,7 @@ fi
 
 FILE="$1"
 DEST="$2"
+mkdir -p ${DEST}
 
 # First, append the timestamp and git-id to filename.
 GITID=`git log --pretty=format:'%h' -n 1 || ''`
