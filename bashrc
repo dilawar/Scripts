@@ -57,7 +57,6 @@ alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
-alias pdflatex='pdflatex -shell-escape'
 alias ghci='stack ghci'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -79,7 +78,7 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=$PATH:~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh
+export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
 
 # My pandoc filters.
 export PATH=$PATH:~/Scripts/pandoc
