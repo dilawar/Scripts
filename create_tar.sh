@@ -30,7 +30,8 @@ dir=`realpath $1`
 dirname=`basename $dir`
 NOW=$(date +"%Y_%m_%d__%H_%M_%S")
 archiveName="${dirname}_${NOW}.tar.gz"
-archiveDir="$HOME/Documents/archives/"
+#archiveDir="$HOME/Documents/archives/"
+archiveDir=`pwd`
 mkdir -p $archiveDir
 archivePath="$archiveDir/$archiveName"
 tar cvfz $archivePath $dir/ --exclude-vcs
