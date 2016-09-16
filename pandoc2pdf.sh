@@ -14,6 +14,6 @@ LATEX="lualatex -shell-escape"
 filename=$1
 outputFile="${filename%.pandoc}.pdf"
 
-pandoc -s --filter=graphviz.py $filename -o $outputFile
+pandoc -s -f markdown+latex_macros+tex_math_dollars --filter=graphviz.py $filename -o $outputFile
 exit;
 

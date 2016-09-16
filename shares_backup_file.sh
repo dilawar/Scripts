@@ -17,6 +17,7 @@
 #      REVISION:  ---
 #===============================================================================
 
+set -x
 set -o nounset                              # Treat unset variables as an error
 if [[ $# -lt 1 ]]; then
     echo "USAGE: $0 filepath"

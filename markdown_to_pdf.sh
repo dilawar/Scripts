@@ -9,7 +9,8 @@ if [ $# -lt 1 ]; then
 fi
 
 
-LATEX="lualatex -shell-escape"
+#LATEX="pdflatex -shell-escape"
+LATEX="lualatex --shell-escape"
 
 filename=$1
 outputFile="${filename%.pandoc}.pdf"
