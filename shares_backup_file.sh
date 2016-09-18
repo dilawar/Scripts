@@ -25,6 +25,5 @@ fi
 FILENAME="$1"
 sshpass -e rsync -azv --progress $FILENAME dilawars@shares.ncbs.res.in:~/archives/
 echo "Here is the path of the file on shares"
-sshpass -e ssh dilawars@shares.ncbs.res.in find /home/bhalla/dilawars \
-    -type f -name "*${FILENAME}"
+sshpass -e ssh dilawars@shares.ncbs.res.in find /home/bhalla/dilawars/archives/ -type f -name "*${FILENAME}"
 notify-send "Done backing up $FILENAME"
