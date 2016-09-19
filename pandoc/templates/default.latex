@@ -10,6 +10,7 @@
 \makeatother
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
+\usepackage[multidot]{grffile}
 
 %% Include newcommands.
 \IfFileExists{tex_newcommands.tex}{
