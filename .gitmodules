@@ -19,3 +19,6 @@
 [submodule "data_over_git_ssh"]
 	path = data_over_git_ssh
 	url = git@github.com:dilawar/data_over_git_ssh
+[submodule "tmux"]
+	path = tmux
+	url = https://github.com/dilawar/.tmux
