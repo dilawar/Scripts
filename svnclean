@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 set -e 
-set -x
+#set -x
 #http://stackoverflow.com/questions/2803823/how-can-i-delete-all-unversioned-ignored-files-folders-in-my-working-copy
 # make sure this script exits with a non-zero return value if the
 # current directory is not in a svn working directory
@@ -16,6 +16,8 @@ while IFS= read -r f; do
     # contain backslashes; the behavior of printf is consistent
     if [[ "$f" == *".git"* ]]; then
         echo "git file."
+    elif [[ "$f" == *"/.git"* ]]; then
+        echo "git file"
     else
         printf '%s\n' "Deleting ${f}..."
         # if rm -rf can't delete the file, something is wrong so bail
