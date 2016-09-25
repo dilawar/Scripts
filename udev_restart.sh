@@ -18,6 +18,6 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-sudo devadm control --reload-rules
-sudo devadm trigger 
+sudo udevadm control --reload-rules
+sudo udevadm trigger 
 
