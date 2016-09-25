@@ -18,7 +18,7 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-set -x
+#set -x
 set -e
 
 if [[ $# -lt 1 ]]; then

@@ -1,4 +1,3 @@
-base=~/.mail
-maildir=NCBS:GMAIL
-mformat=maildir
+base=~/.mail/bodies
+maildir=.
 database=~/Mail/mairix.db
