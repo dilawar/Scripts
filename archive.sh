@@ -3,7 +3,7 @@
 #
 #          FILE: archive.sh
 # 
-#         USAGE: ./archive.sh 
+#         USAGE: ./archive.sh filename target_path
 # 
 #   DESCRIPTION: Archive a single file to given directory.
 # 
@@ -30,7 +30,7 @@ DEST="$2"
 mkdir -p ${DEST}
 
 # First, append the timestamp and git-id to filename.
-GITID=`git log --pretty=format:'%h' -n 1 || ''`
+GITID=`git log --pretty=format:'%h' -n 1 || echo ""`
 NOW=$(date +"%c" | tr ' :' '__' )
 
 INPUTFILE=`basename $FILE`
