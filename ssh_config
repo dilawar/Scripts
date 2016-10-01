@@ -1,6 +1,6 @@
 Host v3
     Hostname 172.16.204.230
-    User dilawars
+    User labadmin
     IdentityFile ~/.ssh/id_rsa
 
 Host v4
