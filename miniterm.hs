@@ -7,6 +7,7 @@ import Control.Monad
 import Control.Monad.Fix 
 import qualified Data.ByteString.Char8 as B
 import System.Console.GetOpt
+import System.Exit
 
 helpMsg = "USAGE: ./miniterm.hs /dev/ttyName baudrate"
 
@@ -26,7 +27,11 @@ keepReading h = do
     if isDataAvailable  
       then do
         char <- hGetChar stdin
-        send h $ B.singleton char
+        if char == '\^]' 
+          then
+            exitSuccess
+          else 
+            send h $ B.singleton char
       else do
         return 0
 
