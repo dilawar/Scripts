@@ -58,7 +58,7 @@ alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
-alias ghci='stack ghci'
+#alias ghci='stack ghci'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -147,3 +147,7 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
 export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java='java ${JAVA_FLAGS}'
+
+# Make sure that java launches with awesome windowmanager
+export AWT_TOOLKIT=MToolkit
+export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py

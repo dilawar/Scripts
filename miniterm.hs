@@ -11,16 +11,28 @@ import System.Exit
 
 helpMsg = "USAGE: ./miniterm.hs /dev/ttyName baudrate"
 
-eol = B.singleton '\n'
+eol_ = B.singleton '\n'
 
 fetchLine s = do 
     c <- recv s 1
-    if c == eol then
+    if c == eol_ then
         return B.empty
     else do
         vs <- fetchLine s
         return $! B.append c vs
 
+keepReading h = do 
+    fetchLine h >>= print 
+    isDataAvailable <- hReady stdin
+    if isDataAvailable then do
+        char <- hGetChar stdin
+        case char of 
+            '\^]' -> exitSuccess 
+            _ -> send h $ B.singleton char
+      else do
+        return 0
+
+{-
 keepReading h = do 
     fetchLine h >>= print 
     isDataAvailable <- hReady stdin
@@ -34,6 +46,7 @@ keepReading h = do
             send h $ B.singleton char
       else do
         return 0
+-}
 
 speed :: String -> CommSpeed 
 speed x | x == "9600" = CS9600 
