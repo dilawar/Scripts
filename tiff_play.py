@@ -100,15 +100,27 @@ def read_frames( videofile, **kwargs ):
         logging.error('Invalid format file %s is not supported yet' % ext )
         quit()
 
-def main( f ):
-    frames = read_frames( f )
-    for f in frames:
-        cv2.imshow( 'frame', f )
-        delay = 10
-        if len( sys.argv ) > 2:
-            delay = int( sys.argv[2] )
-        cv2.waitKey( delay )
+def process_file( infile, plot = True ):
+    frames = read_frames( infile )
+    if plot:
+        plt.imshow( np.mean(frames, axis=2), interpolation = 'none', aspect = 'auto' )
+        plt.colorbar( )
+        outfile = '%s_avg.png' % infile
+        plt.savefig( outfile )
+        print( '[INFO] Wrote summay of tiff to %s' % outfile )
+    return frames
+
+def main( infiles ):
+    framesStack = [ process_file(x) for x in infiles ]
+    numWindows = len( framesStack )
+    for i, f in enumerate( framesStack[0] ):
+        frames = []
+        for j in range( numWindows ):
+            frames.append( framesStack[0][i] )
+        cv2.imshow( 'Frames', np.hstack(frames) )
+        cv2.waitKey( 10 )
+
 
 if __name__ == '__main__':
-    tifffile = sys.argv[1]
-    main( tifffile )
+    tifffiles = sys.argv[1:]
+    main( tifffiles )
