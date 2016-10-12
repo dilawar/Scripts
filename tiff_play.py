@@ -103,11 +103,13 @@ def read_frames( videofile, **kwargs ):
 def process_file( infile, plot = True ):
     frames = read_frames( infile )
     if plot:
+        plt.figure( )
         plt.imshow( np.mean(frames, axis=2), interpolation = 'none', aspect = 'auto' )
         plt.colorbar( )
         outfile = '%s_avg.png' % infile
         plt.savefig( outfile )
         print( '[INFO] Wrote summay of tiff to %s' % outfile )
+        plt.close( )
     return frames
 
 def main( args ):
