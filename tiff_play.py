@@ -1,9 +1,7 @@
 #!/usr/bin/env python 
 
 """
-play tiff file.
-
-Convert all tiff files from a directory into a big numpy array.
+play multiple tiff files together. 
 
 """
     
@@ -119,12 +117,18 @@ def main( args ):
     framesStack = [ process_file(x) for x in args.infiles ]
     numWindows = len( framesStack )
     for i, f in enumerate( framesStack[0] ):
-        frames = []
-        for j in range( numWindows ):
-            frames.append( framesStack[0][i] )
-        cv2.imshow( 'Frames', np.hstack(frames) )
-        cv2.waitKey( int( 1000 / args.fps) )
-    cv2.destroyAllWindows( )
+        try:
+            frames = []
+            for j in range( numWindows ):
+                frames.append( framesStack[0][i] )
+            cv2.imshow( 'Frames', np.hstack(frames) )
+            cv2.waitKey( int( 1000 / args.fps) )
+        except Exception as e:
+            pass
+    try:
+        cv2.destroyAllWindows( )
+    except Exception as e:
+        pass
 
 
 if __name__ == '__main__':
