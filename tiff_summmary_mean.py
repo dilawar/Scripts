@@ -111,13 +111,14 @@ def main( args ):
     framesStack = [ process_file(x) for x in args.infiles ]
     numWindows = len( framesStack )
     plt.figure( )
-    for i, f in framesStack:
+    for i, f in enumerate(framesStack):
         plt.subplot( numWindows, 1, i+1 )
         stack = np.mean( np.dstack( f ), axis = 2 )
         plt.imshow( stack, interpolation = 'none', aspect = 'auto' )
         plt.colorbar( )
     
-    outfile = '%s_summary.png' % sys.argv[0]
+    outfile = '_'.join( [ os.path.basename( f ) for f in args.infiles ] )
+    outfile = args.outfile or '%s_summary.png' % outfile
     plt.savefig( outfile )
     print( '[INFO] Saved file to %s' % outfile )
 
