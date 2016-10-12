@@ -23,6 +23,8 @@ import numpy as np
 import logging
 import cv2
 
+args_ = None
+
 def get_frame_data( frame ):
     try:
         img = np.array(frame)
@@ -110,17 +112,44 @@ def process_file( infile, plot = True ):
         print( '[INFO] Wrote summay of tiff to %s' % outfile )
     return frames
 
-def main( infiles ):
-    framesStack = [ process_file(x) for x in infiles ]
+def main( args ):
+    global args_
+    args_ = args
+    print( '[DEBUG] Got args %s' % args )
+    framesStack = [ process_file(x) for x in args.infiles ]
     numWindows = len( framesStack )
     for i, f in enumerate( framesStack[0] ):
         frames = []
         for j in range( numWindows ):
             frames.append( framesStack[0][i] )
         cv2.imshow( 'Frames', np.hstack(frames) )
-        cv2.waitKey( 10 )
+        cv2.waitKey( int( 1000 / args.fps) )
+    cv2.destroyAllWindows( )
 
 
 if __name__ == '__main__':
-    tifffiles = sys.argv[1:]
-    main( tifffiles )
+    import argparse
+    # Argument parser.
+    description = '''Play multiple tiff files together. On large file,
+    it takes some time to load data into memory and play it. 
+    '''
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--infiles', '-i'
+        , required = True
+        , help = 'Input file(s). Multiple files must be space separated.'
+        , nargs = '+'
+        )
+    parser.add_argument('--output', '-o'
+        , required = False
+        , help = 'Write summary (mean of all frames) in png.'
+        )
+    parser.add_argument( '--fps', '-f'
+        , required = False
+        , default = 15
+        , type = int
+        , help = 'Frame per seconds to play. Default 15 frames per second'
+        )
+    class Args: pass 
+    args = Args()
+    parser.parse_args(namespace=args)
+    main( args )
