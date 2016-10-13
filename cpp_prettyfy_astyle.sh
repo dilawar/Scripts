@@ -19,12 +19,12 @@
 
 set -o nounset                              # Treat unset variables as an error
 FILENAME="$1"
-if [ ! -f $(FILENAME) ]; then 
+if [ ! -f $FILENAME ]; then 
     echo "$FILENAME does not exists";
     exit;
 fi
 
-astyle -A1 --indent-spaces=4 --break-blocks --pad-oper --pad-paren \
-    --pad-header --max-code-length=80 $(FILENAME) 
+astyle -A1  --break-blocks --pad-oper --pad-paren \
+    --pad-header --max-code-length=80 $FILENAME 
 
 
