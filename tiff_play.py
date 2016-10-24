@@ -88,6 +88,7 @@ def read_frames_from_tiff( filename, **kwargs ):
             frames.append( framedata )
     except EOFError as e:
         logging.info("Total frames read from file %d" % i )
+    print( '[INFO] Frame shape (%d, %d)' % frames[0].shape )
     return frames
 
 def read_frames( videofile, **kwargs ):
@@ -118,11 +119,12 @@ def main( args ):
     print( '[DEBUG] Got args %s' % args )
     framesStack = [ process_file(x) for x in args.infiles ]
     numWindows = len( framesStack )
+    print( 'No of files %d' % numWindows )
     for i, f in enumerate( framesStack[0] ):
         try:
             frames = []
             for j in range( numWindows ):
-                frames.append( framesStack[0][i] )
+                frames.append( framesStack[j][i] )
             cv2.imshow( 'Frames', np.hstack(frames) )
             cv2.waitKey( int( 1000 / args.fps) )
         except Exception as e:
