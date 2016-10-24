@@ -32,3 +32,7 @@ host mohini
     User dilawars
 
 
+Host gowtham
+    Hostname 172.16.235.250
+
+

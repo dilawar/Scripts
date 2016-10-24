@@ -24,7 +24,7 @@ if [ ! -f $FILENAME ]; then
     exit;
 fi
 
-astyle -A1  --break-blocks --pad-oper --pad-paren \
+astyle --style=stroustrup  --break-blocks --pad-paren \
     --pad-header --max-code-length=80 $FILENAME 
 
 
