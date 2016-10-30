@@ -1,6 +1,6 @@
 Host v3
     Hostname 172.16.204.230
-    User dilawars
+    User labadmin
     IdentityFile ~/.ssh/id_rsa
 
 Host v4
@@ -26,5 +26,13 @@ Host srna
     Hostname srna.ncbs.res.in
     User anushree
     IdentityFile ~/.ssh/id_rsa
+
+host mohini 
+    Hostname 172.16.206.218
+    User dilawars
+
+
+Host gowtham
+    Hostname 172.16.235.250
 
 
