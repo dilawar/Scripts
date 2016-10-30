@@ -20,8 +20,8 @@ esac
 export HISTCONTROL=ignoredups:erasedups
 export HISTSIZE=100000
 export HISTFILESIZE=1000000
-shopt -s histappend 
-export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
+#shopt -s histappend 
+#export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
@@ -58,7 +58,7 @@ alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
-alias ghci='stack ghci'
+#alias ghci='stack ghci'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
@@ -134,8 +134,8 @@ export SSHPASS=jH7qMYpF
 export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
 export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
-export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
-export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
+#export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
+#export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
 #export TEXMF=/usr/share/texmf
@@ -147,3 +147,7 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
 export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java='java ${JAVA_FLAGS}'
+
+# Make sure that java launches with awesome windowmanager
+export AWT_TOOLKIT=MToolkit
+export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
