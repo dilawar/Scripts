@@ -244,9 +244,8 @@ rm -f $HOME/.elinks/elinks.conf
 ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
 
 colorPrint "STEP" "Setting up i3."
-I3HOME=$HOME/.i3
-rm -rf $I3HOME
-rsync -az $SCRIPTHOME/i3/ $I3HOME
+I3HOME=$HOME/.config/i3
+git clone https://github.com/dilawar/i3 $I3HOME
 
 colorPrint "STEP" "Setting up latexmkrc"
 rm -rf $HOME/.latekmkrc
