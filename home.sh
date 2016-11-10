@@ -55,7 +55,7 @@ cd $SCRIPTHOME && git submodule init && git submodule update && cd
 # Update bash 
 colorPrint "STEP" "Updating bash"
 rm -f $HOME/.bashrc
-ln $SCRIPTHOME/bashrc $HOME/.bashrc 
+echo "source $SCRIPTHOME/bashrc" >> $HOME/.bashrc
 source $HOME/.bashrc 
 colorPrint "STEP" "Adding proxy information"
 echo "export http_proxy=http://proxy.ncbs.res.in:3128" > $HOME/.proxy
