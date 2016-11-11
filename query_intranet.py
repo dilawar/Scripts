@@ -50,13 +50,18 @@ def findPeople( soup ):
             people = toLine( html2text.html2text( str(elem) ) )
             results.append( people )
 
-    return "\n".join( results )
+    return results
 
 
 def main( query ):
-    return findPeople( queryIntranet( query ) )
-    
+    i = 0
+    people = findPeople( queryIntranet( query, 0 ) )
+    print( "\n".join( people ) )
+    while len(people) >= 25:
+        i += 1
+        people = findPeople( queryIntranet( query, i ) )
+        print( "\n".join( people ) )
 
 if __name__ == '__main__':
     query = 'name='+ sys.argv[1]
-    print main( query )
+    main( query )
