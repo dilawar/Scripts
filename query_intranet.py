@@ -68,6 +68,8 @@ def main( query ):
         i += 1
         people = findPeople( queryIntranet( query, i ) )
         print( "\n".join( people ) )
+        if i == 100:
+            break
 
     people = findPeople( queryIntranet( query, i+1 ) )
     print( "\n".join( people ) )
