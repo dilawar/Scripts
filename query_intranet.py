@@ -1,6 +1,6 @@
-"""find_faculty.py: 
+#!/usr/bin/env python
 
-    Search intranet for faculy.
+"""
 
 """
     
