@@ -36,3 +36,6 @@ Host gowtham
     Hostname 172.16.235.250
 
 
+Host openday 
+    Hostname 172.16.208.234
+    User dilawars
