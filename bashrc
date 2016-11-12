@@ -151,3 +151,7 @@ alias java='java ${JAVA_FLAGS}'
 # Make sure that java launches with awesome windowmanager
 export AWT_TOOLKIT=MToolkit
 export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
+
+
+# User scripts
+source altert.sh
