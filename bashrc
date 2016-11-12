@@ -154,4 +154,4 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 
 
 # User scripts
-source altert.sh
+source alert.sh
