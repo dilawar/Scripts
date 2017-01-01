@@ -37,10 +37,13 @@ fi
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
-alias ls='ls --color=auto'
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
+if [ "$(uname)" == "Darwin" ]; then
+else
+    alias ls='ls --color=auto'
+    alias ll='ls -alF'
+    alias la='ls -A'
+    alias l='ls -CF'
+fi
 alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
