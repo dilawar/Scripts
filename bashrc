@@ -38,11 +38,12 @@ fi
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
 if [ "$(uname)" == "Darwin" ]; then
+    alias ls="gls --color=auto --ltr"
 else
     alias ls='ls --color=auto'
-    alias ll='ls -alF'
-    alias la='ls -A'
-    alias l='ls -CF'
+    alias ll='ls -alF -ltr'
+    alias la='ls -A -ltr'
+    alias l='ls -CF -ltr'
 fi
 alias rm='rm -i'
 alias sh='bash'
