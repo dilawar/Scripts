@@ -25,7 +25,7 @@ do
         if [ $VENDOR == $1 ]; then
             echo "Resetting $X"
             echo 0 > "$X/authorized"
-            sleep( 0.5 )
+            sleep 0.5
             echo 1 > "$X/authorized"
         fi
     fi
