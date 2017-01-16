@@ -30,7 +30,7 @@ fi
 alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
-alias copy='rsync -azv --progress'
+alias copy='rsync -azv --progress -C'
 alias i='sudo -E emerge -avuD '
 alias netcat='nc.openbsd'
 alias ii='sudo apt-get -c ~/.aptconf install'
