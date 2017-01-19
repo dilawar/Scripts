@@ -44,6 +44,8 @@ alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
+alias pdflatex="pdflatex -shell-escape"
+alias lualatex="lualatex -shell-escape"
 #alias ghci='stack ghci'
 # Alias definitions.
 # You may want to put all your additions into a separate file like

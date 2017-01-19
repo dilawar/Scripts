@@ -19,5 +19,6 @@
 
 set -o nounset                              # Treat unset variables as an error
 export TEXMF=/usr/share/texmf
+mtxrun --generate
 mtxrun --script fonts --list --all
 
