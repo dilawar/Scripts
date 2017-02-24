@@ -1,10 +1,17 @@
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 try:
-    mpl.style.use( 'seaborn-talk' )
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
 except Exception as e:
     pass
-mpl.rcParams['axes.linewidth'] = 0.1
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-import numpy as np
+try:
+    mpl.style.use( 'seaborn-talk' )
+    mpl.rcParams['axes.linewidth'] = 0.1
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except Exception as e:
+    pass
+
+try:
+    import numpy as np
+except Exception as e:
+    pass
