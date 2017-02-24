@@ -352,10 +352,10 @@ if __name__ == '__main__':
         )
 
     parser.add_argument( '--pdf-note', '-pn'
-            , default = None
-            , help = "Txt file to attach to pdf document. Only works when "
-                    " figure is saved to PDF format."
-            ) 
+        , default = None
+        , help = "Txt file to attach to pdf document. Only works when "
+                " figure is saved to PDF format."
+        ) 
 
     parser.add_argument('--skip-rows', '-sr'
         , required = False

@@ -34,5 +34,7 @@ archiveName="${dirname}_${NOW}.tar.gz"
 archiveDir=`pwd`
 mkdir -p $archiveDir
 archivePath="$archiveDir/$archiveName"
-tar cvfz $archivePath $dir/ --exclude-vcs
+# -h follows sybolic link.
+
+tar cvfzh $archivePath $dirname/ --exclude-vcs
 echo "Wrote archive to $archivePath, size " `du -h $archivePath`
