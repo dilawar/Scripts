@@ -252,6 +252,7 @@ application/msword; libreoffice %s; test=test -n "$DISPLAY"
 application/msword; libreoffice %s; copiousoutput
 application/ms-tnef; tnef2txt %s; copiousoutput
 application/vnd.oasis.; libreoffice %s; copiousoutput
+applica/vnd.oasis.; libreoffice %s; copiousoutput
 
 #application/excel; gnumeric %s; test=test -n "$DISPLAY"; \
 #	nametemplate=%s.xls
