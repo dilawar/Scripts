@@ -18,5 +18,5 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-
+set -x
 svn st | grep '^?' | awk '{print $2}' | xargs rm -rf
