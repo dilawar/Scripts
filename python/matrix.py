@@ -19,8 +19,9 @@ import numpy as np
 
 
 class Matrix( np.matrix ):
-    """Generate matrix """
-    def __init__(self, default):
+    """Override numpy matrix """
+
+    def __init__(self, default = [ ] ):
         self.mat = np.matrix( default )
 
     def __str__( self ):
