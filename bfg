@@ -1,0 +1,2 @@
+#!/bin/bash
+java -jar /opt/bfg-1.12.15.jar "$@"
