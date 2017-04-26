@@ -18,6 +18,8 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-IFNILE=$1
+set -x
+set -e
+INFILE=$1
 OUTFILE=$2
-ffmpeg -i $INFILE -s 640x480 -b:v 512k -vcodec mpeg1video -acodec copy $OUTFILE
+ffmpeg -i $INFILE -s 640x480 -b:v 512k  -acodec copy $OUTFILE
