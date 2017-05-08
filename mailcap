@@ -253,6 +253,7 @@ application/msword; libreoffice %s; copiousoutput
 application/ms-tnef; tnef2txt %s; copiousoutput
 application/vnd.oasis.; libreoffice %s; copiousoutput
 applica/vnd.oasis.; libreoffice %s; copiousoutput
+application/vnd.openxm; libreoffice %s; copiousoutput
 
 #application/excel; gnumeric %s; test=test -n "$DISPLAY"; \
 #	nametemplate=%s.xls
@@ -260,8 +261,6 @@ applica/vnd.oasis.; libreoffice %s; copiousoutput
 #	nametemplate=%s.xls
 application/excel; openoffice %s; test=test -n "$DISPLAY"
 application/vnd.ms-excel; openoffice %s; test=test -n "$DISPLAY"
-#application/excel; xlsview %s; test=test -n "$DISPLAY"
-#application/vnd.ms-excel; xlsview %s; test=test -n "$DISPLAY"
 application/excel; xls2csv %s | column -s, -tn; copiousoutput
 application/vnd.ms-excel; xls2csv %s | column -s, -tn; copiousoutput
 #application/excel; xlHtml %s | w3m -dump -T text/html; copiousoutput
