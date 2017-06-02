@@ -54,6 +54,9 @@ case "$MIMETYPE" in
     "application/x-bzip")
         unarchive_gzip "$FILENAME" "$DIRNAME"
         ;;
+    "application/x-gzip")
+        unarchive_gzip "$FILENAME" "$DIRNAME"
+        ;;
     *)
         echo "Unknown mimetype $MIMETYPE"
         ;;
