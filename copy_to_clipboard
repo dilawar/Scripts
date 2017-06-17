@@ -1,3 +1,0 @@
-#!/bin/bash
-cat $1 | xclip -sel clip
-echo "Copy content of $1 into clipboard"
