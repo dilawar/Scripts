@@ -17,11 +17,13 @@ outputFile="${filename%.pandoc}.pdf"
 
 texFile=${filename%.pandoc}.tex
 # now convert the file to pdf
-PANDOC="pandoc ${@:2} --data-dir=$HOME/Scripts/pandoc --number-sections"
+PANDOC="pandoc ${@:2}" # --filter $HOME/Scripts/pandoc/image_local_copy.hs "
+PANDOC="$PANDOC --data-dir=$HOME/Scripts/pandoc --number-sections"
+
 INFMT=markdown+citations+tex_math_dollars+multiline_tables+latex_macros+header_attributes+yaml_metadata_block+table_captions
 echo "Converting $filename to $outputFile using pandoc"
 latex="true"
-if [[ $latex = "true" ]]; then
+if [[ $latex =~ "true" ]]; then
     $PANDOC -s -f $INFMT -t latex -o $texFile $filename
     $LATEX  $texFile
 else

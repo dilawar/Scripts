@@ -4,5 +4,5 @@ if [ ! -f $1 ]; then
     echo " Given : $1"
     exit;
 fi
-xsel -sel clip < $FILE
+xsel -sel clip < $1
 echo "Copied to clipboard"
