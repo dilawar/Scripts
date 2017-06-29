@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+ssh -Y gulgula.ncbs.res.in -ldilawars xterm
