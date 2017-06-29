@@ -16,8 +16,6 @@ __status__           = "Development"
 
 import sys
 import os
-import matplotlib.pyplot as plt
-import numpy as np
 import urllib2 
 from bs4 import BeautifulSoup
 import html2text
