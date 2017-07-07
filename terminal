@@ -1,5 +1,6 @@
 #!/bin/bash
 #urxvt256c -bg black -fg white
 #urxvt -bg black -fg white
-xfce4-terminal
+#xfce4-terminal
 #gnome-terminal
+urxvt
