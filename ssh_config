@@ -35,7 +35,41 @@ host mohini
 Host gowtham
     Hostname 172.16.235.250
 
-
 Host openday 
     Hostname 172.16.212.117
     User dilawars
+Host blinky
+    Hostname 172.16.206.202 
+    User dilawars
+
+Host somya 
+    Hostname 172.16.108.115
+    User guest1
+
+Host hippo 
+    Hostname 172.16.223.76
+    User hippo
+
+Host rikesh
+    Hostname 172.16.206.189
+    User dilawar
+
+Host behaviour1
+    Hostname 172.16.202.218
+    User dilawars
+
+Host behaviour2
+    Hostname 172.16.204.230
+    User dilawars
+
+Host port2
+    Hostname 172.16.206.249
+    User dilawars
+
+Host intel 
+    Hostname 192.102.190.12
+    User NCBS
+
+Host bhumika_bench 
+    Hostname 172.16.208.154
+    User bhumika
