@@ -17,11 +17,6 @@ Host shares
     Hostname shares.ncbs.res.in
     User dilawars
 
-Host bitbucket.org
-    Hostname bitbucket.org
-    User git
-    IdentityFile ~/.ssh/bitbucket
-
 Host srna
     Hostname srna.ncbs.res.in
     User anushree
