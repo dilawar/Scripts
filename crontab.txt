@@ -1,0 +1,2 @@
+* * * * * ~/Scripts/hibernate_when_battery_is_low.sh  >> /tmp/hibernate_log.txt
+*/10 * * * * gcalcli remind

@@ -1,0 +1,60 @@
+#!/bin/bash
+# This is wrapper around rm command.
+BACKUP_DIR=$HOME/.rm_backup
+PWD=$(pwd)
+
+if [ ! -d $BACKUP_DIR ]; then
+    mkdir -p $BACKUP_DIR 
+fi
+
+# Great, now check the arguments. We are only interested in paths which can be
+# removed and not in the arguments passed to scripts (important as they are.)
+
+declare -a dirsToRemove
+declare -a filesToRemove
+
+args=""
+done=" ... DONE"
+
+function printDone 
+{
+    printf "%s\n" " ... done"
+}
+
+function showDir
+{
+    echo "Following dir exists in backup."
+    find $BACKUP_DIR/ -type d 
+}
+
+function showFiles 
+{
+    dir=$1
+    echo "Following files exists in dir $dir"
+    find $BACKUP_DIR/$dir -type f
+}
+
+if [[ "$1" == "--show-backup" ]] || [[ "$1" == "-b" ]]; then
+    if [ $2 ]; then
+        showFiles $2
+    else
+        showDir 
+    fi
+    exit
+fi
+
+for var in "$@" 
+do 
+    if [ -d $var ] || [ -f $var ]; then
+        path=$PWD/$var
+        printf "Creating backup for %s " "$var"
+        cp --parents -r $path $BACKUP_DIR/
+        printDone
+        printf " + Deleting ..."
+        deleted=`rm $args $path`
+        printDone
+    else
+        args="$args $var"
+    fi
+done
+

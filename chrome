@@ -1,0 +1,2 @@
+#!/bin/bash
+google-chrome --proxy-server="proxy.ncbs.res.in:3128"

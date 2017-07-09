@@ -1,0 +1,5 @@
+#!/bin/bash
+echo getting localhost bluetooth
+hcitool dev
+echo Inquiring other bluetooth devices
+sdptool search SP

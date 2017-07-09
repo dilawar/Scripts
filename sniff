@@ -1,0 +1,62 @@
+#!/bin/bash
+# This scripts searches for files according to given arguements.
+
+function findDirsToSearch
+{
+    path_pat=`dirname $1`
+    if [[ "$path_pat" == *"##"* ]]; then
+        ## Delete substring starting from ## till end.
+        dir=${path_pat%%*\#\#*}
+        dirs_to_search=`find $dir -not -name \"*\.git*\" -type d`
+    else
+        # Replace all # with *
+        path_pat=${path_pat//\#/*}
+        for l in $path_pat; do
+            if [[ -d $l ]]; then 
+                dirs_to_search="$dirs_to_search $l"
+            fi
+        done
+    fi
+    echo $dirs_to_search
+}
+
+function searchForFiles
+{
+    echo $1
+    file_pat=$2
+    for dir in $1; do
+        printf "In $dir\n"
+        #files="$files `find $dir -maxdepth 1 -name \"$file_pat\" -type f`"
+    done
+    echo $files
+}
+
+function printFiles 
+{
+    files=$1
+    if [ $search_for_text ]; then
+        echo "Searching for pattern $txt"
+        for f in $files; do
+            if grep "$txt" $f > /dev/null
+            then
+                printf "$f\n"
+            fi
+        done
+    else
+        for f in $files; do
+            printf "$f\n"
+        done
+    fi
+}
+
+if [[ $# -eq 2 ]]; then
+    search_for_text=True
+    txt=$2
+elif [[ $# -lt 1 ]] || [[ $# -gt 2 ]]; then
+    echo "Usage: $0 path_pattern [text_pattern]"
+fi
+file_pat=`basename $1`
+direcs=`findDirsToSearch $1`
+fs=`searchForFiles $direcs $file_pat`
+#printFiles $files
+

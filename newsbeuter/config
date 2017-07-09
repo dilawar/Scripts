@@ -1,0 +1,2 @@
+auto-reload yes
+browser "elinks %u"

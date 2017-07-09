@@ -1,0 +1,8 @@
+#!/bin/bash
+(getmail -n -v -rgmail) &
+(getmail -n -v -rncbs) &
+(getmail -n -v -rgpo) &
+
+if [[ `which mairix` ]]; then
+    mairix
+fi

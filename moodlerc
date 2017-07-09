@@ -1,0 +1,26 @@
+# This is a configuration file for moodle.py application.
+# If you are in doubt, email to 
+# dilawar@ee.iitb.ac.in
+# usename is your moddle username.
+# password is your moddle password.
+#
+url = http://moodle.lyceejeanbart.fr/login/index.php
+username = username
+password = password
+proxy = true
+course = MPSDEM2013
+activities = Fiches de trivial
+activity = all submissions
+#activity = Lab session 2
+#activity = Lab session 3
+#activity = Lab session 4
+#activity = Assignment 5
+#activity = Verilog 1
+#activity = Verilog Assignment 2
+#activity = Verilog Assignment 3
+#activity = VHDL Project
+#activity = VHDL _ Late submissions
+download = true
+# It must end with / character.
+downloaddir = /tmp/
+extract = true

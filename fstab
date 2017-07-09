@@ -1,0 +1,3 @@
+# Append these two lines to /etc/fstab 
+LABEL=BHANDAR /home/dilawar/Bhandar ntfs-3g defaults 0 0
+LABEL=WORK  /home/dilawar/Work ext3 defaults 0 0

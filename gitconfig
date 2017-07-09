@@ -1,0 +1,31 @@
+[user]
+	name = Dilawar Singh
+	email = dilawars@ncbs.res.in
+[http]
+	proxy = http://proxy.ncbs.res.in:3128
+	sslVerify = false
+[https]
+	proxy = http://proxy.ncbs.res.in:3128
+[svn]
+	rmdir = true
+[core]
+	autocrlf = input
+        pager = cat
+        editor = vim
+        excludesfile = ~/.gitignore
+        difftool = vimdiff
+[mergetool]
+	keepBackup = false
+[alias]
+    lol = log --graph --decorate --pretty=oneline --abbrev-commit
+    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+    clean = ls-files --others --exclude-standard -z | xargs -0 tar rvf ~/Backup/git-backup.tar
+[color]
+    branch = auto
+    diff = auto
+    interactive = auto
+    status = auto
+[merge]
+	tool = vimdiff
+[push]
+	default = simple

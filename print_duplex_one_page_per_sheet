@@ -1,0 +1,54 @@
+#!/bin/bash
+set -x
+if [[ "-x" == "$1" ]]; then
+    echo "Debug mode"
+    PRINT_COMMAND="echo"
+else
+    PRINT_COMMAND="lp -o media=A4 -o prettyprint"
+fi
+
+FILE="$1"
+PAGES=`pdfinfo "$FILE" | grep "Pages:" | cut -d':' -f2 | tr -d ' '`
+
+function split_into_even()
+{
+    echo "Generating even pages in reverse order"
+    pdftk A="$1" cat Aend-1even output /tmp/even_pages.pdf
+}
+
+function print_page()
+{
+    PAGEID="$1"
+    echo "Printing page no $1 of $FILE"
+    $PRINT_COMMAND -P "$1" "$FILE"
+}
+
+echo "Total pages: $PAGES"
+ODD_PAGES=`seq -s"," 1 2 $PAGES`;
+echo "Printing odd pages first $ODD_PAGES"
+$PRINT_COMMAND -P $ODD_PAGES "$FILE"
+
+# If no of total pages are odd, then add a black page at the end of file.
+echo "Please collect the odd pages and put them back on. Then press any key to
+continue."
+read response
+
+uneven=$(($PAGES % 2))
+if [ $uneven == 1 ]; then
+    echo "DEBUG: Sending an empty page since total pages are odd"
+    echo "" | $PRINT_COMMAND
+    PAGES=$(($PAGES-1))
+fi
+
+## If pdftk is available then split the pdf using pdftk and print the even pages
+## separately.
+if [[ `which pdftk` ]]; then
+    split_into_even "$FILE"
+    $PRINT_COMMAND /tmp/even_pages.pdf
+else
+    # reversing the even pages.
+    EVEN_PAGES=`seq $PAGES -2 2`
+    for page in $EVEN_PAGES; do
+        print_page $page
+    done
+fi

@@ -1,0 +1,3 @@
+base=~/.mail/bodies
+maildir=.
+database=~/Mail/mairix.db
