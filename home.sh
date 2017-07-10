@@ -265,3 +265,6 @@ colorPrint "STEP" "Setting up local tex paths"
 MYTEX=$HOME/texmf/tex/latex/local/
 mkdir -p $MYTEX 
 cp $SCRIPTHOME/latex/poisson.* $MYTEX/
+
+colorPrint "STEP" "Setting up HUB"
+cp $SCRIPTHOME/hub $HOME/.config/hub
