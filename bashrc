@@ -72,8 +72,9 @@ export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
 # My pandoc filters.
 export PATH=$PATH:~/Scripts/pandoc
 
-if [ -f ~/.proxy ]; then
-    source ~/.proxy
+PROXYFILE=$HOME/Scripts/proxy
+if [ -f $PROXYFILE ]; then
+    source $PROXYFILE;
 fi
 
 # read history for each terminal
