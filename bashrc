@@ -110,6 +110,8 @@ alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
 alias tmux='tmux -f $SCRIPTHOME/tmux/tmux.conf'
 alias move='mv -v -u -n'
+# Notify when done.
+alias lwd='$HOME/Scripts/notify_when_done.sh'
 
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
