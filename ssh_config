@@ -53,6 +53,10 @@ Host behaviour1
     Hostname 172.16.202.218
     User dilawars
 
+Host behavLaptop1
+    Hostname 172.16.204.218
+    User dilawars
+
 Host behaviour2
     Hostname 172.16.204.230
     User dilawars
