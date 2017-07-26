@@ -26,4 +26,6 @@ if [[ $# -lt 2 ]]; then
 fi
 FILE="$1"
 NTH="$2"
-awk "NR == 1 || NR % ${NTH} == 0" $FILE
+
+# Don't miss the header.
+gawk "NR == 1 || NR % ${NTH} == 0" $FILE
