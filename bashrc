@@ -141,4 +141,4 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 # source bash-preexec.sh 
 # Now for very command prefix is with alert command so that I can get notified.
 source alert.sh
-xrdb ~/Scripts/Xresources
+#xrdb ~/Scripts/Xresources
