@@ -52,15 +52,17 @@ git clone git@bitbucket.org:dilawar/notes $HOME/Work/notes
 colorPrint "STEP" "Updating submodules in Scripts"
 cd $SCRIPTHOME && git submodule init && git submodule update && cd
 
+##########################################################################
 # Update bash 
 colorPrint "STEP" "Updating bash"
-rm -f $HOME/.bashrc
-echo "source $SCRIPTHOME/bashrc" >> $HOME/.bashrc
-source $HOME/.bashrc 
-colorPrint "STEP" "Adding proxy information"
-echo "export http_proxy=http://proxy.ncbs.res.in:3128" > $HOME/.proxy
-echo "export https_proxy=http://proxy.ncbs.res.in:3128" >> $HOME/.proxy
-source $HOME/.proxy
+
+LINE="source $SCRIPTHOME/bashrc" >> $HOME/.bashrc
+if grep -Fxq "$LINE" $HOME/.bashrc
+then
+    echo "$LINE is already in your $HOME/.bashrc. Doing nothing here";
+else
+    echo "source $SCRIPTHOME/bashrc" >> $HOME/.bashrc
+fi
 
 ###colorPrint "STEP" "Setting up ssh keys"
 ###gpg -d $SCRIPTHOME/_ssh.tar.gz.gpg > /tmp/_ssh.tar.gz
@@ -265,3 +267,6 @@ colorPrint "STEP" "Setting up local tex paths"
 MYTEX=$HOME/texmf/tex/latex/local/
 mkdir -p $MYTEX 
 cp $SCRIPTHOME/latex/poisson.* $MYTEX/
+
+colorPrint "STEP" "Setting up HUB"
+cp $SCRIPTHOME/hub $HOME/.config/hub

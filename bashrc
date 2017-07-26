@@ -72,8 +72,9 @@ export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
 # My pandoc filters.
 export PATH=$PATH:~/Scripts/pandoc
 
-if [ -f ~/.proxy ]; then
-    source ~/.proxy
+PROXYFILE=$HOME/Scripts/proxy
+if [ -f $PROXYFILE ]; then
+    source $PROXYFILE;
 fi
 
 # read history for each terminal
@@ -109,6 +110,10 @@ alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
 alias tmux='tmux -f $SCRIPTHOME/tmux/tmux.conf'
+alias move='mv -v -u -n'
+# Notify when done.
+alias lwd='$HOME/Scripts/notify_when_done.sh'
+
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
