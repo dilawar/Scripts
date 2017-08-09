@@ -132,8 +132,6 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 # added by travis gem
 [ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh
 
-# Open JDK.
-export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
 export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java='java ${JAVA_FLAGS}'
 
@@ -147,3 +145,6 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 # Now for very command prefix is with alert command so that I can get notified.
 source alert.sh
 #xrdb ~/Scripts/Xresources
+unset SSH_ASKPASS
+eval "$(pandoc --bash-completion)"
+

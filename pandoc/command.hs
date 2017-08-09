@@ -1,4 +1,5 @@
 #!/usr/bin/env runhaskell
+
 import Text.Pandoc.JSON
 
 import System.Process
