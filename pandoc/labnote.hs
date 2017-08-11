@@ -40,7 +40,4 @@ copyImagesLocally x = return x
 
 main :: IO ()
 main = do 
-    --toJSONFilter handleCmds
-    --toJSONFilter insertDiagrams 
-    --toJSONFilter insertDot 
     toJSONFilter copyImagesLocally
