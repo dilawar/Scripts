@@ -8,6 +8,3 @@ host = http://proxy.ncbs.res.in:3128
 host = http://proxy.ncbs.res.in:3128
 [extensions]
 largefiles =
-[largefiles]
-minsize = 20
-patterns = **.jpg re:.*\.(png|bmp) *.zip *.tar.gz content/audio/* *.tiff

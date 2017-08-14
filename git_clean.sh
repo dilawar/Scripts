@@ -5,4 +5,4 @@ if [ ! -d $1 ]; then
     exit;
 fi
 
-git clean -fXd "$@"
+git clean -fxd -e vendor -e *.dat -e *.csv "$@"
