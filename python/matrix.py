@@ -13,15 +13,13 @@ __maintainer__       = "Dilawar Singh"
 __email__            = "dilawars@ncbs.res.in"
 __status__           = "Development"
 
-import sys
-import os
 import numpy as np
 
 
 class Matrix( np.matrix ):
     """Override numpy matrix """
 
-    def __init__(self, default = [ ] ):
+    def __init__(self, default  ):
         self.mat = np.matrix( default )
 
     def __str__( self ):
@@ -32,26 +30,25 @@ class Matrix( np.matrix ):
 
     def __setitem__( self, index, v ):
         # This is the core function of this class.
-        i, j = index
+        i, j = int( index[0] ), int( index[1] )
         imax, jmax = self.mat.shape
         if i > imax:
             mat = self.mat.copy( )
             mat.resize( (i+1, jmax) )
-            self.mat = mat.copy( )
+            self.mat = np.array( mat )
             imax, jmax = self.mat.shape
             del mat
         if j > jmax:
             mat = self.mat.copy( )
             mat.resize( (imax, j+1) )
-            self.mat = mat.copy( )
-            print( self.mat )
+            self.mat = np.array( mat )
             del mat
 
         self.mat[ i, j ] = v
 
 
 def test( ):
-    a = Matrix( '1 2; 3 5' )
+    a = Matrix( [ ] )
     print( a )
     a[ 4,5 ] = 10
     print( a )

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 echo "Reading .svnignore to set the svn:ignore property"
-svn propset svn:ignore -F .svnignore .
+svn propset svn:ignore -RF .svnignore .
