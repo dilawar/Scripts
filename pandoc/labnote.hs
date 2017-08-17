@@ -1,5 +1,7 @@
 #!/usr/bin/env runhaskell
 
+-- My personal filter for writing labnotes.
+
 import Text.Pandoc.JSON
 import Text.Pandoc
 import System.Process
@@ -10,7 +12,6 @@ import Data.List
 import Data.List.Split 
 import System.IO
 import System.Directory
-
 
 -- Create a local copy of included inmages in pandoc. As long as local copy
 -- exists, do not use the file from given link.
@@ -37,7 +38,10 @@ copyImagesLocally (Image attr xs tgt) = do
 
 copyImagesLocally x = return x
 
+labnote x = do 
+    x1 <- copyImagesLocally x
+    return x1
 
 main :: IO ()
 main = do 
-    toJSONFilter copyImagesLocally
+    toJSONFilter labnote
