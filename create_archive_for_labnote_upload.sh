@@ -27,7 +27,7 @@ DIR="/tmp/${LABNOTE}"
 mkdir -p ${DIR}
 FILES=`find . -type f -size 1M`
 for f in ${FILES}; do
-    cp $f ${DIR}/
+    cp --parent $f ${DIR}/
 done
 echo "Total size of labnote archive "
 du -sh ${DIR}
