@@ -20,6 +20,7 @@ srcFile_ = None
 
 pandoc_ = [ 'pandoc', '-F', 'pandoc-citeproc'
         , '-F', 'pandoc-crossref', '--standalone', '--number-sections' 
+        , '--self-contained'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )
@@ -29,10 +30,10 @@ def convertToPNG( img, text ):
     global srcFile_
     srcDir = os.path.dirname( srcFile_ )
     imgPath = os.path.join( srcDir, img )
-    imgNameWe = '.'.join( imgPath.split( '.' )[:-1] )
+    imgNameWe = '.'.join( img.split( '.' )[:-1] )
     pngPath = imgNameWe + '.png'
     print( 'Converting %s to %s' % (imgPath, pngPath) )
-    cmd = [ 'convert', '-density 300', '-quality 90', imgPath, pngPath ]
+    cmd = [ 'convert', '-density', '300', '-quality', '90', imgPath, pngPath ]
     subprocess.check_output(cmd, shell = False )
     if not os.path.exists( pngPath ):
         print( '[WARN] to create PNG file' )
@@ -43,10 +44,14 @@ def convertToPNG( img, text ):
 
 def toHtml( text ):
     global srcFile_
+    global pandoc_
     htmlFileNameWe = '.'.join( srcFile_.split( '.' )[:-1] )
     htmlFile = htmlFileNameWe + '.html'
     pFile = '%s_html.md' % srcFile_ 
-    cmd = pandoc + [ '-o', htmlFile, pFile ]
+    with open( pFile, 'w' ) as f:
+        f.write( text )
+
+    cmd = pandoc_ + [ '-o', htmlFile, pFile ]
     subprocess.call( cmd, shell = False )
     print( '[INFO] Wrote HTML to %s' % htmlFile )
 
