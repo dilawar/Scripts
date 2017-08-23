@@ -25,7 +25,7 @@ NOW=$(date +"%Y_%m_%d__%H_%M_%S")
 LABNOTE="LABNOTE_${NOW}"
 DIR="/tmp/${LABNOTE}"
 mkdir -p ${DIR}
-FILES=`find . -not -path _data -type f -size -500k`
+FILES=`find . -type f -size -500k -not -path "./_data/*"`
 for f in ${FILES}; do
     cp --parent $f ${DIR}/
 done
