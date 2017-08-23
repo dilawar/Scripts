@@ -25,12 +25,14 @@ NOW=$(date +"%Y_%m_%d__%H_%M_%S")
 LABNOTE="LABNOTE_${NOW}"
 DIR="/tmp/${LABNOTE}"
 mkdir -p ${DIR}
-FILES=`find . -type f -size 1M`
+FILES=`find . -not -path _data -type f -size -500k`
 for f in ${FILES}; do
     cp --parent $f ${DIR}/
 done
+
 echo "Total size of labnote archive "
 du -sh ${DIR}
 
 # create archive file.
 tar -cvzf ${LABNOTE}.tar.gz ${DIR}
+ls -lh ${LABNOTE}.tar.gz 
