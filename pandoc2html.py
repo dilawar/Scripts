@@ -35,6 +35,7 @@ def convertToPNG( img, text ):
     if os.path.isfile( pngPath ):
         # File exits, if modification of png is later than the img then ignore.
         if os.path.getctime( pngPath ) > os.path.getctime( img ):
+            text = text.replace( img, pngPath )
             return text
 
     print( 'Converting %s to %s' % (imgPath, pngPath) )
