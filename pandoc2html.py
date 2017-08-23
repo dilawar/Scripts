@@ -24,7 +24,7 @@ pandoc_ = [ 'pandoc', '-F', 'pandoc-citeproc'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )
-imgPat_ = re.compile( r'\!\[.*?\]\((?P<figure>.+?)\)' )
+imgPat_ = re.compile( r'\!\[.*?\]\((?P<figure>.+?)\)', re.DOTALL )
 
 def convertToPNG( img, text ):
     global srcFile_
@@ -32,6 +32,11 @@ def convertToPNG( img, text ):
     imgPath = os.path.join( srcDir, img )
     imgNameWe = '.'.join( img.split( '.' )[:-1] )
     pngPath = imgNameWe + '.png'
+    if os.path.isfile( pngPath ):
+        # File exits, if modification of png is later than the img then ignore.
+        if os.path.getctime( pngPath ) > os.path.getctime( img ):
+            return text
+
     print( 'Converting %s to %s' % (imgPath, pngPath) )
     cmd = [ 'convert', '-density', '300', '-quality', '90', imgPath, pngPath ]
     subprocess.check_output(cmd, shell = False )
