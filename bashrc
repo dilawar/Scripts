@@ -148,3 +148,5 @@ source alert.sh
 unset SSH_ASKPASS
 eval "$(pandoc --bash-completion)"
 
+# Lualatex 
+export CLUAINPUTS=$HOME/.luarocks/share/lua/5.2:$CLUAINPUTS
