@@ -148,6 +148,6 @@ source alert.sh
 unset SSH_ASKPASS
 eval "$(pandoc --bash-completion)"
 
-# Lualatex 
-export CLUAINPUTS=$HOME/.luarocks/share/lua/5.2:$CLUAINPUTS
-LUA_PATH=/usr/share/lua/5.2/?.lua;/usr/share/lua/5.2/?/init.lua;/usr/lib64/lua/5.2/?.lua;/usr/lib64/lua/5.2/?/init.lua;./?.lua;/home1/dilawars/.luarocks/share/lua//?.lua
+# Luarocks.
+export LUA_PATH=$(command lua -e "print(package.path..';$HOME/.luarocks/share/lua/$lua_version/?.lua')") 
+export LUA_CPATH=$(command lua -e "print(package.cpath..';$HOME/.luarocks/lib/lua/$lua_version/?.so')") 
