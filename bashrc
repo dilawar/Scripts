@@ -149,5 +149,6 @@ unset SSH_ASKPASS
 eval "$(pandoc --bash-completion)"
 
 # Luarocks.
-export LUA_PATH=$(command lua -e "print(package.path..';$HOME/.luarocks/share/lua/$lua_version/?.lua')") 
-export LUA_CPATH=$(command lua -e "print(package.cpath..';$HOME/.luarocks/lib/lua/$lua_version/?.so')") 
+lua_version=$(lua -e "print(string.sub(_VERSION, -3))")
+export LUA_PATH=$(lua -e "print(package.path..';$HOME/.luarocks/share/lua/$lua_version/?.lua')") 
+export LUA_CPATH=$(lua -e "print(package.cpath..';$HOME/.luarocks/lib/lua/$lua_version/?.so')") 
