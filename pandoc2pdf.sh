@@ -1,8 +1,11 @@
 #!/bin/bash
+
 set -e
 set -x
-unset TEXMF
-PANDOC="pandoc -S -s -N -F pandoc-citeproc -F pandoc-crossref "
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+PANDOC="pandoc -S -s -N -F pandoc-citeproc -F pandoc-crossref -F ${SCRIPT_DIR}/pandoc/command.hs "
 
 # This script uses pandoc to convert markdown to pdf. 
 if [ $# -lt 1 ]; then
@@ -12,4 +15,4 @@ fi
 
 filename=$1
 outputFile="${filename%.pandoc}.pdf"
-$(PANDOC) -tlatex $filename -o $outputFile
+$PANDOC -tlatex $filename -o $outputFile

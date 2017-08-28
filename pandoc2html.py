@@ -21,6 +21,7 @@ srcFile_ = None
 pandoc_ = [ 'pandoc', '-F', 'pandoc-citeproc'
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/pandoc.css" )
         , '-F', 'pandoc-crossref', '--standalone', '--number-sections' 
+        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
         , '--self-contained'
         ]
 
