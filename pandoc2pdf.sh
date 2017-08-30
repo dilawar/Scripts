@@ -5,7 +5,9 @@ set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-PANDOC="pandoc -S -s -N -F pandoc-crossref -F pandoc-citeproc \
+PANDOC="pandoc -S -s -N \
+    --listings --template ${SCRIPT_DIR}/pandoc/templates/default.latex \
+    -F pandoc-crossref -F pandoc-citeproc \
     -F ${SCRIPT_DIR}/pandoc/command.hs \
     -F ${SCRIPT_DIR}/pandoc/include_code.hs "
 
