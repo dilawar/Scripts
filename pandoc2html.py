@@ -23,6 +23,7 @@ pandoc_ = [ 'pandoc'
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/theorem.css" )
         , '-F', 'pandoc-crossref', '--standalone', '--number-sections' 
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
+        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/include_code.hs" )
         , '-F', 'pandoc-citeproc'
         , '--self-contained'
         ]

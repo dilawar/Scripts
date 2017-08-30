@@ -5,7 +5,9 @@ set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-PANDOC="pandoc -S -s -N -F pandoc-crossref -F pandoc-citeproc -F ${SCRIPT_DIR}/pandoc/command.hs "
+PANDOC="pandoc -S -s -N -F pandoc-crossref -F pandoc-citeproc \
+    -F ${SCRIPT_DIR}/pandoc/command.hs \
+    -F ${SCRIPT_DIR}/pandoc/include_code.hs "
 
 # This script uses pandoc to convert markdown to pdf. 
 if [ $# -lt 1 ]; then
