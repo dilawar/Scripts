@@ -30,7 +30,21 @@
 \usepackage{siunitx}
 \usepackage{ifxetex,ifluatex}
 \usepackage{listings}
-% \usepackage[xindy,acronym,nomain,toc]{glossaries}
+\lstset{ 
+    basicstyle=\ttfamily,
+    numbers=left,
+    numberstyle=\footnotesize,
+    stepnumber=2,
+    keywordstyle=\color[rgb]{0.13,0.29,0.53}\bfseries,
+    stringstyle=\color[rgb]{0.31,0.60,0.02},
+    commentstyle=\color[rgb]{0.56,0.35,0.01}\itshape,
+    numbersep=5pt,
+    backgroundcolor=\color{black!10},
+    tabsize=2,
+    breaklines=true,
+    linewidth=\textwidth
+}
+% \usepackage[xindyo,acronym,nomain,toc]{glossaries}
 % \makeglossaries
 %\usepackage[xindy]{imakeidx}
 %\makeindex
