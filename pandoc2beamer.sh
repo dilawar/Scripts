@@ -8,7 +8,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PANDOC="pandoc -S -s -N \
     --listings --template ${SCRIPT_DIR}/pandoc/templates/default.beamer \
     -F pandoc-crossref \
-    -F ${SCRIPT_DIR}/pandoc/columnfilter.py \
     -F ${SCRIPT_DIR}/pandoc/include_code.hs "
 
 # This script uses pandoc to convert markdown to pdf. 
