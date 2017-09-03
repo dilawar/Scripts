@@ -19,4 +19,4 @@ fi
 
 filename=$1
 outputFile="${filename%.pandoc}.pdf"
-$PANDOC -tbeamer $filename -o $outputFile
+$PANDOC --latex-engine lualatex -tbeamer $filename -o $outputFile
