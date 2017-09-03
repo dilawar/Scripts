@@ -220,8 +220,6 @@ $endif$
 \usetikzlibrary{calc,positioning,arrows,shapes,backgrounds}
 \tikzstyle{every picture}+=[remember picture]
 
-\usepackage[sfdefault,book]{FiraSans}
-
 \begin{document}
 $if(title)$
 \frame{\titlepage}
