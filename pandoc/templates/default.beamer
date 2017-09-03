@@ -6,7 +6,7 @@
 $if(fontfamily)$
 \usepackage[$for(fontfamilyoptions)$$fontfamilyoptions$$sep$,$endfor$]{$fontfamily$}
 $else$
-\usepackage{lmodern}
+%\usepackage{lmodern}
 $endif$
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
@@ -219,6 +219,8 @@ $endif$
 \usepackage{tikz}
 \usetikzlibrary{calc,positioning,arrows,shapes,backgrounds}
 \tikzstyle{every picture}+=[remember picture]
+
+\usepackage[sfdefault,book]{FiraSans}
 
 \begin{document}
 $if(title)$
