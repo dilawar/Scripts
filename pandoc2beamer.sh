@@ -6,7 +6,7 @@ set -x
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PANDOC="pandoc -S -s -N \
-    --listings \
+    --listings --template ${SCRIPT_DIR}/pandoc/templates/default.beamer \
     -F pandoc-crossref -F pandoc-citeproc \
     -F ${SCRIPT_DIR}/pandoc/command.hs \
     -F ${SCRIPT_DIR}/pandoc/include_code.hs "
