@@ -37,7 +37,6 @@ alias ii='sudo apt-get -c ~/.aptconf install'
 alias ss='sudo -E emerge --search'
 alias uu='sudo -E emerge -avuND @world'
 alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
-alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc --latex-engine=lualatex'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias sudo='sudo -E'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
@@ -68,9 +67,6 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
 export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
-
-# My pandoc filters.
-export PATH=$PATH:~/Scripts/pandoc
 
 PROXYFILE=$HOME/Scripts/proxy
 if [ -f $PROXYFILE ]; then
@@ -103,7 +99,6 @@ alias ii='sudo apt-get -c ~/.aptconf install'
 alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
-alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
@@ -146,4 +141,6 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 source alert.sh
 #xrdb ~/Scripts/Xresources
 unset SSH_ASKPASS
-eval "$(pandoc --bash-completion)"
+
+#if type pandoc > /dev/null; then
+#    eval $(`which pandoc` --bash-completion)
