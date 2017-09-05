@@ -1,7 +1,9 @@
 % From here  https://raw.githubusercontent.com/jgm/pandoc-templates/master/default.beamer
 \documentclass[$if(fontsize)$$fontsize$,$endif$$if(lang)$$lang$,$endif$$if(papersize)$$papersize$,$endif$$for(classoption)$$classoption$$sep$,$endfor$]{$documentclass$}
 \usepackage{mathtools,amsmath,amssymb,amsthm,mathrsfs}
+\usepackage{commath}
 \usepackage{lmodern}
+\usepackage[sc,osf]{mathpazo}
 %\usepackage{circuitikz}
 \makeatletter
 \@ifpackageloaded{tex4ht}{
