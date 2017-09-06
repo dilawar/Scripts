@@ -18,11 +18,12 @@ import subprocess
 
 srcFile_ = None
 
-pandoc_ = [ 'pandoc', '--mathjax'
+pandoc_ = [ 'pandoc'
+        , '--mathjax'
         , '-F', 'pandoc-crossref'
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/include_code.hs" )
-        , '-F', 'pandoc-citeproc'
+        , '-F', 'pandoc-citeproc', '--standalone', '--self-contained'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )

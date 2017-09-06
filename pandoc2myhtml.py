@@ -19,6 +19,7 @@ import subprocess
 srcFile_ = None
 
 pandoc_ = [ 'pandoc'
+        , '--mathjax'
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/pandoc.css" )
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/theorem.css" )
         , '--to', 'html5'
@@ -26,7 +27,7 @@ pandoc_ = [ 'pandoc'
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/include_code.hs" )
         , '-F', 'pandoc-citeproc'
-        , '--self-contained', '--standalone'
+        , '--self-contained'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )
