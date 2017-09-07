@@ -18,4 +18,6 @@ fi
 
 filename=$1
 outputFile="${filename%.pandoc}.pdf"
-$PANDOC -tlatex $filename -o $outputFile
+outTex="${filename%.pandoc}.tex"
+$PANDOC -tlatex $filename -o $outTex
+lualatex $outTex
