@@ -53,13 +53,18 @@ Host behaviour1
     Hostname 172.16.202.218
     User dilawars
 
-Host behavLaptop1
+Host common1
     Hostname 172.16.204.218
     User dilawars
 
 Host behaviour2
     Hostname 172.16.204.230
     User dilawars
+
+Host behaviour4
+    Hostname 172.16.204.45
+    User dilawars
+
 
 Host port2
     Hostname 172.16.206.249
