@@ -87,7 +87,7 @@ if [ -f $SCRIPTHOME/notes.sh ]; then
     source $SCRIPTHOME/notes.sh
 fi
 
-" vim mode in bash
+# vim mode in bash
 set -o vi
 
 # some more ls aliases
@@ -130,8 +130,8 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 # added by travis gem
 [ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh
 
-export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
-alias java='java ${JAVA_FLAGS}'
+" export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
+" alias java="java ${JAVA_FLAGS}"
 
 # Make sure that java launches with awesome windowmanager
 export AWT_TOOLKIT=MToolkit
