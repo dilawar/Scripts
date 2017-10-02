@@ -87,6 +87,9 @@ if [ -f $SCRIPTHOME/notes.sh ]; then
     source $SCRIPTHOME/notes.sh
 fi
 
+" vim mode in bash
+set -o vi
+
 # some more ls aliases
 alias rm='rm -i'
 alias sh='bash'
