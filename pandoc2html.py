@@ -22,7 +22,7 @@ pandoc_ = [ 'pandoc'
         , '--mathjax'
         , '-F', 'pandoc-crossref'
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
-        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/include_code.hs" )
+        # , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/include_code.hs" )
         , '-F', 'pandoc-citeproc', '--standalone'
         ]
 
