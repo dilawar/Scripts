@@ -3,6 +3,9 @@
 set -e
 set -x
 
+# cleanup old gnuplot.
+rm -rf *.gnuplot
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PANDOC="pandoc -S -s -N \
