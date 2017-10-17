@@ -10,3 +10,4 @@ xtick.labelsize : 8
 ytick.labelsize : 8
 legend.fontsize : 10
 figure.titlesize : 12
+text.latex.preamble : \usepackage{siunitx,libertine,mathpaze}
