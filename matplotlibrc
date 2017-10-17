@@ -1,0 +1,12 @@
+backend      : TkAgg
+
+font.family : serif
+font.serif : Ubuntu
+font.monospace : Ubuntu Mono
+font.size : 10
+axes.labelsize : 10
+axes.labelweight : bold
+xtick.labelsize : 8
+ytick.labelsize : 8
+legend.fontsize : 10
+figure.titlesize : 12

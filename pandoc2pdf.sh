@@ -3,9 +3,6 @@
 set -e
 set -x
 
-# cleanup old gnuplot.
-rm -rf *.gnuplot
-
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PANDOC="pandoc -S -s -N \
@@ -22,4 +19,4 @@ filename=$1
 outputFile="${filename%.pandoc}.pdf"
 outTex="${filename%.pandoc}.tex"
 $PANDOC -tlatex $filename -o $outTex
-lualatex $outTex
+lualatex --shell-escape $outTex
