@@ -270,3 +270,8 @@ cp $SCRIPTHOME/latex/poisson.* $MYTEX/
 
 colorPrint "STEP" "Setting up HUB"
 cp $SCRIPTHOME/hub $HOME/.config/hub
+
+
+colorPrint "STEP" "Setting up matplotlibrc"
+mkdir -p $HOME/.config/matplotlib/
+cp $SCRIPTHOME/matplotlibrc $HOME/.config/matplotlib/matplotlibrc
