@@ -144,6 +144,7 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 source alert.sh
 #xrdb ~/Scripts/Xresources
 unset SSH_ASKPASS
+export MATPLOTLIBRC=$SCRIPTHOME/matplotlibrc
 
 #if type pandoc > /dev/null; then
 #    eval $(`which pandoc` --bash-completion)
