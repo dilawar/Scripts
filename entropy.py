@@ -24,7 +24,7 @@ def main( ):
     else:
         probs = [ x/ sum(args ) for x in args]
 
-    assert sum( probs ) == 1.0, "Must add up to 1"
+    assert abs(sum( probs ) - 1.0) < 1e-6, "Must add up to 1: %s" %  probs
     ent = sum( [ -x * math.log(x, 2.0) for x in probs ] )
     print( 'H=%f bits' % ent )
     return ent
