@@ -23,7 +23,7 @@ pandoc_ = [ 'pandoc'
         , '-F', 'pandoc-crossref'
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/siunitx.py" )
-        , '-F', 'pandoc-citeproc', '--standalone'
+        , '-F', 'pandoc-citeproc', '--standalone', '--self-contained'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )
