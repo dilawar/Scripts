@@ -29,32 +29,14 @@ try:
 except Exception:
     import configparser as cfg
 
-import ldap
-
-
-CONFIG = cfg.SafeConfigParser()
-CONFIG.add_section('connection')
-CONFIG.set('connection', 'server', 'ldap.ncbs.res.in')
-CONFIG.set('connection', 'port', '389')  # set to 636 for default over SSL
-CONFIG.set('connection', 'ssl', 'no')
-CONFIG.set('connection', 'user', '')
-CONFIG.set('connection', 'password', '')
-CONFIG.set('connection', 'basedn', 'dc=ncbs,dc=res,dc=in')
-CONFIG.read(os.path.expanduser('~/.mutt-ldap.rc'))
+import ldap3 as ldap
 
 def connect():
-    protocol = 'ldap'
-    if CONFIG.getboolean('connection', 'ssl'):
-        protocol = 'ldaps'
-    url = '%s://%s:%s' % (
-        protocol,
-        CONFIG.get('connection', 'server'),
-        CONFIG.get('connection', 'port'))
-    connection = ldap.initialize(url)
-    connection.bind(
-        CONFIG.get('connection', 'user'),
-        CONFIG.get('connection', 'password'),
-        ldap.AUTH_SIMPLE)
+    server = ldap.Server( 'ldaps://ldap.ncbs.res.in:8862'
+            ,  use_ssl = True
+            , get_info = ldap.ALL 
+            )
+    connection = ldap.Connection( server, auto_bind = True )
     return connection
 
 def search(query, connection=None):
@@ -107,7 +89,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("USAGE: {} query_words".format(sys.argv[0]))
         sys.exit(0)
-    query = unicode(' '.join(sys.argv[1:]), 'utf-8')
+    query =  ' '.join(sys.argv[1:])
     entries = search(query)
     # print entries
     addresses = [format_entry(e) for e in sorted(entries)]

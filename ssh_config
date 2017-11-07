@@ -12,7 +12,6 @@ Host motichoor
     Hostname 172.16.206.132
     User dilawars
 
-
 Host shares
     Hostname shares.ncbs.res.in
     User dilawars
@@ -21,21 +20,6 @@ Host srna
     Hostname srna.ncbs.res.in
     User anushree
     IdentityFile ~/.ssh/id_rsa
-
-host mohini 
-    Hostname 172.16.206.218
-    User dilawars
-
-
-Host gowtham
-    Hostname 172.16.235.250
-
-Host openday 
-    Hostname 172.16.212.117
-    User dilawars
-Host blinky
-    Hostname 172.16.206.202 
-    User dilawars
 
 Host somya 
     Hostname 172.16.108.115
@@ -65,15 +49,6 @@ Host behaviour4
     Hostname 172.16.204.45
     User dilawars
 
-
-Host port2
-    Hostname 172.16.206.249
-    User dilawars
-
-Host intel 
-    Hostname 192.102.190.12
-    User NCBS
-
-Host bhumika_bench 
-    Hostname 172.16.208.154
-    User bhumika
+Host aur.archlinux.org
+    IdentityFile ~/.ssh/id_rsa
+    User aur
