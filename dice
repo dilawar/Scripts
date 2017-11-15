@@ -1,0 +1,9 @@
+#!/usr/env/bin python
+import sys
+import random
+
+face = 6
+if( len(sys.argv) > 1 )
+    face = int( sys.argv[0] )
+
+print( int( random.random( ) * face ) + 1 )
