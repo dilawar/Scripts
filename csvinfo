@@ -33,20 +33,26 @@ def _userDelimToPandasSep( delim ):
     opts = dict( comma = ',', space=' ', tab = '\t', semicolon = ';' )
     return opts.get( delim, ' ' )
 
-def analyze( data, column ):
+def analyze( data, column, xvec = None ):
     global info_
     global pygnuplot_
     print( '\n\n=== Analysing %s ' % column )
     vec = data[ column ]
     hist, bins = np.histogram( vec, normed = False )
     info = dict( min=vec.min(), max=vec.max(), mean=vec.mean(), std=vec.std() )
+    info[ 'sum' ] = np.sum( vec )
     if pygnuplot_:
+        if xvec is None:
+            xvec = np.arange( 0, len(vec) )
         pg.s( [ bins[1:], hist ] )
         #pg.c( 'set terminal caca' )
         pg.c( 'set terminal dumb 80,20' )
         pg.c( 'unset grid' )
         pg.c( 'set title "Histogram of %s"' % column )
         pg.c( 'plot "tmp.dat" u 1:2 w lp notitle' )
+        pg.s( [xvec, vec], filename = 'temp_.dat' )
+        pg.c( 'set title "Series of %s"' % column )
+        pg.c( 'replot "temp_.dat" u 1:2 w lp notitle' )
         time.sleep( 0.1 )
         sys.stdout.flush( )
 
@@ -75,9 +81,14 @@ def main( args ):
 
     print( '[INFO] Processing for %s' % columns )
     print( 'Number of records = %d' % len( data ) )
-    base = columns[0]
-    for i, column in enumerate( columns ):
-        analyze( data, column )
+    try:
+        for i, column in enumerate( columns ):
+            analyze( data, column )
+    except Exception as e:
+        print( 'Failed to analyze. Error was %s' %  e )
+        print( 'Following columsn are available in dataset' )
+        print( '   %s' % ', '.join(data.columns) )
+        quit( 1 )
 
 if __name__ == '__main__':
     import argparse
