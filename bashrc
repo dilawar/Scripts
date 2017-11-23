@@ -150,3 +150,7 @@ export MPLCONFIGDIR=$SCRIPTHOME
 
 #if type pandoc > /dev/null; then
 #    eval $(`which pandoc` --bash-completion)
+
+if [ -f ~/PYPY2/bin/activate ]; then
+    source ~/PYPY2/bin/activate 
+fi
