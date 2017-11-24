@@ -156,6 +156,7 @@ export MPLCONFIGDIR=$SCRIPTHOME
 # fi
 
 # If directory exists, add to the path.
-if [ -f /usr/local/texlive/2017/bin/x86_64-linux ]; then
-    export PATH=/usr/local/texlive/2017/bin/x86_64-linux:$PATH
+TEXDIR=/usr/local/texlive/2017/bin/x86_64-linux/
+if [ -d $TEXDIR ]; then
+    export PATH=$TEXDIR:$PATH
 fi
