@@ -151,6 +151,11 @@ export MPLCONFIGDIR=$SCRIPTHOME
 #if type pandoc > /dev/null; then
 #    eval $(`which pandoc` --bash-completion)
 
-if [ -f ~/PYPY2/bin/activate ]; then
-    source ~/PYPY2/bin/activate 
+# if [ -f ~/PYPY2/bin/activate ]; then
+#     source ~/PYPY2/bin/activate 
+# fi
+
+# If directory exists, add to the path.
+if [ -f /usr/local/texlive/2017/bin/x86_64-linux ]; then
+    export PATH=/usr/local/texlive/2017/bin/x86_64-linux:$PATH
 fi
