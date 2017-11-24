@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -e
+IN=$1
+ALPHA=remove
+BACK=white
+OUT=${IN%.ps}.png
+if [ -f ${IN} ]; then
+    convert ${IN} -density 600 -background ${BACK} -alpha ${ALPHA} ${OUT}
+else
+    echo "File ${IN} not found"
+fi
+
+if [ -f ${OUT} ]; then
+    echo " Wrote $OUT "
+fi
