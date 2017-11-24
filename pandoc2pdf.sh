@@ -1,11 +1,6 @@
-#!/bin/bash
-
-set -e
-set -x
-
+#!/usr/bin/env bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-PANDOC="pandoc -S -s -N \
+PANDOC="pandoc -s -N \
     --template ${SCRIPT_DIR}/pandoc/templates/default.latex \
     -F pandoc-crossref -F pandoc-citeproc -F $SCRIPT_DIR/pandoc/siunitx.py "
 
