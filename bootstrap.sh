@@ -277,3 +277,7 @@ cp $SCRIPTHOME/matplotlibrc $HOME/.config/matplotlib/matplotlibrc
 
 colorPrint "STEP" "Setting up ctags"
 cp $SCRIPTHOME/ctags $HOME/.ctags
+
+colorPrint "STE" "Setting up lbdb"
+mkdir -p $HOME/.lbdb
+cp $SCRIPTHOME/lbdb.rc $HOME/.lbdb/
