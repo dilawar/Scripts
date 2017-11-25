@@ -26,4 +26,4 @@ if [[ ! -z "$QUERY" ]]; then
 
 fi
 
-mdv -t 729.8953 $CONFIGDIR/$FILENAME
+mdv -T all $CONFIGDIR/$FILENAME
