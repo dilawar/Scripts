@@ -9,21 +9,23 @@ OS=common
 BASE_URL=https://raw.githubusercontent.com/tldr-pages/tldr/master/pages
 QUERY=$1
 
-function download
+function download_tldr
 {
-    wget $BASE_URL/$OS/$1 -o $CONFIGDIR/$1
+    URL=$BASE_URL/$OS/$1
+    curl -s $URL -o $CONFIGDIR/$1
 }
 
 FILENAME=$QUERY.md
 if [[ ! -z "$QUERY" ]]; then
     if [[ ! -f $CONFIGDIR/$FILENAME ]]; then
-        download $BASE_URL/$OS/$FILENAME
+        download_tldr $FILENAME
         if [[ ! -f $CONFIGDIR/$FILENAME ]]; then
             OS=linux
-            download $BASE_URL/$OS/$FILENAME
+            download_tldr $FILENAME
         fi
     fi
 
 fi
 
-mdv -T all $CONFIGDIR/$FILENAME
+#mdv -T all $CONFIGDIR/$FILENAME
+pandoc $CONFIGDIR/$FILENAME | lynx -stdin
