@@ -27,5 +27,4 @@ if [[ ! -z "$QUERY" ]]; then
 
 fi
 
-#mdv -T all $CONFIGDIR/$FILENAME
 pandoc $CONFIGDIR/$FILENAME | lynx -stdin
