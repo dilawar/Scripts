@@ -26,18 +26,35 @@ def gen_vector_uniform( k ):
     We use the simple method described here 
     https://cs.stackexchange.com/a/3229/5041
     """
-    vec = [0] + sorted([random.random( ) for i in range(k)]) + [ 1.0 ]
+    vec = [0] + sorted([random.random( ) for i in range(k-1)]) + [ 1.0 ]
     for i, v in enumerate( vec[:-1] ):
         vec[i] = vec[i+1] - vec[i]
-    return vec[:-1]
+    vec.pop( -1 )
+    return vec
 
-def main( args ):
+def gen_vector_dilawar( k ):
+    """k-dim simplex. Using my method.
+    """
+    vec = [0.0] * k
+    for i in range(k):
+        vec[i] = random.uniform( 0, 1.0 - sum( vec ) ) 
+    return vec
+
+def main( args, return_values = False ):
     k = args.dimension
+    if return_values:
+        res = [ ]
     for i in itertools.count( ):
         v = gen_vector_uniform( k )
-        print( ','.join( [ '%.5f' % x for x in v ] ) )
+        #v = gen_vector_dilawar( k )
+        if return_values:
+            res.append( v )
+        print( ','.join( [ '%.7f' % x for x in v ] ) )
         if i == args.number:
-            return 0
+            break
+
+    if return_values:
+        return res
     return 0
 
 if __name__ == '__main__':
