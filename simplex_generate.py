@@ -22,13 +22,14 @@ import math
 import itertools
 
 def gen_vector_uniform( k ):
-    """k-dim simplex """
-    vec = [ 0.0 ] * k
-    idx = range(k)
-    random.shuffle( idx )
-    for i in idx:
-        vec[i] = random.uniform(0, 1.0 - sum(vec) )
-    return vec
+    """k-dim simplex 
+    We use the simple method described here 
+    https://cs.stackexchange.com/a/3229/5041
+    """
+    vec = [0] + sorted([random.random( ) for i in range(k)]) + [ 1.0 ]
+    for i, v in enumerate( vec[:-1] ):
+        vec[i] = vec[i+1] - vec[i]
+    return vec[:-1]
 
 def main( args ):
     k = args.dimension
