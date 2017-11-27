@@ -23,7 +23,7 @@ for f in $FILES; do
     fname=`basename $f`
     outfile="$TEMP/$fname.jpg"
     echo "Converting $f to $outfile " 
-    convert $f $outfile
+    convert $f -flatten -quality 90 -density 400 $outfile
 done
 
 # Now animate
