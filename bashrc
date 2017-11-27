@@ -162,6 +162,6 @@ if [ -d $TEXDIR ]; then
 fi
 
 # Source PYPY activate.
-if [ -f $HOME/Scripts/pypy_activate ]; then
-    source $HOME/Scripts/pypy_activate
+if [ -f $HOME/Scripts/pypy_activate_func ]; then
+    source $HOME/Scripts/pypy_activate_func
 fi

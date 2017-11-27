@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 function pypy_activate
 {
     if [ -d $HOME/PYPY2 ]; then
