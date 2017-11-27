@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
-if [ -d $HOME/PYPY2 ]; then
-    source $HOME/PYPY2/bin/active
-fi
+
+function pypy_activate
+{
+    if [ -d $HOME/PYPY2 ]; then
+        source $HOME/PYPY2/bin/activate
+    else
+        echo "No $HOME/PYPY2 found"
+    fi
+}

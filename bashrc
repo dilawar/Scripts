@@ -160,3 +160,8 @@ TEXDIR=/usr/local/texlive/2017/bin/x86_64-linux/
 if [ -d $TEXDIR ]; then
     export PATH=$TEXDIR:$PATH
 fi
+
+# Source PYPY activate.
+if [ -f $HOME/Scripts/pypy_activate ]; then
+    source $HOME/Scripts/pypy_activate
+fi
