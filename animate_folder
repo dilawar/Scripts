@@ -32,6 +32,7 @@ for f in $FILES; do
                 || echo "Could not convert $f"
         fi
     else
+        echo "Copying $f to $TEMP"
         cp $f $TEMP/
     fi
 done
@@ -39,5 +40,7 @@ set -e
 
 # Now animate
 JPEGS=`ls $TEMP/* -tr`
-convert $JPEGS $@ ${FOLDER}_animated.gif
+GIFFPATH=`basename ${FOLDER}`_animated.gif
+convert $JPEGS $@ ${GIFFPATH}
+echo "+ Wrote animated file to ${GIFFPATH}"
 rm -rf $TEMP
