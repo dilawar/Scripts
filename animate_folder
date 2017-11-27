@@ -20,17 +20,22 @@ fi
 # copy into TEMPDIR.
 # NOTE: Sort files according to mtime.
 FILES=`find $FOLDER -type f -printf "%T+ %p\n" | sort | cut -d' ' -f2`
+set +e
 for f in $FILES; do
     _type=`file $f | cut -d' ' -f 2`
     fname=`basename $f`
     if [[ "$_type" =~ "*(Script|PDF)*" ]]; then
         outfile="$TEMP/$fname.jpg"
         echo "Converting $f to $outfile " 
-        convert $f -flatten -quality 90 -density 400 $outfile
+        if [ -f $file ]; then
+            convert $f -flatten -quality 90 -density 400 $outfile \
+                || echo "Could not convert $f"
+        fi
     else
         cp $f $TEMP/
     fi
 done
+set -e
 
 # Now animate
 JPEGS=`ls $TEMP/* -tr`
