@@ -18,7 +18,8 @@ fi
 
 # First convert all files to JPEG, if they are in ps or eps folder. Else simply
 # copy into TEMPDIR.
-FILES=`ls $FOLDER/* -tr`
+# NOTE: Sort files according to mtime.
+FILES=`find $FOLDER -type f -printf "%T+ %p\n" | sort | cut -d' ' -f2`
 for f in $FILES; do
     _type=`file $f | cut -d' ' -f 2`
     fname=`basename $f`
