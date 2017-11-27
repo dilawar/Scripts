@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+if [ -d $HOME/PYPY2 ]; then
+    source $HOME/PYPY2/bin/active
+fi
