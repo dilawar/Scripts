@@ -151,9 +151,9 @@ if type pandoc > /dev/null; then
     eval $(`which pandoc` --bash-completion)
 fi
 
-if [ -f ~/PYPY2/bin/activate ]; then
-    source ~/PYPY2/bin/activate 
-fi
+#if [ -f ~/PYPY2/bin/activate ]; then
+#    source ~/PYPY2/bin/activate 
+#fi
 
 # If directory exists, add to the path.
 TEXDIR=/usr/local/texlive/2017/bin/x86_64-linux/
