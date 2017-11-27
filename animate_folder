@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -e
+
+FOLDER=$1
+TEMP=`pwd`/__animate_temp
+mkdir -p $TEMP
+
+if [ ! -d $FOLDER ]; then
+    echo "Folder $FOLDER is not found or not directory";
+    exit -1;
+fi
+
+# First convert all files to png with background. Sort them according to time.
+FILES=`ls $FOLDER -tr`
+for f in $FILES; do
+    fname=`basename $f`
+    outfile="$TEMP/$fname.jpeg"
+    echo "Converting $f to $outfile " 
+    convert $f $outfile
+done
+
+# Now animate
+JPEGS=`ls $TEMP *.jpeg -tr`
+convert $JPEGS $@ ${FOLDER}_animated.gif
+rm -rf $TEMP
