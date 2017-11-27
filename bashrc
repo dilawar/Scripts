@@ -79,6 +79,10 @@ source ~/Scripts/profile
 export PATH=$PATH:~/.mutt:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
+if [ -f ~/Scripts/c ]; then 
+    source ~/Scripts/c
+fi
+
 if [ -f $SCRIPTHOME/notes.sh ]; then
     source $SCRIPTHOME/notes.sh
 fi
