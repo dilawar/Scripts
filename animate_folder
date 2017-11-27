@@ -9,24 +9,29 @@
 set -e
 
 FOLDER=$1
-TEMP=`pwd`/__animate_temp
-mkdir -p $TEMP
+TEMP=`mktemp -d`
 
 if [ ! -d $FOLDER ]; then
     echo "Folder $FOLDER is not found or not directory";
     exit -1;
 fi
 
-# First convert all files to JPEG.
+# First convert all files to JPEG, if they are in ps or eps folder. Else simply
+# copy into TEMPDIR.
 FILES=`ls $FOLDER/* -tr`
 for f in $FILES; do
+    _type=`file $f | cut -d' ' -f 2`
     fname=`basename $f`
-    outfile="$TEMP/$fname.jpg"
-    echo "Converting $f to $outfile " 
-    convert $f -flatten -quality 90 -density 400 $outfile
+    if [[ "$_type" =~ "*(Script|PDF)*" ]]; then
+        outfile="$TEMP/$fname.jpg"
+        echo "Converting $f to $outfile " 
+        convert $f -flatten -quality 90 -density 400 $outfile
+    else
+        cp $f $TEMP/
+    fi
 done
 
 # Now animate
-JPEGS=`ls $TEMP/*.jpg -tr`
+JPEGS=`ls $TEMP/* -tr`
 convert $JPEGS $@ ${FOLDER}_animated.gif
 rm -rf $TEMP
