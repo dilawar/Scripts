@@ -79,10 +79,6 @@ source ~/Scripts/profile
 export PATH=$PATH:~/.mutt:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
-if [ -f ~/Scripts/dilawar_cd.sh ]; then 
-    source ~/Scripts/dilawar_cd.sh
-fi
-
 if [ -f $SCRIPTHOME/notes.sh ]; then
     source $SCRIPTHOME/notes.sh
 fi
@@ -103,7 +99,6 @@ alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
@@ -148,12 +143,13 @@ unset SSH_ASKPASS
 export MATPLOTLIBRC=$SCRIPTHOME/matplotlibrc
 export MPLCONFIGDIR=$SCRIPTHOME
 
-#if type pandoc > /dev/null; then
-#    eval $(`which pandoc` --bash-completion)
+if type pandoc > /dev/null; then
+    eval $(`which pandoc` --bash-completion)
+fi
 
-# if [ -f ~/PYPY2/bin/activate ]; then
-#     source ~/PYPY2/bin/activate 
-# fi
+if [ -f ~/PYPY2/bin/activate ]; then
+    source ~/PYPY2/bin/activate 
+fi
 
 # If directory exists, add to the path.
 TEXDIR=/usr/local/texlive/2017/bin/x86_64-linux/
