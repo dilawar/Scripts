@@ -17,7 +17,7 @@ if [ ! -d $FOLDER ]; then
     exit -1;
 fi
 
-# First convert all files to png with background. Sort them according to time.
+# First convert all files to JPEG.
 FILES=`ls $FOLDER/* -tr`
 for f in $FILES; do
     fname=`basename $f`

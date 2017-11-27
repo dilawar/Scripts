@@ -16,8 +16,12 @@ else:
     print(url+"/raw/master")
 END
 }
-filename=$1
-repo_url=`git config --get remote.origin.url`
-repo_url=`sshToHttp $repo_url`
-file_name=`git ls-files --full-name -- $filename`
-echo $repo_url/$file_name
+filename=`basename $1`
+dir=`dirname $1`
+( 
+    cd $dir
+    repo_url=`git config --get remote.origin.url`
+    repo_url=`sshToHttp $repo_url`
+    file_name=`git ls-files --full-name -- $filename`
+    echo $repo_url/$file_name
+)
