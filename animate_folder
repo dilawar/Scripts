@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+
+# Requires: ImageMagick.
+#
+# NOTE: Do not run any command in parallel since it is going to mess up the
+# order in which files are modified. The mtime is used to sort files to make a
+# proper gif. File which is modified earlier is stacked earlier in giff.
+#
 set -e
 
 FOLDER=$1
@@ -11,15 +18,15 @@ if [ ! -d $FOLDER ]; then
 fi
 
 # First convert all files to png with background. Sort them according to time.
-FILES=`ls $FOLDER -tr`
+FILES=`ls $FOLDER/* -tr`
 for f in $FILES; do
     fname=`basename $f`
-    outfile="$TEMP/$fname.jpeg"
+    outfile="$TEMP/$fname.jpg"
     echo "Converting $f to $outfile " 
     convert $f $outfile
 done
 
 # Now animate
-JPEGS=`ls $TEMP *.jpeg -tr`
+JPEGS=`ls $TEMP/*.jpg -tr`
 convert $JPEGS $@ ${FOLDER}_animated.gif
 rm -rf $TEMP
