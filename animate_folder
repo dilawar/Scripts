@@ -24,7 +24,6 @@ set +e
 for f in $FILES; do
     _type=`file $f | cut -d' ' -f 2`
     fname=`basename $f`
-    echo $_type
     if [[ "$_type" =~ .*(Script|PDF).* ]]; then
         outfile="$TEMP/$fname.jpg"
         echo "Converting $f to $outfile " 
