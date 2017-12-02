@@ -1,10 +1,9 @@
-URxvt.scrollBar: false
 URxvt.saveLines: 100000
+
 URxvt.perl-ext-common:  default,matcher,font-size,clipboard
 URxvt.keysym.Shift-Control-c: perl:clipboard:copy
 URxvt.keysym.Shift-Control-v: perl:clipboard:paste
 URxvt.keysym.M-C-v: perl:clipboard:paste_command
-URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 URxvt.url-launcher: firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #1682B4
@@ -12,11 +11,44 @@ URxvt.keysym.C-Up:     perl:font-size:increase
 URxvt.keysym.C-Down:   perl:font-size:decrease
 URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
-URxvt.cursorColor: blue
+! URxvt.cursorColor: blue
 URxvt.cursorBlink: true
 URxvt*scrollTtyOutput: false
 URxvt*scrollWithBuffer: true
 URxvt*scrollTtyKeypress: true
-Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
 xterm*scrollBar: false
+
+! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
+URxvt.scrollBar: false
+URxvt.urgentOnBell: true
+URxvt.font: xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Noto Sans Kannada:style=Regular:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
+URxvt.scrollTtyKeypress: true
+URxvt.copyCommand: xclip -i -selection clipboard
+URxvt.letterSpace: 0
+URxvt.externalBorder: 0
+
+URxvt.iso14755: false
+URxvt.iso14755_52: false
+
+!URxvt.color1: #CC0000
+!URxvt.color2: #4E9A06
+!URxvt.color3: #EDD400
+!URxvt.color4: #0000AA
+!URxvt.color5: #AA00AA
+!URxvt.color6: #06989A
+!URxvt.color7: #D3D7CF
+!URxvt.color8: #303030
+
+! URxvt.background: #141414
+! URxvt.foreground: #eeeeee
+
+! URxvt.perl-ext-common: default,url-select,clipboard
+URxvt.url-select.underline: true
+URxvt.clipboard.autocopy: true
+URxvt.selection.pattern-0: \\|([^|]+)\\|
+
+Xft.dpi:        96
+Xft.antialias:  true
+Xft.rgba:       rgba
+Xft.hinting:    true
+Xft.hintstyle: hintslight
