@@ -1,6 +1,6 @@
 URxvt.saveLines: 100000
 
-URxvt.perl-ext-common:  default,matcher,font-size,clipboard
+URxvt.perl-ext-common:  default,matcher,font-size,clipboard,selection-to-clibboard
 URxvt.keysym.Shift-Control-c: perl:clipboard:copy
 URxvt.keysym.Shift-Control-v: perl:clipboard:paste
 URxvt.keysym.M-C-v: perl:clipboard:paste_command
