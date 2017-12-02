@@ -79,8 +79,8 @@ source ~/Scripts/profile
 export PATH=$PATH:~/.mutt:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
-if [ -f ~/Scripts/dilawar_cd.sh ]; then 
-    source ~/Scripts/dilawar_cd.sh
+if [ -f ~/Scripts/c ]; then 
+    source ~/Scripts/c
 fi
 
 if [ -f $SCRIPTHOME/notes.sh ]; then
@@ -103,7 +103,6 @@ alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
@@ -148,15 +147,26 @@ unset SSH_ASKPASS
 export MATPLOTLIBRC=$SCRIPTHOME/matplotlibrc
 export MPLCONFIGDIR=$SCRIPTHOME
 
-#if type pandoc > /dev/null; then
-#    eval $(`which pandoc` --bash-completion)
+if type pandoc > /dev/null; then
+    eval $(`which pandoc` --bash-completion)
+fi
 
-# if [ -f ~/PYPY2/bin/activate ]; then
-#     source ~/PYPY2/bin/activate 
-# fi
+#if [ -f ~/PYPY2/bin/activate ]; then
+#    source ~/PYPY2/bin/activate 
+#fi
 
 # If directory exists, add to the path.
 TEXDIR=/usr/local/texlive/2017/bin/x86_64-linux/
 if [ -d $TEXDIR ]; then
     export PATH=$TEXDIR:$PATH
+fi
+
+# Source PYPY activate.
+if [ -f $HOME/Scripts/pypy_activate_func ]; then
+    source $HOME/Scripts/pypy_activate_func
+fi
+
+if [ -f $HOME/Scripts/git_prompt.sh ]; then
+    source $HOME/Scripts/git_prompt.sh
+    export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
 fi
