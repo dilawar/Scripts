@@ -28,7 +28,7 @@ def main( ):
     if seed is not None:
         random.seed( seed )
     random.shuffle( lines )
-    print( '\n'.join( lines ) )
+    print( ''.join( lines ) )
 
 
 if __name__ == '__main__':
