@@ -23,7 +23,6 @@ URxvt.scrollBar: false
 URxvt.urgentOnBell: true
 URxvt.font:xft:Noto Sans Kannada:style=Regular:pixelsize=12,xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
 URxvt.scrollTtyKeypress: true
-URxvt.scrollTtyKeypress: true
 URxvt.copyCommand: xclip -i -selection clipboard
 URxvt.letterSpace: 0
 URxvt.externalBorder: 0
