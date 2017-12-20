@@ -8,10 +8,6 @@ Host v4
     User labadmin
     IdentityFile ~/.ssh/id_rsa
 
-Host motichoor
-    Hostname 172.16.206.132
-    User dilawars
-
 Host shares
     Hostname shares.ncbs.res.in
     User dilawars
