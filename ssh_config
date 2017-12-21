@@ -33,6 +33,10 @@ Host behaviour1
     Hostname 172.16.202.218
     User dilawars
 
+Host common5
+    Hostname 172.16.202.218
+    User dilawars
+
 Host common1
     Hostname 172.16.204.218
     User dilawars
