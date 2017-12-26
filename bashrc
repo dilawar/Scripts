@@ -83,9 +83,6 @@ if [ -f ~/Scripts/c ]; then
     source ~/Scripts/c
 fi
 
-if [ -f $SCRIPTHOME/notes.sh ]; then
-    source $SCRIPTHOME/notes.sh
-fi
 
 # vim mode in bash
 set -o vi
@@ -110,6 +107,11 @@ alias tmux='tmux -u -f $SCRIPTHOME/tmux/tmux.conf'
 alias move='mv -v -u -n'
 # Notify when done.
 alias lwd='$HOME/Scripts/notify_when_done.sh'
+
+# NNN
+alias n='nnn'
+expoert NNN_USE_EDITOR=1
+expoert NNN_DE_FILE_MANAGER=thunar
 
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
