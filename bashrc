@@ -110,8 +110,8 @@ alias lwd='$HOME/Scripts/notify_when_done.sh'
 
 # NNN
 alias n='nnn'
-expoert NNN_USE_EDITOR=1
-expoert NNN_DE_FILE_MANAGER=thunar
+export NNN_USE_EDITOR=1
+export NNN_DE_FILE_MANAGER=thunar
 
 export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
