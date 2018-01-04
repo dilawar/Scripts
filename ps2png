@@ -4,9 +4,10 @@ set -e
 IN=$1
 ALPHA=remove
 BACK=white
+DENSITY=300
 OUT=${IN%.ps}.png
 if [ -f ${IN} ]; then
-    convert ${IN} -density 600 -background ${BACK} -alpha ${ALPHA} ${OUT}
+    convert ${IN} -density ${DENSITY} -background ${BACK} -alpha ${ALPHA} ${OUT}
 else
     echo "File ${IN} not found"
 fi
