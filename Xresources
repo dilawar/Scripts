@@ -21,7 +21,7 @@ xterm*scrollBar: false
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.scrollBar: false
 URxvt.urgentOnBell: true
-URxvt.font: xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Noto Sans Kannada:style=Regular:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
+URxvt.font:xft:Noto Sans Kannada:style=Regular:pixelsize=12,xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
 URxvt.scrollTtyKeypress: true
 URxvt.copyCommand: xclip -i -selection clipboard
 URxvt.letterSpace: 0
