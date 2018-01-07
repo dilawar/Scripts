@@ -45,7 +45,9 @@ alias pylint='pylint -E'
 alias vi='vim'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
-#alias ghci='stack ghci'
+alias ghci='stack ghci'
+alias ghc='stack ghc'
+alias runghc='stack runghc'
 # Alias definitions.
 # You may want to put all your additions into a separate file like
 # ~/.bash_aliases, instead of adding them here directly.
