@@ -1,12 +1,11 @@
 #!/bin/bash -
-
 #===============================================================================
 #
-#          FILE: graphml_plot.sh
+#          FILE: calendar_upcoming_agenda.sh
 #
-#         USAGE: ./graphml_plot.sh
+#         USAGE: ./calendar_upcoming_agenda.sh
 #
-#   DESCRIPTION: 
+#   DESCRIPTION: Show upcoming agenda in next 2 hours.
 #
 #       OPTIONS: ---
 #  REQUIREMENTS: ---
@@ -14,15 +13,12 @@
 #         NOTES: ---
 #        AUTHOR: Dilawar Singh (), dilawars@ncbs.res.in
 #  ORGANIZATION: NCBS Bangalore
-#       CREATED: Sunday 07 January 2018 12:19:48  IST
+#       CREATED: Monday 08 January 2018 09:54:51  IST
 #      REVISION:  ---
 #===============================================================================
 
 set -o nounset                                  # Treat unset variables as an error
-set -e 
 
-FILE=$1; shift
-graphml2gv $FILE > $FILE.gv 
-echo "Done converting graphml to DOT format"
-neato -Tpng $@ $FILE.gv > $FILE.png
-echo "Wrote to $FILE.png"
+FROM=$(date +%H:%M)
+TO=$(date -d "$FROM today + 90 minutes"  +'%H:%M')
+gcalcli agenda $FROM $TO
