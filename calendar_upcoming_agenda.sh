@@ -21,4 +21,4 @@ set -o nounset                                  # Treat unset variables as an er
 
 FROM=$(date +%H:%M)
 TO=$(date -d "$FROM today + 90 minutes"  +'%H:%M')
-gcalcli agenda $FROM $TO
+gcalcli --calendar "dilawar" agenda #$FROM $TO
