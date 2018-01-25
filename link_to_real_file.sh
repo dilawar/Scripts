@@ -18,10 +18,12 @@
 #===============================================================================
 
 set -o nounset                                  # Treat unset variables as an error
+set -x
+set -e
 
 if [ $# -lt 1 ]; then
     echo "USAGE: $0 link_name"
 fi
 
 LINKNAME="$1"
-[ -L "$LINKNAME" ] && rsync "$(readlink $LINKNAME)" $LINKNAME
+[ -L "$LINKNAME" ] && rsync "$(readlink ${LINKNAME})" $LINKNAME
