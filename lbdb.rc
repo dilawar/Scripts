@@ -38,8 +38,7 @@
 # - m_evolution  search in the Ximan Evolution addressbook.
 # - m_vcf        search a vcard (according to RFC2426) file.
 
-METHODS="m_inmail m_passwd"
-
+METHODS="m_inmail m_passwd" 
 
 #
 # If you want m_finger to ask other host then localhost, create a list here:
