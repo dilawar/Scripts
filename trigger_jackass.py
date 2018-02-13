@@ -24,13 +24,18 @@ import shutil
 datadir = os.path.join( os.environ['HOME'], 'Work', 'DATA', 'JACKASS' )
 
 positiveData = os.path.join( os.environ['HOME'], 'Work', 'DATA', 'JACKASS', 'POSITIVE' )
-if not os.path.exists( positiveData ):
+if not os.path.isdir( positiveData ):
     os.makedirs( positiveData )
 
 def main( ):
     ser = serial.Serial( '/dev/ttyACM0', 38400, timeout = 0.5 )
+
+    out = 'P'
+    if len( sys.argv ) > 2:
+        out = sys.argv[1]
+
     try:
-        ser.write( 'P'.encode( ) )
+        ser.write( out.encode( ) )
         list_of_files = glob.glob('%s/*.png' % datadir) 
         latest_file = max(list_of_files, key=os.path.getctime)
         # More the last spectogram file to positive 
