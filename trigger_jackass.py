@@ -29,23 +29,27 @@ if not os.path.isdir( positiveData ):
 
 def main( ):
     ser = serial.Serial( '/dev/ttyACM0', 38400, timeout = 0.5 )
+    assert ser
 
     out = 'P'
     if len( sys.argv ) > 2:
         out = sys.argv[1]
 
+    print( 'Writing %s' % out )
     try:
         ser.write( out.encode( ) )
         list_of_files = glob.glob('%s/*.png' % datadir) 
         latest_file = max(list_of_files, key=os.path.getctime)
         # More the last spectogram file to positive 
-        shutil.copyfile( latest_file, positiveData )
+        shutil.copyfile( latest_file
+                , os.path.join(positiveData, os.path.basename(latest_file)) 
+                )
     except KeyboardInterrupt as e:
         print( "keyboad interrupt" )
         ser.close()
     except Exception as e:
+        print( 'Failed due to %s' % e )
         ser.close( )
-        print( e )
 
     try:
         ser.close()
