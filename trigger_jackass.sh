@@ -22,4 +22,4 @@ set -o nounset                                  # Treat unset variables as an er
 SERIAL=${ARDUINO_PORT:-/dev/ttyACM0}
 
 stty -F $SERIAL raw speed 38400
-cat 'P' > $SERIAL
+echo "P" > $SERIAL
