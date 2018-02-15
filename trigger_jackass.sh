@@ -19,7 +19,7 @@
 
 set -o nounset                                  # Treat unset variables as an error
 
-$WRITE=${1:-P}
+WRITE=${1:-P}
 
 SERIAL=${ARDUINO_PORT:-/dev/ttyACM0}
 stty -F $SERIAL raw speed 38400
