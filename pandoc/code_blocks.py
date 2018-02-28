@@ -16,7 +16,13 @@ import sys
 import re
 import subprocess
 
-from pandocfilters import toJSONFilter, Para, Image, get_filename4code, get_caption, get_extension
+from pandocfilters import toJSONFilter, Para
+from pandocfilters import Image, get_filename4code, get_caption, get_extension
+from pandocfilters import RawBlock
+
+
+def latex( x ):
+    return RawBlock( 'latex',  x)
 
 def print1( *msg ):
     print( msg, file=sys.stderr )
@@ -86,6 +92,12 @@ def process( value, format ):
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
     elif "standalone" in classes:
+        if format == "latex":
+            # if writer is latex, there is no need to generate spearate
+            # standalone figure. Embed into latex itself.
+            code = '\\begin{equation}\\label{%s}\n%s\n\\end{equation}' % (ident,code)
+            return latex( code )
+
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "pdf", html="png", latex="pdf")
         dest = get_filename4code("standalone", code, filetype)
