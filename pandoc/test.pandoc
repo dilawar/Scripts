@@ -1,0 +1,22 @@
+--- 
+title: Blah blah 
+author: Dilawar Singh 
+institute: NCBS Bangalore 
+email: dilawars@ncbs.res.in
+date : \today 
+fontfamily: libertine 
+header-includes:
+    - \usepackage{pgfplots}
+    - \usepackage{libertine,mathpazo}
+---
+
+
+~~~{#reac:phospho .standalone width=5cm} 
+
+\schemestart
+$x_ay_{n-a}$ \arrow{->[$v_1$]} $x_{a-1}y_{n-a+1}$ \arrow{->[$v_2$]}
+$x_{a-2}y_{n-a+2}$ \schemestop
+
+~~~
+
+![Here is another image](./a.png)

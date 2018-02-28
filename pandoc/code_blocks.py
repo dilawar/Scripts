@@ -18,14 +18,18 @@ import subprocess
 
 from pandocfilters import toJSONFilter, Para, Image, get_filename4code, get_caption, get_extension
 
+def print1( *msg ):
+    print( msg, file=sys.stderr )
 
 def replace_ext( filename, newext = 'tex' ):
     oldExt = filename.split( '.' )[-1]
     return re.sub( r'(.+?)\.%s$' % oldExt, '\1\.%s' % newext )
 
-def gen_standalone( code, dest ):
+def gen_standalone( code, dest, fmt ):
+    dest = os.path.realpath( dest )
+
     tex = [ '\\RequirePackage{luatex85,shellesc}' ]
-    tex += [ '\\documentclass[trim,tikz,multi=false]{standalone}' ]
+    tex += [ '\\documentclass[tikz,multi=false]{standalone}' ]
     tex += [ '\\usepackage{chemfig}' ]
     tex += [ '\\usepackage{pgfplots}' ]
     tex += [ '\\begin{document}' ]
@@ -41,18 +45,29 @@ def gen_standalone( code, dest ):
     with open( texFile, 'w' ) as f:
         f.write( '\n'.join( tex ) )
 
-    res = subprocess.check_output( 
-            [ 'lualatex', '--shell-escape', texFile ]
-            , shell=True 
-            , stderr = subprocess.STDOUT 
+    os.chdir( dirname )
+    res1 = subprocess.check_output( 
+            [ 'lualatex', '-shell-escape', texFile ]
+            , shell=False, stderr = subprocess.STDOUT 
             , cwd = dirname
             )
+
+    if fmt != 'pdf':
+        pdfFile = os.path.join( dirname, nameWE + '.pdf' )
+        outfile = os.path.join( dirname, nameWE + '.%s' % fmt )
+        res = subprocess.check_output( 
+                [ 'convert', pdfFile, outfile ]
+                , shell=False
+                , stderr = subprocess.STDOUT
+                , cwd = dirname
+                )
+
+    assert os.path.isfile( dest ), "%s could not be generated." % dest
     
 
 def codeblocks(key, value, format, _):
     if key == 'CodeBlock':
-        process( value, format )
-
+        return process( value, format )
 
 def process( value, format ):
     [[ident, classes, keyvals], code] = value
@@ -70,13 +85,15 @@ def process( value, format ):
 
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
-    elif "chemfig" in classes:
+    elif "standalone" in classes:
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "pdf", html="png", latex="pdf")
-        dest = get_filename4code("chemfig", code, filetype)
+        dest = get_filename4code("standalone", code, filetype)
         if not os.path.isfile(dest):
-            g = gen_standalone(code, dest)
+            gen_standalone(code, dest, format)
             sys.stderr.write('Created image ' + dest + '\n')
+        else:
+            sys.stderr.write('Exists  ' + dest + '\n')
 
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
