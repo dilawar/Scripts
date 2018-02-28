@@ -100,8 +100,8 @@ def process( value, format ):
         if format == "latex":
             # if writer is latex, there is no need to generate spearate
             # standalone figure. Embed into latex itself.
-            newCode = r'\label{%s}\n' % ident if ident else ''
-            newCode += r'%s' % code
+            newCode = r'\[ \label{%s}' % ident if ident else ''
+            newCode += '\n%s \\]' % code
             return latex( newCode )
 
         caption, typef, keyvals = get_caption(keyvals)
