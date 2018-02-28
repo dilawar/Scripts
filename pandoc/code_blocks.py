@@ -31,11 +31,12 @@ def replace_ext( filename, newext = 'tex' ):
     oldExt = filename.split( '.' )[-1]
     return re.sub( r'(.+?)\.%s$' % oldExt, '\1\.%s' % newext )
 
-def gen_standalone( code, dest, fmt ):
+def gen_standalone( code, dest ):
     dest = os.path.realpath( dest )
+    ext = dest.split( '.' )[-1]
 
     tex = [ '\\RequirePackage{luatex85,shellesc}' ]
-    tex += [ '\\documentclass[tikz,multi=false]{standalone}' ]
+    tex += [ '\\documentclass[12pt,tikz,multi=false]{standalone}' ]
     tex += [ '\\usepackage{chemfig}' ]
     tex += [ '\\usepackage{pgfplots}' ]
     tex += [ '\\begin{document}' ]
@@ -58,15 +59,18 @@ def gen_standalone( code, dest, fmt ):
             , cwd = dirname
             )
 
-    if fmt != 'pdf':
+    if ext != 'pdf':
         pdfFile = os.path.join( dirname, nameWE + '.pdf' )
-        outfile = os.path.join( dirname, nameWE + '.%s' % fmt )
+        outfile = os.path.join( dirname, nameWE + '.%s' % ext )
+        print1( pdfFile, outfile )
+        opts = '-density 300 -antialias -quality 100'. split( )
         res = subprocess.check_output( 
-                [ 'convert', pdfFile, outfile ]
+                [ 'convert', pdfFile ] + opts + [ outfile ]
                 , shell=False
                 , stderr = subprocess.STDOUT
                 , cwd = dirname
                 )
+        print1( res )
 
     assert os.path.isfile( dest ), "%s could not be generated." % dest
     
@@ -99,10 +103,10 @@ def process( value, format ):
             return latex( code )
 
         caption, typef, keyvals = get_caption(keyvals)
-        filetype = get_extension(format, "pdf", html="png", latex="pdf")
+        filetype = get_extension(format, "png", html="png", latex="pdf")
         dest = get_filename4code("standalone", code, filetype)
         if not os.path.isfile(dest):
-            gen_standalone(code, dest, format)
+            gen_standalone(code, dest)
             sys.stderr.write('Created image ' + dest + '\n')
         else:
             sys.stderr.write('Exists  ' + dest + '\n')
