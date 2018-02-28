@@ -10,13 +10,41 @@ header-includes:
     - \usepackage{libertine,mathpazo}
 ---
 
+__Phosphorylation and dephosphorylation of gls{camkii} ring__
 
-~~~{#reac:phospho .standalone width=5cm} 
+Upon its influx into spine, \gls{ca} binds to \gls{cam} to form \gls{cacam}
+complex.
+The first step in \gls{camkii} activation requires simultaneous binding of two
+\gls{cacam} to two adjacent subunits of \gls{camkii}. The probability of
+simultaneous binding of two \gls{cacam} is very low at basal calcium
+concentration. Once a subunit is phosphorylated, it phosphorylates its
+neighbouring subunit (\emph{autophosphorylation}). Auto-phosphorylation requires
+binding of only one \gls{cacam}; it proceeds at much faster compared to first
+step (rate $v_2$) ^[refer to image].  Once fully phosphorylated,
+\gls{camkii} moves to PSD where it binds to NMDA receptor. In PSD, \gls{camkii}
+is known to be protected from dephosphorylation
+[@mullasseril_structural_2007] due to low concentration of phosphatase
+\gls{pp1}.
 
+Following Zhabotinksy, we assume that binding of \gls{cacam} is independent of
+the state of other subunits, and there is no difference between $\alpha$ and
+$\beta$ isomers of \gls{camkii}.  The activation of subunit by Ca^++^
+follows a Hill equation [@zhabotinsky_bistability_2000].
+
+~~~{#reac:phospho .standalone width=5cm}
 \schemestart
-$x_ay_{n-a}$ \arrow{->[$v_1$]} $x_{a-1}y_{n-a+1}$ \arrow{->[$v_2$]}
-$x_{a-2}y_{n-a+2}$ \schemestop
-
+$x_ay_{n-a}$ \arrow{->[$v_1$]} $x_{a-1}y_{n-a+1}$ \arrow{->[$v_2$]} $x_{a-2}y_{n-a+2}$ 
+\schemestop
 ~~~
 
-![Here is another image](./a.png)
+\begin{equation}
+    \newcommand\CaHILL{\ensuremath{\left( \frac{Ca^{2+}}{K_{H1}} \right)}}
+    \begin{aligned}
+        v_1 &= k_1 \left(\frac{\CaHILL ^3}{ 1 + \CaHILL ^ 3 }\right) ^2 \\
+        v_2 &= k_1 \frac{\CaHILL ^3}{ 1 + \CaHILL ^ 3 } 
+    \end{aligned}
+\end{equation}
+
+Dephosphorylation of \gls{camkii} holoenzyme and single subunit follows
+Michaelis-Menten scheme (reaction @reac:dephosphorylation ). 
+

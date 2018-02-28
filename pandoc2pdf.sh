@@ -3,8 +3,7 @@ set -e
 set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PANDOC="pandoc -s -N \
-    -F pandoc-crossref -F pandoc-citeproc -F $SCRIPT_DIR/pandoc/siunitx.py "
+PANDOC="pandoc -s -N -F pandoc-crossref -F pandoc-citeproc -F $SCRIPT_DIR/pandoc/code_blocks.py "
 
 # This script uses pandoc to convert markdown to pdf. 
 if [ $# -lt 1 ]; then
