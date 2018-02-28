@@ -35,8 +35,11 @@ def gen_standalone( code, dest ):
     dest = os.path.realpath( dest )
     ext = dest.split( '.' )[-1]
 
+    code = r'\[ %s \]' % code
+
     tex = [ '\\RequirePackage{luatex85,shellesc}' ]
-    tex += [ '\\documentclass[12pt,tikz,multi=false]{standalone}' ]
+    tex += [ '\\documentclass[preview,multi=false]{standalone}' ]
+    tex += [ '\\usepackage{amsmath,amssymb}' ]
     tex += [ '\\usepackage{chemfig}' ]
     tex += [ '\\usepackage{pgfplots}' ]
     tex += [ '\\begin{document}' ]
@@ -52,7 +55,6 @@ def gen_standalone( code, dest ):
     with open( texFile, 'w' ) as f:
         f.write( '\n'.join( tex ) )
 
-    os.chdir( dirname )
     res1 = subprocess.check_output( 
             [ 'lualatex', '-shell-escape', texFile ]
             , shell=False, stderr = subprocess.STDOUT 
@@ -70,7 +72,6 @@ def gen_standalone( code, dest ):
                 , stderr = subprocess.STDOUT
                 , cwd = dirname
                 )
-        print1( res )
 
     assert os.path.isfile( dest ), "%s could not be generated." % dest
     
@@ -99,8 +100,9 @@ def process( value, format ):
         if format == "latex":
             # if writer is latex, there is no need to generate spearate
             # standalone figure. Embed into latex itself.
-            code = '\\begin{equation}\\label{%s}\n%s\n\\end{equation}' % (ident,code)
-            return latex( code )
+            newCode = r'\\label{%s}\n' % ident if ident else ''
+            newCode += r'%s' % code
+            return latex( newCode )
 
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "png", html="png", latex="pdf")
