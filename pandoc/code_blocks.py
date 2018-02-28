@@ -100,7 +100,7 @@ def process( value, format ):
         if format == "latex":
             # if writer is latex, there is no need to generate spearate
             # standalone figure. Embed into latex itself.
-            newCode = r'\\label{%s}\n' % ident if ident else ''
+            newCode = r'\label{%s}\n' % ident if ident else ''
             newCode += r'%s' % code
             return latex( newCode )
 
