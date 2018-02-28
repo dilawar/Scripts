@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
+set -e
+set -x
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PANDOC="pandoc -s -N \
-    --template ${SCRIPT_DIR}/pandoc/templates/default.latex \
     -F pandoc-crossref -F pandoc-citeproc -F $SCRIPT_DIR/pandoc/siunitx.py "
 
 # This script uses pandoc to convert markdown to pdf. 
@@ -10,8 +12,8 @@ if [ $# -lt 1 ]; then
     exit
 fi
 
-filename=$1
+filename=$1; shift
 outputFile="${filename%.pandoc}.pdf"
-outTex="${filename%.pandoc}.tex"
-$PANDOC -tlatex $filename -o $outTex
-lualatex --shell-escape $outTex
+outTex="${filename%.pandoc}.tex" 
+$PANDOC $filename "$@" -o $outTex 
+latexmk -pdflua -shell-escape $outTex
