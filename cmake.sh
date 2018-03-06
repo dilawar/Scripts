@@ -1,5 +1,8 @@
 #!/bin/bash
+
 ## Build using cmake.
+set -e -x
+
 if [[ $1 == "--clean" ]]; then
     echo "Cleaning old cmake cache files"
     find . -name "*CMakeCache*" -print0 | xargs -I file rm -f file
@@ -7,10 +10,13 @@ if [[ $1 == "--clean" ]]; then
 else
     echo "Warning: Using old CMakeCache files."
 fi
+
 mkdir -p _build
+GITTAG=$(git rev-parse --short HEAD)
 (
     cd _build
-    cmake "$@" ..
-    make -j`nproc` | tee ../__build__.log
-    ctest -V 
+    cmake -DCMAKE_INSTALL_PREFIX=/tmp/$GITTAG .. "$@"
+    make -j`nproc` | tee __$GITTAG__.log
+    ctest --output-on-failure
+    make install
 )
