@@ -11,12 +11,17 @@ else
     echo "Warning: Using old CMakeCache files."
 fi
 
+NPROC=$(nproc)
+
+if [ ! -n "$NPROC" ]; then
+    NPROC=4
+fi
 mkdir -p _build
 GITTAG=$(git rev-parse --short HEAD)
 (
     cd _build
     cmake -DCMAKE_INSTALL_PREFIX=/tmp/$GITTAG .. "$@"
-    make -j`nproc` | tee __$GITTAG__.log
+    make -j$NPROC | tee __$GITTAG__.log
     ctest --output-on-failure
     make install
 )
