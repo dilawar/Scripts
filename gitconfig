@@ -17,8 +17,8 @@
 [mergetool]
 	keepBackup = false
 [alias]
-    lol = log --graph --decorate --pretty=oneline --abbrev-commit
-    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all
+    lol = log --graph --decorate --pretty=oneline --abbrev-commit -n 10
+    lola = log --graph --decorate --pretty=oneline --abbrev-commit --all -n 10
     clean = ls-files --others --exclude-standard -z | xargs -0 tar rvf ~/Backup/git-backup.tar
 [color]
     branch = auto
