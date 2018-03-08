@@ -9,11 +9,12 @@
 
 set -e
 set -o nounset                                  # Treat unset variables as an error
-EXT=docx
 
 PANDOC="$1";shift
+EXT=${1:-docx}
+
 echo "generating docx"
-cat $PANDOC | ./preprocess_of_docx.py | \
+cat $PANDOC | $HOME/Scripts/pandoc/preprocess_of_docx.py | \
     pandoc -F $HOME/Scripts/pandoc/code_blocks.py \
     -F pandoc-crossref -F pandoc-citeproc \
     "$@" \
