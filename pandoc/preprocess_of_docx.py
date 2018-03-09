@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# -*- coding: utf-8 -*-
 """
 Replace \gls to their value in TeX file. It read the \loadglsentries files from
 Tex File to find the replacement. 
@@ -101,7 +101,7 @@ def unit_to_tex( unit ):
 def si_replacement( val, unit ):
     if 'e' in val.lower( ):
         val = val.split( 'e' )
-        val = r'%sx10^%s^' % (val[0],val[1])
+        val = r'%s×10^%s^' % (val[0],val[1])
     unit = unit_to_tex( unit )
     return '%s %s' % (val, unit)
 
