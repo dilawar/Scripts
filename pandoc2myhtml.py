@@ -25,7 +25,9 @@ pandoc_ = [ 'pandoc'
         , '--to', 'html5'
         , '-F', 'pandoc-crossref', '--standalone', '--number-sections' 
         , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
+        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/gnuplot.hs" )
         , '-F', 'pandoc-citeproc'
+        , '-F', 'pandoc-imagine'
         , '--self-contained'
         ]
 
