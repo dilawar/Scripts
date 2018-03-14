@@ -2,6 +2,7 @@
 
 import sys
 import re
+import time
 import subprocess
 import numpy as np
 import matplotlib as mpl
@@ -13,18 +14,30 @@ def parse( output ):
         output = output.decode( 'utf-8' )
     except Exception as e:
         pass
-    print( output )
     variables = re.findall( r'\d+\:d(?P<id>\S+?)/dt=', output )
+
+    # Print output to console.
+    output = '.. ' + output.replace( '\n', '\n.. ' )
+    print( '-- XPPY output:' )
+    print( output )
+    print( '--')
     return variables
 
 def main(  ):
     infile = sys.argv[1]
     print( '[INFO] Solving system in file %s' % infile )
+    t = time.time( )
     cmd = 'xppaut -silent %s %s' % (''.join(sys.argv[2:]), infile)
-    print( '   Executing %s' % cmd )
-    res = subprocess.check_output( cmd.split( ), shell=False )
+    print( '[INFO] Executing %s' % cmd )
+    try:
+        res = subprocess.check_output( cmd.split( ), shell=False )
+        print( '[INFO] Time taken %f sec' % (time.time()-t) )
+    except Exception as e:
+        print( 'Failed to compute. Error was %s' % e )
+        quit(1)
+
     variables = parse( res ) 
-    print( '[INFO] Plotting' )
+    print( '[INFO] Plotting data from output.dat' )
     data = np.loadtxt( 'output.dat' )
     tvec = data[:,0]
     for i, k in enumerate( variables ):
@@ -33,7 +46,7 @@ def main(  ):
         ax.legend( )
     outfile = '%s.png' % infile
     plt.savefig( outfile )
-    print( 'Saved to %s' % outfile )
+    print( '[INFO] Saved to %s' % outfile )
 
 if __name__ == '__main__':
     main( )
