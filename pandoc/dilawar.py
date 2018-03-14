@@ -13,25 +13,37 @@ import os
 import re
 import shutil
 import sys
-from subprocess import call
+import functools
+import subprocess
+
+from pandocfilters import toJSONFilters, Para, Image, get_filename4code, get_extension
 from tempfile import mkdtemp
 
-from pandocfilters import toJSONFilter, Para, Image, get_filename4code, get_extension
+script_dir = os.path.dirname( __file__ )
+sys.path.append( script_dir )
+import theorem
 
+incomment = False
 
 def tikz2image(tikz_src, filetype, outfile):
     tmpdir = mkdtemp()
     olddir = os.getcwd()
     os.chdir(tmpdir)
-    f = open('tikz.tex', 'w')
-    f.write("""\\documentclass{standalone}
-             \\usepackage{tikz}
-             \\begin{document}
-             """)
-    f.write(tikz_src)
-    f.write("\n\\end{document}\n")
-    f.close()
-    call(["pdflatex", 'tikz.tex'], stdout=sys.stderr)
+
+    # Write tikz.tex file.
+    with open('tikz.tex', 'w') as f:
+        f.write( '\n'.join( 
+            [ "\\RequirePackage{luatex85,shellesc}"
+                , "\\documentclass{standalone}", "\\usepackage{tikz}"
+                , "\\usepackage{libertine,mathpazo}"
+                , "\\usepackage{pgfplots}", "\\begin{document}" ] 
+            ))
+        f.write(tikz_src)
+        f.write("\n\\end{document}\n")
+
+    subprocess.call( ["latexmk", "-pdf", "-lualatex", '--shell-escape', 'tikz.tex']
+            , stdout=sys.stderr
+            )
     os.chdir(olddir)
     if filetype == 'pdf':
         shutil.copyfile(tmpdir + '/tikz.pdf', outfile + '.pdf')
@@ -52,5 +64,19 @@ def tikz(key, value, format, _):
                 sys.stderr.write('Created image ' + src + '\n')
             return Para([Image(['', [], []], [], [src, ""])])
 
+def comment(k, v, fmt, meta):
+    global incomment
+    if k == 'RawBlock':
+        fmt, s = v
+        if fmt == "html":
+            if re.search("<!-- BEGIN COMMENT -->", s):
+                incomment = True
+                return []
+            elif re.search("<!-- END COMMENT -->", s):
+                incomment = False
+                return []
+    if incomment:
+        return []  # suppress anything in a comment
+
 if __name__ == "__main__":
-    toJSONFilter(tikz)
+    toJSONFilters( [ tikz, comment, theorem.theorems ] ) 
