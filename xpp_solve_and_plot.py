@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import sys
-import xppy
+import xppy    # pip3 install git+https://github.com/dilawar/xppy
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.style.use( 'bmh' )
 
 def main( args ):
     system = args.input
