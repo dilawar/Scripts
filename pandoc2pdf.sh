@@ -4,7 +4,8 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PANDOC="pandoc -s -N \
     -F $SCRIPT_DIR/pandoc/code_blocks.py \
-    -F pandoc-crossref -F pandoc-citeproc "
+    -F pandoc-crossref -F pandoc-citeproc \
+    -F pandoc-imagine "
 
 # This script uses pandoc to convert markdown to pdf. 
 if [ $# -lt 1 ]; then

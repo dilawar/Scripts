@@ -16,4 +16,6 @@ EXT=${2:-docx}
 echo "generating docx"
 cat $PANDOC | $HOME/Scripts/pandoc/preprocess_of_docx.py | \
     pandoc -F $HOME/Scripts/pandoc/code_blocks.py \
-    -F pandoc-crossref -F pandoc-citeproc -o $PANDOC.$EXT
+    -F pandoc-crossref -F pandoc-citeproc \
+    -F pandoc-imagine \
+    -o $PANDOC.$EXT
