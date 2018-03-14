@@ -41,7 +41,7 @@ def tikz2image(tikz_src, filetype, outfile):
         f.write(tikz_src)
         f.write("\n\\end{document}\n")
 
-    subprocess.call( ["latexmk", "-pdf", "-lualatex", '--shell-escape', 'tikz.tex']
+    subprocess.call( ["latexmk", "-pdf", "-lualatex", '--shell-escape', '-silent', 'tikz.tex']
             , stdout=sys.stderr
             )
     os.chdir(olddir)
