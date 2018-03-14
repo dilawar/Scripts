@@ -115,6 +115,5 @@ def process( value, format ):
 
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
-
 if __name__ == "__main__":
     toJSONFilter( codeblocks )
