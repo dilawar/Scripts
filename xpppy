@@ -7,7 +7,6 @@ import subprocess
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.style.use( 'bmh' )
 
 def get_params( text ):
     params = ','.join( re.findall( r'param\s+(.+?)\n', text ) )
