@@ -18,17 +18,19 @@ import subprocess
 
 srcFile_ = None
 
-pandoc_ = [ 'pandoc'
-        , '--mathjax'
+cdn = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+
+pandoc_ = [ 'pandoc' 
+        #, '--mathjax=%s' % cdn
+        , '--mathml'
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/pandoc.css" )
         , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/theorem.css" )
         , '--to', 'html5'
+        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/dilawar.py" )
         , '-F', 'pandoc-imagine'
-        , '-F', 'pandoc-crossref', '--standalone', '--number-sections' 
-        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
-        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/gnuplot.hs" )
+        , '-F', 'pandoc-crossref'
         , '-F', 'pandoc-citeproc'
-        , '--self-contained'
+        ,  '--standalone', '--number-sections' , '--self-contained'
         ]
 
 # imgPat_ = re.compile( r'\!\[.*?\]\(?P<filename>.?\)' )
