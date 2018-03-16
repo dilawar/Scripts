@@ -22,6 +22,7 @@ from tempfile import mkdtemp
 script_dir = os.path.dirname( __file__ )
 sys.path.append( script_dir )
 import theorem
+import code_blocks
 
 incomment = False
 
@@ -79,4 +80,4 @@ def comment(k, v, fmt, meta):
         return []  # suppress anything in a comment
 
 if __name__ == "__main__":
-    toJSONFilters( [ tikz, comment, theorem.theorems ] ) 
+    toJSONFilters( [ tikz, comment, theorem.theorems, code_blocks.codeblocks ] ) 

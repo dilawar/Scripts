@@ -9,6 +9,19 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 mpl.style.use( 'bmh' )
 
+def get_params( text ):
+    params = ','.join( re.findall( r'param\s+(.+?)\n', text ) )
+    params = list( filter(lambda x: len(x.strip()) > 0
+            , params.replace( ' ', ',' ).split( ',')) )
+    params = [ x.split( '=' ) for x in params ]
+    return { k : v for k, v  in params }
+
+def parse_ode( file ):
+    with open( file ) as f:
+        text = f.read( )
+    params = get_params( text )
+    return params
+
 def parse( output ):
     try:
         output = output.decode( 'utf-8' )
@@ -25,10 +38,11 @@ def parse( output ):
 
 def main(  ):
     infile = sys.argv[1]
+    ode = parse_ode( infile )
     print( '[INFO] Solving system in file %s' % infile )
     t = time.time( )
     cmd = 'xppaut -silent %s %s' % (''.join(sys.argv[2:]), infile)
-    print( '[INFO] Executing %s' % cmd )
+    #print( '[INFO] Executing %s' % cmd )
     try:
         res = subprocess.check_output( cmd.split( ), shell=False )
         print( '[INFO] Time taken %f sec' % (time.time()-t) )
