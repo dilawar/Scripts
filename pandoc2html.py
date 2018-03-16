@@ -19,11 +19,11 @@ import subprocess
 srcFile_ = None
 
 pandoc_ = [ 'pandoc'
-        , '--mathjax'
+        #, '--mathjax', '-s'
+        , '--mathml'
         , '-F', 'pandoc-crossref'
         , '-F', 'pandoc-imagine'
-        , '-F', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/command.hs" )
-        , '-F', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/siunitx.py" )
+        , '-F', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/dilawar.py" )
         , '-F', 'pandoc-citeproc', '--standalone', '--self-contained'
         ]
 
