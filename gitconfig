@@ -1,11 +1,6 @@
 [user]
 	name = Dilawar Singh
 	email = dilawars@ncbs.res.in
-[http]
-	proxy = http://proxy.ncbs.res.in:3128
-	sslVerify = false
-[https]
-	proxy = http://proxy.ncbs.res.in:3128
 [svn]
 	rmdir = true
 [core]
