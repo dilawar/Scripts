@@ -1,0 +1,214 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/13/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: isonoise [-r radius] [-t threshold] infile outfile
+# USAGE: isonoise [-h or -help]
+#
+# OPTIONS:
+#
+# -r              radius         radius of filter; default=1
+# -t              threshold      threshold percentage for separating noise from image; 
+#                                (default=10)
+# -h or -help                    get help
+#
+###
+#
+# NAME: ISONOISE 
+# 
+# PURPOSE: To reduce isolated noise in an image. 
+# 
+# DESCRIPTION: ISONOISE is a noise filter designed to try to 
+# reduce impulse or isolated (sparce) noise in an image. It works by  
+# using the median filtered image where it assesses that noise is  
+# present and the original image where it assesses that no noise is 
+# present.
+# 
+# Arguments: 
+#
+# -h or -help    ---  displays help information. 
+# 
+# -r     radius       radius is an integer >=1. It determines the neighborhood of pixels
+# to use to compute the median at each pixel in the image. A radius=1 means use a 3x3 
+# neighborhood about each pixel. A radius=2 means use a 5x5 neighborhood about each 
+# pixel. The larger the radius, the longer the processing and the more blurring that 
+# will occur. Noise filters generally trade some degree or blurring for noise reduction.
+# 
+#
+# -t     threshold    threshold is in percent (without % symbol) and determines how much 
+# of the image is assessed to be noise. A smaller threshold, will reduce noise more 
+# effectively but cause more blurring. On the other hand, a larger threshold will 
+# produce reduce noise less effectively, but cause less blurring.
+# 
+# 
+######
+
+
+# set default value for radius and threshold
+radius=1
+thresh=10
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-r)    # radius
+				   shift  # to get the next parameter - radius
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+				   checkMinus "$1"
+				   radius=`expr "$1" : '\([0-9]*\)'`
+				   [ "$radius" = "" ] && errMsg "--- RADIUS=$radius MUST BE AN INTEGER ---"
+				   radiustest=`echo "$radius < 1" | bc`
+				   [ $radiustest -eq 1 ] && errMsg "--- RADIUS=$radius MUST BE AN INTEGER GREATER THAN 0 ---"
+				   ;;
+			-t)    # threshold
+				   shift  # to get the next parameter - threshold
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+				   checkMinus "$1"
+				   thresh=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE A POSITIVE FLOATING POINT VALUE (with no sign) ---"
+				   threshtestA=`echo "$thresh < 0" | bc`
+				   threshtestB=`echo "$thresh > 100" | bc`
+				   [ $threshtestA -eq 1 -o $threshtestB -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE A POSITIVE FLOATING POINT VALUE BETWEEN 0 AND 100 ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/isonoise_$$.mpc"
+tmpB="$dir/isonoise_$$.cache"
+tmp0="$dir/isonoise_0_$$.png"
+tmp1="$dir/isonoise_1_$$.png"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
+
+
+#correct for change in median at IM 6.6.8-6 from radius to widthxheight
+#and to go from -median to -statistic median
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+if [ "$im_version" -ge "06060806" ]; then
+	radius=$((2*$radius+1))
+	proc="-statistic median"
+else
+	proc="-median"
+fi
+
+
+# process data
+# create median filtered version
+# get absolute difference image between input and median
+# threshold the difference image to locate the noise areas
+# multiply median by threshold, original by complement of threshold, and then add results together
+#
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	convert $tmpA $proc $radius $tmp0
+	convert $tmpA $tmp0 -compose Difference -composite -threshold $thresh% $tmp1
+	convert $tmpA $tmp0 $tmp1 -compose src -composite "$outfile"
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+exit 0

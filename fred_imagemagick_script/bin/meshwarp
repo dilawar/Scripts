@@ -1,0 +1,354 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/10/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: meshwarp -f file [-i] [-p] infile outfile
+# USAGE: meshwarp [-h or -help]
+# 
+# OPTIONS:
+# 
+# -f     file         textfile containing src and dst x,y control point pairs 
+#                     and triangle vertex indices
+# -i                  display information about number of src, dst and triangles
+# -p                  display triangle progress
+# 
+###
+# 
+# NAME: MESHWARP 
+# 
+# PURPOSE: To warp an image according to a triangular mesh.
+# 
+# DESCRIPTION: MESHWARP warps an image according to a user supplied triangular 
+# mesh. The mesh list src and dst x,y control points per line. Then a list of 
+# triangle vertex indices is listed one triangle per line. This script may 
+# be used to simply warp part or all of an image or to warp one image to match 
+# another.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -f file ... FILE is a text file containing first a pair of scr and dst x,y 
+# control points separated by a space. The following that is a list of 3 comma 
+# separate triangle vertex indices. Vertex indices start at 0 and reference 
+# the corresponding pair of src and dst x,y control points.
+# 
+# -i ... Enable the listing to the terminal of number of src, dst and 
+# triangles extracted from the file.
+# 
+# -p ... Enable the listing to the terminal of the triangle numbers as the 
+# triangles are processed.
+# 
+# Note: the script may be rather slow due to the processing of each triangle 
+# one-at-a-time.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+info=false
+progress=false
+debug=false
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get  text file
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FILE SPECIFICATION ---"
+					   checkMinus "$1"
+					   textfile="$1"
+					   ;;
+				-i)    # get info
+					   info=true
+					   ;;
+				-p)    # get progress
+					   progress=true
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/MESHWARP.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+# read input image
+convert -quiet "$infile" -depth 8 $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get image dimensions
+ww=`identify -ping -format "%w" $dir/tmpI.mpc`
+hh=`identify -ping -format "%h" $dir/tmpI.mpc`
+
+
+# verify textfile
+[ -f $textfile -a -r $textfile -a -s $textfile ] || \
+	echo  "--- FILE $textfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read text file into a tmpArr
+i=0
+while read line; do
+	# replace spaces before or after commas with just the comma
+	tmpArr[$i]=`echo $line | sed 's/[ ][ ]*,/,/g; s/,[ ][ ]*/,/g'`
+	i=$((i+1))
+done < "$textfile"
+
+if $debug; then
+	echo ${tmpArr[*]}
+fi
+num=${#tmpArr[*]}
+if $info; then
+	echo ""
+	echo "num records=$num"
+fi
+#echo ${tmpArr[0]}
+#echo ${tmpArr[125]}
+echo ""
+
+# extract scr and dst arrays
+for ((i=0; i<num; i++)); do
+	# note if not put "" around array it will convert all spaces to one space
+	if [ `echo ${tmpArr[$i]} | wc -w` -eq 2 ]; then
+		srcArr[$i]=`echo ${tmpArr[$i]} | cut -d\  -f 1`
+		dstArr[$i]=`echo ${tmpArr[$i]} | cut -d\  -f 2`
+	fi
+done
+
+if $debug; then
+	echo ${srcArr[*]}
+fi
+nums=${#srcArr[*]}
+if $info; then
+	echo "num scr pts=$nums"
+	echo ""
+fi
+if $debug; then
+	echo ${dstArr[*]}
+fi
+numd=${#dstArr[*]}
+if $info; then
+	echo "num dst pts=$numd"
+	echo ""
+fi
+
+# check if consistent number of control pts src vs dst
+[ $nums -ne $numd ] && echo "--- INCONSISTENT NUMBER OF SRC AND DST CONTROL PTS ---"
+
+# extract the triangles
+j=0
+for ((i=nums; i<num; i++)); do
+	# note if not put "" around array it will convert all spaces to one space
+	if [ `echo ${tmpArr[$i]} | wc -w` -eq 1 ]; then
+		triArr[$j]=${tmpArr[$i]}
+		j=$((j+1))
+	fi
+done
+if $debug; then
+	echo ${triArr[*]}
+fi
+numt=${#triArr[*]}
+if $info; then
+	echo "num triangles=$numt"
+	echo ""
+fi
+
+
+# function to extract vertex coordinates for a given triangle
+getTriangle()
+	{
+	# get triangle
+	triangle="$1"
+	v1=`echo $triangle | cut -d,  -f 1`
+	v2=`echo $triangle | cut -d,  -f 2`
+	v3=`echo $triangle | cut -d,  -f 3`
+
+	# get src vertices
+	s1="${srcArr[$v1]}"
+	s2="${srcArr[$v2]}"
+	s3="${srcArr[$v3]}"
+
+	# get dst vertices
+	d1="${dstArr[$v1]}"
+	d2="${dstArr[$v2]}"
+	d3="${dstArr[$v3]}"
+
+	# compute x,y components
+	s1x=`echo $s1 | cut -d, -f 1`
+	s1y=`echo $s1 | cut -d, -f 2`
+	s2x=`echo $s2 | cut -d, -f 1`
+	s2y=`echo $s2 | cut -d, -f 2`
+	s3x=`echo $s3 | cut -d, -f 1`
+	s3y=`echo $s3 | cut -d, -f 2`
+		
+	d1x=`echo $d1 | cut -d, -f 1`
+	d1y=`echo $d1 | cut -d, -f 2`
+	d2x=`echo $d2 | cut -d, -f 1`
+	d2y=`echo $d2 | cut -d, -f 2`
+	d3x=`echo $d3 | cut -d, -f 1`
+	d3y=`echo $d3 | cut -d, -f 2`
+
+	# get min bounding box for viewport
+	xmin=`convert xc: -format "%[fx:min($d1x,min($d2x,$d3x))]" info:`
+	ymin=`convert xc: -format "%[fx:min($d1y,min($d2y,$d3y))]" info:`
+	wd=`convert xc: -format "%[fx:max($d1x,max($d2x,$d3x)) - $xmin + 1]" info:`
+	ht=`convert xc: -format "%[fx:max($d1y,max($d2y,$d3y)) - $ymin + 1]" info:`
+
+if $debug; then
+	echo ""
+	echo "list triangle components"
+	echo ""
+	echo "v1=$v1; v2=$v2; v3=$v3"
+	echo "s1=$s1; s2=$s2; s3=$s3"
+	echo "d1=$d1; d2=$d2; d3=$d3"
+	echo "s1=$s1x,$s1y: s2=$s2x,$s2y; s3=$s3x,$s3y"
+	echo "d1=$d1x,$d1y: d2=$d2x,$d2y; d3=$d3x,$d3y"
+	echo "s1=$s1x,$s1y: s2=$s2x,$s2y; s3=$s3x,$s3y"
+	echo "d1=$d1x,$d1y: d2=$d2x,$d2y; d3=$d3x,$d3y"
+	echo "xmin=$xmin; ymin=$ymin; wd=$wd; ht=$ht"
+fi
+	}
+
+# create initially transparent background image
+convert -size "${ww}x${hh}" xc:none $dir/tmpT.mpc
+
+if $progress; then
+	echo ""
+	echo "Processing Triangle:"
+	echo ""
+fi
+
+# loop over each triangle and create composited X and Y distortion maps
+for ((i=0; i<numt; i++)); do
+	# get triangle info
+	getTriangle "${triArr[$i]}"
+	if $progress; then
+		echo "$i"
+	fi
+	# do affine warp and mask with triangle and composite over previous result
+	# read previous iteration result (initially a fully transparent image)
+	# do rectangular viewport crop on input image for a given triangle
+	# apply affine warp on viewport data
+	# extend the warped viewport to full image size filling with transparency (none) and roll to correct location for viewport
+	# create a white triangle on black background and use that as a mask
+	# composite the previous iteration image, the warped and shifted image and the triangle mask and save as next iteration result 
+	convert $dir/tmpT.mpc \
+		\( $dir/tmpI.mpc -define distort:viewport=${wd}x${ht}+${xmin}+${ymin} \
+		-distort Affine "$s1x,$s1y $d1x,$d1y  $s2x,$s2y $d2x,$d2y  $s3x,$s3y $d3x,$d3y" \
+		-background none -extent ${ww}x${hh} -roll +${xmin}+${ymin} \) \
+		\( -size "${ww}x${hh}" xc:black +antialias -fill white -draw "polygon $d1 $d2 $d3" \) \
+		-compose over -composite $dir/tmpT.mpc
+done
+
+# write to output
+convert $dir/tmpT.mpc "$outfile"
+
+
+exit 0

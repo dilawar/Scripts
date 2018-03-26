@@ -1,0 +1,371 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/29/2015 .......... revised 2/15/17
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+# 
+# USAGE: conformal [-d dimensions] [-f formula] [-g gain] [-v vp] [-b bcolor] 
+# [-z zcolor] [-m monitor] infile outfile
+# 
+# USAGE: conformal [-h|help]
+# 
+# OPTIONS:
+# 
+# -d     dimension     output dimensions WxH; "x" separated pair of integers>0;
+#                      default=input dimension
+# -f     formula       flag for the complex expression; integer between 
+#                      1 and 8; default=1
+# -g     gain          effect gain factor (zoom); pair of comma separate 
+#                      floats>0; xgain,ygain; default="1,1"
+# -v     vp            virtual-pixel method; default=tile
+# -b     bcolor        background color for virtual-pixel method; any valid 
+#                      IM color is allowed; default=black
+# -z     zcolor        zero color; color for where the formula has a divide 
+#                      by zero; default=black
+# -m     monitor       monitor enables the progress monitor; choices are: 
+#                      on or off; default=off
+# 
+###
+# 
+# NAME: CONFORMAL 
+# 
+# PURPOSE: To apply a conformal mapping to an image.
+# 
+# DESCRIPTION: CONFORMAL applies a conformal mapping to an image. The user may 
+# select from on of 8 complex expressions. The virtual pixel method may also 
+# be selected.
+# 
+# OPTIONS: 
+# 
+# -d dimension ... DIMENSIONS specify the output image dimensions WxH. The 
+# value is an "x" separated pair of integers>0. The default=input dimensions
+# 
+# -f formula ... FORMULA is a flag for the complex expression. Value are 
+# integer between 1 and 6. 1=-1/z, 2=(z+1/z)/2, 3=z^2, 4=sin(z), 5=cos(z), 
+# 6=ln(z), 7=(z+1)/(z-1), 8=1/(4*z^2-1), where z=x+i*y is a complex value. 
+# The default=1.
+# 
+# -g gain ... GAIN is a gain factor (zoom) that controls the look of the 
+# conformal mapping. Values are a pair of comma separate floats>0 as 
+# "xgain,ygain". If only one value is provided it will be used for both. The 
+# default="1,1".
+# 
+# -v vp ... VP is the virtual-pixel method. Any virtual-pixel method is 
+# allowed. The default=tile.
+# 
+# -b bcolor ... BCOLOR is the background color for the virtual-pixel method
+# that is a color. Any valid IM color is allowed. The default=black.
+# 
+# -z zcolor ... ZCOLOR is the zero color, which is the color for where the 
+# formula has a divide by zero. Relevant only to formula 1, 2 and 6. The 
+# default=black.
+# 
+# -m monitor ... MONITOR enables the progress monitor. Choices are: on or off. 
+# The default=off
+# 
+# NOTE: This script will be slow due to the use of -fx. On my Mac Mini with 
+# two cores, it took about 10-15 sec for a 500x500 image.
+# 
+# REFERENCES:
+# https://www.youtube.com/watch?v=CMMrEDIFPZY
+# http://www.dimensions-math.org/Dim_CH5_E.htm
+# http://www.mathworks.com/help/images/examples/exploring-a-conformal-mapping.html?requestedDomain=www.mathworks.com
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+dimensions=""		# output dimensions WxH; default=input dimension
+formula="1"			# 1=-1/z, 2=(z+1/z)/2, 3=z^2, 4=sin(z), 5=cos(z), 6=log(z)
+gain="1"			# input scale factor; float>0; default="1,1" (no change)
+vp="tile"			# virtual-pixel method; default=tile
+bcolor="black"		# background color for virtual-pixel; default=black
+zcolor="black"		# zero divide color default=black
+monitor="off"		# progress monitor; on or off; default=off
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get dimensions
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSIONS SPECIFICATION ---"
+					   checkMinus "$1"
+					   dimensions=`expr "$1" : '\([0-9]*x[0-9]*\)'`
+					   [ "$dimensions" = "" ] && errMsg "--- DIMENSIONS=$dimensions MUST BE A PAIR OF X SEPARATED INTEGERS ---"
+					   ;;
+				-f)    # get formula
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMULA SPECIFICATION ---"
+					   checkMinus "$1"
+					   formula=`expr "$1" : '\([1-8]\)'`
+					   [ "$formula" = "" ] && errMsg "--- FORMULA=$formula MUST BE AN INTEGER BETWEEN 1 AND 8 ---"
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([,.0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A PAIR OF COMMA SEPARATED FLOATS ---"
+					   ;;
+				-v)    # get  vp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VP SPECIFICATION ---"
+					   checkMinus "$1"
+					   vp="$1"
+					   ;;
+				-b)    # get  bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-z)    # get  zcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ZCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   zcolor="$1"
+					   ;;
+				-m)    # get  monitor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MONITOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   monitor=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$monitor" in 
+					   		on) monitor="on";;
+					   		off) monitor="off";;
+					   		*) errMsg "--- MONITOR=$monitor IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/CONFORMAL.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage $dir/tmpI.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get image dimensions and corner coords
+wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
+ww=`echo "$wxh" | cut -dx -f1`
+hh=`echo "$wxh" | cut -dx -f2`
+ww2=`convert xc: -format "%[fx:$ww/2]" info:`
+hh2=`convert xc: -format "%[fx:$hh/2]" info:`
+ww4=`convert xc: -format "%[fx:$ww/4]" info:`
+hh4=`convert xc: -format "%[fx:$hh/4]" info:`
+#echo "ww=$ww; hh=$hh; ww2=$ww2; hh2=$hh2; ww4=$ww4; hh4=$hh4;"
+
+# get output dimensions
+if [ "$dimensions" = "" ]; then
+	wd=$ww
+	ht=$hh
+else 
+	wd=`echo "$dimensions" | cut -dx -f1`
+	ht=`echo "$dimensions" | cut -dx -f2`
+fi
+[ $wd -eq 0 -o $ht -eq 0 ] && errMsg "--- OUTPUT DIMENSIONS MAY NOT BE ZERO  ---"
+
+wd2=`convert xc: -format "%[fx:$wd/2]" info:`
+ht2=`convert xc: -format "%[fx:$ht/2]" info:`
+wd4=`convert xc: -format "%[fx:$wd/4]" info:`
+ht4=`convert xc: -format "%[fx:$ht/4]" info:`
+#echo "wd=$wd; ht=$ht; wd2=$wd2; ht2=$ht2; wd4=$wd4; ht4=$ht4;"
+
+
+# split gains and biases and offsets
+gx=`echo "$gain" | cut -d, -f1`
+gy=`echo "$gain" | cut -d, -f2`
+test=`convert xc: -format "%[fx:( ($gx==0) || ($gy==0) )?1:0]" info:`
+[ $test -eq 1 ] && errMsg "--- OUTPUT DIMENSIONS MAY NOT BE ZERO  ---"
+#echo "gx=$gx; gy=$gy;"
+
+# set up monitor
+if [ "$monitor" = "on" ]; then
+	monitoring1="-monitor"
+	monitoring2="+monitor"
+else
+	monitoring1=""
+	monitoring2=""
+fi
+
+
+if [ $formula -eq 1 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; rr=(xx*xx+yy*yy); \
+		(xx==0 && yy==0)?$zcolor:v.p{-$gx*$ww4*xx/rr+$ww2,$gy*$hh4*yy/rr+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 2 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; rr=(xx*xx+yy*yy); \
+		(xx==0 && yy==0)?$zcolor:v.p{$gx*$ww4*(xx*rr-xx)/rr+$ww2,$gy*$ww4(yy*rr-yy)/rr+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 3 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; \
+		v.p{$gx*$ww4*(xx*xx-yy*yy)+$ww2,$gy*$hh2*2*xx*yy+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 4 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; \
+		v.p{$gx*$ww4*sin(pi*xx)*cosh(yy)+$ww2,$gy*$hh2*cos(pi*xx)*sinh(yy)+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 5 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; \
+		v.p{$gx*$ww4*cos(pi*xx)*cosh(yy)+$ww2,-$gy*$hh2*sin(pi*xx)*sinh(yy)+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 6 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; rr=(xx*xx+yy*yy); \
+		( (rr==0) || (xx==0) )?$zcolor:v.p{$gx*$ww4*ln(sqrt(rr))+$ww2,$gy*$hh2*atan(yy/xx)+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 7 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; rr=xx*xx+yy*yy; dd=(rr-2*xx+1); \
+		(dd==0)?$zcolor:v.p{$gx*$ww4*(rr+1)+$ww2,$gy*$hh2*2*yy+$hh2}" \
+		$monitoring2 "$outfile"
+
+elif [ $formula -eq 8 ]; then
+	convert -size ${wd}x${ht} xc: $dir/tmpI.mpc \
+		-background "$bcolor" -virtual-pixel $vp $monitoring1 -fx \
+		"xx=(i-$wd2)/$wd2; yy=(j-$ht2)/$ht2; \
+		aa=4*(xx*xx-yy*yy)-1; bb=8*xx*yy; cc=(aa*aa+bb*bb); \
+		(cc==0))?$zcolor:v.p{$gx*$ww4*(aa/cc)+$ww2,-$gy*$hh2*(bb/cc)+$hh2}" \
+		$monitoring2 "$outfile"
+
+fi
+
+exit 0

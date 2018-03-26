@@ -1,0 +1,289 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/8/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: softlight [-a amount] [-s smooth] [-p percent] [-c color] infile outfile
+# USAGE: softlight [-h or -help]
+# 
+# OPTIONS:
+# 
+# -a     amount       amount (intensity) of soft light; 0<=integer<=100; 
+#                     default=80
+# -s     smooth       smoothing extent of soft light; integer>=0; default=50
+# -p     percent      percent of white from thresholding; 0<=integer<=100; 
+#                     default=5
+# -c     color        color of softlight; any valid opaque IM color; 
+#                     default=white
+# 
+###
+# 
+# NAME: SOFTLIGHT 
+# 
+# PURPOSE: To apply soft light to an image.
+# 
+# DESCRIPTION: SOFTLIGHT applies soft light to an image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -a amount ... AMOUNT (intensity) of soft light. Values are integers between 
+# 0 and 100. The default=80.
+# 
+# -s smooth ... SMOOTH is the smoothing extent of the soft light. Values are 
+# integers greater or equal to 0.  The default=50.
+# 
+# -p percent ...PERCENT of white from thresholding used to create the soft 
+# light. Values are integers between 0 and 100. The default=5.
+# 
+# -c color ... COLOR of the soft light. Any valid opaque IM color is allowed. 
+# The default=white.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+amount=80			# amount (intensity, attenuation)
+smooth=50			# smoothing extent
+percent=5			# percent white threshold
+color="white"		# light color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+getMinMax()
+	{
+	img="$1"
+	# statistics computed as percent (of dynamic range) values
+	if [ "$im_version" -ge "06030901" ]
+		then 
+		min=`convert $img -format "%[min]" info:`
+		max=`convert $img -format "%[max]" info:`
+		min=`convert xc: -format "%[fx:100*$min/quantumrange]" info:`
+		max=`convert xc: -format "%[fx:100*$max/quantumrange]" info:`
+	else
+		data=`convert $img -verbose info:`
+		min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		min=`convert xc: -format "%[fx:100*$min]" info:`
+		max=`convert xc: -format "%[fx:100*$max]" info:`
+	fi
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$amount < 0" | bc`
+					   test2=`echo "$amount > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-s)    # get smooth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   smooth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$smooth" = "" ] && errMsg "--- SMOOTH=$smooth MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-p)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([0-9]*\)'`
+					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$percent < 0" | bc`
+					   test2=`echo "$percent > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# set up temp files
+tmpA1="$dir/softlight_A_$$.mpc"
+tmpA2="$dir/softlight_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using softlight.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.0.8
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read input image
+convert -quiet "$infile" $setcspace +repage $tmpA1 ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# change amount from percent to fraction
+amount=`convert xc: -format "%[fx:$amount/100]" info:`
+
+# set up auto level
+if [ "$im_version" -lt "06050501" ]; then
+	getMinMax $tmpA1
+	autoleveling="-level $min%,$max%"
+else
+	autoleveling="-auto-level"
+fi
+
+
+# get mask of top percent closest to white
+# approximated using negated saturation and brightness channels multiplied
+# blur mask and multiply by attenuation factor
+# apply as mask to overlay white
+convert $tmpA1 \
+	\( -clone 0 -fill $color -colorize 100% \) \
+	\( -clone 0 -colorspace HSB -channel G -negate -channel GB -separate +channel \
+		-compose multiply -composite -contrast-stretch 0,${percent}% \
+		-fill black +opaque white -blur 0x$smooth \
+		$autoleveling -evaluate multiply $amount \) \
+	-compose over -composite "$outfile"
+
+
+exit 0
+
+
+
+
+
+
+
+
+
+

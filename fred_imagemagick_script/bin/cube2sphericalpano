@@ -1,0 +1,379 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 9/18/2017 .......... revised 9/18/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cube2sphericalpano [-d dimensions] [-t tilesize] [-b bgcolor ] [-i interpolation] 
+# infile1 infile2 infile3 infile4 infile5 infile6 outfile
+# or
+# USAGE: cube2sphericalpano [-d dimensions] [-t tilesize] [-b bcolor ] [-i interpolation] 
+# infile outfile
+# USAGE: cube2sphericalpano [-h or -help]
+# 
+# OPTIONS:
+# 
+# -d     dimensions        dimensions of the output panorama; WxH; integers>0; 
+#                          default=1000x500
+# -t     tilesize          size of square face tiles in optional single montage image;
+#                          default will be computed from the montage input image 
+#                          dimensions; provided only to override erroneous fractional 
+#                          dimensions computed from the montage image
+# -b     bgcolor           background color for virtual pixels; any valid IM color is 
+#                          allowed; default=black
+# -i     interpolation     intepolation method; any valid IM interpolation method is 
+#                          allowed; default=bilinear
+# 
+###
+# 
+# NAME: CUBE2SPHERICALPANO 
+#  
+# PURPOSE: To transform 6 cube face images into a spherical panorama image.
+# 
+# DESCRIPTION: CUBE2SPHERICALPANO transforms either 1) six cube face images in order of 
+# left, front, right, back, over, under into a spherical panorama or 2) one montage 
+# of the six cube face images into a spherical panorama. The over and under images 
+# must be as if facing forward and turning up and down, respectively. If not in that 
+# orientation, then you must rotate them 90, 180, 270 as needed to orient them as needed.
+# 
+# 
+# Arguments: 
+# 
+# -d dimensions ... DIMENSIONS of the output panorama as WxH. Values are integers>0. 
+# The default=1000x500.
+# 
+# -t tilesize ... TILESIZE is the size of the square face tile in the optional single 
+# montage input image. The default will be computed from the montage input image 
+# dimensions as tile_width=montage_width/4 and tile_height=montage_height/3. This 
+# is provided only to override erroneous rounding of any fractional pixel dimensions  
+# computed from the montage image.
+# 
+# -b bgcolor ... BGCOLOR is the background color for virtual pixels. Any valid IM color 
+# is allowed. The default=black.
+# 
+# -i interpolation ... INTEPOLATION method. Any valid IM interpolation method is allowed. 
+# The default=bilinear.
+# 
+# NOTE: This script will be slow due to the use of -fx. On my dual core INTEL Mac mini 
+# with 2.8 GHz processor and OSX Sierra, it takes 1 min 40 sec to create a 1000x500  
+# pixel spherical panorama from six 500x500 pixel cube face images. Time will 
+# increase/decrease approximately by the square of the panorama dimensions.
+# 
+# References: 
+# https://en.wikipedia.org/wiki/Cube_mapping
+# http://paulbourke.net//miscellaneous/cubemaps/
+# https://stackoverflow.com/questions/29678510/convert-21-equirectangular-panorama-to-cube-map
+# http://mathworld.wolfram.com/SphericalCoordinates.html
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+# set default values; 
+dimensions=1000x500			#dimensions of output image
+tilesize=""					#size of tile of montage image
+bgcolor="black"				#virtual-pixel background color
+interplation="bilinear"		#interpolation mode
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 15 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-d)    # dimensions
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DIMENSIONS SPECIFICATION ---"
+				   checkMinus "$1"
+				   dimensions=`expr "$1" : '\([0-9]*x[0-9]*\)'`
+				   dm1=`echo "$dimensions" | cut -dx -f1`
+				   dm2=`echo "$dimensions" | cut -dx -f2`
+				   testA=`echo "$dm1 == 0" | bc`
+				   testB=`echo "$dm2 == 0" | bc`
+				   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- DIMENSIONS=$dimensions MUST BE A PAIR OF POSITIVE INTEGERS SEPARATED BY AN x ---"
+				   ;;
+			-t)    # tilesize
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID TILESIZE SPECIFICATION ---"
+				   checkMinus "$1"
+				   tilesize=`expr "$1" : '\([0-9]*\)'`
+				   test=`echo "$tilesize == 0" | bc`
+				   [ $test -eq 1 ] && errMsg "--- TILESIZE=$tilesize MUST BE A POSITIVE INTEGER ---"
+				   ;;
+			-b)    # get bcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   bcolor="$1"
+				   ;;
+			-i)    # set interpolation
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID INTERPOLATION SPECIFICATION ---"
+				   checkMinus "$1"
+				   interpolation="$1"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile(s) and outfile
+	num=$#
+	#echo "num=$num;"
+	if [ $num -eq 2 ]; then
+		infile1="$1"
+		outfile="$2"
+	elif [ $num -eq 7 ]; then
+		infile1="$1"
+		infile2="$2"
+		infile3="$3"
+		infile4="$4"
+		infile5="$5"
+		infile6="$6"
+		outfile="$7"
+	else 
+		errMsg "--- INCONSISTENT NUMBER OF IMAGES PROVIDED ---"
+	fi
+fi
+
+
+dir="$tmpdir/SPHERICALPANO2CUBE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+
+# read the input images into the temporary cached image and test if valid
+if [ "$infile2" != "" ]; then
+
+	convert -quiet -regard-warnings "$infile1" +repage $dir/tmp1.mpc ||
+		errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	convert -quiet -regard-warnings "$infile2" +repage $dir/tmp2.mpc ||
+		errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	convert -quiet -regard-warnings "$infile3" +repage $dir/tmp3.mpc ||
+		errMsg "--- FILE $infile3 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	convert -quiet -regard-warnings "$infile4" +repage $dir/tmp4.mpc ||
+		errMsg "--- FILE $infile4 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	convert -quiet -regard-warnings "$infile5" +repage $dir/tmp5.mpc ||
+		errMsg "--- FILE $infile5 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	convert -quiet -regard-warnings "$infile6" +repage $dir/tmp6.mpc ||
+		errMsg "--- FILE $infile6 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	for ((i=1; i<7; i++)); do
+		# get cube face dimensions
+		declare `convert -ping $dir/tmp$i.mpc -format "ww=%w\nhh=%h\n" info:`
+
+		# test if square
+		[ $ww -ne $hh ] && errMsg "--- INPUT IMAGE $i IS NOT SQUARE: WIDTH=$ww HEIGHT=$hh  ---"
+	done
+	
+	dim=$ww
+
+else
+	convert -quiet -regard-warnings "$infile1" +repage $dir/tmp0.mpc ||
+		errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+	if [ "$infile2" = "" -a "$tilesize" != "" ]; then
+		ww=$tilesize
+		hh=$tilesize
+	elif [ "$infile2" = "" -a "$tilesize" = "" ]; then
+		ww=`convert $dir/tmp0.mpc -format "%[fx:w/4]" info:`
+		hh=`convert $dir/tmp0.mpc -format "%[fx:h/3]" info:`
+		[ $ww -ne $hh ] && errMsg "--- TILE IS NOT SQUARE: WIDTH=$ww HEIGHT=$hh ---"
+	fi
+
+
+	dim=$ww
+
+	dim2=$((2*dim))
+	dim3=$((3*dim))
+	
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+0+${dim} +repage $dir/tmp1.mpc
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+${dim}+${dim} +repage $dir/tmp2.mpc
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+${dim2}+${dim} +repage $dir/tmp3.mpc
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+${dim3}+${dim} +repage $dir/tmp4.mpc
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+${dim}+0 +repage $dir/tmp5.mpc
+	convert $dir/tmp0.mpc -crop ${dim}x${dim}+${dim}+${dim2} +repage $dir/tmp6.mpc
+
+fi
+#echo "dim=$dim;"
+
+
+# get dimensions of pano
+wd=`echo "$dimensions" | cut -dx -f1`
+ht=`echo "$dimensions" | cut -dx -f2`
+#echo "wd=$wd; ht=$ht;"
+
+# get last pixel in input images
+dlast=$((dim-1))
+#echo "dlast=$dlast;"
+
+
+# convert angles theta and phi from spherical pano to x,y,z on cube faces
+# note radius of sphere is unity so vectors on sphere are unit vectors
+#
+# phiang is vertical on the panorama and we have the top of the image at phiang=0 and the bottom of the image to be phiang=180 so that angles correspond to vertical image coordinate
+# phiang in spherical coords does just that;  phiang is zero along z axis and increase downward to 180 along -z
+# 
+# theta is horizontal on the panorama and we have it 0 at the left side and 360 at the right side so that it corresponds to the horizong image coordinate, uu
+# theta in spherical coords is zero along the x axis and increasing counterclockwise towards y axis
+# so we need to make it clockwise, thus just negate the value of theta
+# but we have theta=0 in middle of image and we want theta=0 at left, so add 180 so theta=180 at the center of the image
+# 
+# see Wolfram spherical coords transformation with unswapped axes.
+# xx=rr*cos(theta)*sin(phiang)
+# yy=rr*sin(theta)*sin(phiang)
+# zz=rr*cos(phiang)
+# rr=sqrt(xx^2 + yy^2 + zz^2)
+# phiang=arccos(zz/rr)
+# theta=arctan2(yy,xx)
+
+# Start with spherical panorama (equirectangular) corresponding to sphere of radius=1
+# Thus enclosing box has dimensions=2x2x2. 
+# Put origin at center of box with z axis upward, x axis forward (theta=0 at center of input) and y axis to left.
+# Identify each face of the cube, Left=0, Front=1, Right=2, Back=3, Over=4, Under=5
+# Note over and under will be facing front and tilting up and down
+
+
+# get pi and 2pi
+pi=`convert xc: -format "%[fx:pi]" info:`
+pi2=`convert xc: -format "%[fx:pi*2]" info:`
+
+# 360 degrees corresponds to 1 pixel past the end of the image so that it wraps back to the first pixel.
+# So ww<=>360 degreesand hh<=>180 degrees
+
+tfact=`convert xc: -format "%[fx:$pi2/$wd]" info:`
+pfact=`convert xc: -format "%[fx:$pi/$ht]" info:`
+fact=`convert xc: -format "%[fx:$dlast/2]" info:`
+
+
+# convert (i,j) pixels in input to theta and phi
+# theta is zero in horizontal center so must shift by pi and reverse direction to correspond to spherical coordinates
+# phiang is zero at top
+th="th=$pi-i*$tfact;"
+ph="ph=j*$pfact;"
+
+
+# convert to cartesian coordinates with unit sphere
+xx="xx=cos(th)*sin(ph);"
+yy="yy=sin(th)*sin(ph);"
+zz="zz=cos(ph);"
+xa="xa=abs(xx);"
+ya="ya=abs(yy);"
+za="za=abs(zz);"
+xp="xp=(xx>0)?1:0;"
+yp="yp=(yy>0)?1:0;"
+zp="zp=(zz>0)?1:0;"
+
+#uu="uu=(xc+1)*$fact;"
+#vv="vv=(1-yc)*$fact;"
+
+# Note that xx,yy,zz are unit vectors on sphere. But we need to convert them to xp,yp,zp on each plane face.
+# This can be done according to the equation of each plane face and the unit vectors according to equations from https://stackoverflow.com/questions/23975555/how-to-do-ray-plane-intersection
+# But it is simpler to use graphical geometry of similar triangles to see that, for example, for plane z=1, xp/xx = zp/zz = yp/yy, where zp=1
+# Thus xp=xx/zz and zp=yy/zz. Similarly for each plane. So below we divide xx,yy,zz by the appropriate xa,ya,za.
+
+convert -size ${wd}x${ht} xc: \
+	$dir/tmp1.mpc $dir/tmp2.mpc $dir/tmp3.mpc $dir/tmp4.mpc $dir/tmp5.mpc $dir/tmp6.mpc \
+	-virtual-pixel background -background $bgcolor -interpolate $interplation -monitor -fx \
+	"$th $ph $xx $yy $zz $xa $ya $za $xp $yp $zp \
+	(yp==1 && ya>=xa && ya>=za)?u[1].p{(xx/ya+1)*$fact,(1-zz/ya)*$fact}:(xp==1 && xa>=ya & xa>=za)?u[2].p{(-yy/xa+1)*$fact,(1-zz/xa)*$fact}:(yp!=1 && ya>=xa && ya>=za)?u[3].p{(-xx/ya+1)*$fact,(1-zz/ya)*$fact}:(xp!=1 && xa>=ya & xa>=za)?u[4].p{(yy/xa+1)*$fact,(1-zz/xa)*$fact}:(zp==1 && za>=xa && za>=ya)?u[5].p{(-yy/za+1)*$fact,(1+xx/za)*$fact}:(zp!=1 && za>=xa && za>=ya)?u[6].p{(-yy/za+1)*$fact,(1-xx/za)*$fact}:$bgcolor" \
+	+monitor "$outfile"
+
+exit 0
+
+
+

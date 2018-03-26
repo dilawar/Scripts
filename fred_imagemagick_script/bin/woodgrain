@@ -1,0 +1,529 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/12/2012 .......... 6/2/2015
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: woodgrain [-p process] [-d dimensions] [-m maincolor] [-g graincolor] 
+# [-t thickness] [-e elongation] [-D densities] [-I intensities] [-c curviness] 
+# [-w wiggles] [-n newseeds] [-a amplify] [-s sharpen] [-r rotation] 
+# [-B brightness] [-S saturation] [-H hue] outfile
+#
+# USAGE: woodgrain [-help or -h]
+#
+# OPTIONS:
+#
+# -p     process         processing method; choices are 1 or 2; 1 is 1D expand 
+#                        and 2 is motion blur; default=1
+# -d     dimensions      dimensions of the output image; integers>0; 
+#                        WIDTHxHEIGHT; default=300x300
+# -m     maincolor       main (background) color of image; any valid opaque IM 
+#                        color; default=burlywood
+# -g     graincolor      grain (foreground) color of image; any valid opaque IM 
+#                        color; default=tan4
+# -t     thickness       thickness of coarse grain texture; integer>0; default=1
+# -e     elongation      elongation of grain texture; integer>0; default=30
+# -D     densities       densities for coarse and fine grain textures;  
+#                        comma separate integers>0; COARSE,FINE densities;
+#                        default=50,50
+# -I     intensities     intensities for coarse and fine grain textures;  
+#                        comma separate integers>0; COARSE,FINE intesities
+#                        default=0,1
+# -c     curviness       curviness of coarse grain texture; integer>=0; 
+#                        default=5
+# -w     wiggles         wiggles of coarse grain texture; integer>=0;
+#                        default=5
+# -n     newseeds        new seed values for coarse and fine grain textures;
+#                        comma separate integers>0; COARSE,FINE,NOISE texture 
+#                        seeds; default=100,200,300
+# -a     amplify         amplification factor for added noise; 
+#                        float>=0; default=2
+# -s     sharpen         sharpening of grain textures; integer>=0; default=5
+# -r     rotation        rotation of texture pattern; 0<=integer<=360; 
+#                        default=0
+# -B     brightness      brightness factor for output image; integer>=0;
+#                        default=100 (nominal value)
+# -S     saturation      saturation factor for output image; integer>=0;
+#                        default=100 (nominal value)
+# -H     hue             hue factor for output image; integer>=0;
+#                        default=100 (nominal value)
+# 
+###
+#
+# NAME: WOODGRAIN 
+# 
+# PURPOSE: To simulate a woodgrain texture.
+# 
+# DESCRIPTION: WOODGRAIN simulates a woodgrain texture. The user may control 
+# main (background) and grain (foreground) colors, coarse grain thickness, 
+# elongation, density, curviness and other factors. The newseed values allow 
+# the grain patterns to change. 
+# 
+# 
+# OPTIONS: 
+# 
+# -p process ... PROCESS is the processing method. Choices are 1 or 2. 1 is 
+# using 1D expand and 2 is using motion blur.  The results are different but 
+# comparable. Method 2 is faster, especially when rotations are involved.
+# The default=1
+# 
+# -d dimensions ... DIMENSIONS of the output image. Values are "x" separated 
+# integers>0 in the form of WIDTHxHEIGHT (with no spaces). 
+# The default=300x300
+# 
+# -m maincolor ... MAIN (background) COLOR of the texture image. Any valid 
+# opaque IM color is allowed. The default=burlywood.
+# 
+# -g graincolor ... GRAIN (foreground) COLOR of the texture image. Any valid 
+# opaque IM color is allowed. The default=tan4.
+# 
+# -t thickness ... THICKNESS of the coarse grain texture. Values are integers>0.
+# The default=1.
+# 
+# -e elongation ... ELONGATION of grain texture. Values are integers>0. 
+# The default=30.
+# 
+# -D densities ... DENSITIES for coarse and fine grain textures. Values are 
+# comma separate integers>=0 in the form COARSE,FINE (densities). 
+# (with no spaces). The default=50,50. Note a fine density of 0 will disable 
+# any fine grain texture.
+#
+# -I intensities ... INTENSITIES for coarse and fine grain textures. Values are 
+# comma separate integers>=0 in the form COARSE,FINE (intensities) 
+# (with no spaces). The default=0,1. Note a fine intensity of 0 will disable 
+# any fine grain texture.
+#
+# -c curviness ... CURVINESS of coarse grain texture. Values are integers>=0. 
+# The default=5.
+# 
+# -w wiggles ... WIGGLES are the wiggle amount of the coarse grain texture.
+# Values are integers>=0. The default=5.
+# 
+# -n newseeds ... NEWSEEDS are the new seed values for coarse grain, fine grain 
+# and noise textures. Values are comma separate integers>=0 in the form 
+# COARSE,FINE,NOISE (seeds) (with no spaces). The default=100,200,300. 
+# Note that changing these values causes the grain patterns to change. However, 
+# using the same value for all three newseeds should be avoided.
+# 
+# -a amplify ... AMPLIFY is the amplification factor for added noise texture. 
+# Values are floast>=0. The default=2. Note a value of zero will disable any 
+# noise added to the texture.
+# 
+# -s sharpen ... SHARPEN is the sharpening of the grain textures. Values are 
+# integers>=0. The default=5.
+# 
+# -r rotation ... ROTATION of the texture pattern. Values are 0<=integer<=360. 
+# The default=0. Note that rotation other than 0, 90, 180, 270 will slow 
+# processing considerably.
+# 
+# -B brightness ... BRIGHTNESS factor for the output image. Values are 
+# integers>=0. The default=100 (nominal value).
+# 
+# -S saturation ... SATURATION factor for the output image. Values are 
+# integers>=0. The default=100 (nominal value).
+# 
+# -H hue ... HUE factor for the output image. Values are 
+# integers>=0. The default=100 (nominal value).
+# 
+# NOTE: Results cannot be tiled without special processing.
+# 
+# REFERENCES:
+# http://www.myinkblog.com/creating-a-realistic-wood-texture-using-photoshop/
+# http://www.tutorial9.net/tutorials/photoshop-tutorials/custom-wood-texture-in-adobe-photoshop/
+# http://www.youtube.com/watch?v=_BfQ7IjWt_4
+# http://www.youtube.com/watch?v=dyaGb6SK7Cw&feature=relmfu
+# http://www.youtube.com/watch?v=gEkqe6_ZSFk
+# 
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+process=1                   # processing method; 1 or 2
+dim="300x300"				# output image dim; WxH
+maincolor="burlywood"		# main background color
+graincolor="tan4"			# grain foreground color
+thickness=1					# coarse grain thickness; integer>0
+elongation=30				# grain elongation factor; integer>0
+densities="50,50"			# coarse,fine grain density; range 0-99
+intensities="0,1"			# coarse,fine grain intensity; integer>0
+curviness=5					# coarse grain curviness; integer>=0
+wiggles=5					# coarse grain wiggle displacement; integer>=0
+newseeds="100,200,300"		# coarse,fine grain seed values; integers
+amplify=2					# fine grain amplification; float>=0
+sharpen=5					# grain sharpening; integer>=0
+rotation=0					# grain rotation; 0<=integer<=360
+bri=100						# image brightness; integer>=0; default=100
+sat=100						# image saturation; integer>=0; default=100
+hue=100						# image brightness; integer>=0; default=100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 36 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		   -help|h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-p)    # get process 
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PROCESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   process=`expr "$1" : '\([0-9]*\)'`
+					   [ "$process" = "" ] && errMsg "--- PROCESS=$process MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   [ $process -ne 1 -a $process -ne 2 ] && errMsg "--- PROCESS=$process MUST BE EITHER 1 OR 2 ---"
+ 					   ;;
+				-d)    # get dimensions
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSIONS SPECIFICATION ---"
+					   checkMinus "$1"
+					   dim=`expr "$1" : '\([x0-9]*\)'`
+					   [ "$dim" = "" ] && errMsg "--- DIMENSIONS=$dim MUST BE TWO X DELIMITED NON-NEGATIVE INTEGERS ---"
+ 					   ;;
+				-m)    # get maincolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MAINCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   maincolor="$1"
+					   ;;
+				-g)    # get graincolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAINCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   graincolor="$1"
+					   ;;
+				-t)    # get  thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$thickness < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-e)    # get  elongation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ELONGATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   elongation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$elongation" = "" ] && errMsg "--- ELONGATION=$elongation MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$elongation < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- ELONGATION=$elongation MUST BE A POSITIVE INTEGER GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-D)    # get densities
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITIES SPECIFICATION ---"
+					   checkMinus "$1"
+					   densities=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$densities" = "" ] && errMsg "--- DENSITIES=$densities MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-I)    # get intensities
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INTENSITIES SPECIFICATION ---"
+					   checkMinus "$1"
+					   intensities=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$intensities" = "" ] && errMsg "--- INTENSITIES=$intensities MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-c)    # get  curviness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CURVINESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   curviness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$curviness" = "" ] && errMsg "--- CURVINESS=$curviness MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-w)    # get  wiggles
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIGGLES SPECIFICATION ---"
+					   checkMinus "$1"
+					   wiggles=`expr "$1" : '\([0-9]*\)'`
+					   [ "$wiggles" = "" ] && errMsg "--- WIGGLES=$wiggles MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-n)    # get newseeds
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEEDS SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseeds=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$newseeds" = "" ] && errMsg "--- NEWSEEDS=$newseeds MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-a)    # get  amplify
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMPLIFY SPECIFICATION ---"
+					   checkMinus "$1"
+					   amplify=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amplify" = "" ] && errMsg "--- AMPLIFY=$amplify MUST BE A NON-NEGATIVE FLOAT VALUE (with no sign) ---"
+					   ;;
+				-s)    # get  sharpen
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHARPEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   sharpen=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sharpen" = "" ] && errMsg "--- SHARPEN=$sharpen MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-r)    # get rotation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROTATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   rotation=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$rotation" = "" ] && errMsg "--- ROTATION=$rotation MUST BE A FLOAT (with no positive sign) ---"
+					   test1=`echo "$rotation < 0" | bc`
+					   test2=`echo "$rotation > 360" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ROTATION=$rotation MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+					   ;;
+				-B)    # get  brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   bri=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bri" = "" ] && errMsg "--- BRIGHTNESS=$bri MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-S)    # get  saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   sat=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SATURATION=$sat MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-H)    # get  hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   checkMinus "$1"
+					   hue=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+			 	 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get outfile
+	outfile="$1"
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temp files
+tmpA1="$dir/woodcut_A_$$.mpc"
+tmpA2="$dir/woodcut_A_$$.cache"
+tmpB1="$dir/woodcut_B_$$.mpc"
+tmpB2="$dir/woodcut_B_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using vignette2
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.1
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# get width and height
+ww=`echo "$dim" | cut -dx -f 1`
+hh=`echo "$dim" | cut -dx -f 2`
+hh=`convert xc: -format "%[fx:$hh*$elongation]" info:`
+
+# get densities
+density1=`echo "$densities" | cut -d, -f 1`
+density2=`echo "$densities" | cut -d, -f 2`
+test1=`convert xc: -format "%[fx:$density1>=100?1:0]" info:`
+test2=`convert xc: -format "%[fx:$density2>=100?1:0]" info:`
+[ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- DENSITIES MUST BE LESS THAN 100 ---"
+density1=$((100-density1))
+density2=$((100-density2))
+
+# get intensities
+intensity1=`echo "$intensities" | cut -d, -f 1`
+intensity2=`echo "$intensities" | cut -d, -f 2`
+
+# get seeds
+newseed1=`echo "$newseeds" | cut -d, -f 1`
+newseed2=`echo "$newseeds" | cut -d, -f 2`
+newseed3=`echo "$newseeds" | cut -d, -f 3`
+
+if [ $process -eq 1 ]; then
+	# setup rotation
+	if [ "$rotation" = "0" ]; then
+		rotating1=""
+		rotating2=""
+	elif [ "$rotation" = "90" -o "$rotation" = "180" -o "$rotation" = "270" ]; then
+		rotating1=""
+		rotating2="-compose over -virtual-pixel edge -rotate $rotation"
+	else
+		rotating1="-compose over -virtual-pixel edge -distort SRT $rotation"
+		rotating2=""
+		#increase size by rotation angle and small buffer
+		ww=`convert xc: -format "%[fx:1.05*$ww*abs(cos(pi*$rotation/180)+$sin(pi*$rotation/180))]" info:`
+		hh=`convert xc: -format "%[fx:1.05*$hh*abs(cos(pi*$rotation/180)+$cos(pi*$rotation/180))]" info:`
+	fi
+elif [ $process -eq 2 ]; then
+	rotation1=`convert xc: -format "%[fx:90+$rotation]" info:`
+	rotation2=""
+	elongation=$((2*elongation))
+fi
+
+# set up for noise attenuation
+if [ "$amplify" = "0" ]; then
+	addnoise=""
+else
+	addnoise="-virtual-pixel tile -attenuate $amplify -seed $newseed3 +noise gaussian -clamp -blur 0x1"
+fi
+
+if [ "$process" = "1" ]; then
+	proc1="-resize ${ww}x${hh}! $rotating1 -gravity center -crop ${dim}+0+0 +repage -level 50x100% " 
+	proc2="-resize ${ww}x${hh}! $rotating1 -gravity center -crop ${dim}+0+0 +repage"
+elif [ "$process" = "2" ]; then
+	proc1="-motion-blur ${elongation}x65000+$rotation1 -auto-level -level 65x100%" 
+	proc2="-motion-blur ${elongation}x65000+$rotation1 -auto-level"
+fi
+
+# create tileable random grayscale noise
+# stretch and rotate and crop the random noise image
+# blur the original random grayscale image with larger blur for displacement map
+# displace the blurred stretched, rotated, cropped random noise image
+convert \( -size $dim xc: -virtual-pixel tile -seed $newseed1 +noise random \
+		$setcspace -channel g -separate +channel -level ${density1}x100% \) \
+	\( -clone 0 -blur 0x$thickness -auto-level $proc1 -unsharp 0x1+$intensity1% -clamp \) \
+	\( -clone 0 -blur 0x$curviness -auto-level \) \
+	-delete 0 -define compose:args=${wiggles}x${wiggles} -compose displace -composite \
+	$tmpA1
+
+if [ "$intensity2" = "0" -o "$density2" = "0" ]; then
+	convert $tmpA1 $addnoise -sharpen 0x$sharpen +level-colors $maincolor,$graincolor -modulate $bri,$sat,$hue $outfile
+
+else
+# create tileable random grayscale noise with different noise
+# stretch and rotate and crop the random noise image
+# blur the previous stretched image 
+# subtract the last two to get an edge image
+
+convert \( -size $dim xc: -virtual-pixel tile -seed $newseed2 +noise random \
+		$setcspace -channel g -separate +channel \) \
+	\( -clone 0 -blur 0x1 -auto-level $proc2 -level ${density2}x100% -unsharp 0x1+$intensity2% -clamp \) \
+	\( -clone 1 -blur 0x1 -auto-level \) \
+	-delete 0 +swap -compose minus -composite -clamp -auto-level $tmpB1
+
+convert $tmpA1 $tmpB1 -compose plus -composite \
+	$addnoise -sharpen 0x$sharpen -clamp $rotating2 \
+	+level-colors $maincolor,$graincolor -modulate $bri,$sat,$hue "$outfile"
+
+fi
+
+exit 0

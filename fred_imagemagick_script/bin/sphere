@@ -1,0 +1,479 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/7/2010 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: sphere [-d diameter] [-c color] [-b bgcolor] [-t theta] [-p phi] [-l lambertian] [-s specular] [-e exponent] [infile] outfile
+# USAGE: sphere [-h or -help]
+#
+# OPTIONS:
+#
+# -d      diameter           desired diameter of sphere; integer>0; default=128;
+#                            determines the width and height of the output image
+# -c      color              desired sphere color; 
+#                            Any valid IM color is allowed; default=red
+# -b      bgcolor            background color outside sphere; 
+#                            Any valid IM color is allowed; default=black
+# -t      theta              white light azimuth angle measure counter clockwise
+#                            around the sphere from the positive x axis;
+#                            0<=float<=360; default=135 (lighting from the northwest)
+# -p      phi                white light altitude angle measured downward from 
+#                            zenith (i.e. from out of center of sphere toward viewer);
+#                            0<=float<=180; 0 is light source right over the center
+#                            of the sphere; default=50
+# -l      lambertian         lambertian (diffuse) illumination amplitude; 0<=float<=1;
+#                            default=0.9
+# -s      specular           specular illumination amplitude; 0<=float<=1;
+#                            default=0.6
+# -e      exponent           specular illumination exponent; float>0; default=70
+#
+# If infile is provided, then it will be used in place of the color. The 
+# infile must be square and the diameter will obtained from the dimensions 
+# of the image.
+# 
+###
+#
+# NAME: SPHERE 
+# 
+# PURPOSE: To create a colored sphere with a combination of diffuse and 
+# specular illumination.
+# 
+# DESCRIPTION: SPHERE creates a colored sphere with a combination of diffuse  
+# and specular illumination. Lighting is from a white light source. The 
+# diffuse term is computed from the Lambertian shading model. The specular 
+# term is computed from the Blinn-Phong approximation.
+# 
+# OPTIONS: 
+#
+# -d diameter ... DIAMETER of the sphere. Also controls the width and height 
+# of the output image. Values are integers>0. The default=128
+# 
+# -c color ... COLOR is the desired color for the sphere. The default=red.
+# Any valid IM color is allowed. 
+# See http://imagemagick.org/script/color.php
+# 
+# -b bgcolor ... BGCOLOR is the background color around the outside of the 
+# sphere. The default=black. Any valid IM color is allowed. 
+# See http://imagemagick.org/script/color.php
+# 
+# -t theta ... THETA is the white light azimuth angle measured counter 
+# clockwise from the positive x axis. Values are floats between 0 and 360 
+# degrees. The default=135, which means the light is coming from the northwest.
+# 
+# -p phi ... PHI is the white light altitude angle measure downward from zenith
+# (vertical) towards horizontal. Values are floats between 0 and 180 degrees. 
+# A value of zero means the light is from above the sphere. The default=50.
+# 
+# -l lambertian ... LAMBERTIAN is the amplitude of the diffuse lighting. Values 
+# are in the range 0<=float<=1. The default=0.9
+# 
+# -s specular ... SPECULAR is the amplitude of the reflective lighting. Values 
+# are in the range 0<=float<=1. The default=0.6. A value of zero means not 
+# to compute the specular component.
+# 
+# -e exponent ... EXPONENT is the specular exponent, which controls the area 
+# of the reflective effect. Larger values means smaller areas. Values are 
+# floats>0. The default=70.
+# 
+# NOTE: If infile is provided, then it will be used in place of the color.
+# The infile must be square and the diameter will obtained from the dimensions 
+# of the image.
+# 
+# REQUIRMENTS: IM 6.5.4-3 or higher due to the use of -compose mathematics.
+# 
+# THEORY: See the following:
+# http://en.wikipedia.org/wiki/Lambertian_reflectance
+# http://en.wikipedia.org/wiki/Blinn–Phong_shading_model
+# 
+# NOTE: This script may be a little slow due to the use in part of -fx.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+diameter=128		# sphere diameter
+color="red"			# base color of sphere
+bgcolor="black"		# background color outside sphere
+theta=135			# lighting azimuth angle (cc from +x)
+phi=50				# lighting altitude angle (down from zenith)
+ampd=0.9			# diffuse (lambertian) amplitude
+amps=0.6			# specular amplitude
+exp=70				# specular exponent
+sscale=250			# scaling to make amps 250xsmaller so close to ampd
+infile=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 17 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get diameter
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETER SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameter=`expr "$1" : '\([0-9]*\)'`
+					   [ "$diameter" = "" ] && errMsg "--- DIAMETER=$diameter MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   diametertest=`echo "$diameter < 1" | bc`
+					   [ $diametertest -eq 1 ] && errMsg "--- DIAMETER=$diameter MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				-t)    # get theta
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THETA SPECIFICATION ---"
+					   checkMinus "$1"
+					   theta=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$theta" = "" ] && errMsg "--- THETA=$theta MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   thetatestA=`echo "$theta < 0" | bc`
+		   			   thetatestB=`echo "$theta > 360" | bc`
+					   [ $thetatestA -eq 1 -o $thetatestB -eq 1 ] && errMsg "--- THETA=$theta MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+					   ;;
+				-p)    # get phi
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PHI SPECIFICATION ---"
+					   checkMinus "$1"
+					   phi=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$phi" = "" ] && errMsg "--- PHI=$phi MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   phitestA=`echo "$phi < 0" | bc`
+		   			   phitestB=`echo "$phi > 180" | bc`
+					   [ $phitestA -eq 1 -o $phitestB -eq 1 ] && errMsg "--- PHI=$phi MUST BE A FLOAT BETWEEN 0 AND 180 ---"
+					   ;;
+				-l)    # get ampd
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LAMBERTIAN SPECIFICATION ---"
+					   checkMinus "$1"
+					   ampd=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$ampd" = "" ] && errMsg "--- LAMBERTIAN=$ampd MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   ampdtestA=`echo "$ampd < 0" | bc`
+		   			   ampdtestB=`echo "$ampd > 1" | bc`
+					   [ $ampdtestA -eq 1 -o $ampdtestB -eq 1 ] && errMsg "--- LAMBERTIAN=$ampd MUST BE A FLOAT BETWEEN 0 AND 1 ---"
+					   ;;
+				-s)    # get amps
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SPECULAR SPECIFICATION ---"
+					   checkMinus "$1"
+					   amps=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amps" = "" ] && errMsg "--- SPECULAR=$amps MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   ampstestA=`echo "$amps < 0" | bc`
+		   			   ampstestB=`echo "$amps > 1" | bc`
+					   [ $ampstestA -eq 1 -o $ampstestB -eq 1 ] && errMsg "--- SPECULAR=$amps MUST BE A FLOAT BETWEEN 0 AND 1 ---"
+					   ;;
+				-e)    # get exponent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXPONENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   exp=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$exp" = "" ] && errMsg "--- EXPONENT=$exp MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	if [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	elif [ $# -eq 1 ]; then
+		outfile="$1"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+dir="$tmpdir/$PROGNAME.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+if [ "$infile" != "" ]; then
+	convert -quiet "$infile" +repage $dir/tmpI.mpc ||
+		errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+	ww=`convert $dir/tmpI.mpc -ping -format "%w" info:`
+	hh=`convert $dir/tmpI.mpc -ping -format "%h" info:`
+	[ $ww -ne $hh ] && errMsg "--- INFILE MUST BE SQUARE ---"
+	diameter=$ww
+fi
+
+# Theory
+# lambertian shading
+# dot product between surface normal and light direction
+# kn(N•L)
+
+# surface normal = gradient direction
+# sphere equation = f(x,y,z) = x^2 + y^2 + z^2 - r^2 = 0
+# gradient vector = df/dx i + df/dy j + df/dz k (i,j,k) unit vectors along axes
+# gradient vector of point x,y,z on sphere = 2xi + 2yj + 2zk
+# normalized by magnitude 2*sqrt(x^2 + y^2 + z^2) = 2r
+# normalize gradient = (xi + yj + zk)/r
+# where z= sqrt(r^2 - x^2 - y^2)
+
+# normalized gradient = (xi + yj + sqrt(r^2 - x^2 - y^2)k)/r, 
+# where i,j,k are unit vectors along x,y,z directions.
+
+# move origin to center of sphere
+# with x to right and y to top and z out of picture
+# sphere = f(x,y,z) = (x-xc)^2 - (yc-y)^2 + z^2 - r^2 = 0
+# or due to square of y term
+# sphere = f(x,y,z) = (x-xc)^2 - (y-yc)^2 + z^2 - r^2 = 0
+
+# gradient = 2(x-xc)i + 2(y-yc)j + 2zk
+# normalize by magnitude 2*sqrt((x-xc)^2 + (y-yc)^2 + z^2) = 2r
+# where z= sqrt(r^2 - (x-xc)^2 + (y-yc)^2)
+
+# normalized gradient = ((x-xc)i + (y-yc)j + sqrt(r^2 - (x-xc)^2 - (y-yc)^2)k)/r
+# or
+# normalized gradient = ((x-xc)/r)i + ((y-yc)/r)j + sqrt(1 - ((x-xc)/r)^2 - ((y-yc)/r)^2)k
+
+
+# light direction given by azimuth (theta) and altitude (phi) angles and r=1
+# light direction is from origin toward light source
+# theta counter clockwise from +x
+# phi downward from +z (zero when straight up)
+# xl = sin(phi)cos(theta)
+# yl = sin(phi)sin(theta)
+# zl = cos(phi)
+
+#lambertian shading = xl*(x-xc)/r + yl*(y-yc)/r + zl*sqrt(1 - ((x-xc)/r)^2 -((y-yc)/r)^2)
+
+# Blinn-Phong Shading = ka + kn(N•L) + ks(N•H)^exp
+# where ka is ambient color
+# kn is diffuse amplitude, N is normal, L is lighting direction
+# ks is specular amplitude, N is normal, H=(V+L)/2, V is viewer direction
+# and exp is some large exponent
+# H is a constant vector that is midway between V and L
+
+
+# change sign on theta due to y down in picture
+thetam=`convert xc: -format "%[fx:-$theta]" info:`
+rad=`convert xc: -format "%[fx:$diameter/2]" info:`
+radsq=`convert xc: -format "%[fx:$rad*$rad]" info:`
+
+# compute lighting direction
+# include $ampd as it will be a multiplier of each term
+xl=`convert xc: -format "%[fx:$ampd*sin(pi*$phi/180)*cos(pi*$thetam/180)]" info:`
+yl=`convert xc: -format "%[fx:$ampd*sin(pi*$phi/180)*sin(pi*$thetam/180)]" info:`
+zl=`convert xc: -format "%[fx:$ampd*cos(pi*$phi/180)]" info:`
+xl2=`convert xc: -format "%[fx:2*$xl]" info:`
+yl2=`convert xc: -format "%[fx:2*$yl]" info:`
+xlpyl=`convert xc: -format "%[fx:($xl+$yl)]" info:`
+#echo "xl=$xl; yl=$yl; zl=$zl; xl2=$xl2; yl2=$yl2; xlpyl=$xlpyl;"
+
+# compute specular halfway vector H=(L+V)/2
+# V=(0,0,1) viewer is along z axis above middle of sphere
+xh=`convert xc: -format "%[fx:(1/$ampd)*$xl/2]" info:`
+yh=`convert xc: -format "%[fx:(1/$ampd)*$yl/2]" info:`
+zh=`convert xc: -format "%[fx:(($zl/$ampd)+1)/2]" info:`
+xh2=`convert xc: -format "%[fx:2*$xh]" info:`
+yh2=`convert xc: -format "%[fx:2*$yh]" info:`
+xhpyh=`convert xc: -format "%[fx:($xh+$yh)]" info:`
+ssamps=`convert xc: -format "%[fx:$sscale*$amps]" info:`
+#echo "xh=$xh; yh=$yh; zh=$zh; xh2=$xh2; yh2=$yh2; xhpyh=$xhpyh; ssamps=$ssamps"
+
+if [ "$bgcolor" = "none" ]; then
+channelize="-channel rgba -alpha on"
+else
+channelize=""
+fi
+
+: <<COMMENT
+# old method using -fx only
+if [ "$amps" = "0" ]; then
+convert -size ${diameter}x${diameter} xc: $channelize \
+-virtual-pixel background -background none -monitor -fx \
+"xx=(i-$rad)/$rad; yy=(j-$rad)/$rad; zz=sqrt(1 - xx*xx - yy*yy); \
+dd=($xl*xx + $yl*yy + $zl*zz); \
+$color+dd" \
+$outfile
+else
+convert -size ${diameter}x${diameter} xc: $channelize \
+-virtual-pixel background -background none -monitor -fx \
+"xx=(i-$rad)/$rad; yy=(j-$rad)/$rad; zz=sqrt(1 - xx*xx - yy*yy); \
+dd=($xl*xx + $yl*yy + $zl*zz); \
+ss=($xh*xx + $yh*yy + $zh*zz); \
+$color+dd+$ssamps*ss^$exp" \
+$outfile
+fi
+COMMENT
+
+
+
+# compute gradient in x and gradient in y
+convert -size ${diameter}x${diameter} gradient: -rotate 90 $dir/tmpx1.mpc
+convert -size ${diameter}x${diameter} gradient: -rotate 180 $dir/tmpy1.mpc
+
+
+# compute xx*xx
+# xx=(i-r)/r is a gradient ranging from -1 to 1 = (2*i - 1)
+# xx*xx=((i-r)/r)^2 is 4*i^2 -4*i +1 and ranges from 1 to 0 to 1
+convert -size ${diameter}x${diameter} gradient: -rotate 90 \
+	-function polynomial "4,-4,1" $dir/tmpx2.mpc
+
+# compute yy*yy
+convert -size ${diameter}x${diameter} gradient: \
+	-function polynomial "4,-4,1" $dir/tmpy2.mpc
+
+# compute zz=sqrt(1-xx*xx-yy*yy)
+convert $dir/tmpx2.mpc $dir/tmpy2.mpc -compose Mathematics \
+	-set option:compose:args "0,-1,-1,1" -composite \
+	-evaluate pow 0.5 $dir/tmpz1.mpc
+
+# compute zl*zz
+# assume zl always positive and less than 1
+convert $dir/tmpz1.mpc -evaluate multiply $zl $dir/tmpzlz1.mpc
+
+# compute zh*zz
+# assume zh always positive and less than 1
+convert $dir/tmpz1.mpc -evaluate multiply $zh $dir/tmpzhz1.mpc
+
+
+# process sphere for color, diffuse and specular terms
+if [ "$infile" = "" ]; then
+	if [ "$amps" = "0" ]; then
+		convert $dir/tmpx1.mpc $dir/tmpy1.mpc $dir/tmpzlz1.mpc $channelize \
+		-virtual-pixel background -background none -monitor -fx \
+		"$color+($xl2*u[0])+($yl2*u[1])-$xlpyl+u[2]" \
+		$dir/tmpS.mpc
+	else
+		convert $dir/tmpx1.mpc $dir/tmpy1.mpc $dir/tmpzlz1.mpc $dir/tmpzhz1.mpc $channelize \
+		-virtual-pixel background -background none -monitor -fx \
+		"$color+(($xl2*u[0])+($yl2*u[1])-$xlpyl+u[2])+$ssamps*(($xh2*u[0])+($yh2*u[1])-$xhpyh+u[3])^$exp" \
+		$dir/tmpS.mpc
+	fi
+else
+	if [ "$amps" = "0" ]; then
+		convert $dir/tmpx1.mpc $dir/tmpy1.mpc $dir/tmpzlz1.mpc $dir/tmpI.mpc $channelize \
+		-virtual-pixel background -background none -monitor -fx $dir/tmpI.mpc \
+		"u[4]+($xl2*u[0])+($yl2*u[1])-$xlpyl+u[2]" \
+		$dir/tmpS.mpc
+	else
+		convert $dir/tmpx1.mpc $dir/tmpy1.mpc $dir/tmpzlz1.mpc $dir/tmpzhz1.mpc $dir/tmpI.mpc $channelize \
+		-virtual-pixel background -background none -monitor -fx \
+		"u[4]+(($xl2*u[0])+($yl2*u[1])-$xlpyl+u[2])+$ssamps*(($xh2*u[0])+($yh2*u[1])-$xhpyh+u[3])^$exp" \
+		$dir/tmpS.mpc
+	fi
+fi
+# anti-alias the boundary of the sphere
+convert $dir/tmpS.mpc \( +clone -alpha off -fill black -colorize 100% \
+-fill white -antialias -draw "circle $rad,$rad $diameter,$rad" \
+-virtual-pixel black -blur 1x65000 -level 50%,100% \) \
+-alpha off -compose copy_opacity -composite \
+-compose over -background $bgcolor -flatten "$outfile"
+
+exit 0

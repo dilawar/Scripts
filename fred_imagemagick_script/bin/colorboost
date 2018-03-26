@@ -1,0 +1,227 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 11/16/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorboost [-f fact] infile outfile
+# USAGE: colorboost [-h or -help]
+# 
+# OPTIONS:
+# 
+# -f      fact       color boost blending factor; 0<=integer<=100; default=0
+# 
+###
+# 
+# NAME: COLORBOOST
+# 
+# PURPOSE: To enhance the color in a under saturated image.
+# 
+# DESCRIPTION: COLORBOOST enhances the color in an under saturated image.
+# It first creates an image that is the log of the ratio of the original 
+# image to its grayscale version. This is then multiplied by the original 
+# image to form a strongly color boosted image. Finally the original image 
+# is blended with the strongly color boosted image to generate the output.
+# 
+# 
+# OPTIONS: 
+# 
+# -f fact ... FACT specifies the color boost blending percentage. Values 
+# for fact may be an integer between 0 and 100. A value of 0 indicates no 
+# color boost. A value of 100 indicates full color boost. The default=0
+# 
+# Note: due to the use of -fx, this script may be a little slow.
+#
+# Reference: http://visl.technion.ac.il/1999/99-07/www/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+fact=0          # color boost blending factor
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get fact for color boost
+					   shift  # to get the next parameter - fact
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FACT SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test fact values
+					   fact=`expr "$1" : '\([0-9]*\)'`
+					   [ "$fact" = "" ] && errMsg "FACT=$fact IS NOT A NON-NEGATIVE INTEGER"
+		   			   facttestA=`echo "$fact < 0" | bc`
+		   			   facttestB=`echo "$fact > 100" | bc`
+					   [ $facttestA -eq 1 -o $facttestB -eq 1 ] && errMsg "--- FACT=$fact MUST BE GREATER THAN OR EQUAL 0 AND LESS THAN OR EQUAL 100 ---"
+					   ;;
+ 				 -)    # STDIN, end of arguments
+  				 	   break
+  				 	   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;					   
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmpA1="$dir/colorboost_1_$$.mpc"
+tmpB1="$dir/colorboost_1_$$.cache"
+tmpA2="$dir/colorboost_2_$$.mpc"
+tmpB2="$dir/colorboost_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# Note that some -compose methods are not yet handling things properly, so have to add $setcspace
+# Actually get better results by just adding $setcspace when converting infile to $tmpA
+# The following was determined from various version tests using colorboost.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+# but to keep the same look, must use colorspace rec601luma via -intensity, since now colorspace gray is rec709luma
+# also correct for -tint
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-intensity rec601luma"
+	graycorrect="-intensity rec601luma"
+else
+	graycorrect=""
+fi
+
+
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# save original
+convert $tmpA1 $tmpA2
+
+# create color boosted image image
+
+convert $tmpA1 \( +clone $graycorrect -colorspace Gray \) -fx "log((u/max(v,.000001))+1)" $tmpA1
+convert $tmpA1 $tmpA2 -compose multiply -composite -normalize $tmpA1
+
+# blend color boosted image with original image
+if [ "$im_version" -lt "06050304" ]; then
+	composite -blend $fact% $tmpA $tmp0 "$outfile"
+else
+	convert $tmpA2 $tmpA1 -define compose:args=$fact% -compose blend -composite "$outfile"
+fi
+
+exit 0

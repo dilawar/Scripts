@@ -1,0 +1,309 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/17/2009 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: fftconvol infile filtfile outfile
+# USAGE: fftconvol [-h or -help]
+#
+# OPTIONS:
+#
+# No options are required.
+# 
+###
+#
+# NAME: FFTCONVOL 
+# 
+# PURPOSE: To perform convolution on an image in the frequency domain.
+# 
+# DESCRIPTION: FFTCONVOL performs convolution on an image in the frequency
+# domain using a filter image. Two inputs are required. The image and a
+# grayscale spatial domain convolution filter. Both the image and the grayscale
+# spatial domain filter are transformed to the frequency domain using +fft.
+# Then the Fourier transform of the filter is multiplied with the fft of the 
+# image and the product is then returned to the spatial domain using +ift. 
+# Any alpha channel on the filter will be removed automatically before 
+# processing. If the image has an alpha channel it will not be processed, but 
+# simply copied from the input to the output.
+# 
+# OPTIONS: 
+# 
+# No options are required
+# 
+# The filter image must be appropriately centered and padded with black to 
+# the same size as the input image.
+# 
+# REQUIREMENTS: IM version 6.5.4-7 or higher, but compiled with HDRI enabled 
+# in any quantum level of Q8, Q16 or Q32. Also requires the FFTW delegate 
+# library.
+# 
+# LIMITATIONS: This script works well only with even, square images. Otherwise,   
+# the FFT will pad them with black to conform. However, there will be excessive 
+# ringing due to the color discontinuity associated with the padding. This 
+# even, square limitation is a ramification of the current IM implementation 
+# that needs addressing at some future time. It is not a limitation of FFTW.
+# 
+# See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
+# for more details about the Fourier Transform with ImageMagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+vp="mirror"	# mirror works best vs edge and black for non-square images
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 3 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, filtfile and outfile
+	infile="$1"
+	filtfile="$2"
+	outfile="$3"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that filtfile provided
+[ "$filtfile" = "" ] && errMsg "NO FILTER FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/fftconvol_1_$$.mpc"
+tmpB1="$dir/fftconvol_1_$$.cache"
+tmpA2="$dir/fftconvol_2_$$.mpc"
+tmpB2="$dir/fftconvol_2_$$.cache"
+tmpA="$dir/fftconvol_A_$$.pfm"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
+
+# LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.7.9.4 all HDRI (10/25/2012)
+
+# test for valid version of IM
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
+
+# test for hdri enabled
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+[ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read the filter image.
+convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
+	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image dimensions for later cropping as inputs are padded to square, even dimensions
+width=`identify -ping -format "%w" $tmpA1`
+height=`identify -ping -format "%h" $tmpA1`
+
+# get center point adjusted for padding an odd dimension to even
+cx=`convert xc: -format "%[fx:floor(($width+1)/2)]" info:`
+cy=`convert xc: -format "%[fx:floor(($height+1)/2)]" info:`
+
+
+# test if image has alpha and set up copy to output
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpA1 -alpha extract $tmpA 
+	addalpha="$tmpA -compose copy_opacity -composite"
+else
+	addalpha=""
+fi
+
+: '
+For blurring, the real and imaginary products are computed by multiplication 
+of two complex numbers
+F=A+iB  filter fft
+P=C+iD  image fft
+FxP= (A+iB)x(C+iD) = (AxC-BxD) + i(BxC+AxD)
+'
+
+# If image and filter are not even and square, then need to pad filter to size of expected fft
+# because the IM FFT will not tranform the filter correctly due to the IM FFT padding.
+# This can be demonstrated by doing -fft -ift on filter image and see that it is no longer centered
+
+
+# get padded to even square size
+dim=`convert xc: -format "%[fx:floor((2*max($width,$height)+1)/2)]" info:`
+#echo "dim=$dim"
+
+# pad filter if needed to right and bottom
+if [ $dim -ne $width -o $dim -ne $height ]; then
+	convert $tmpA2 -gravity northwest -background black -extent ${dim}x${dim} $tmpA2
+
+# below does not help with mirror or edge or black
+#	convert $tmpA1 -set option:distort:viewport ${dim}x${dim}+0+0 \
+#		-filter point -virtual-pixel mirror -distort SRT "0" $tmpA1
+fi
+
+# compute gain
+if [ "$im_version" -ge "06050410" ]; then
+	#HDRI was auto scaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:1/mean]" info:`
+else
+	#HDRI was unscaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:1/mean]" info:`
+fi
+#echo "gain=$gain"
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cameradeblur.
+# Tested with 6.7.4.10, 6.7.6.6, 6.7.6.10, 6.7.7.7, 6.7.7.10, 6.7.8.6 (hdri)
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+	setcspace2=""
+else
+	setcspace="-set colorspace RGB"
+	setcspace2="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	setcspace2=""
+fi
+
+
+# transform the image to real and imaginary components,
+# perform complex multiplication between the 4 images
+# transform back
+#
+# first line rolls the filter, performs +fft, separates the frames and applies gain
+# second line performs +fft on image
+# third line performs AxC
+# fourth line performs BxD
+# fifth line performs AxC-BxD
+# sixth line performs BxC
+# seventh line performs AxD
+# eight line performs BxC+AxD
+# ninth line deletes intermediate images and 
+# does the +ift on the real and imaginary product components
+# tenth line crops the result in case the original dimensions were odd
+# note +fft produces a two-frame images, thus the two +ffts make 4 images
+convert \( $tmpA2 $setcspace -roll -${cx}-${cy} -virtual-pixel $vp +fft -evaluate multiply $gain \) \
+	\( $tmpA1 $setcspace -alpha off -strip -virtual-pixel $vp +fft \) \
+	\( -clone 0 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 1 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 4 -clone 5 +swap -define compose:clamp=false -compose minus -composite \) \
+	\( -clone 1 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 0 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 7 -clone 8 -define compose:clamp=false -compose plus -composite \) \
+	-delete 0,1,2,3,4,5,7,8 -virtual-pixel $vp +ift \
+	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 "$outfile"
+
+exit 0

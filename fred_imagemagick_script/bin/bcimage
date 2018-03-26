@@ -1,0 +1,417 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/2/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bcimage [-g] bri,con[,sat] infile outfile
+# USAGE: bcimage [-h or -help]
+#
+# OPTIONS:
+#
+# bri                   percent change in brightness (+/-)
+# con                   percent change in contrast (+/-)
+# sat                   percent change in saturation (+/-)
+# -g                    display mapping function graph
+# -h or -help           get help
+#
+###
+#
+# NAME: BCIMAGE 
+# 
+# PURPOSE: To change the brightness, contrast and/or saturation of 
+# an image. 
+# 
+# DESCRIPTION: BCIMAGE is designed to change the brightness 
+# and/or contrast and optionally saturation of an image. It 
+# works by converting bri and con into slope and intercept and 
+# and then into break points. The break points are then 
+# converted into a 1-D image look up table. This LUT is then 
+# used with clut or -fx to process the image. If the 
+# image is not grayscale and a sat value provided, it will 
+# convert the image into HSL space and then modify the saturation 
+# channel by changing the gamma using -gamma. Both bri and con are 
+# required. The range of values for bri,con,sat are -100 to +100. 
+# A value of 0,0[,0] leaves the image unchanged. If the image is 
+# grayscale, then it simply processes the image for brightness and 
+# contrast. The -g option displays a graph of the piece-wise linear 
+# mapping function between the input and output grayscale domains 
+# (scaled to the range of 0 to 100). The graph is normally just 
+# viewed, but a default parameter in the program can be set to 
+# allow it to be saved as outfilename_graph.gif. To end the 
+# script, close/quit the graph image. 
+# 
+# Arguments: -h or -help    ---  displays help information. 
+# Arguments: -g             ---  displays graph of intensity mapping function. 
+# 
+# Note -g must come before bri,con[,sat] 
+# 
+# Arguments: bri,con[,sat] in_file out_file  ---  process the 
+# in_file to generate the out_file.
+# 
+# 
+######
+#
+# set default value for width and height of lut
+width=100
+height=10
+#
+# set flag if graph is permanent (graph=save) or temporary (graph=view)
+graph="view"
+#
+# set the default choice of HSL or HSB
+colormodel=HSL
+#
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+#
+#
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+#
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+#
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -eq 1 ]
+	then
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0  ;;
+			-g)    # display graph
+				   display_graph="yes" ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"  ;;
+			*)     # end of arguments
+				   break ;;
+		esac
+elif [ $# -eq 2 ]
+	then
+	errMsg "--- IMPROPER NUMBER OF ARGUMENTS WERE PROVIDED ---"
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+elif [ $# -eq 4 ]
+	then
+		# get parameter values
+		display_graph="yes"
+		shift   # next option
+fi
+#
+# get brightness and contrast and saturation
+briconsat="$1,"
+bri=`echo "$briconsat" | cut -d, -f1`
+con=`echo "$briconsat" | cut -d, -f2`
+sat=`echo "$briconsat" | cut -d, -f3`
+if [ "$bri" = "" -a "$con" = "" ]
+	then
+	errMsg "--- NEITHER BRIGHTNESS NOR CONTRAST CHANGE VALUES WERE PROVIDED ---"
+	usage
+	exit 1
+elif [ "$bri" != "" -a "$con" = "" ]
+	then
+	errMsg "--- NO CONTRAST CHANGE VALUE WAS PROVIDED ---"
+	usage
+	exit 1
+else
+	infile="$2"
+	outfile="$3"
+fi
+#
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+# test that last point pair not used instead of infile
+test=`expr "$infile" : '^[0-9]*,.*$'`
+[ $test -gt 0 ] && errMsg "INPUT/OUTPUT FILES IMPROPERLY SPECIFIED"
+#
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/bcimage_$$.mpc"
+tmpB="$dir/bcimage_$$.cache"
+tmp0="$dir/bcimage_0_$$.miff"
+tmp1="$dir/bcimage_1_$$.miff"
+tmp2="$dir/bcimage_2_$$.miff"
+tmp2p="$dir/bcimage_2_proc_$$.miff"
+tmp3="$dir/bcimage_3_$$.miff"
+tmp00="$dir/bcimage_00_$$.miff"
+# get outfile name before suffix
+outname=`echo "$outfile" | sed -n 's/^\([^.]*\)[.][^.]*$/\1/ p'`
+gg="_graph"
+tmp4="$dir/$outname$gg.gif"
+if [ "$graph" = "view" ] 
+	then 
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3 $tmp4;" 0
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3 $tmp4; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3 $tmp4; exit 1" ERR
+elif [ "$graph" = "save" ]
+	then
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3;" 0
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp2p $tmp3 $tmp4; exit 1" ERR
+else
+	errMsg "--- NOT A VALID GRAPH DISPLAY OPTION ---"
+fi
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get colorspace and type
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+# not all formats report grayscale for colorspace (gif, tiff, jpg do not), but type will be grayscale
+colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+type=`identify -ping -verbose $tmpA | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" -a "$colorspace" != "Gray" ]; then
+	errMsg "--- FILE $infile MUST BE RGB, sRGB or GRAY ---"
+else
+	cspace="$colorspace"
+fi
+if [ "$sat" != "" -a "$type" = "Grayscale" ]; then
+	errMsg "--- SATURATION IS NOT ALLOWED WITH GRAYSCALE IMAGERY ---"
+fi
+
+
+# calculate slope and intercept and then special points
+# compute slope to range from 0-100, con=-100 => arg=-1, con=0 => arg=0, con=100 => arg=2
+# be sure to limit con to <100 as that causes slope to go infinite
+diffc=`echo "scale=2; (100 - $con) / 1" | bc`
+test=`echo "$diffc <= 0.1" | bc`
+if [ $test -eq 1 ]
+	then
+		con=99.9
+fi
+pi=`echo "scale=10; 4*a(1)" | bc -l`
+arg=`echo "scale=5; $pi * ((($con * $con) / 20000) + (3 * $con / 200)) / 4" | bc`
+slope=`echo "scale=3; 1 + (s($arg) / c($arg))" | bc -l`
+test=`echo "$slope < 0" | bc`
+if [ $test -eq 1 ]
+	then
+		slope=0
+fi
+echo "slope=$slope"
+#
+# intcp computed by adding contributions from con (slope) and from bri
+# attempting to keep slope fixed the mid-value of .5 when no brightness change, 
+# so that linear intensity mapping transformation pivots about this point.
+# However, the pivot should range from 0 to 1 depending upon bri.
+# The larger the pivot, the darker the image when slope is very large 
+# as the pivot determines the threshold point. So as brightness increases from 0 to 100
+# we want the pivot to go to 0 and when brightness decreases from 0 to -100 we want
+# the pivot to go to 1.
+# fx data is in range 0-1
+#
+pivot=`echo "scale=5; (100 - $bri) / 200" | bc`
+intcpbri=`echo "scale=5; $bri / 100" | bc`
+intcpcon=`echo "scale=5; ($pivot * (1 - $slope))" | bc`
+intcp=`echo "scale=3; ($intcpbri + $intcpcon) / 1" | bc`
+echo "intcp=$intcp"
+#
+# compute 5 points: x=0, y=0, x=.5, y=1, x=1
+x1=0.000
+y1=$intcp
+# echo "(x1,y1)=($x1,$y1)"
+test=`echo "$slope == 0" | bc`
+if [ $test -eq 1 ]
+	then
+	x2=-1000000
+	else
+	x2=`echo "scale=3; -($intcp / $slope)" | bc`
+fi
+y2=0.000
+# echo "(x2,y2)=($x2,$y2)"
+x3=0.500
+y3=`echo "scale=3; (($slope * 0.5) + $intcp) / 1" | bc`
+# echo "(x3,y3)=($x3,$y3)"
+if [ $test -eq 1 ]
+	then
+	x4=100000
+	else
+	x4=`echo "scale=3; (1 - $intcp) / $slope" | bc`
+fi
+y4=1.000
+# echo "(x4,y4)=($x4,$y4)"
+x5=1.000
+y5=`echo "scale=3; ($slope + $intcp) / 1" | bc`
+# echo "(x5,y5)=($x5,$y5)"
+#
+# set up breakpoints
+if [ `echo "$x2 <= $x1" | bc` -eq 1 -a `echo "$x4 >= $x5" | bc` -eq 1 ]
+	then
+	pairArray=($x1,$y1 $x5,$y5)
+elif [ `echo "$x2 <= $x1" | bc` -eq 1 -a `echo "$x4 < $x5" | bc` -eq 1 ]
+	then
+	pairArray=($x1,$y1 $x4,$y4 1,1)
+elif [ `echo "$x2 > $x1" | bc` -eq 1 -a `echo "$x4 >= $x5" | bc` -eq 1 ]
+	then
+	pairArray=(0,0 $x2,$y2 $x5,$y5)
+else
+	pairArray=(0,0 $x2,$y2 $x4,$y4 1,1)
+fi
+#echo "pairArray=${pairArray[*]}"
+numpairs=${#pairArray[*]}
+numsegs=`expr $numpairs - 1`
+#
+# get xArray and yArray
+i=0
+while [ $i -lt $numpairs ]
+	do
+	xArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f1`
+	yArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f2`
+	i=`expr $i + 1`
+done
+#
+# create LUT segments and composite LUT
+m=0
+xx=x
+bsize=$width$xx$height
+convert -size $bsize xc:black $tmp1
+while [ $m -lt $numsegs ]
+	do
+		n=`expr $m + 1`
+		bpx1=`echo "scale=0; $width * ${xArray[$m]} / 1" | bc`
+		bpy1=${yArray[$m]}
+		bpx2=`echo "scale=0; $width * ${xArray[$n]} / 1" | bc`
+		bpy2=${yArray[$n]}
+		delx=`expr $bpx2 - $bpx1 + 1`
+		convert -size 10x$delx gradient: -rotate 90 -fx "$bpy1*(1-u) + $bpy2*u" $tmp2
+		if [ $bpx1 -eq 0 ]
+			then
+				xstart=$bpx1
+		else
+			xstart=$bpx1
+		fi
+		convert $tmp1 $tmp2 -geometry +$xstart+0 -compose Over -composite $tmp1
+		m=`expr $m + 1`
+done
+#
+# compute sgamma from sat if not grayscale
+if [ "$sat" != "" -a "$type" != "Grayscale" ]
+	then
+		# be sure to limit sat to <100 as that causes sgamma to go infinite
+		diffs=`echo "scale=2; (100 - $sat) / 1" | bc`
+		test=`echo "$diffs <= 0.1" | bc`
+		if [ $test -eq 1 ]
+			then
+				sat=99.9
+		fi
+		sarg=`echo "scale=5; $pi * ((($sat * $sat) / 20000) + (3 * $sat / 200)) / 4" | bc`
+		sgamma=`echo "scale=3; 1 + (s($sarg) / c($sarg))" | bc -l`
+		# be sure sgamma is not < 0
+		test=`echo "$sgamma < 0" | bc`
+		if [ $test -eq 1 ]
+			then
+				sgamma=0
+		fi
+echo "sgamma=$sgamma"
+fi
+#
+#
+# process the brightness channel and saturation channel and put image back together
+if [ "$im_version" -ge "06030507" ]
+	then 
+	convert $tmpA $tmp1 -clut $tmp00
+else
+	convert $tmpA $tmp1 -fx 'v.p{u*v.w,0}' $tmp00
+fi
+if [ "$sat" != "" -a "$colorspace" != "Gray" ]
+	then
+		# separate into HSL or HSB
+		convert $tmp00 -colorspace $colormodel -channel R -separate $tmp1
+		convert $tmp00 -colorspace $colormodel -channel G -separate $tmp2
+		convert $tmp00 -colorspace $colormodel -channel B -separate $tmp3
+		convert $tmp2 -gamma $sgamma $tmp2p
+		convert $tmp00 -colorspace $colormodel \
+			$tmp1 -compose CopyRed -composite \
+			$tmp2p -compose CopyGreen -composite \
+			$tmp3 -compose CopyBlue -composite \
+			-colorspace $cspace $tmp00
+fi
+convert $tmp00 "$outfile"
+#
+# display graph if option -g
+if [ "$display_graph" = "yes" ]
+	then
+	numpairs=${#pairArray[*]}
+	i=0
+	while [ $i -lt $numpairs ]
+		do
+		xArray[$i]=`echo "scale=0; 100 * ${xArray[$i]} / 1" | bc`
+		yArray[$i]=`echo "scale=0; 100 * ${yArray[$i]} / 1" | bc`
+		i=`expr $i + 1`
+	done
+	i=0
+	while [ $i -lt $numpairs ]
+		do
+		pairArray[$i]=${xArray[$i]},${yArray[$i]}
+		i=`expr $i + 1`
+	done
+	points=${pairArray[*]}
+echo "Break Points = $points"
+	convert -size 150x150 xc: -fill white -stroke black -draw "rectangle 40,10 141,112" $tmp4
+	convert $tmp4 \( -size 100x101 xc: -stroke red -fill white -draw "polyline $points" -flip \) -compose over -geometry 100x101+41+11 -composite $tmp4
+	convert $tmp4 -font Arial -pointsize 10 -draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'i n p u t'" $tmp4
+	convert -respect-parenthesis $tmp4 \( -background white -fill black -font Arial -pointsize 10 -gravity center label:'o \nu \nt \np \nu \nt ' -trim \) -geometry +10+20 -compose over -composite $tmp4
+	display $tmp4
+fi
+exit 0

@@ -1,0 +1,274 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/19/2015 .......... revised 6/19/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorbalance2 [-c color] [-a amount] [-r region] [-l lowthresh] 
+# [-h highthresh] infile outfile
+#
+# USAGE: colorbalance2 [-help]
+#
+# OPTIONS:
+#
+# -c     color          color to modify: red (r), yellow (y), green (g), 
+#                       cyan (c), blue (b), magenta (m); default=red
+# -a     amount         amount (percent) of color change; float>0; default=25
+# -r     region         region to change: midtones (m), shadows (s), 
+#                       highlights (h); default=midtones
+# -l     lowthresh      low (shadow) value threshold; 0<=float<=100; 
+#                       default=25
+# -h     highthresh     high (hightlight) value threshold; 0<=float<=100; 
+#                       default=75
+# 
+###
+#
+# NAME: COLORBALANCE2 
+# 
+# PURPOSE: To manually color balance an image in midtones, highlights, or 
+# shadows.
+# 
+# DESCRIPTION: COLORBALANCE2 manually color balances an image according to a 
+# user selected color, region and amount. The regions are midtones, shadows, 
+# or highlights.
+# 
+# OPTIONS: 
+# 
+# -c color ... COLOR to modify. The choices are: red (r), yellow (y), 
+# green (g), cyan (c), blue (b) or magenta (m). The default=red
+# 
+# -a amount ... AMOUNT of color change. Values are float>=0 as percent, but 
+# one can go over 100%. The default=25.
+#
+# -r region ... REGION of image to change. The choices are: midtones (m), 
+# shadows (s), or highlights (h). The default=midtones.
+# 
+# -l low ... LOW is shadow mask threshold value. Values are in the range 
+# 0<=float<=100. The default=25.
+# 
+# -h high ... HIGH is highlight mask threshold value. Values are in the 
+# range 0<=float<=100. The default=75.
+# 
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+color="red"				# color: red, yellow, green, cyan, blue, magenta
+amount=25				# amount of change; float>=0
+region="midtones"		# midtones, highlights, shadows
+lowthresh=25			# shadow threshold
+highthresh=75			# highlight threshold
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$color" in 
+					   		red|r) color="red";;
+					   		yellow|y) color="yellow";;
+					   		green|g) color="green";;
+					   		cyan|c) color="cyan";;
+					   		blue|b) color="blue";;
+					   		magenta|m) color="magenta";;
+					   		*) errMsg "--- COLOR=$color IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get  region
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REGION SPECIFICATION ---"
+					   checkMinus "$1"
+					   region=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$region" in 
+					   		midtones|m) region="midtones";;
+					   		shadows|s) region="shadows";;
+					   		highlights|h) region="highlights";;
+					   		*) errMsg "--- REGION=$region IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE AN FLOAT ---"
+					   testA=`echo "$amount < 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE AN FLOAT GREATER OR EQUAL TO 0 ---"
+					   ;;
+				-l)    # get low
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   low=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$low" = "" ] && errMsg "--- LOW=$low MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$low < 0" | bc`
+					   testB=`echo "$low > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- LOW=$low MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-h)    # get high
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   high=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$high" = "" ] && errMsg "--- HIGH=$high MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$high < 0" | bc`
+					   testB=`echo "$high > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HIGH=$high MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# define dir
+dir="$tmpdir/COLORBALANCE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+# read input image
+convert -quiet "$infile" $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# set up for factor from amount
+fact=`convert xc: -format "%[fx:$amount/100]" info:`
+#echo "fact=$fact;"
+
+# do processing
+if [ "$region" = "midtones" ]; then
+#echo "midtone"
+	convert $dir/tmpI.mpc \
+		\( +clone -fill $color -colorize 100% \) \
+		\( -clone 0 -modulate 100,0,100 -solarize 50% -level 0x50% -evaluate multiply $fact \) \
+		-compose overlay -composite "$outfile"
+elif [ "$region" = "shadows" ]; then
+#echo "shadow"
+	convert $dir/tmpI.mpc -negate \
+		\( +clone -fill $color -colorize 100% -negate \) \
+		\( -clone 0 -modulate 100,0,100 -black-threshold ${lowthresh}% -level ${lowthresh}x100% -evaluate multiply $fact  \) \
+		-compose overlay -composite -negate "$outfile"
+elif [ "$region" = "highlights" ]; then
+#echo "highlight"
+	convert $dir/tmpI.mpc \
+		\( +clone -fill $color -colorize 100% \) \
+		\( -clone 0 -modulate 100,0,100 -white-threshold ${highthresh}% -level 0x${highthresh}% -evaluate multiply $fact \) \
+		-compose overlay -composite "$outfile"
+fi
+
+exit 0
+

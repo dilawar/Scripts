@@ -1,0 +1,920 @@
+#!/bin/bash
+#
+################################################################################
+#
+#    Copyright 2011 Fred Weinhaus and Nicolas Robidoux
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+################################################################################
+#
+# Developed by Fred Weinhaus and Nicolas Robidoux 3/8/2011 ... revised 4/25/2015
+#
+# USAGE: randomblob [-n numpts] [-l linewidth] [-i isize] [-o osize]
+# [-s shape] [-b blur] [-t threshold] [-k kind] [-g gsigma] [-c constrain]
+# [-d drawtype] [-T tension] [-C continuity] [-B bias] [-S seed] [-p pixinc]
+# [-f file1] [-F file2] [maskfile] outfile
+#
+# USAGE: randomblob [-h or -help]
+#
+# OPTIONS:
+#
+# -n     numpts         number of random points; integer>0; default=12;
+#                       ignored if parameter -f file1 is present
+# -l     linewidth      width of lines or curves drawn between points;
+#                       integer>0; default=13
+# -i     isize          pixel size for inner region and limits for points;
+#                       width=height=diameter; ignored when mask;
+#                       integer>0; default=400
+# -o     osize          pixel size of (outer) output image; widthxheight;
+#                       if only one value, then it is used for both;
+#                       integers>0; default=512
+# -s     shape          shape of inner region; square or (circular) disk;
+#                       ignored when mask provided; default=disk
+# -b     blur           gaussian blur sigma; nominal value isize/12;
+#                       float>0; default=33
+# -t     threshold      percent threshold applied to gaussian blurring;
+#                       0<integer<100; default=25
+# -k     kind           kind of point distribution; uniform or gaussian;
+#                       default=uniform
+# -g     gsigma         gaussian distribution sigma; nominal value isize/6;
+#                       float>0; default=67
+# -c     constrain      constrain gaussian distribution to inner region;
+#                       yes or no; default=yes
+# -d     drawtype       (straight) line or (KB) spline to connect the points;
+#                       default=spline
+# -T     tension        tension parameter for spline; float; default=0
+# -C     continuity     continuity parameter for spline; float; default=0
+# -B     bias           bias parameter for spline; float; default=0
+# -S     seed           seed for random number generator; integer>0;
+#                       ignored if paramete -f file1 is present; default=1
+# -p     pixinc         increment in pixels for spline interpolation;
+#                       coarser is faster; but too coarsemay lead long 
+#                       straight sections; integer>0; default=2
+# -f     file1          file containing the desired number of comma separated
+#                       pairs of random numbers in range [0,1) with one pair
+#                       per line; If provided, it then avoids internal
+#                       computation of random numbers; Default is no point file
+# -F     file2          file containing the desired number or more comma
+#                       separated pairs of random numbers in range [0,1) with
+#                       one pair per line; If provided, then the -S seed
+#                       parameter is used as and index into the file to locate
+#                       the first point pair to use and -n numpts parameter
+#                       will be used as the number of successive point pairs
+#                       to extract; Default is no point file
+#
+# If a maskfile is provided, then it should be a white region on a black
+# background that is trimmed to the minimum bounding box of the white
+# region, since it supercedes the inner region parameter.
+#
+#
+################################################################################
+#
+# NAME: RANDOMBLOB
+#
+# PURPOSE: To create an image composed of a moderate sized black random blob
+# shape on a white background.
+#
+# DESCRIPTION: RANDOMBLOB creates an image composed of a moderate sized black
+# random blob shape on a white background from a set of uniformly or Gaussian
+# distributed random points. The points are connected by either thick straight
+# lines or thick spline curves, then Gaussian blurred and thresholded to a
+# binary image.
+#
+# OPTIONS:
+#
+# -n numpts ... NUMPTS is the number of random points. Values are integer
+# greater than zero. Ignored if argument -f file1 is present. The default=12.
+#
+# -l linewidth ... LINEWIDTH is the width of lines or spline drawn between
+# points. Values are integers greater than zero. The default=13.
+#
+# -i isize ... ISIZE is the pixel size for the inner region where the black
+# blob will be contained. One value is to be provided which will be the
+# width=height=diameter depending upon the shape (square or disk).
+# This parameter is ignored when mask is provided. Values are integers
+# greater than zero. The default=400.
+#
+# -o osize ... OSIZE is the pixel size of the outer region, i.e. the output
+# image. One or two values may be provided as widthxheight. If only one value
+# is provided, then it is used for both width and height. Values are integers
+# greater than zero. The default=512.
+#
+# -s shape ... SHAPE is the shape of inner region. Choices are either square
+# [s] or (circular) disk [d]. This parameter is ignored when a mask image is
+# provided. The default=disk.
+#
+# -b blur ... BLUR is the value for the gaussian blur sigma.  The nominal
+# value is about isize/12. Values are floats greater than zero. The default=33.
+#
+# -t threshold ... THRESHOLD is the percent threshold applied to gaussian
+# blurring. Values are integers greater than zero and less than 100.
+# The default=25.
+#
+# -k kind ... KIND is the kind of random point distribution. Choices are
+# either uniform [u] or gaussian [g]. The default=uniform.
+#
+# -g gsigma ... GSIGMA is the gaussian distribution sigma value. The nominal
+# value is about isize/6. Values are floats greater than zero. The default=67.
+#
+# -c constrain ... CONSTRAIN the gaussian distribution to the inner region.
+# Choices are yes [y] or no [n]. The default=yes.
+#
+# -d drawtype ... DRAWTYPE is the method to connect the random points. The
+# choices are either (straight) line [l] or (KB) spline [s]. The
+# default=spline.
+#
+# -T tension ... TENSION is the tension parameter for the spline. Values are
+# floats. Negative values are permitted. The default=0.
+#
+# -C continuity ... CONTINUITY is the continuity parameter for the spline.
+# Values are floats. Negative values are permitted. The default=0.
+#
+# -B bias ... BIAS is the bias parameter for the spline.
+# Values are floats. Negative values are permitted. The default=0.
+#
+# -S seed ... SEED for random number generator or if -F file2 parameter is
+# used, it is the index into the file to access the first desired point pair
+# to use and the -n numpts parameter will identify the successive number of
+# point pairs to extract from the file. Values are integers greater than zero.
+# Ignored if argument -f file1 is present. The default=1.
+#
+# -p pixinc ... PIXINC is the increment or separation in pixels for the
+# spline interpolated points. Larger values will produce faster results, but
+# too large a value may lead long straight sections. Values are integers
+# greater than zero. The default=2.
+#
+# -f file1 ... file1 is a simple text file containing comma separate pairs of
+# random numbers in the range [0,1) with one pair per line. If provided,
+# it then avoids internal computation of random numbers. The default is no
+# text file.
+#
+# -F file2 ... file2 is a simple text file containing the desired number or
+# more comma separated pairs of random numbers in range [0,1) with one pair
+# per line. If provided, then the -S seed parameter is used as and index
+# into the file to locate the first point pair to use and -n numpts parameter
+# will be used as the number of successive point pairs to extract. The Default
+# is no point file. A file with 10,000 random point pairs computed from the
+# number pi is available as pipoints.csv from:
+# http://www.vips.ecs.soton.ac.uk/index.php?title=Random_Generation_of_Mildly_Irregular_Shapes_for_Cognitive_Experiments
+#
+# Note: When using the Gaussian distribution, the results will be the same
+# whether the shape of the inner region is square or disk, unless the
+# points exceed the inner region and the constrain parameter is on.
+#
+# Note: When using a circular mask, the results for a uniform distribution 
+# of points will be different from using shape=disk with no mask, because
+# different algorithms are used for limiting the points to either disk region.
+# A square mask will produce the same results as using shape=square for the
+# uniform distribution of points.
+#
+# This script is based upon the following paper:
+# N. Robidoux, P. Stelldinger and J. Cupitt, "Simple Random Generation
+# of Smooth Connected Irregular Shapes for Cognitive Studies",
+# C3S2E'11 Proceedings, May 16--18, 2011,  Concordia University,
+# Montreal, Canada, 17-24, 2011.
+#
+# Nicolas Robidoux
+# Dept of Mathematics and Computer Science
+# Laurentian University
+# Sudbury, ON Canada
+# nicolas.robidoux@gmail.com
+#
+# References for the Kochaneck-Bartels Spline are:
+# http://en.wikipedia.org/wiki/Kochanek%E2%80%93Bartels_spline
+# http://www.shaneaherne.com/research/splines.html
+#
+# CAVEAT: No guarantee that this script will work on all platforms, nor that
+# trapping of inconsistent parameters is complete and foolproof. Use At Your
+# Own Risk.
+#
+################################################################################
+
+# set default values
+numpts=12            # number of random points
+linewidth=13         # thickness of lines or spline between points
+isize=400            # size for inner region and constraints for points
+osize=512            # size of (outer region) output image; widthxheight
+shape="disk"         # shape of inner region; square or disk
+blur=33              # gaussian blur sigma
+thresh=25            # blur threshold percent
+kind="uniform"       # kind of point distribution; uniform or gaussian
+gsigma=67            # gaussian distribution sigma
+constrain="yes"      # constrain gaussian points to inner region; yes or no
+drawtype="spline"    # connect the points with line or spline
+tension=0            # tension parameter for spline
+continuity=0         # continuity parameter for spline
+bias=0         		 # bias parameter for spline
+seed=1               # seed for random number generator
+pixinc=2             # increment in pixels for spline interpolation
+file1=""             # file containing list of pairs of random points = numpts
+file2=""             # file containing list of pairs of random points >= numpts
+maskfile=""          # initialize to no maskfile
+
+################################################################################
+
+# set special options
+debug="no"           			# print debug values to terminal; yes or no
+save="no"            			# save intermediate connected points image
+export MAGICK_PRECISION=6		# fx output number of significant digits
+
+################################################################################
+
+# set directory for temporary files
+dir="/tmp"           # suggestions are dir="." or dir="/tmp"
+
+################################################################################
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1()
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2()
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages, usage and exit
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# function to test if valid float point pair
+testFloatPair()
+	{
+	v1=`echo $1 | cut -d, -f1`
+	v2=`echo $1 | cut -d, -f2`
+	test1=`expr "$v1" : '^[-.0-9][.0-9]*$'`
+	test2=`expr "$v2" : '^[-.0-9][.0-9]*$'`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "$1 IS NOT A VALID POINT PAIR"
+	}
+
+# function to compute random points in the square (0,1]x[0,1)
+#
+# random() computes points in interval [0,1), so we take 1-random()
+# for the first coordinate p1.
+#
+# reason 1: the natural log of p1 is computed when points are "drawn"
+#           from the binormal (gaussian) distribution. ln(0) = -infinity.
+# reason 2: with the uniform distribution on the disk, the square root
+#           of p1 is the distance between the "drawn" point and the
+#           image center. p1=0 is consequently at the center
+#           irregardless of the value of p2. Using 1-random() makes
+#           the points more "varied."
+#
+# Doing this is unnecessary for the second coordinate p2, which is
+# used as an angular variable in these two situations.
+
+function randomPts()
+	{
+	if [ "$seed" = "" ]; then
+		seeding=""
+	else
+		seed=$(($seed+1))
+		seeding="-seed $seed"
+	fi
+	p1=`convert xc: $seeding -format "%[fx:random()]" info:`
+	if [ "$seed" = "" ]; then
+		seeding=""
+	else
+		seed=$(($seed+1))
+		seeding="-seed $seed"
+	fi
+	p2=`convert xc: $seeding -format "%[fx:1-random()]" info:`
+[ "$debug" = "yes" ] && echo "seed=$seed; p1=$p1; p2=$p2"
+	}
+
+
+# function to compute random points uniformly distributed relative to
+# center of image
+function uniformPts()
+	{
+	# get pair of random points from input to function
+	p1=$1
+	p2=$p2
+	# center points relative to center of osize region and scale
+	# to inner region
+	if [ "$shape" = "disk" ]; then
+		aa=`convert xc: -format "%[fx:sqrt($p1)]" info:`
+		bb=`convert xc: -format "%[fx:2*pi*($p2)]" info:`
+		px=`convert xc: -format "%[fx:($iwidth/2)*$aa*cos($bb)+(($owidth-1)/2)]" info:`
+		py=`convert xc: -format "%[fx:($iwidth/2)*$aa*sin($bb)+(($owidth-1)/2)]" info:`
+[ "$debug" = "yes" ] && echo "aa=$aa; bb=$bb; px=$px; py=$py"
+	else
+		# case for shape=square or mask
+		#px=`convert xc: -format "%[fx:($iwidth/2)*2*($p1-0.5)+($owidth/2)]" info:`
+		#py=`convert xc: -format "%[fx:($iheight/2)*2*($p2-0.5)+($oheight/2)]" info:`
+		px=`convert xc: -format "%[fx:$iwidth*($p1-0.5)+(($owidth-1)/2)]" info:`
+		py=`convert xc: -format "%[fx:$iheight*($p2-0.5)+(($oheight-1)/2)]" info:`
+[ "$debug" = "yes" ] && echo "px=$px; py=$py"
+	fi
+	}
+
+
+# function to compute random points gaussian distributed relative to
+# center of image
+function gaussianPts()
+	{
+	# get pair of random points from input to function
+	p1=$1
+	p2=$p2
+	# center points relative to center of osize region and scale
+	# to inner region
+	aa=`convert xc: -format "%[fx:sqrt(-2*ln($p1))]" info:`
+	bb=`convert xc: -format "%[fx:2*pi*($p2)]" info:`
+	px=`convert xc: -format "%[fx:$gsigma*$aa*cos($bb)+(($owidth-1)/2)]" info:`
+	py=`convert xc: -format "%[fx:$gsigma*$aa*sin($bb)+(($oheight-1)/2)]" info:`
+[ "$debug" = "yes" ] && echo "aa=$aa; bb=$bb; px=$px; py=$py"
+	}
+
+
+# function defining Kochaneck-Bartels Spline interpolation
+# see http://en.wikipedia.org/wiki/Kochanek%E2%80%93Bartels_spline
+# and http://www.shaneaherne.com/research/splines.html
+kbs()
+	{
+	# V=(K0 K1 K2 K3) is supplied, but we need V=(K0 K1 T0 T1)
+	t1x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*(1-$continuity)*($x2-$x1)/2 + (1-$tension)*(1+$bias)*(1+$continuity)*($x1-$x0)/2]" info:`
+	t1y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*(1-$continuity)*($y2-$y1)/2 + (1-$tension)*(1+$bias)*(1+$continuity)*($y1-$y0)/2]" info:`
+	t2x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*(1+$continuity)*($x3-$x2)/2 + (1-$tension)*(1+$bias)*(1-$continuity)*($x2-$x1)/2]" info:`
+	t2y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*(1+$continuity)*($y3-$y2)/2 + (1-$tension)*(1+$bias)*(1-$continuity)*($y2-$y1)/2]" info:`
+	# replace p0 with p1 and p1 with p2
+	x0=$x1
+	y0=$y1
+	x1=$x2
+	y1=$y2
+	# replace p2 with t1 and p3 with t2
+	x2=$t1x
+	y2=$t1y
+	x3=$t2x
+	y3=$t2y
+	a3=`convert xc: -format "%[fx:(2*$x0-2*$x1+$x2+$x3)]" info:`
+	a2=`convert xc: -format "%[fx:(-3*$x0+3*$x1-2*$x2-$x3)]" info:`
+	a1=$x2
+	a0=$x0
+	b3=`convert xc: -format "%[fx:(2*$y0-2*$y1+$y2+$y3)]" info:`
+	b2=`convert xc: -format "%[fx:(-3*$y0+3*$y1-2*$y2-$y3)]" info:`
+	b1=$y2
+	b0=$y0
+	}
+
+# function to spline interpolate between two x,y pairs
+spline_interp()
+	{
+	pair0="$1"
+	pair1="$2"
+	pair2="$3"
+	pair3="$4"
+[ "$debug" = "yes" ] && echo "p0=$1; p1=$2; p2=$3; p3=$4"
+	x0=`echo "$pair0" | cut -d, -f1`
+	y0=`echo "$pair0" | cut -d, -f2`
+	x1=`echo "$pair1" | cut -d, -f1`
+	y1=`echo "$pair1" | cut -d, -f2`
+	x2=`echo "$pair2" | cut -d, -f1`
+	y2=`echo "$pair2" | cut -d, -f2`
+	x3=`echo "$pair3" | cut -d, -f1`
+	y3=`echo "$pair3" | cut -d, -f2`
+	kbs
+
+	# set range as distance in pixels between points over which to
+	# interpolate and convert to integer counts (numinc) and float
+	# pixinc so ends exactly on knot
+	range=`convert xc: -format "%[fx:hypot($x2-$x1,$y2-$y1)]" info:`
+	numinc=`convert xc: -format "%[fx:floor($range/$pixinc)]" info:`
+	pixinc=`convert xc: -format "%[fx:$range/$numinc]" info:`
+[ "$debug" = "yes" ] && echo "range=$range; numinc=$numinc; pixinc=$pixinc"
+
+	# threshold a and b coefs as -fx will produce scientific
+	# notation for values very near 0 that bc (awk?) will not understand
+	a3=`convert xc: -format "%[fx:abs($a3)<=0.99999?0:$a3]" info:`
+	a2=`convert xc: -format "%[fx:abs($a2)<=0.99999?0:$a2]" info:`
+	a1=`convert xc: -format "%[fx:abs($a1)<=0.99999?0:$a1]" info:`
+	a0=`convert xc: -format "%[fx:abs($a0)<=0.99999?0:$a0]" info:`
+	b3=`convert xc: -format "%[fx:abs($b3)<=0.99999?0:$b3]" info:`
+	b2=`convert xc: -format "%[fx:abs($b2)<=0.99999?0:$b2]" info:`
+	b1=`convert xc: -format "%[fx:abs($b1)<=0.99999?0:$b1]" info:`
+	b0=`convert xc: -format "%[fx:abs($b0)<=0.99999?0:$b0]" info:`
+[ "$debug" = "yes" ] && echo "a3=$a3; a2=$a2; a1=$a1; a0=$a0; b3=$b3; b2=$b2; b1=$b1; b0=$b0"
+
+	# start interpolation of points
+	# only use <= for last sequence so do not get duplicate points
+	# where sequences overlap
+	if [ "$last" = "true" ]; then
+		op="<="
+	else
+		op="<"
+	fi
+
+	points1=`awk -v range=$range -v numinc="$numinc" -v pixinc="$pixinc" -v op="$op" -v a0="$a0" \
+	-v a1="$a1" -v a2="$a2" -v a3="$a3" -v b0="$b0" -v b1="$b1" -v b2="$b2" -v b3="$b3" \
+	'BEGIN { if ( op=="<=" ) { for (s=0; s <= numinc; s++) \
+	{ s1=s*pixinc/range; s2=s1*s1; s3=s2*s1; print a3*s3+a2*s2+a1*s1+a0, b3*s3+b2*s2+b1*s1+b0; }; } \
+	else { for (s=0; s < numinc; s++) \
+	{ s1=s*pixinc/range; s2=s1*s1; s3=s2*s1; print a3*s3+a2*s2+a1*s1+a0, b3*s3+b2*s2+b1*s1+b0; }; } }' |\
+	while read x y; do
+	echo "$x,$y"
+	done`
+	# insert line break before each new section
+	points="$points
+$points1"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 38 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0  ;;
+			    -n)    # get numpts
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID NUMPTS SPECIFICATION ---"
+					   checkMinus "$1"
+					   numpts=`expr "$1" : '\([0-9]*\)'`
+					   [ "$numpts" = "" ] && errMsg "--- NUMPTS=$numpts MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$numpts <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- NUMPTS=$numpts MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+			    -l)    # get linewidth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID LINEWIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   linewidth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$linewidth" = "" ] && errMsg "--- LINEWIDTH=$linewidth MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$linewidth <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- LINEWIDTH=$linewidth MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+			    -i)    # get isize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID ISIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   isize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$isize" = "" ] && errMsg "--- ISIZE=$isize MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$isize <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- ISIZE=$isize MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-o)    # get osize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INCORRECT OSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # separate width and height and test for validity
+					   osize=`expr "$1" : '\([0-9x]*\)'`
+					   [ $osize -eq 0 ] && errMsg "--- OSIZE WIDTH AND/OR HEIGHT ARE NOT POSITIVE INTEGERS ---"
+					   ;;
+				-s)    # get  shape
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID SHAPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   shape=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$shape" in
+							square|s)	shape="square";;
+							disk|d)		shape="disk";;
+							*)         	errMsg="--- UNKNOWN SHAPE ---"
+					   esac
+					   ;;
+			    -b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$blur <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- BLUR=$blur MUST BE A FLOAT GREATER THAN 0 ---"
+					   ;;
+			    -t)    # get threshold
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   thresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "--- THRESHOLD=$thresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$thresh <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- THRESHOLD=$thresh MUST BE AN INTEGER GREATER THAN 0 ---"
+					   testB=`echo "$thresh >= 100" | bc`
+					   [ $testB -eq 1 ] && errMsg "--- THRESHOLD=$thresh MUST BE AN INTEGER LESS THAN 100 ---"
+					   ;;
+				-k)    # get  kind
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID KIND SPECIFICATION ---"
+					   checkMinus "$1"
+					   kind=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$kind" in
+							uniform|u)		kind="uniform";;
+							gaussian|g)		kind="gaussian";;
+							*)         	errMsg="--- UNKNOWN KIND ---"
+					   esac
+					   ;;
+			    -g)    # get gsigma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID GSIGMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   gsigma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gsigma" = "" ] && errMsg "--- GSIGMA=$gsigma MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$gsigma <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- GSIGMA=$gsigma MUST BE A FLOAT GREATER THAN 0 ---"
+					   ;;
+				-c)    # get  constrain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID CONSTRAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   constrain=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$constrain" in
+							yes|y)		constrain="yes";;
+							no|n)		constrain="no";;
+							*)         	errMsg="--- UNKNOWN CONSTRAIN ---"
+					   esac
+					   ;;
+				-d)    # get  drawtype
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID DRAWTYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   drawtype=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$drawtype" in
+							line|l)		drawtype="line";;
+							spline|s)	drawtype="spline";;
+							*)         	errMsg="--- UNKNOWN DRAWTYPE ---"
+					   esac
+					   ;;
+				-T)    # get tension
+					   shift  # to get the next parameter
+					   tension=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$tension" = "" ] && errMsg "--- TENSION=$tension MUST BE A NUMERICAL VALUE ---"
+					   ;;
+				-C)    # get continuity
+					   shift  # to get the next parameter
+					   continuity=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$continuity" = "" ] && errMsg "--- CONTINUITY=$continuity MUST BE A NUMERICAL VALUE ---"
+					   ;;
+				-B)    # get bias
+					   shift  # to get the next parameter
+					   bias=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$bias" = "" ] && errMsg "--- BIAS=$bias MUST BE A NUMERICAL VALUE ---"
+					   ;;
+			    -S)    # get seed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID SEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   seed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$seed" = "" ] && errMsg "--- SEED=$seed MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$seed <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- SEED=$seed MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+			    -p)    # get pixinc
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID PIXINC SPECIFICATION ---"
+					   checkMinus "$1"
+					   pixinc=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pixinc" = "" ] && errMsg "--- PIXINC=$pixinc MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$pixinc <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- PIXINC=$pixinc MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-f)    # simple text file with point pairs, one per line
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INCORRECT POINT_FILE SPECIFICATION ---"
+					   checkMinus "$1"
+					   file1="$1"
+					   #test if file1 is a valid file
+					   [ -f $file1 -a -r $file1 -a -s $file1 ] || errMsg "--- POINT FILE $file1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+					   ;;
+				-F)    # simple text file with point pairs, one per line
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INCORRECT POINT_FILE SPECIFICATION ---"
+					   checkMinus "$1"
+					   file2="$1"
+					   #test if file2 is a valid file
+					   [ -f $file2 -a -r $file2 -a -s $file2 ] || errMsg "--- POINT FILE $file2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get maskfile and outfile
+	if [ $# -eq 2 ]; then
+		maskfile="$1"
+		outfile="$2"
+	elif [ $# -eq 1 ]; then
+		outfile="$1"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF MASKFILE AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+
+# get owidth and oheight from osize
+owidth=`echo "$osize" | cut -dx -f1`
+oheight=`echo "$osize" | cut -dx -f2`
+testA=`echo "$owidth <= 0" | bc`
+[ $testA -eq 1 ] && errMsg "--- OWIDTH=$owidth MUST BE AN INTEGER GREATER THAN 0 ---"
+testA=`echo "$oheight <= 0" | bc`
+[ $testA -eq 1 ] && errMsg "--- OHEIGHT=$oheight MUST BE AN INTEGER GREATER THAN 0 ---"
+[ "$debug" = "yes" ] && echo "osize=$osize; owidth=$owidth; oheight=$oheight"
+
+
+if [ "$maskfile" != "" ]; then
+	shape="mask"
+
+	# setup temporary Images
+	tmpM1="$dMr/blob_M_$$.mpc"
+	tmpM2="$dMr/blob_M_$$.cache"
+	trap "rm -f $tmpM1 $tmpM2;" 0
+	trap "rm -f $tmpM1 $tmpM2; exit 1" 1 2 3 15
+	trap "rm -f $tmpM1 $tmpM2; exit 1" ERR
+
+	# read the mask image into the temp files and test validity.
+	convert -quiet "$maskfile" +repage "$tmpM1" ||
+		errMsg "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+	iwidth=`convert $tmpM1 -ping -format "%w" info:`
+	iheight=`convert $tmpM1 -ping -format "%h" info:`
+
+	# extend mask with background to size of osize
+	convert $tmpM1 -gravity center -background black -extent ${owidth}x${oheight} $tmpM1
+else
+	iwidth=$isize
+	iheight=$isize
+fi
+[ "$debug" = "yes" ] && echo "isize=$isize; iwidth=$iwidth; iheight=$iheight"
+
+
+# test if both file1 and file2 specified
+[ "$file1" != "" -a "$file2" != "" ] && errMsg "--- BOTH FILE1 AND FILE2 CANNOT BE SPECIFIED ---"
+
+
+# test if point file exists and then read points into array
+if [ "$file1" != "" ]; then
+	# put the file with line breaks into parm
+	parms=`cat "$file1"`
+
+	# strip the line breaks (works ONLY if $parm is NOT put into
+	# quotes "$parm")
+	parms=`echo $parms | grep '.*'`
+[ "$debug" = "yes" ] && echo "file=$file1; parms=$parms"
+elif [ "$file2" != "" ]; then
+	parms=""
+	begin=$(($seed-1))
+	num=$(($numpts+$seed-1))
+	parmsArr=(`cat "$file2"`)
+	for ((i=$begin; i<$num; i++)); do
+		parms="$parms ${parmsArr[$i]}"
+	done
+[ "$debug" = "yes" ] && echo "file=$file2; parms=$parms"
+fi
+
+
+if [ "$file1" != "" -o "$file2" != "" ]; then
+
+	# first pattern below replaces all occurrences of commas and
+	# spaces with a space => 1 2 3 4 5 6
+	# second pattern below replaces the first occurrence of a
+	# space with a comma => 1,2[ 3 4][ 5 6] - ignore [], they are
+	# for emphasis only
+	# third pattern below looks for all space number space number
+	# pairs and replaces them with a space followed by
+	# number1,number2 => 1,2 3,4 5,6
+	set - `echo $parms | sed 's/[, ][, ]*/ /g; s/ /,/; s/ \([^ ]*\) \([^ ]*\)/ \1,\2/g'`
+
+	# test for valid floats for x and y
+	index=0
+	plist=""
+[ "$debug" = "yes" ] && echo ""
+	while [ $# -gt 0 ]; do
+[ "$debug" = "yes" ] && echo "index=$index; pair=$1"
+		testFloatPair $1
+		plist="$plist $1"
+		shift
+		index=`expr $index + 1`
+	done
+
+	#remove leading space
+	plist=`echo "$plist" | sed -n 's/ [ ]*\(.*\)/\1/p'`
+	[ "$plist" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+
+	# put plist into array
+	plistArr=($plist)
+	numpts="${#plistArr[*]}"
+[ "$debug" = "yes" ] && echo "numpts=$numpts"
+[ "$debug" = "yes" ] && echo "$plist"
+[ "$debug" = "yes" ] && echo "${plistArr[*]}"
+fi
+
+
+# compute list of random pts
+pts=""
+count=0
+seed=$(($seed-1))
+# loop over each point pair
+until [ $count -eq $numpts ]; do
+	if [ "$kind" = "gaussian" ]; then
+		if [ "$file1" = "" -a "$file2" = "" ]; then
+			randomPts
+		else
+			pair="${plistArr[$count]}"
+			p1=`echo "$pair" | cut -d, -f1`
+			p2=`echo "$pair" | cut -d, -f2`
+		fi
+		gaussianPts "$p1" "$p2"
+		if [ "$constrain" = "yes" ]; then
+			if [ "$shape" = "square" ]; then
+				test=`convert xc: -format \
+					"%[fx:($px-(($owidth-1)/2))^2<(($iwidth-1)/2)^2 && \
+					($py-(($oheight-1)/2))^2<(($iheight-1)/2)^2]" info:`
+			elif [ "$shape" = "disk" ]; then
+				test=`convert xc: -format \
+					"%[fx:($px-(($owidth-1)/2))^2+($py-(($oheight-1)/2))^2\
+					<(min(($iwidth-1),($iheight-1))/2)^2]" info:`
+			elif [ "$shape" = "mask" ]; then
+				test=`convert $tmpM1[1x1+$px+$py] -format \"%[fx:u]\" info:`
+			fi
+			if [ $test -eq 1 ]; then
+				pts="$pts $px,$py"
+				count=$(($count+1))
+			fi
+		else
+			pts="$pts $px,$py"
+			count=$(($count+1))
+		fi
+	else
+		if [ "$file1" = "" -a "$file2" = "" ]; then
+			randomPts
+		else
+			pair="${plistArr[$count]}"
+			p1=`echo "$pair" | cut -d, -f1`
+			p2=`echo "$pair" | cut -d, -f2`
+		fi
+		uniformPts "$p1" "$p2"
+		pts="$pts $px,$py"
+		count=$(($count+1))
+	fi
+done
+[ "$debug" = "yes" ] && echo "pts=$pts"
+
+
+if [ "$drawtype" = "spline" ]; then
+	# generate interpolated points
+
+	# convert pts list into array
+	plist=$pts
+	pairArray=($plist)
+	np=${#pairArray[*]}
+	npm1=`expr $np - 1`
+	npm2=`expr $np - 2`
+
+	# separate x and y components of pairArray
+	i=0
+	while [ $i -lt $np ]; do
+		xArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f1`
+		yArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f2`
+		i=`expr $i + 1`
+	done
+
+	# close the list
+	# augment pair Array with last point at beginning and first
+	# two points at end
+	newplist="${pairArray[$npm1]} $plist ${pairArray[0]} ${pairArray[1]}"
+	pairArray=($newplist)
+	np=${#pairArray[*]}
+	npm1=`expr $np - 1`
+
+	# count number of segments
+	numseg=`expr $np - 3`
+
+	# process plist
+	points=""
+	last="false"
+	j=0
+	k=1
+	l=2
+	seg=1
+	echo ""
+	for ((m=3; m<=$npm1; m++)); do
+		[ $m -eq $npm1 ] && last="true"
+
+#echo ""
+#echo "j=$j; k=$k; l=$l; m=$m"
+#echo "${pairArray[$j]} ${pairArray[$k]} ${pairArray[$l]} ${pairArray[$m]}"
+
+		echo "Processing Spline Segment $seg Out Of $numseg Segments"
+		spline_interp ${pairArray[$j]} ${pairArray[$k]} ${pairArray[$l]} ${pairArray[$m]}
+		j=$k
+		k=$l
+		l=$m
+		seg=`expr $seg + 1`
+	done
+	echo ""
+
+# edit control points to add leading 0, due to bug
+# does not seem to be needed any more
+#	points=`echo $points | sed 's/[ ][ ]*\./ 0./g'`
+#	points=`echo $points | sed 's/,\./,0./g'`
+#	points=`echo $points | sed 's/-\./-0./g'`
+
+	if [ "$debug" = "yes" ]; then
+		echo "plist=$plist"
+		echo ""
+		echo "newplist=$newplist"
+		echo ""
+		echo "points=$points"
+		pointsArray=($points)
+		pnum=${#pointsArray[*]}
+		echo ""
+		echo "pnum=$pnum"
+		echo ""
+	fi
+fi
+
+
+# set up -draw parameters for points
+if [ "$drawtype" = "spline" ]; then
+	drawpoints="polyline $points"
+else
+	drawpoints="stroke-linejoin round polygon $pts"
+fi
+
+# create output
+if [ "$save" = "yes" ]; then
+	outname=`echo "$outfile" | sed -n 's/^\([^.]*\)[.][^.]*$/\1/ p'`
+	intermediate="+write ${outname}_connected_pts.gif"
+else
+	intermediate=""
+fi
+thresh=`convert xc: -format "%[fx:100-$thresh]" info:`
+convert -size ${owidth}x${oheight} \
+	xc:"gray(255)" +antialias +dither \
+	-stroke "gray(0)" \
+	-strokewidth $linewidth \
+	-fill none \
+	-draw "$drawpoints" \
+	-alpha off \
+	$intermediate \
+	-blur 0x$blur \
+	-auto-level \
+	-threshold ${thresh}% \
+	"$outfile"
+
+exit 0
+

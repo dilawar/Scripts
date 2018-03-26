@@ -1,0 +1,266 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/30/2008 .......... revised 11/5/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: anglegradient widthxheight [-a angle] [-c color ] outfile
+# USAGE: anglegradient [-h or -help]
+#
+# OPTIONS:
+#
+# widthxheight                     widthxheight of gradient image
+# -a                angle          orientational angle for gradient;
+#                                  degrees rotation from a vertical in
+#                                  clockwise direction; default=0; 
+#                                  or nw,ne,se,sw for diagonal
+# -c                colors         gradient coloration; any valid 
+#                                  hyphenated color pair involving 
+#                                  opaque colors or "none"
+#
+###
+#
+# NAME: ANGLEGRADIENT 
+# 
+# PURPOSE: To create a gradient effect at a specific orientation angle.
+# 
+# DESCRIPTION: ANGLEGRADIENT creates a gradient effect at a specific 
+# orientation angle.
+# 
+# OPTIONS: 
+#
+# widthxheight ...  WIDTHxHEIGHT are the dimensions of the gradient image.
+# 
+# -a angle ... ANGLE is the angle for the gradient coloration in degrees.
+# Values must be greater than or equal to 0 and less than or equal to 360.
+# Alternately, values of nw, ne, se, or sw may be specified to have the
+# diagonal angle automatically, computed. For angle=0, the gradient will
+# have the first color at the top and the second color at the bottom. As
+# the gradient-angle is increased, the gradient rotates clockwise. The
+# default=0.
+# 
+# -c colors ... COLORS is any valid hyphenated IM color pair including
+# opaquecolor-opaquecolor, opaquecolor-none or none-opaquecolor for a 
+# transition from one opaque color to another or to transparency. If no  
+# color pair is specified, then the normal grayscale gradient will be 
+# generated. For angle=0, the first color will be at the top and the 
+# second color at the bottom of the gradient image.
+# 
+# NOTE: This script requires IM 6.4.2-6 or higher due to the use of 
+# -distort SRT.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+angle=0
+colors="white-black"
+size=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   checkMinus "$1"
+					   angle=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   if [ "$angle" != "ne" -a "$angle" != "se" -a "$angle" != "sw" -a "$angle" != "nw" ]; then
+						   angle=`expr "$1" : '\([.0-9]*\)'`
+						   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE A NON-NEGATIVE FLOAT ---"
+						   angletestA=`echo "$angle < 0" | bc`
+						   angletestB=`echo "$angle > 360" | bc`
+						   [ $angletestA -eq 1 -o $angletestB -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+					   fi
+					   ;;
+				-c)    # get colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors="$1"
+					   ;;
+	 [0-9]*x[0-9]*)    # get  size
+					   size="$1"
+					   numdim=`echo "$size" | tr "x" " " | wc -w` 
+					   [ $numdim -ne 2 ] && errMsg "--- TWO DIMENSIONS MUST BE PROVIDED ---"
+					   ww=`echo "$size" | cut -dx -f1`
+					   hh=`echo "$size" | cut -dx -f2`
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	outfile="$1"
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# test if size specified
+[ "$size" = "" ] && errMsg "--- GRADIENT SIZE HAS NOT BEEN SPECIFIED ---"
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test if IM version compatible with -distort SRT
+# (earliest is IM 6.3.5-1 but possibly not stable until IM v6.4.2-6)
+[ "$im_version" -lt "06040206" ] && errMsg "--- IM VERSION IS NOT COMPATIBLE WITH -DISTORT SRT ---"
+
+# get max dimension
+maxdim=`convert xc: -format "%[fx:max($ww,$hh)]" info:`
+
+# test if square
+testsq=`convert xc: -format "%[fx:($ww==$hh)?1:0]" info:`
+if [ $testsq -eq 1 ]; then
+	operation1=""
+else
+	operation1="-gravity center -crop ${ww}x${hh}+0+0 +repage"
+fi
+
+# separate colors
+numcolors=`echo "$colors" | tr "-" " " | wc -w` 
+[ $numcolors -ne 2 ] && errMsg "--- TWO COLORS MUST BE PROVIDED ---"
+color1=`echo "$colors" | cut -d- -f1`
+color2=`echo "$colors" | cut -d- -f2`
+
+
+# set up colorpair and operations
+if [ "$color1" != "none" -a "$color2" != "none" ]; then
+	colorpair="gray(255)-gray(0)"
+	operation2="+level-colors ${color2},${color1}"
+	operation3="-delete 0"
+elif [ "$color1" != "none" -a "$color2" = "none" ]; then
+	colorpair="gray(255)-gray(0)"
+	operation2="-fill $color1 -colorize 100%"
+	operation3="+swap -alpha off -compose copy_opacity -composite"
+elif [ "$color1" = "none" -a "$color2" != "none" ]; then
+	colorpair="gray(0)-gray(255)"
+	operation2="-fill $color2 -colorize 100%"
+	operation3="+swap -alpha off -compose copy_opacity -composite"
+fi
+
+# setup diagonal directions if needed
+if [ "$angle" = "ne" ]; then
+	angle=`convert xc: -format "%[fx:(180/pi)*atan2($hh,$ww)]" info:`
+elif [ "$angle" = "nw" ]; then
+	angle=`convert xc: -format "%[fx:360+(180/pi)*atan2(-$hh,$ww)]" info:`
+elif [ "$angle" = "sw" ]; then
+	angle=`convert xc: -format "%[fx:360+(180/pi)*atan2(-$hh,-$ww)]" info:`
+elif [ "$gradangle" = "se" ]; then
+	angle=`convert xc: -format "%[fx:(180/pi)*atan2($hh,-$ww)]" info:`
+fi
+#echo "colors=$colors; colorpair=$colorpair; op1=$operation1; op2=$operation2; angle=$angle"
+
+
+# process gradient
+if [ "$angle" = "0" ]; then
+	convert -size $size gradient:"$colors" "$outfile"
+elif [ "$color1" != "none" -a "$color2" != "none" ]; then
+	convert \( -size ${maxdim}x${maxdim} gradient:"$colorpair" \
+		-distort SRT "$angle" $operation1 -contrast-stretch 0 \) \
+		\( -clone 0 $operation2 \) \
+		$operation3 \
+		"$outfile"
+else
+	convert \( -size ${maxdim}x${maxdim} gradient:"$colorpair" \
+		-distort SRT "$angle" $operation1 -contrast-stretch 0 \) \
+		\( -clone 0 $operation2 \) \
+		$operation3 \
+		"$outfile"
+fi
+exit 0

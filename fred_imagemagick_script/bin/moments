@@ -1,0 +1,378 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/18/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: moments [-z] infile
+# USAGE: moments [-h or -help]
+# 
+# OPTIONS:
+# 
+# -z     Replaces NAN or DBZ with 0; default shows NAN and/or DBZ
+# 
+###
+# 
+# NAME: MOMENTS 
+# 
+# PURPOSE: To compute shift, scale and rotation invariant image moments as well 
+# as elliptical shape descriptors.
+# 
+# DESCRIPTION: ENTROPY computes Hu and Maitra shift, scale and rotation 
+# invariant image moments as well as elliptical shape descriptors. Currently 
+# this script is limited to grayscale images. If the input is not grayscale, 
+# it will be converted to grayscale. The list of moments and shape descriptors 
+# is sent to the terminal.
+#
+# OPTIONS: 
+# 
+# -z ... replace (not a number) NAN (from square root of negative value) or 
+# (divide by zero) DBZ with 0 in Maitra moments. The default is to show NAN 
+# and/or DBZ.
+# 
+# REFERENCES:
+# http://en.wikipedia.org/wiki/Image_moments
+# http://www.via.cornell.edu/ece547/text/survey.pdf
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+zero="no"		# replace NAN with 0; choices are; yes or no; default=no
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 2 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+			    -z)    # get  zero
+					   zero="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+
+# setup temporary images
+tmpA1="$dir/moments_1_$$.mpc"
+tmpB1="$dir/moments_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" -colorspace gray -depth 8 +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# references
+# http://en.wikipedia.org/wiki/Image_moments
+# http://www.via.cornell.edu/ece547/text/survey.pdf
+# Moment Functions In Image Analysis Theory And Application, R Mukundan and K R Ramakrishnan, Chapter 2. (see link below)
+# http://books.google.com/books?id=SEAOgA-oCIkC&pg=PA15&lpg=PA15&dq=image+moment+kurtosis&source=bl&ots=ngcPHeIpy-&sig=6fT1roqvx4usTwnib4UxaPsWDX8&hl=en&sa=X&ei=8VVcUqSsOujUiwKC2IGoBA&ved=0CDkQ6AEwBA#v=onepage&q=image%20moment%20kurtosis&f=false
+
+# compute raw moments
+momentArr=(`convert $tmpA1 txt:- | tail -n +2 | tr -cs "0-9\n" " "  |\
+awk -v PREC="double" '# AWK to compute raw image moments for grayscale image
+{ M00 += $3; M10 += $1*$3; M01 += $2*$3; M11 += $1*$2*$3; 
+M20 += $1*$1*$3; M02 += $2*$2*$3; M21 += $1*$1*$2*$3; M12 += $1*$2*$2*$3; M22 += $1*$1*$2*$2*$3; 
+M30 += $1*$1*$1*$3; M03 += $2*$2*$2*$3; }
+END { print M00, M10, M01, M11, M20, M02, M21, M12, M22, M30, M03; } '`)
+
+M00=${momentArr[0]}
+M10=${momentArr[1]}
+M01=${momentArr[2]}
+M11=${momentArr[3]}
+M20=${momentArr[4]}
+M02=${momentArr[5]}
+M21=${momentArr[6]}
+M12=${momentArr[7]}
+M22=${momentArr[8]}
+M30=${momentArr[9]}
+M03=${momentArr[10]}
+
+# compute total mass (intensity) (area if binary)
+T=$M00
+
+# compute mean
+mean=`convert $tmpA1 -precision 15 -format "%[fx:$T/(w*h)]" info:`
+
+
+# compute center of mass (centroid)
+centx=`convert -ping $tmpA1 -precision 15 -format "%[fx:w/2]" info:`
+centy=`convert -ping $tmpA1 -precision 15 -format "%[fx:h/2]" info:`
+cx=`convert xc: -precision 15 -format "%[fx:$M00==0?$centx:$M10/$M00]" info:`
+cy=`convert xc: -precision 15 -format "%[fx:$M00==0?$centy:$M01/$M00]" info:`
+
+
+# compute central moments
+momentArr=(`convert $tmpA1 txt:- | tail -n +2 | tr -cs "0-9\n" " "  |\
+awk -v PREC="double" -v cx="$cx" -v cy="$cy" '# AWK to compute central moments for grayscale image
+{ x=($1-cx); y=($2-cy); m11 += x*y*$3; 
+m20 += x*x*$3; m02 += y*y*$3; m21 += x*x*y*$3; m12 += x*y*y*$3; m22 += x*x*y*y*$3; 
+m30 += x*x*x*$3; m03 += y*y*y*$3; }
+END { print m11, m20, m02, m21, m12, m22, m30, m03; } '`)
+
+
+m00=$M00
+m10=0
+m01=0
+m11=${momentArr[0]}
+m20=${momentArr[1]}
+m02=${momentArr[2]}
+m21=${momentArr[3]}
+m12=${momentArr[4]}
+m22=${momentArr[5]}
+m30=${momentArr[6]}
+m03=${momentArr[7]}
+
+
+# compute radii of gyration
+Rx=`convert xc: -precision 15 -format "%[fx:$m00==0?0:sqrt($M02/$M00)]" info:`
+Ry=`convert xc: -precision 15 -format "%[fx:$m00==0?0:sqrt($M20/$M00)]" info:`
+Rc=`convert xc: -precision 15 -format "%[fx:$m00==0?0:sqrt(($m20+$m02)/$m00)]" info:`
+
+
+# compute the elliptical angle, major (a) and minor (b) axes eccentricity (e) and intensity (k)
+# set angle to 0 for constant grayscale, since m20=m02
+angle=`convert xc: -precision 15 -format "%[fx:$m20==$m02?0:0.5*atan(2*$m11/($m20-$m02))]" info:`
+degrees=`convert xc: -precision 15 -format "%[fx:$angle*180/pi]" info:`
+a=`convert xc: -precision 15 -format "%[fx:$m00==0?0:sqrt((2/$m00)*(($m20+$m02)+sqrt(4*$m11*$m11+($m20-$m02)*($m20-$m02))))]" info:`
+b=`convert xc: -precision 15 -format "%[fx:$m00==0?0:sqrt((2/$m00)*(($m20+$m02)-sqrt(4*$m11*$m11+($m20-$m02)*($m20-$m02))))]" info:`
+e=`convert xc: -precision 15 -format "%[fx:$a==0?0:sqrt(1-($b/$a))]" info:`
+k=`convert xc: -precision 15 -format "%[fx:$a==0?0:$m00/(pi*$a*$b)]" info:`
+
+# compute normalized moments
+n00=1
+n01=0
+n10=0
+n11=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m11/pow($m00,(1+(1+1)/2))]" info:`
+n20=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m20/pow($m00,(1+(2+0)/2))]" info:`
+n02=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m02/pow($m00,(1+(0+2)/2))]" info:`
+n21=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m21/pow($m00,(1+(2+1)/2))]" info:`
+n12=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m12/pow($m00,(1+(1+2)/2))]" info:`
+n22=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m22/pow($m00,(1+(2+2)/2))]" info:`
+n30=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m30/pow($m00,(1+(3+0)/2))]" info:`
+n03=`convert xc: -precision 15 -format "%[fx:$m00==0?0:$m03/pow($m00,(1+(0+3)/2))]" info:`
+
+
+# compute hu invariant moments
+I1=`convert xc: -precision 15 -format "%[fx:$n20+$n02]" info:`
+I2=`convert xc: -precision 15 -format "%[fx:($n20-$n02)^2 + 4*$n11*$n11]" info:`
+I3=`convert xc: -precision 15 -format "%[fx:($n30-3*$n12)^2 + (3*$n21-$n03)^2]" info:`
+I4=`convert xc: -precision 15 -format "%[fx:($n30+$n12)^2 + ($n21+$n03)^2]" info:`
+I5=`convert xc: -precision 15 -format "%[fx:($n30-3*$n12)*($n30+$n12)*( ($n30+$n12)^2 - 3*($n21+$n03)^2 ) + (3*$n21-$n03)*($n21+$n03)*( 3*($n30+$n12)^2 - ($n21+$n03)^2 )]" info:`
+I6=`convert xc: -precision 15 -format "%[fx:($n20-$n02)*( ($n30+$n12)^2 - ($n21+$n03)^2 ) + 4*$n11*($n30+$n12)*($n21+$n03)]" info:`
+I7=`convert xc: -precision 15 -format "%[fx:(3*$n21 -$n03)*($n30+$n12)*( ($n30+$n12)^2 - 3*($n21+$n03)^2 ) - ($n30-3*$n12)*($n21+$n03)*( 3*($n30+$n12)^2 - ($n21+$n03)^2 )]" info:`
+I8=`convert xc: -precision 15 -format "%[fx:$n11*( ($n30+$n12)^2 - ($n03+$n21)^2 ) - ($n20-$n02)*($n30+$n12)*($n03+$n21)]" info:`
+
+
+
+# compute maitra invariant moments
+# NOTE: sqrt means that get NAN for B1 or B4, when I2 or I5 are negative.
+# Note sure if best to force to zero or leave as NAN
+if [ "$zero" = "yes" ]; then
+	B1=`convert xc: -precision 15 -format "%[fx:$I2<0?0:sqrt($I2)/($I1+quantumscale)]" info:`
+else
+	[ "$I1" = "0" ] && B1="DBZ" || \
+		B1=`convert xc: -precision 15 -format "%[fx:sqrt($I2)/($I1+quantumscale)]" info:`
+fi
+
+[ "$I1" = "0" -o "$I2" = "0" -a "$zero" = "no" ] && B2="DBZ" || \
+	B2=`convert xc: -precision 15 -format "%[fx:$I3*$m00/($I1*$I2+quantumscale)]" info:`
+
+[ "$I3" = "0"  -a "$zero" = "no" ] && B3="DBZ" || \
+	B3=`convert xc: -precision 15 -format "%[fx:$I4/($I3+quantumscale)]" info:`
+
+if [ "$zero" = "yes" ]; then
+	B4=`convert xc: -precision 15 -format "%[fx:$I5<0?0:sqrt($I5)/($I4+quantumscale)]" info:`
+else
+	[ "$I4" = "0" ] && B4="DBZ" || \
+		B4=`convert xc: -precision 15 -format "%[fx:sqrt($I5)/($I4+quantumscale)]" info:`
+fi
+
+[ "$I1" = "0" -o "$I4" = "0"  -a "$zero" = "no" ] && B5="DBZ" || \
+	B5=`convert xc: -precision 15 -format "%[fx:$I6/($I1*$I4+quantumscale)]" info:`
+
+[ "$I3" = "0" -a "$zero" = "no" ] && B6="DBZ" || \
+	B6=`convert xc: -precision 15 -format "%[fx:$I4/($I3+quantumscale)]" info:`
+
+
+
+#list results
+echo ""
+echo "Image: $infile"
+echo ""
+echo "Raw Moments"
+echo "M00=$M00"
+echo "M10=$M10"
+echo "M01=$M01"
+echo "M11=$M11"
+echo "M20=$M20"
+echo "M02=$M02"
+echo "M21=$M21"
+echo "M12=$M12"
+echo "M22=$M22"
+echo "M30=$M30"
+echo "M03=$M03"
+echo ""
+echo "Central Moments"
+echo "m00=$m00"
+echo "m10=$m10"
+echo "m01=$m01"
+echo "m11=$m11"
+echo "m20=$m20"
+echo "m02=$m02"
+echo "m21=$m21"
+echo "m12=$m12"
+echo "m22=$m22"
+echo "m30=$m30"
+echo "m03=$m03"
+echo ""
+echo "Normalized Central Moments"
+echo "n00=$n00"
+echo "n10=$n10"
+echo "n01=$n01"
+echo "n11=$n11"
+echo "n20=$n20"
+echo "n02=$n02"
+echo "n21=$n21"
+echo "n12=$n12"
+echo "n22=$n22"
+echo "n30=$n30"
+echo "n03=$n03"
+echo ""
+echo "Hu Invariant Moments"
+echo "I1=$I1"
+echo "I2=$I2"
+echo "I3=$I3"
+echo "I4=$I4"
+echo "I5=$I5"
+echo "I6=$I6"
+echo "I7=$I7"
+echo "I8=$I8"
+echo ""
+echo "Maitra Invariant Moments"
+echo "B1=$B1"
+echo "B2=$B2"
+echo "B3=$B3"
+echo "B4=$B4"
+echo "B5=$B5"
+echo "B6=$B6"
+echo ""
+echo ""
+echo "Miscellaneous Parameters"
+echo "Total Mass = $T"
+echo "Mean = $mean"
+echo "X Center of Mass (XCOM) = $cx"
+echo "Y Center of Mass (YCOM) = $cy"
+echo "X Radius of Gyration = $Rx"
+echo "Y Radius of Gyration = $Ry"
+echo "COM Radius of Gyration = $Rc"
+echo "Ellipse Angle (radians) = $angle"
+echo "Ellipse Angle (degrees) = $degrees"
+echo "Ellipse Semi-Major Axis = $a"
+echo "Ellipse Semi-Minor Axis = $b"
+echo "Ellipse Eccentricity = $e"
+echo "Ellipse Intensity = $k"
+echo ""
+
+exit 0
+

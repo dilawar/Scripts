@@ -1,0 +1,721 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/29/2012 .......... revised 6/5/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: autotone2 [-a autostretch] [-b brightness] [-c contrast] [-s sharpen] 
+# [-n noise] [-cb colorbalance] [-w window] [-R resize] [-P percent] 
+# infile outfile
+#
+# USAGE: autotone2 [-h or -help]
+#
+# OPTIONS:
+#
+# -a      autostretch      autostretch image channels; options are: 
+#                          together (t), separate (s), or auto (a); 
+#                          default=auto
+# -b      brightness       brightness adjustment factor; float>0; 
+#                          default=1 (no change from automatic value)                             
+# -c      contrast         contrast adjustment factor; float>0; 
+#                          default=1 (no change from automatic value)                             
+# -s      sharpen          sharpening amount; float>0; default=2.5;
+#                          larger values will allow more detail;
+# -n      noise            noise removal factor; integer>=0; default is 
+#                          auto computed; typical range is about 1 to 4;
+#                          zero is no noise removal
+# -cb     colorbalance     color balance mode; choices are gray, white, 
+#                          both or none; default=both
+# -w      window           windowing size as percentage of image; nominally 
+#                          between 5 and 20; 2<=float<=50; default=8
+# -R      resize           limit the output size to this value; integer>0; 
+#                          will resize if the larger dimension of the image 
+#                          exceeds this value
+# -P      percent          percent threshold for detecting gray/white 
+#                          for auto gray and auto white balance; 0<float<100;
+#                          default=1
+#
+###
+#
+# NAME: AUTOTONE2 
+# 
+# PURPOSE: To automatically tone balance an image.
+# 
+# DESCRIPTION: AUTOTONE2 attempts to automatically tone balance and image.  
+# This includes brightness/contrast adjustment, color balance, noise removal 
+# and sharpening.
+# 
+# OPTIONS: 
+# 
+# -a autostretch --- AUTOSTRETCH image channels as preprocessing step. The 
+# options are: together (t), separate (s) or auto (a). The default=auto. 
+# Note, for some images with severe channel stretch, the option separate 
+# can cause severe color shifts.
+# 
+# -b brightness --- BRIGHTNESS is a brightness adjustment factor multiplied by   
+# the automatically computed default. It is a float>0. Values larger then 1  
+# will increase the brightness and values smaller than 1 will decrease the 
+# brightness. The default is 1 or no change from the automatically computed 
+# value. 
+# 
+# -c contrast --- CONTRAST is a contrast adjustment factor multiplied by the  
+# automatically computed default. It is a float>0. Values larger then 1 will 
+# increase the contrast and values smaller than 1 will decrease the contrast. 
+# The default is 1 or no change from the automatically computed value. 
+# 
+# -s sharpen --- SHARPEN is the amount of sharpening to apply. Values are 
+# floats>0. The default is 2.5. Larger values allow more detail to show and 
+# may be useful for very hazy images. Too large a value may over-exaggerate 
+# detail, especially when there is no haze.
+# 
+# -n noise ... NOISE removal amount. Values are integers>=0. The nominal range 
+# is about 1 to 4 depending upon image size. Larger values are used for larger 
+# images. A value of 0 is no noise removal. The default is automatically 
+# computed.
+# 
+# -cb colorbalance ... COLORBALANCE mode. The choices are gray, white, both or
+# none. The default=both.
+# 
+# -w window --- the moving WINDOW size as a percentage of the input image as 
+# part of the automatic brightness, contrast and sharpening operations. Values  
+# are 2<=float<=50. Typical values are between 5 and 20. The default is 8 (%).
+# 
+# -R resize ... RESIZE is the limit on the output image size. Values are 
+# integer>0. This will only resize if the larger dimension of the image 
+# exceeds this value. The default is no limit (i.e. no resize).
+# 
+# -P percent ... PERCENT is the percent threshold for detecting gray/white 
+# in the image for auto color balance. Values are 0<floats<100. The default=1.
+# 
+# RESTRICTIONS: IM 6.5.5-1 or higher due to the use of -autolevel to do the 
+# autostretch. Also only works on RGB images (not CMYK). Set colorbalance to
+# none for grayscale images. Note that this script may be slow due to the use 
+# of -fx, if not using HDRI compiled Imagemagick.
+# 
+# NOTE: I thank Dr. Guenter Grau for the suggestion to normalize the r,g,b 
+# ratios by their average in the color balance part of the code.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# defaults
+autostretch="auto"		# autolevel preprocess
+bri=1					# auto compute adjustment factor
+con=1					# auto compute adjustment factor
+maxgain=2.5				# sharpening (max gain)
+noise=""				# denoise -enhance repeats; "" means autocompute the repeats; repeats>=0
+colorbalance="both"		# colorbalance mode; both, gray, white, none
+window=8				# window size for averaging
+resize=""				# resizing limit
+percent=1				# percent near white from combined S and B channels of HSB to use for whitebalance
+dmean=0.5				# nominal desired mean
+dstd=0.2				# nominal desired std
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 20 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get  autostretch
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AUTOSTRETCH SPECIFICATION ---"
+					   checkMinus "$1"
+					   autostretch=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$autostretch" in 
+							together|t) autostretch="together" ;;
+							separately|separate|s) autostretch="separate" ;;
+							both|b) autostretch="both" ;;
+							*) errMsg "--- AUTOSTRETCH=$autostretch IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				-b)    # bri
+					   shift  # to get the next parameter - bri
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRI SPECIFICATION ---"
+					   checkMinus "$1"
+					   bri=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$bri" = "" ] && errMsg "--- BRI=$bri MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+					   britest=`echo "$bri <= 0" | bc`
+					   [ $britest -eq 1 ] && errMsg "--- BRI=$bri MUST BE A POSITIVE FLOATING POINT VALUE ---"
+					   ;;
+				-c)    # con
+					   shift  # to get the next parameter - con
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CON SPECIFICATION ---"
+					   checkMinus "$1"
+					   con=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$con" = "" ] && errMsg "--- CON=$con MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+					   contest=`echo "$con <= 0" | bc`
+					   [ $contest -eq 1 ] && errMsg "--- CON=$con MUST BE A POSITIVE FLOATING POINT VALUE ---"
+					   ;;
+				-s)    # sharpen (maxgain)
+					   shift  # to get the next parameter - maxgain
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHARPEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   maxgain=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$maxgain" = "" ] && errMsg "--- SHARPEN=$maxgain MUST BE A POSITIVE FLOATING POINT VALUE (with no sign) ---"
+					   maxgaintest=`echo "$maxgain <= 0" | bc`
+					   [ $maxgaintest -eq 1 ] && errMsg "--- SHARPEN=$maxgain MUST BE A POSITIVE FLOATING POINT VALUE ---"
+					   ;;
+				-n)    # get noise repeats
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
+					   checkMinus "$1"
+					   noise=`expr "$1" : '\([0-9]*\)'`
+					   [ "$noise" = "" ] && errMsg "--- NOISE=$noise MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+			   -cb)    # get colorbalance mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORBALANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorbalance=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colorbalance" in 
+							none|n) colorbalance="none" ;;
+							gray|g) colorbalance="gray" ;;
+							white|w) colorbalance="white" ;;
+							both|b) colorbalance="both" ;;
+							*) errMsg "--- COLORBALANCE=$colorbalance IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				-w)    # window
+					   shift  # to get the next parameter - window
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WINDOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   window=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$window" = "" ] && errMsg "--- WINDOW=$window MUST BE A POSITIVE FLOATING POINT VALUE (with no sign) ---"
+					   windowtestA=`echo "$window < 2" | bc`
+					   windowtestB=`echo "$window > 50" | bc`
+					   [ $windowtestA -eq 1 -o $windowtestB -eq 1 ] && errMsg "--- WINDOW=$window MUST BE A FLOATING POINT VALUE BETWEEN 2 AND 50 ---"
+					   ;;
+				-R)    # get resize
+					   shift  # to get the next parameter 
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RESIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   resize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$resize" = "" ] && errMsg "--- RESIZE=$resize MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$resize <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- RESIZE=$resize MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-P)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$percent <= 0" | bc`
+					   testB=`echo "$percent >= 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE A FLOAT GREATER THAN 0 AND SMALLER THAN 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# test for hdri enabled
+# NOTE: must put grep before trap using ERR in case it does not find a match
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+
+# set directory for temporary files
+tmpdir="$dir"
+
+dir="$tmpdir/AUTOTONE2.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+# set up for  Resize
+if [ "$resize" != "" ]; then
+	resizing="-resize $resize>"
+else
+	resizing=""
+fi
+
+# function to get mean of image
+getMean()
+	{
+	# requires IM 6.3.9-1
+	img="$1"
+	mean=`convert $img -format "%[fx:mean]" info:`
+	}
+
+# function to get color ratios for white balancing
+getRatio()
+	{
+	getMean "$1"
+	ref="$2"
+	ave=`convert xc: -format "%[fx:$mean/$maskmean]" info:`
+	[ "$ave" = "0" -o "$ave" = "0.0" ] && ave=1
+	ratio=`convert xc: -format "%[fx:$ref/$ave]" info:`
+	}
+
+
+# set up -recolor or -color-matrix for color balancing
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
+fi
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests 
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070607" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# read input image into temporary memory mapped (mpc) format image
+convert -quiet "$infile" +repage $resizing $dir/tmpI.mpc ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# set up for autostretch
+# requires IM 6.5.5-1
+if [ "$autostretch" = "separate" ]; then
+	aproc="-channel rgb -auto-level"
+elif [ "$autostretch" = "together" ]; then
+	aproc="-auto-level"
+elif [ "$autostretch" = "auto" ]; then
+	# if too much stretch on any channel, then use autostretch=together; otherwise use separate
+	testval=`convert $dir/tmpI.mpc -format \
+		"%[fx:max(max((1-maxima.r+minima.r),(1-maxima.g+minima.g)),(1-maxima.b+minima.b))]" info:`
+	if [ $(echo "$testval > 0.5" | bc) -eq 1 ]; then
+		# together
+		aproc="-auto-level"
+	else
+		# separate
+		aproc="-channel rgb -auto-level"
+	fi
+fi
+
+
+# autostretch as above
+convert $dir/tmpI.mpc $aproc $dir/tmpI.mpc 
+
+
+# get max dimension
+dim=`convert $dir/tmpI.mpc -format "%[fx:max(w,h)]" info:`
+#echo "$dim"
+
+# set up to reduce image size if larger than 1000 pixels for certain processes to speed them up
+if [ $dim -gt 1000 ]; then
+	reducing="-resize 25%"
+else
+	reducing=""
+fi
+
+
+
+# Process Denoise
+if [ "$noise" = "" ]; then
+	noise=`convert xc: -format "%[fx:max(1,floor($dim/1000))]" info:`
+fi
+if [ $noise -gt 0 ]; then
+	denoise=""
+	for ((i=0;i<noise;i++)) do
+		denoise="$denoise -enhance"
+	done
+	convert $dir/tmpI.mpc $denoise $dir/tmpI.mpc
+fi
+#echo "denoise=$denoise"
+
+
+# Process auto bri/con via space2 technique
+
+convert $dir/tmpI.mpc $setcspace -colorspace Gray $dir/tmp0.mpc
+mean=`convert $dir/tmp0.mpc -format "%[fx:mean]" info:`
+std=`convert $dir/tmp0.mpc -format "%[fx:standard_deviation]" info:`
+#echo "mean=$mean; std=$std;"
+
+#compute brightness and contrast amounts
+bratio=`convert xc: -format "%[fx:$dmean/$mean]" info:`
+test=`convert xc: -format "%[fx:$bratio>=1?1:0]" info:`
+if [ $test -eq 1 ]; then
+	#increase brightness
+	bri=`convert xc: -format "%[fx:$bri*pow($bratio,2.5)]" info:`
+else
+	#decrease brightness
+	#note must invert ratio and change sign for sigmoidal adjustment
+	bri=`convert xc: -format "%[fx:-$bri*pow(1/$bratio,2.5)]" info:`
+fi
+cratio=`convert xc: -format "%[fx:$dstd/$std]" info:`
+test=`convert xc: -format "%[fx:$cratio>=1?1:0]" info:`
+if [ $test -eq 1 ]; then
+	#increase contrast
+	con=`convert xc: -format "%[fx:$con*pow($cratio,2.5)]" info:`
+else
+	#decrease contrast
+	#note must invert ratio and change sign for sigmoidal adjustment
+	con=`convert xc: -format "%[fx:-$con*pow(1/$cratio,2.5)]" info:`
+fi
+#echo "bri=$bri; con=$con;"
+
+# test bri and con if zero, positive or negative
+# note values less than 0.0001 are essentially zero, but -sigmoidal-contrast fails at exactly zero
+britest=`convert xc: -format "%[fx:abs($bri)<0.0001?0:($bri>0?1:-1)]" info:`
+contest=`convert xc: -format "%[fx:abs($con)<0.0001?0:($con>0?1:-1)]" info:`
+#echo "britest=$britest; contest=$contest;"
+
+if [ $britest -eq 0 -a $contest -eq 1 ]; then
+	# positive contrast only
+	bproc=""
+	cproc="-sigmoidal-contrast $con,50%"
+
+elif [ $britest -eq 0 -a $contest -eq -1 ]; then
+	bproc=""
+	cproc="+sigmoidal-contrast $con,50%"
+
+elif [ $britest -eq 1 -a $contest -eq 0 ]; then
+	# positive brightness only
+	bproc="-sigmoidal-contrast $bri,0%"
+	cproc=""
+
+elif [ $britest -eq -1 -a $contest -eq 0 ]; then
+	# negative brightness only
+	bproc="+sigmoidal-contrast $bri,0%"
+	cproc=""
+
+elif [ $britest -eq 1 -a $contest -eq 1 ]; then
+	# positive brightness and positive contrast
+	bproc="-sigmoidal-contrast $bri,0%"
+	cproc="-sigmoidal-contrast $con,50%"
+
+elif [ $britest -eq 1 -a $contest -eq -1 ]; then
+	# positive brightness and negative contrast
+	bproc="-sigmoidal-contrast $bri,0%"
+	cproc="+sigmoidal-contrast $con,50%"
+
+elif [ $britest -eq -1 -a $contest -eq 1 ]; then
+	# negative brightness and positive contrast
+	bproc="+sigmoidal-contrast $bri,0%"
+	cproc="-sigmoidal-contrast $con,50%"
+
+elif [ $britest -eq -1 -a $contest -eq -1 ]; then
+	# negative brightness and negative contrast
+	bproc="+sigmoidal-contrast $bri,0%"
+	cproc="+sigmoidal-contrast $con,50%"
+elif [ $britest -eq 0 -a $contest -eq 0 ]; then
+	# negative brightness and negative contrast
+	bproc=""
+	cproc=""
+fi
+
+# apply bri and con as preprocess before getting mean and std images
+# also get new std value
+# only small difference if use old std value
+std=`convert $dir/tmpI.mpc $cproc $bproc -write $dir/tmpI.mpc \
+	$setcspace -colorspace Gray -format "%[fx:standard_deviation]" info:`
+#echo "new std=$std;"
+
+# convert window to a resize factor
+rf=`convert xc: -format "%[fx:100/$window]" info:`
+
+# get reduced mean image
+convert $dir/tmpI.mpc -filter box -resize $rf% $dir/tmpM.mpc
+#echo "rf=$rf;"
+
+# set up for gamma or evaluate pow
+# don't want gamma to change meta value of gamma from 0.4545, so use -evaluate pow
+if [ "$im_version" -lt "06040109" ]; then
+	sqrt="-gamma 2"
+else
+	sqrt="-evaluate pow 0.5"
+fi
+
+# get reduced standard deviation image
+# get std = sqrt( ave(x^2) - ave(x)^2 )
+# -gamma 2 is equivalent to sqrt
+convert \( $dir/tmpI.mpc $dir/tmpI.mpc -compose multiply -composite -filter box -resize $rf% \) \
+	\( $dir/tmpM.mpc $dir/tmpM.mpc -compose multiply -composite \) +swap \
+	-compose minus -composite -clamp $sqrt $dir/tmpS.mpc
+
+# expand mean and std images
+dim=`convert $dir/tmpI.mpc -format "%wx%h" info:`
+#echo "dim=$dim;"
+convert $dir/tmpM.mpc -resize $dim! $dir/tmpME.mpc
+convert $dir/tmpS.mpc -resize $dim! $dir/tmpSE.mpc
+
+# set dstd to std
+dstd=`convert xc: -format "%[fx:$std]" info:`
+
+if [ "$hdri_on" = "" ]; then
+	dsdmaxgain=`convert xc: -format "%[fx:$std/$maxgain]" info:`
+#	echo "dstd=$dstd; dsdmaxgain=$dsdmaxgain"
+	convert $dir/tmpI.mpc $dir/tmpME.mpc $dir/tmpSE.mpc -monitor \
+		-fx "u[1]+$dstd*(u[0]-u[1])/(u[2]+$dsdmaxgain)" +monitor $dir/tmpI.mpc
+else
+	dsdmaxgain=`convert xc: -format "%[fx:100*$std/$maxgain]" info:`
+	#echo "dstd=$dstd; dsdmaxgain=$dsdmaxgain"
+
+	# first line -- read input image modified by sigmoidal brightness and contrast and the mean and std images
+	# second line -- u[2]+$dsdmaxgain; apply second fixed sigmoidal contrast to mean image and add dsdmaxgain
+	# third line -- $dstd*(u[0]-u[1]); compute (image - mean) and multiply by dstd
+	# fourth line -- $dstd*(u[0]-u[1])/(u[2]+$dsdmaxgain)
+	# fifth line -- (u[1])+$dstd*(u[0]-u[1])/(u[2]+$dsdmaxgain)
+
+	convert $dir/tmpI.mpc $dir/tmpME.mpc $dir/tmpSE.mpc \
+	\( -clone 2 -evaluate add $dsdmaxgain% \) \
+	\( -clone 0 -clone 1 +swap -compose minus -composite -evaluate multiply $dstd \) \
+	\(  -clone 4 -clone 3 +swap -compose divide -composite \) \
+	-delete 0,2,3,4 -compose plus -composite $dir/tmpI.mpc
+fi
+
+
+# Process graybalance
+if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" ]; then
+
+	# separate channels
+	convert $dir/tmpI.mpc $setcspace $reducing -channel RGB -separate +channel $dir/tmpRGB.mpc
+	
+	# get ratios for graybalance
+	# get mask of top percent closest to gray
+	# approximation using negated saturation and solarized brightness multiplied
+	convert $dir/tmpI.mpc $setcspace $reducing \
+		\( -clone 0 -colorspace HSB -channel G -negate -separate +channel \) \
+		\( -clone 0 -colorspace HSB -channel B -separate +channel -solarize 50% -level 0x50% \) \
+		\( -clone 1 -clone 2 -compose multiply -composite \) \
+		\( -clone 3 -contrast-stretch 0,${percent}% -fill black +opaque white \) \
+		-delete 0-3 $dir/tmpM.mpc
+	
+	# get mean of mask
+	getMean $dir/tmpM.mpc
+	maskmean=$mean
+	[ "$maskmean" = "0" ] && errMsg "--- GRAY BALANCE ERROR - INCREASE PERCENT ARGUMENT ---"
+	#echo "maskmean=$maskmean"
+	
+	# use mask image to isolate user supplied percent of pixels closest to white
+	# then get ave graylevel for each channel of mask selected pixels
+		
+	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[0]" "0.5"
+	redave=$ave
+	redratio=$ratio
+	#echo "R: ave=$ave; redratio=$ratio"
+	
+	convert $dir/tmpRGB.mpc[1] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[1]" "0.5"
+	greenave=$ave
+	greenratio=$ratio
+	#echo "G: ave=$ave; greenratio=$ratio;"
+	
+	convert $dir/tmpRGB.mpc[2] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[2]" "0.5"
+	blueave=$ave
+	blueratio=$ratio
+	#echo "B: ave=$ave; blueratio=$ratio;"
+
+	# normalize r,g,b ratios by maximum ratio, so no added increase in brightness
+	if [ "$graynorm" != "none" ]; then
+		gnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+		redratio=`convert xc: -format "%[fx: $redratio/$gnormfact]" info:`
+		greenratio=`convert xc: -format "%[fx: $greenratio/$gnormfact]" info:`
+		blueratio=`convert xc: -format "%[fx: $blueratio/$gnormfact]" info:`
+		#echo "R: ave=$redave; ratio=$redratio"
+		#echo "G: ave=$greenave; ratio=$greenratio;"
+		#echo "B: ave=$blueave; ratio=$blueratio;"
+	fi
+	convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpI.mpc
+fi
+
+
+
+# Process whitebalance
+if [ "$colorbalance" = "white" -o "$colorbalance" = "both" ]; then
+
+	# separate channels
+	convert $dir/tmpI.mpc $setcspace $reducing -channel RGB -separate $dir/tmpRGB.mpc
+	
+	# get ratios for whitebalance
+	# get mask of top percent closest to white
+	# approximation using negated saturation and brightness channels multiplied
+	convert $dir/tmpI.mpc $setcspace $reducing \
+		-colorspace HSB -channel G -negate -channel GB -separate +channel \
+		-compose multiply -composite \
+		-contrast-stretch 0,${percent}% -fill black +opaque white \
+		$dir/tmpM.mpc
+	
+	# get mean of mask
+	getMean $dir/tmpM.mpc
+	maskmean=$mean
+	[ "$maskmean" = "0" ] && errMsg "--- WHITE BALANCE ERROR - INCREASE PERCENT ARGUMENT ---"
+	#echo "maskmean=$maskmean"
+	
+	# use mask image to isolate user supplied percent of pixels closest to white
+	# then get ave graylevel for each channel of mask selected pixels
+	
+	convert $dir/tmpRGB.mpc $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	
+	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[0]" "1"
+	redave=$ave
+	redratio=$ratio
+	#echo "R: ave=$ave; redratio=$ratio"
+	
+	convert $dir/tmpRGB.mpc[1] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[1]" "1"
+	greenave=$ave
+	greenratio=$ratio
+	#echo "G: ave=$ave; greenratio=$ratio;"
+	
+	convert $dir/tmpRGB.mpc[2] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	getRatio "$dir/tmpT.mpc[2]" "1"
+	blueave=$ave
+	blueratio=$ratio
+	#echo "B: ave=$ave; blueratio=$ratio;"
+
+	# normalize r,g,b ratios by maximum ratio, so no added increase in brightness
+	if [ "$whitenorm" != "none" ]; then
+		wnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+		redratio=`convert xc: -format "%[fx: $redratio/$wnormfact]" info:`
+		greenratio=`convert xc: -format "%[fx: $greenratio/$wnormfact]" info:`
+		blueratio=`convert xc: -format "%[fx: $blueratio/$wnormfact]" info:`
+		#echo "R: ave=$redave; ratio=$redratio"
+		#echo "G: ave=$greenave; ratio=$greenratio;"
+		#echo "B: ave=$blueave; ratio=$blueratio;"
+	fi
+	convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpI.mpc
+fi
+
+
+
+# Save to Output
+convert $dir/tmpI.mpc "$outfile"
+
+exit 0
+

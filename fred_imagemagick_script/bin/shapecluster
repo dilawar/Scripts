@@ -1,0 +1,272 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/5/2017 .......... revised 6/5/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: shapecluster [-t thickness] [-d darkness] [-r rolloff] [-e extent] [-b border] 
+# [-c color] [infile] [outfile]
+# 
+# USAGE: shapecluster [h|-help]
+# 
+# OPTIONS:
+# 
+# -t     thickness      thickness of the region separation; integer>0; default=10
+# -d     darkeness      darkeness of the shadows; 0<=integer<=100; default=60
+# -r     rolloff        rolloff of the shadow darkness; integer>=0; default=2
+# -e     extent         extent (distance) of the shadow; integer>=0; default=5
+# -b     border         border applied to output image; integer>=0; default=20
+# -c     color          border color; default=white
+#
+###
+# 
+# NAME: SHAPECLUSTER 
+# 
+# PURPOSE: To create a division of the image into 5 separated rectangular regions.
+# 
+# DESCRIPTION: SHAPECLUSTER creates a division of the image into 5 separated 
+# rectangular regions. Each region is separated with a shadowed background.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -t thickness ... THICKNESS of the region separation. Values are integers>0. 
+# The default=10.
+# 
+# -d darkeness ... DARKNESS of the shadows. Values are 0<=integer<=100. The default=60.
+# 
+# -r rolloff ... ROLLOFF (fading) of the shadow darkness. Values are integers>=0. 
+# The default=3.
+# 
+# -e extent ... EXTENT (distance) of the shadow. Values are integers>=0. The default=5.
+# 
+# -b border ... BORDER in pixels to add around the outside of the output image. 
+# Value are integer>=0. The default=5.
+# 
+# -c color ... border and background color. Any valid opaque IM color is allowed.
+# The default=white.
+# 
+# 
+# Reference: 
+# http://www.photoshopessentials.com/photo-effects/shape-cluster-photo-display-with-photoshop-cc/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+thickness=10		# thickness of lines
+darkeness=60		# shadow darkness
+rolloff=2			# shadow rolloff
+extent=5			# shadow extent
+border=20			# border amount
+color="white"		# border and background color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		 -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$thickness == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-d)    # get darkness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DARKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   darkness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$darkness" = "" ] && errMsg "--- DARKNESS=$darkness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$darkness > 100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- DARKNESS=$darkness MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-r)    # get rolloff
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLLOFF SPECIFICATION ---"
+					   checkMinus "$1"
+					   rolloff=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rolloff" = "" ] && errMsg "--- ROLLOFF=$rolloff MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-e)    # get extent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXTENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   extent=`expr "$1" : '\([0-9]*\)'`
+					   [ "$extent" = "" ] && errMsg "--- EXTENT=$extent MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-b)    # get border
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BORDER SPECIFICATION ---"
+					   checkMinus "$1"
+					   border=`expr "$1" : '\([0-9]*\)'`
+					   [ "$border" = "" ] && errMsg "--- BORDER=$border MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/shapecluster_1_$$.mpc"
+tmpB1="$dir/shapecluster_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" -alpha off +repage $tmpA1 ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get image dimensions
+ww=`convert -ping $tmpA1 -format "%w" info:`
+hh=`convert -ping $tmpA1 -format "%h" info:`
+
+# determine 1/3 and 2/3 dimensions
+w13=`convert xc: -format "%[fx:round($ww/3)]" info:`
+h13=`convert xc: -format "%[fx:round($hh/3)]" info:`
+w23=$((ww-w13))
+h23=$((hh-h13))
+
+# process image
+# lines 1-7 -- read input and create white mask image with lines drawn in black
+# line 8 -- put mask into alpha channel of input
+# line 9 -- create shadow image
+# line 10 -- apply shadow to image
+# line 11 -- flatten against background/bordercolor
+# line 12 -- pad image with bordercolor border
+# line 13 -- write output
+convert \( $tmpA1 \( -size ${ww}x${hh} xc:white \
+		-fill white -stroke black -strokewidth $thickness -draw \
+		"line $w13,0 $w13,$h23 \
+		line $w13,$h13 $ww,$h13 \
+		line 0,$h23 $w23,$h23 \
+		line $w23,$h13 $w23,$hh" \
+		-alpha off +repage \) \
+	-alpha off -compose copy_opacity -composite -compose over \) \
+	\( +clone -background black -shadow ${darkeness}x${rolloff}+${extent}+${extent} \) \
+	+swap -background none -layers merge +repage \
+	-background $color -compose over -flatten \
+	-bordercolor $color -border $border \
+	"$outfile"
+
+	
+exit 0
+
+
+

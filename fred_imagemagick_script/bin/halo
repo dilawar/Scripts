@@ -1,0 +1,514 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/6/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: halo [-r radius] [-w width] [-c center] [-o opacity] [-k contrast] [-m mixture] [-b basecolor] [-s saturation] [-a angle] [-d density] [-n newseed] [-f feather] infile outfile
+# USAGE: halo [-h or -help]
+#
+# OPTIONS:
+#
+# -r      radius             radius from center point to beginning of halo; 
+#                            integer>=0; default is one quarter the minimum image dimension
+# -w      width              width or distance of halo to outer radius; integer>0; 
+#                            default is one quarter the minimum image dimension
+# -c      center             center point for the halo; center=cx,cy; 
+#                            integer>=0; default is center of image
+# -o      opacity            opacity of the halo; integer; 0<=opacity<=100;
+#                            opacity=100 is fully opaque; opacity=0 if fully transparent;
+#                            default=40
+# -k      contrast           contrast of of halo striations; integer 0<=contrast<=100;
+#                            contrast=0 is no striations; contrast=100 is fully transparent 
+#                            gaps between striations; default=50
+# -m      mixture            mixture of primary colors from the base color; integer;
+#                            0<=mixture<=100; mixture=0 is full separation of primary colors;
+#                            mixture=100 is full overlap of primary colors causing a solid halo 
+#                            of the basecolor; mixture=25 is a nice even full rainbow halo;
+#                            default=65 is a non-rainbow halo of subdued colors 
+# -b      basecolor          base color for for the halo from which its primary colors 
+#                            will be extracted. Any valid IM color is allowed. 
+#                            The default="rgb(100%,90%,80%)"
+# -s      saturation         saturation of the halo colors; integer; 0<=saturation<=100;
+#                            default=100
+# -a      angle              clockwise rotation angle for striation patteren; integer; 
+#                            0<=angle<=360; default=0
+# -d      density            density of random striation pattern; integer; 0<=density<=100; 
+#                            Larger values have smaller gaps and smaller values have larger gaps;
+#                            The default=40
+# -n      newseed            seed value for random striation pattern; integer>0; default=100
+# -f      feather            feather or blurring distance of inner and outer halo radii; 
+#                            integer>=0; default=10
+#
+###
+#
+# NAME: HALO 
+# 
+# PURPOSE: To apply a circular halo to an image.
+# 
+# DESCRIPTION: HALO applies a circular halo of given center, inner radius and  
+# width to outer radius. The user can also control the coloring of the halo, 
+# its striation contrast, its overall transparency and saturation and rotation 
+# of the halo striation pattern.
+# 
+# OPTIONS: 
+#
+# -r radius ... RADIUS is the radius from center point to beginning of halo. 
+# Values are integers>=0. The default is one quarter of the minimum dimension 
+# of the image.
+# 
+# -w width ... WIDTH is the distance of halo to outer radius. Values are 
+# integers>0. The default is one quarter of the minimum dimension of the image.
+# Note: the halo will start to fade out for widths less than or equal to the 
+# feather amount.
+# 
+# -c center ... CENTER=cx,cy are the comma separated coordinates in the image 
+# determining the center of the halo. Values are integers>=0. The default 
+# is the center of the image.
+# 
+# -o opacity ... OPACITY is the opacity of the halo. Values are integers, such 
+# that 0<=opacity<=100. An opacity=100 is fully opaque. An opacity=0 if fully 
+# transparent. The default=40.
+# 
+# -k contrast ... CONTRAST is the contrast of the halo striations. Values 
+# are integers, such that 0<=contrast<=100. A contrast=0 is no striations. 
+# A contrast=100 is fully transparent gaps between striations. The default=50.
+# 
+# -m mixture ... MIXTURE is the halo mixture of primary colors from the base 
+# color. Values are integers such that 0<=mixture<=100. A mixture=0 is full 
+# separation of primary colors. A mixture=100 is full overlap of primary colors 
+# causing a solid halo color of the basecolor. A mixture=25 is a nice even full 
+# rainbow halo. The default=65 is a non-rainbow halo of subdued colors. 
+# 
+# -b basecolor ... BASECOLOR is the base color for the halo from which its primary  
+# colors will be extracted. Any valid IM color is allowed, but should not have zero 
+# percent of either red, green or blue primary components. The default="rgb(100%,90%,80%)".
+# See http://imagemagick.org/script/color.php
+# 
+# -s saturation ... SATURATION is the saturation of the halo colors. Values 
+# are integer such that 0<=saturation<=100. The default=100.
+# 
+# -a angle ... ANGLE is the clockwise rotation angle for the halo striation  
+# pattern. Values are integers such that 0<=angle<=360. The default=0.
+# 
+# -d density ... DENSITY is the density of random striation pattern in the halo. 
+# Values are integers such that 0<=density<=100. Larger values have smaller gaps 
+# between striations and smaller values have larger gaps between striations. 
+# Thus at contrast=100 and density=0, there is no halo (i.e, fully transparent). 
+# And at contrast=100 and density=100 there is a solid halo with no striations. 
+# The default=40.
+# 
+# -n newseed ... NEWSEED is the seed value for the random striations. Values 
+# are integers>0. The default=100.
+# 
+# -f feather ... FEATHER is the feathering or blurring distance at the inner 
+# and outer halo radii. Values are integer>=0; The default=10.
+# 
+# NOTE: Requires IM 6.4.2-8 or higher due to the use of -distort polar/depolar.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+rad=""						#radius of start of halo
+width=""					#width of halo
+opacity=40					#0-100; opacity of halo
+contrast=50					#0-100; contrast of halo striations
+mixture=65					#0=100; mixture of primary colors in halo (basecolor only)
+angle=0						#degrees 0-360 clockwise; rotation of halo striations
+sat=100						#0-100; saturation of halo
+bcolor="rgb(100%,90%,80%)"	#base color for halo
+cx=""						#center x coordinate
+cy=""						#center y coordinate
+density=40					#0-100; density of halo striations
+newseed=100					#seed for random halo striations
+feather=10					#feather of inner and outer radius
+size=4						#resize blending of halo colors
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 26 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get rad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+					   checkMinus "$1"
+					   rad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rad" = "" ] && errMsg "--- RADIUS=$rad MUST BE A NON-NEGATIVE INTEGER ---"
+#		   			   radtest=`echo "$rad < 1" | bc`
+#					   [ $radtest -eq 1 ] && errMsg "--- RADIUS=$rad MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   widthtest=`echo "$width < 1" | bc`
+					   [ $widthtest -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-c)    # get center
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -eq 0 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF COORDINATES SUPPLIED ---"
+					   center=`expr "$1," : '\([0-9]*,[0-9]*\)'`
+					   [ "$center" = "" ] && errMsg "--- CENTER=$coords MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
+		   			   cx=`echo "$center" | cut -d, -f1`
+		   			   cy=`echo "$center" | cut -d, -f2`
+		   			   if [ "$cx" != "" -a "$cy" = "" ]; then
+		   			   		cy=$cx
+		   			   fi
+					   ;;
+				-o)    # get opacity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "--- OPACITY=$opacity MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   opacitytestA=`echo "$opacity < 0" | bc`
+		   			   opacitytestB=`echo "$opacity > 100" | bc`
+					   [ $opacitytestA -eq 1 -o $opacitytestB -eq 1 ] && errMsg "--- OPACITY=$opacity MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-k)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   checkMinus "$1"
+					   contrast=`expr "$1" : '\([0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   contrasttestA=`echo "$contrast < 0" | bc`
+		   			   contrasttestB=`echo "$contrast > 100" | bc`
+					   [ $contrasttestA -eq 1 -o $contrasttestB -eq 1 ] && errMsg "--- CONTRAST=$contrast MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-m)    # get mixture
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIXTURE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mixture=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mixture" = "" ] && errMsg "--- MIXTURE=$mixture MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   mixturetestA=`echo "$mixture < 0" | bc`
+		   			   mixturetestB=`echo "$mixture > 100" | bc`
+					   [ $mixturetestA -eq 1 -o $mixturetestB -eq 1 ] && errMsg "--- MIXTURE=$mixture MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-s)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   saturation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   saturationtestA=`echo "$saturation < 0" | bc`
+		   			   saturationtestB=`echo "$saturation > 100" | bc`
+					   [ $saturationtestA -eq 1 -o $saturationtestB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-d)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   densitytestA=`echo "$density < 0" | bc`
+		   			   densitytestB=`echo "$density > 100" | bc`
+					   [ $densitytestA -eq 1 -o $densitytestB -eq 1 ] && errMsg "--- DENSITY=$density MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   checkMinus "$1"
+					   angle=`expr "$1" : '\([0-9]*\)'`
+					   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   angletestA=`echo "$angle < 0" | bc`
+		   			   angletestB=`echo "$angle > 360" | bc`
+					   [ $angletestA -eq 1 -o $angletestB -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-n)    # get newseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$newseed" = "" ] && errMsg "--- NEWSEED=$newseed MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   newseedtest=`echo "$newseed < 1" | bc`
+					   [ $newseedtest -eq 1 ] && errMsg "--- NEWSEED=$newseed MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-f)    # get feather
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FEATHER SPECIFICATION ---"
+					   checkMinus "$1"
+					   feather=`expr "$1" : '\([0-9]*\)'`
+					   [ "$feather" = "" ] && errMsg "--- FEATHER=$feather MUST BE A NON-NEGATIVE INTEGER ---"
+#		   			   feathertest=`echo "$feather < 1" | bc`
+#					   [ $feathertest -eq 1 ] && errMsg "--- FEATHER=$feather MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-b)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BASECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+tmpA1="$dir/halo_$$.mpc"
+tmpB1="$dir/halo_$$.cache"
+tmp1="$dir/halo_1_$$.miff"
+tmp2="$dir/halo_2_$$.miff"
+tmp3="$dir/halo_3_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2 $tmp3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2 $tmp3; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using halo.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# note problem with gamma change and compose copy_opacity after 6.8.5.4
+if [ "$im_version" -ge "06070803" -a "$im_version" -le "06080308" ]; then
+	setcspace2=""
+else
+	setcspace2="-set colorspace RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace2=""
+fi
+
+# cannot seem to fix at least some versions and others are some different patterns
+# version that are bad are: 6.7.7.9, 6.7.3.9-6.7.4.4 
+if [ "$im_version" -lt "06070800" ]; then
+	setcspace3=""
+else
+	setcspace3="-set colorspace RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace3=""
+fi
+
+
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
+	then
+	: ' Do Nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+
+#default rad and width
+[ "$rad" = "" ] && rad=`convert $tmpA1 -format "%[fx:floor(min(w,h))/4)]" info:`
+[ "$width" = "" ] && width=`convert $tmpA1 -format "%[fx:floor(min(w,h))/4)]" info:`
+
+#default center
+[ "$center" = "" ] && cx=`convert $tmpA1 -format "%[fx:(w-1)/2]" info:`
+[ "$center" = "" ] && cy=`convert $tmpA1 -format "%[fx:(h-1)/2]" info:`
+
+# complement contrast, density and angle
+contr=`convert xc: -format "%[fx:$opacity*(1-$contrast/100)]" info:`
+dens=`convert xc: -format "%[fx:100-$density]" info:`
+roll=`convert $tmpA1 -format "%[fx:w*(360-$angle)/360]" info:`
+
+# adjust rad and width for scaling ratio of height of polar image to actual radius and width
+ratio=`convert $tmpA1 -format "%[fx:2*h/sqrt(w*w+h*h)]" info:`
+rad2=`convert $tmpA1 -format "%[fx:floor($ratio*$rad)]" info:`
+width2=`convert $tmpA1 -format "%[fx:floor($ratio*$width)]" info:`
+
+# get image size and excess background past outer radius
+ww=`convert $tmpA1 -format %w info:`
+hh=`convert $tmpA1 -format %h info:`
+hmrw=`convert xc: -format "%[fx:max(1,$hh-$rad2-$width2)]" info:`
+
+# create halo
+red=`convert -size 1x1 xc:$bcolor -format "%[fx:100*u.r]" info:`
+green=`convert -size 1x1 xc:$bcolor -format "%[fx:100*u.g]" info:`
+blue=`convert -size 1x1 xc:$bcolor -format "%[fx:100*u.b]" info:`
+mix2=`convert xc: -format "%[fx:66.7*(100-$mixture)/100]" info:`
+convert \( -size 1x${width2} gradient:"gray(255)-gray(0)" -threshold $mix2% -fill "gray($blue%)" -opaque white \) \
+	\( -clone 0 \( -clone 0 -flip \) +swap -append -resize 1x${width2}! -fill "gray($green%)" -opaque white \) \
+	\( -clone 0 -flip -fill "gray($red%)" -opaque white \) \
+	-reverse -combine \
+	-resize 1x${size} -resize ${ww}x${width2}! \
+	-modulate 100,$sat,100 \
+	$tmp1
+
+# pad with black at inner and outer radius
+convert \( -size ${ww}x${rad2} xc:black \) \
+	$tmp1 \
+	\( -size ${ww}x${hmrw} xc:black \) -append \
+	-crop ${ww}x${hh}+0+0 +repage \
+	-modulate 100,${sat},100 \
+	$tmp1
+
+
+# create striations mask
+convert \( -size ${ww}x${rad2} xc:black \) \
+	\( -size ${ww}x1 xc: -seed $newseed +noise random -channel G $setcspace -separate +channel \
+	-threshold $dens% -scale ${ww}x${width2}! -roll +${roll}+0 +level ${contr}x${opacity}% \) \
+	\( -size ${ww}x${hmrw} xc:black \) -append \
+	-crop ${ww}x${hh}+0+0 +repage \
+	$tmp2
+
+
+# create feathered mask
+qmax=`convert xc: -format "%[fx:quantumrange]" info:`
+if [ "$feather" = "0" ]; then
+	blur=""
+else
+	blur="-blur ${feather}x${qmax}"
+fi
+convert \( -size ${ww}x${rad2} xc:black \) \
+	\( -size ${ww}x${width2} xc:white \) \
+	\( -size ${ww}x${hmrw} xc:black \) -append \
+	-crop ${ww}x${hh}+0+0 +repage \
+	$blur -level 50x100% \
+	$setcspace $tmp3
+
+
+# composite feathered mask and striations mask
+convert $tmp2 $tmp3 -compose multiply -composite $tmp2
+
+
+# put striations mask into alpha channel of halo image
+convert $tmp1 $tmp2 $setcspace2 -alpha off -compose copy_opacity -composite $tmp1
+
+
+# convert halo from polar to rectangular coords 
+convert $tmp1 -distort polar -1,0,$cx,$cy $tmp1
+
+
+# composite image with halo
+convert $tmpA1 $tmp1 $setcspace3 -compose over -composite "$outfile"
+
+exit 0

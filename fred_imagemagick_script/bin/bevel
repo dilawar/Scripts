@@ -1,0 +1,546 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/29/2010 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bevel [-w width] [-a azimuth] [-e elevation] [-d depth] [-f form] [-i innermode] [-o outermode] [-s soften] [-t taper] [-b bcolor] [-c colormode] infile outfile
+# USAGE: bevel [-h or -help]
+# 
+# OPTIONS:
+# 
+# -w      width             width of border in pixels; same in both dimensions; 
+#                           integer>0; default=5
+# -a      azimuth           azimuth angle for light source; 0<=integer<=360; 
+#                           counterclockwise from positive x axis (East);
+#                           default=135 (NorthWest)
+# -e      elevation         elevation angle for light source; 0<=integer<=90;
+#                           upwards from x-y plane; default=30
+# -d      depth             depth of effect; integer>=0; default=100
+# -f      form              form of effect; choices are: inner, outer or emboss;
+#                           default=inner
+# -i      innermode         mode for form=inner or emboss; choices are: 
+#                           hard or smooth; default=hard
+# -o      outermode         mode for form=outer or emboss; choices are: 
+#                           raised or lowered; default=raised
+# -s      soften            softening or smoothing effect; integer>=0; default=0
+# -t      taper             taper amount for form=outer or emboss; integer>=0;
+#                           nominally 0 to 3; default=2 for mode=raised; 
+#                           default=0 for mode=lowered
+# -b      bcolor            color for outer bevel or outer bevel part of emboss;
+#                           Any valid opaque IM color is allowed; default=gray 
+#                           color
+# -c      colormode         colorization mode when bcolor is assigned; choices 
+#                           are: dark or light; default=dark
+# 
+###
+# 
+# NAME: BEVEL 
+# 
+# PURPOSE: To apply an inner bevel or outer bevel or emboss effect to an image.
+# 
+# DESCRIPTION: BEVEL applies an inner bevel or outer bevel or emboss effect to 
+# an image, especially one that has an alpha channel.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -w width ... WIDTH is the dimensions of bevel/emboss effect. The same 
+# value is used in both dimensions. Values are integers greater than 0. The 
+# default=5.
+# 
+# -a azimuth ... AZIMUTH is the angle in degrees in the x-y plane measured 
+# counterclockwise from EAST to the light source. Values are integers in the 
+# range 0<=azimuth<=360. The default=135 (NorthWest).
+# 
+# -e elevation ... ELEVATION is the angle in degrees upwards from the x-y plane 
+# to the light source. Values are integers in the range 0<=elevation<=90. 
+# The default=30.
+# 
+# -d depth ... DEPTH controls the depth effect. It basically adjust the contrast 
+# of the shading in the effect. Values are integers>=0. Larger values increase 
+# the depth/contrast and smaller values decrease the depth/contrast. The 
+# default=100.
+# 
+# -f form ... FORM of the effect. The choices are: inner, outer or emboss. The
+# default=inner.
+# 
+# -i innermode ... INNERMODE is the mode for form=inner or emboss. The choices 
+# are: hard or smooth. The default=hard.
+# 
+# -o outermode ... OUTERMODE is the mode for form=outer or emboss. The choices 
+# are: raised or lowered. The default=raised.
+# 
+# -s soften ... SOFTEN is the amount of softening or smoothing in the effect. 
+# Values are integer>=0. Nominal values are 0 to about 10. The default=0 
+# (no softening).
+# 
+# -t taper ... TAPER is the rate of tapering for form=outer or emboss. Values
+# are integesr>=0. Nominally, taper is about 0 to 3. Smaller taper means the 
+# effect rolls off or tapers faster and is more downward curved. Larger values 
+# means the taper rolls off more slowly and flatly. The default=2 for 
+# mode=raised and the default=0 for mode=lowered.
+# 
+# -b bcolor ... BCOLOR is the color to apply to the outer bevel or outer bevel 
+# part of emboss. Any valid opaque IM color is allowed. The default=gray 
+# 
+# -c colormode ... COLORMODE is the colorization mode to use when bcolor is 
+# assigned. The choices are: dark or light. The default=dark.
+# 
+# NOTE: When the image has no alpha channel or a fully opaque alpha channel, 
+# then it is recommended that one use my bevelborder script, as it is much faster.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+form="inner"				# inner; outer; emboss
+azimuth=135					# azimuth angle for light source
+elevation=30				# elevation angle for light source
+depth=100					# depth factor
+width=5  					# width
+soften=0					# softening
+imode="hard"				# hard or smooth for inner bevel or emboss
+omode="raised"				# raised or lowered for outer or emboss
+taper=""					# outer bevel taper (nominally 0 to 3); raised=2, lowered=0; but not for fully opaque alpha
+bcolor=""					# outer bevel (emboss) color
+colormode="dark"			# dark or light; when bcolor assigned
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   testA=`echo "$width <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-a)    # get azimuth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AZUMUTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   azimuth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$azimuth" = "" ] && errMsg "--- AZUMUTH=$azimuth MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$azimuth < 0" | bc`
+					   test2=`echo "$azimuth > 360" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- AZUMUTH=$azimuth MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-e)    # get elevation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ELEVATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   elevation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$elevation" = "" ] && errMsg "--- ELEVATION=$elevation MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$elevation < 0" | bc`
+					   test2=`echo "$elevation > 90" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ELEVATION=$elevation MUST BE AN INTEGER BETWEEN 0 AND 90 ---"
+					   ;;
+				-d)    # get  depth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DEPTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   depth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$depth" = "" ] && errMsg "--- DEPTH=$depth MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-f)    # get form
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID FORM SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test type values
+					   form=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$form" in
+							outer|inner|emboss) ;; # do nothing - valid type
+							*)  errMsg "--- FORM=$form IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-i)    # get imode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID INNERMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test type values
+					   imode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$imode" in
+							hard|smooth) ;; # do nothing - valid type
+							*)  errMsg "--- INNERMODE=$imode IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-o)    # get omode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID OUTERMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test type values
+					   omode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$omode" in
+							raised|lowered) ;; # do nothing - valid type
+							*)  errMsg "--- OUTERMODE=$omode IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-s)    # get soften
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SOFTEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   soften=`expr "$1" : '\([0-9]*\)'`
+					   [ "$soften" = "" ] && errMsg "--- SOFTEN=$soften MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-t)    # get taper
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TAPER SPECIFICATION ---"
+					   checkMinus "$1"
+					   taper=`expr "$1" : '\([0-9]*\)'`
+					   [ "$taper" = "" ] && errMsg "--- TAPER=$taper MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-b)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-c)    # get colormode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID COLORMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test type values
+					   colormode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$colormode" in
+							dark|light) ;; # do nothing - valid type
+							*)  errMsg "--- COLORMODE=$colormode IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# setup temporary images and auto delete upon exit
+tmpA1="$dir/bevel_1_$$.mpc"
+tmpB1="$dir/bevel_1_$$.cache"
+tmpA2="$dir/bevel_2_$$.mpc"
+tmpB2="$dir/bevel_2_$$.cache"
+tmpA3="$dir/bevel_3_$$.mpc"
+tmpB3="$dir/bevel_3_$$.cache"
+tmpA4="$dir/bevel_4_$$.mpc"
+tmpB4="$dir/bevel_4_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# test if alpha channel enabled and completely opaque alpha channel
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+alpha_mean=""
+ [ "$is_alpha" != "" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
+opaque_alpha="no"
+[ "$is_alpha" = "" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# also some compose methods have not been fixed as of 6.7.8.7 such as hardlight
+# The following was determined from various version tests using bevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -gt "06080504" ]; then
+	cspace="sRGB"
+	setcspace=""
+fi
+
+# flatten alpha channel into image, but keep alpha channel
+convert $tmpA1 $setcspace \( -clone 0 -alpha extract \) \
+	\( -clone 0 -background "gray(50%)" -flatten \) -delete 0 +swap \
+	-alpha off -compose copy_opacity -composite $tmpA1
+
+
+# set up defaults for taper
+if [ "$taper" = "" -a "$form" != "inner" -a "$omode" = "raised" ]; then
+	taper=2
+elif [ "$taper" = "" ]; then
+	taper=0
+fi
+
+
+# setup leveling for morphology distance
+wfact=$((1000*$width))
+leveling="-level 0,$wfact"
+
+
+# setup depth to contrast
+if [ "$form" = "outer" -a "$opaque_alpha" != "yes" ]; then
+	ocontr=`convert xc: -format "%[fx:(0.75*$depth-100)]" info:`
+elif [ "$form" = "emboss" ]; then
+	icontr=`convert xc: -format "%[fx:(0.5*$depth-100)]" info:`
+	ocontr=`convert xc: -format "%[fx:(0.75*$depth-100)]" info:`
+else
+	icontr=`convert xc: -format "%[fx:(0.5*$depth-100)]" info:`
+	ocontr=`convert xc: -format "%[fx:(0.5*$depth-100)]" info:`
+fi
+if [ "$contr" = "0" ]; then
+	ideepening=""
+	odeepening=""
+else
+	ideepening="-brightness-contrast 0,$icontr"
+	odeepening="-brightness-contrast 0,$ocontr"
+fi
+
+
+# setup soften
+if [ $soften -eq 0 ]; then
+	softening=""
+else
+	softening="-blur ${soften}x65000"
+fi
+
+
+# set up tapering
+if [ "$form" = "outer" -a "$opaque_alpha" != "yes" -a "$taper" != "0" ]; then
+	taper=`convert xc: -format "%[fx:pow(10,$taper)]" info:`
+	tapering="-evaluate log $taper"
+elif [ "$form" = "emboss" -a "$opaque_alpha" != "yes" -a "$taper" != "0" ]; then
+	taper=`convert xc: -format "%[fx:pow(10,$taper)]" info:`
+	tapering="-evaluate log $taper"
+else
+	tapering=""
+
+fi
+
+
+# set up negating
+if [ "$form" != "inner" -a "$omode" = "lowered" ]; then
+	negating="-negate"
+else
+	negating=""
+fi
+
+
+# set up colorizing
+if [ "$bcolor" != "" -a "$colormode" = "dark" ]; then
+	colorizing="+level-colors black,$bcolor"
+elif [ "$bcolor" != "" -a "$colormode" = "light" ]; then
+	colorizing="-fill $bcolor -colorize 50%"
+else
+	colorizing=""
+fi
+
+
+# set up masking
+if [ "$form" != "inner" -a "$bcolor" != "" ]; then
+	masking1="-write $tmpA4"
+	masking2="$tmpA4 $tmpA2 -compose multiply -composite"
+else
+	masking1=""
+	masking2="$tmpA2"
+fi
+
+# process image
+if [ "$form" = "inner" ]; then
+	if [ "$imode" = "hard" ]; then
+		thresholding=""
+	elif [ "$imode" = "smooth" ]; then
+		thresholding="-threshold 0"
+	fi
+	convert $tmpA1 -alpha extract $thresholding -write $tmpA2 \
+		+level 0,1000 -white-threshold 999 \
+		-morphology Distance:-1 Euclidean:$width,1000 $leveling \
+		-shade ${azimuth}x${elevation} \
+		-auto-level $ideepening $softening \
+		\( +clone -fill "gray(50%)" -colorize 100% \) +swap \( $tmpA2 -threshold 0 \) \
+		-compose over -composite \
+		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
+		$tmpA2 -alpha off -compose copy_opacity -composite \
+		"$outfile"
+elif [ "$form" = "outer" -a "$opaque_alpha" = "yes" ]; then
+	width1=$(($width+1))
+	thresholding="-shave ${width}x${width} -bordercolor black -border $width1 -blur ${width}x65000 -threshold 0"
+	shaving="-shave 1x1"
+	convert $tmpA1 -alpha extract $thresholding -write $tmpA2 \
+		+level 0,1000 -white-threshold 999 \
+		-morphology Distance:-1 Euclidean:$width,1000 $leveling \
+		-shade ${azimuth}x${elevation} $shaving \
+		-auto-level $odeepening $softening \
+		\( +clone -fill "gray(50%)" -colorize 100% \) +swap \( $tmpA2 -threshold 0 \) \
+		-compose over -composite \
+		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
+		$tmpA2 -alpha off -compose copy_opacity -composite \
+		"$outfile"
+elif [ "$form" = "outer" ]; then
+	thresholding="-threshold 0 -negate"
+	smoothing=""
+	azimuth=`convert xc: -format "%[fx:mod($azimuth+180,360)]" info:`
+	convert $tmpA1 -alpha extract $thresholding $masking1 \
+		+level 0,1000 -white-threshold 999 \
+		-morphology Distance:-1 Euclidean:$width,1000 $leveling \
+		\( +clone -negate $tapering $softening -write $tmpA2 +delete \) \
+		-shade ${azimuth}x${elevation} \
+		-auto-level $odeepening $softening $colorizing \
+		\( +clone -fill "gray(50%)" -colorize 100% \) +swap \( $masking2 -threshold 0 \) \
+		-compose over -composite $negating \
+		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
+		$tmpA2 -alpha off -compose copy_opacity -composite \
+		"$outfile"
+elif [ "$form" = "emboss" ]; then
+	# do inner bevel
+	if [ "$imode" = "hard" ]; then
+		thresholding=""
+	elif [ "$imode" = "smooth" ]; then
+		thresholding="-threshold 0"
+	fi
+	convert $tmpA1 -alpha extract $thresholding -write $tmpA2 \
+		+level 0,1000 -white-threshold 999 \
+		-morphology Distance:-1 Euclidean:$width,1000 $leveling \
+		-shade ${azimuth}x${elevation} \
+		-auto-level $ideepening $softening \
+		\( +clone -fill "gray(50%)" -colorize 100% \) +swap \( $tmpA2 -threshold 0 \) \
+		-compose over -composite \
+		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
+		$tmpA2 -alpha off -compose copy_opacity -composite $tmpA3
+
+	# do outer bevel on result of inner bevel
+	thresholding="-threshold 0 -negate"
+	smoothing=""
+	azimuth=`convert xc: -format "%[fx:mod($azimuth+180,360)]" info:`
+	convert $tmpA1 -alpha extract $thresholding $masking1 \
+		+level 0,1000 -white-threshold 999 \
+		-morphology Distance:-1 Euclidean:$width,1000 $leveling \
+		\( +clone -negate $tapering $softening -write $tmpA2 +delete \) \
+		-shade ${azimuth}x${elevation} \
+		-auto-level $odeepening $softening $colorizing \
+		\( +clone -fill "gray(50%)" -colorize 100% \) +swap \( $masking2  -threshold 0 \) \
+		-compose over -composite $negating \
+		\( $tmpA3 -alpha off \) +swap $setcspace -compose hardlight -composite \
+		$tmpA2 -alpha off -compose copy_opacity -composite \
+		"$outfile"
+		
+fi
+
+exit 0

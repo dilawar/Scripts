@@ -1,0 +1,761 @@
+Cannot Open File!eveloped by Fred Weinhaus 12/15/2016 .......... revised 8/22/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: neg2pos [-p position] [-o offset] [-C color] [-m method] [-r refinefuzz] 
+# [-t trimfuzz ] [-a area] [-s stretch] [-l cliplow] [-h cliphigh] 
+# [ -c crop] [-cb colorbalance] [-P percent] [-s showmask] infile outfile
+#
+# USAGE: neg2pos [-help]
+#
+# OPTIONS:
+# 
+# -p      position         position to extract perforation region background  
+#                          color; choices are: northwest, northeast, southwest, 
+#                          southeast, corners, or x,y coord; default=northwest
+# -o      offset           offset from position when position is not x,y coord; 
+#                          comma separate non-negative x,y pair of integers; 
+#                          default="1,1"
+# -C      color            color of the perforations region; any valid IM opaque
+#                          color may be use; default is to use the -p position and 
+#                          -o offset to get the color; if color is specified,  
+#                          the -p and -o arguments will be ignored.
+# -m      method           method to use to refine perforation region 
+#                          background color and get crop bounds; choices are: 
+#                          floodfill, threshold or none; default=floodfill
+# -r      refinefuzz       fuzz value for refining the perforation region 
+#                          background color; 0<=float<=100; default=5
+# -t      trimfuzz         fuzz value for trimming of image region with or 
+#                          without crop; value or "none"; 0<=float<=100; 
+#                          default=10
+# -a      area             connected components area threshold when 
+#                          method=threshold; integer>=0; default=10000
+# -s      stretch          stretch image channels dynamic range; options are: 
+#                          none (n), together (t), or separate (s); 
+#                          default=separate
+# -l      cliplow          clip percent on low end of histogram; 
+#                          float; 0<=cliplow<=100; default=1
+# -h      cliphigh         clip percent on high end of histogram;
+#                          float; 0<=cliphigh<=100; default=1
+# -c      crop             crop the central image; yes or no; default=yes
+# -cb     colorbalance     color balance mode; choices are gray,  
+#                          white, both, auto or none; default=none
+# -P      percent          percent threshold for colorbalance processing; 
+#                          0<float<100; default=10
+# -s      showmask         show the mask that delineates the perforation region
+#                          from the interior image; choices are: view, save or
+#                          none
+#
+###
+#
+# NAME: NEG2POS
+# 
+# PURPOSE: To convert from a (scanned film) negative image to a positive image.
+# 
+# DESCRIPTION: NEG2POS converts from a (scanned film) negative image to a 
+# positive image when the negative contains the exterior perforation region. 
+# Options include: stretching the image channels' dynamic range with without 
+# clipping, connected components processing to remove small regions before 
+# trimming or cropping and color balancing via white balance, gray balance 
+# or automatic.
+# 
+# OPTIONS: 
+# 
+# -p position ... POSITION for extracting the perforation region background  
+# color. The choices are: northwest, northeast, southwest, southeast, corners, 
+# or an x,y coordinate. The default=northwest. The choice of corners gets the 
+# color at each corner and takes the average of the four.
+# 
+# -o offset ... OFFSET from the directional positions. Ignored for the case  
+# when the position is a coordinate pair. Values are a comma separated 
+# non-negative x,y pair of integers. The  default="1,1".
+# 
+# -C color ... COLOR of the perforations region. Any valid IM opaque color may 
+# be use. The default is to use the -p position and -o offset to get the color. 
+# If color is specified, the -p and -o arguments will be ignored. 
+#
+# -m method ... METHOD to use to refine the perforation region background color 
+# and to get the crop bounds of the interior image. The choices are: 
+# floodfill (f), threshold (t) or none (n). The default=floodfill. Note that 
+# method=threshold needs my script innercrop. Also if color is specified, then 
+# refining will be disabled for -m floodfill, since there is no coordinate to seed 
+# the floodfill. It will work for -m threshold.
+# 
+# -r refinefuzz ... REFINEFUZZ is the fuzz value for refining the perforation 
+# region background color. Values are 0<=float<=100. The default=5. The 
+# refinefuzz value is often much smaller for method=threshold than for 
+# method=floodfill
+# 
+# -t trimfuzz ... TRIMFUZZ is the fuzz value for the trimming of the image 
+# region with or without final cropping. The choices are a numerical value 
+# in the range 0<=float<=100 or "none". The default=10.
+# 
+# -a area ... AREA is the connected components area threshold when the 
+# method=threshold. Values are integers>=0. The default=10000.
+# 
+# -s stretch ... STRETCH the image channels' dynamic range. The options are: 
+# none (n), together (t) or separate (s). The default=separate.
+# 
+# -l cliplow ... CLIPLOW is the cumulative percent at the low end of the 
+# histogram whose graylevel will be autostretched to full black. Values are 
+# floats between 0 and 100. If cliplow=0, then the autostretch will locate 
+# the minimum value in the channel histogram. The default=1.
+# 
+# -h cliphigh ... CLIPHIGH is the cumulative percent at the high end of  
+# the histogram whose graylevel will be autostretched to full white. Values are 
+# floats between 0 and 100. If cliplow=0, then the autostretch will locate 
+# the maximum value in the channel histogram. The default=1.
+# 
+# -c crop ... CROP the central image, if possible depending upon whether color 
+# is specified and the refining method used. Choices are yes or no. The default=yes.
+# 
+# -cb colorbalance ... COLORBALANCE mode. The choices are none, gray, white, 
+# both, or auto. The default=auto. Both will be an equal blend of gray and 
+# white. Auto will try to choose the better of gray or white depending upon 
+# which one's percent selected pixels' rmse value is the smallest.
+# 
+# -P percent ... PERCENT is the percent threshold for detecting gray/white 
+# in the image for auto color balance. Values are 0<floats<100. The default=10.
+# 
+# -s showmask ... SHOWMASK presents the mask image that delineates the 
+# perforation region from the interior image. The choices are: view (v), 
+# save (s) or none (n). The default=none. If the value is save, then the 
+# mask will be the input file name with "_mask.gif" appended.
+# 
+# REQUIREMENTS: Note that method=threshold needs my script innercrop.
+# 
+# REFERENCES AND TUTORIALS:
+# http://www.instructables.com/id/How-to-Convert-Digitized-Film-Negatives-into-Quali/?ALLSTEPS
+# http://www.computer-darkroom.com/tutorials/tutorial_6_1.htm
+# http://photo.stackexchange.com/questions/23942/does-a-filter-exist-to-color-correct-color-negatives-when-copying-them-with-a-ds
+# https://www.youtube.com/watch?v=B2gLT0SWzpQ
+# http://petapixel.com/2012/05/18/how-to-scan-film-negatives-with-a-dslr/
+# https://www.youtube.com/watch?v=iMO50AlGyrw
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# defaults
+position="northwest"		# position to extract color: northwest, northeast, southwest, southeast, corners, x,y coord
+offset="0,0"				# offset from corner: x,y non-negative integers
+color=""
+method="floodfill"			# refine color and get mask getting crop bounds: floodfill or threshold or none
+refinefuzz=5				# fuzz value for refining color
+trimfuzz=10					# fuzz value for trim with or without crop; value or none
+area="10000"				# connected components area threshold when method=threshold
+stretch="separate"			# stretch to full dynamic range: together, separate, none
+cliplo="1"					# clip low value
+cliphi="1"					# clip high value
+crop="yes"					# crop image: yes or no
+colorbalance="none"			# colorbalance mode; auto, gray, white, both, none
+percent=10					# percent near white/gray from combined S and B channels of HSB to use for whitebalance
+showmask="none"				# show binary mask for CCL crop: view or save or off as mask.gif
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 30 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		      help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-p)    # get position
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POSITION SPECIFICATION ---"
+					   checkMinus "$1"
+					   position="$1"
+					   [ "$position" = "" ] && errMsg "--- POSITION=$position MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-o)    # get offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   checkMinus "$1"
+					   offset=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE INTEGER VALUES (with no sign) ---"
+					   ;;
+				-C)    # get  COLOR
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-m)    # get  method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$method" in 
+							floodfill|f) method="floodfill" ;;
+							threshold|t) method="threshold" ;;
+							none|n) method="none" ;;
+							*) errMsg "--- METHOD=$method IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+			    -r)    # get refinefuzz
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REFINEFUZZ SPECIFICATION ---"
+					   checkMinus "$1"
+					   refinefuzz=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$refinefuzz" = "" ] && errMsg "--- REFINEFUZZ=$refinefuzz MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$refinefuzz < 0" | bc`
+					   testB=`echo "$refinefuzz > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- REFINEFUZZ=$refinefuzz MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+			    -t)    # get trimfuzz
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TRIMFUZZ SPECIFICATION ---"
+					   checkMinus "$1"
+					   trimfuzz=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$trimfuzz" = "" ] && errMsg "--- TRIMFUZZ=$trimfuzz MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$trimfuzz < 0" | bc`
+					   testB=`echo "$trimfuzz > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- TRIMFUZZ=$trimfuzz MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-a)    # get area
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AREA SPECIFICATION ---"
+					   checkMinus "$1"
+					   area=`expr "$1" : '\([0-9]*\)'`
+					   [ "$area" = "" ] && errMsg "--- AREA=$area MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-s)    # get  stretch
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID STRETCH SPECIFICATION ---"
+					   checkMinus "$1"
+					   stretch=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$stretch" in 
+							together|t) stretch="together" ;;
+							separately|separate|s) stretch="separate" ;;
+							none|n) stretch="none" ;;
+							*) errMsg "--- STRETCH=$stretch IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				-l)    # get cliplow
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPLOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliplow=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$cliplow" = "" ] && errMsg "--- CLIPLOW=$cliplow MUST BE A NON-NEGATIVE FLOAT ---"
+					   cliplowtestA=`echo "$cliplow < 0" | bc`
+					   cliplowtestB=`echo "$cliplow > 100" | bc`
+					   [ $cliplowtestA -eq 1 -o $cliplowtestB -eq 1 ] && errMsg "--- CLIPLOW=$cliplow MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-h)    # get cliphigh
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPHIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliphigh=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$cliphigh" = "" ] && errMsg "--- CLIPHIGH=$cliphigh MUST BE A NON-NEGATIVE FLOAT ---"
+					   cliphightestA=`echo "$cliphigh < 0" | bc`
+					   cliphightestB=`echo "$cliphigh > 100" | bc`
+					   [ $cliphightestA -eq 1 -o $cliphightestB -eq 1 ] && errMsg "--- CLIPHIGH=$cliphigh MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get  crop
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CROP SPECIFICATION ---"
+					   checkMinus "$1"
+					   crop=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$crop" in 
+							yes|y) crop="yes" ;;
+							no|n) crop="no" ;;
+							*) errMsg "--- CROP=$crop IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+			   -cb)    # get colorbalance mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORBALANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorbalance=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colorbalance" in 
+							none|n) colorbalance="none" ;;
+							gray|g) colorbalance="gray" ;;
+							white|w) colorbalance="white" ;;
+							both|b) colorbalance="both" ;;
+							auto|a) colorbalance="auto" ;;
+							*) errMsg "--- COLORBALANCE=$colorbalance IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+			    -P)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$percent < 0" | bc`
+					   testB=`echo "$percent > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-s)    # get  showmask
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHOWMASK SPECIFICATION ---"
+					   checkMinus "$1"
+					   showmask=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$showmask" in 
+							save|s) showmask="save" ;;
+							view|v) showmask="view" ;;
+							none|n) showmask="none" ;;
+							*) errMsg "--- SHOWMASK=$showmask IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/NEG2POS.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+# set up mask name
+if [ "$showmask" = "save" ]; then
+	inname=`convert -ping "$infile" -format "%t" info:`
+fi
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage $dir/tmpI.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests 
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070607" ]; then
+	cspace1="RGB"
+	cspace1="sRGB"
+else
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+#echo "setscpace=$setscpace; cspace1=$cspace1; cspace2=$cspace2;"
+
+# get image dimensions and corner coords
+wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
+ww=`echo "$wxh" | cut -dx -f1`
+hh=`echo "$wxh" | cut -dx -f2`
+wlast=$((ww-1))
+hlast=$((hh-1))
+nw="0,0"
+ne="$wlast,0"
+se="$wlast,$hlast"
+sw="0,$hlast"
+#echo "position=$position;"
+
+# modify offset format
+offset=`echo "$offset" | tr "," "+"`
+
+
+# set input color to icolor
+icolor=$color
+
+# get estimate of color
+if [ "$icolor" = "" ]; then
+	test=`echo "$position" | grep ","`
+	if [ "$test" != "" ]; then
+		color=`convert $dir/tmpI.mpc -format "%[pixel:u.p{$position}]" info:`
+		coords=$position
+	elif [ "$position" = "corners" ]; then
+		color=`convert $dir/tmpI.mpc \
+		-gravity northwest -crop 1x1+$offset +repage \
+		-gravity northeast -crop 1x1+$offset +repage \
+		-gravity southeast -crop 1x1+$offset +repage \
+		-gravity southwest -crop 1x1+$offset +repage \
+		-append -scale 1x1! -format "%[pixel:u.p{0,0}]" info:`
+		coords="$nw"
+	elif [ "$position" = "northwest" ]; then
+		color=`convert $dir/tmpI.mpc -gravity northwest -crop 1x1+$offset +repage \
+			-format "%[pixel:u.p{0,0}]" info:`
+		coords="$nw"
+	elif [ "$position" = "northeast" ]; then
+		color=`convert $dir/tmpI.mpc -gravity northeast -crop 1x1+$offset +repage \
+			-format "%[pixel:u.p{0,0}]" info:`
+		coords="$ne"
+	elif [ "$position" = "southeast" ]; then
+		color=`convert $dir/tmpI.mpc -gravity southeast -crop 1x1+$offset +repage \
+			-format "%[pixel:u.p{0,0}]" info:`
+		coords="$se"
+	elif [ "$position" = "southwest" ]; then
+		color=`convert $dir/tmpI.mpc -gravity southwest -crop 1x1+$offset +repage \
+			-format "%[pixel:u.p{0,0}]" info:`
+		coords="$sw"
+	fi
+	echo "color=$color; coords=$coords"
+else
+	color=$icolor
+	echo "color=$color"
+fi
+
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+
+# pad image with color
+convert $dir/tmpI.mpc -bordercolor "$color" -border 10 $dir/tmpI.mpc
+
+
+# refine color
+if [ "$method" = "threshold" ]; then
+	color=`convert $dir/tmpI.mpc -fuzz $refinefuzz% +transparent "$color" \
+		\( +clone -background black -alpha background -alpha off \
+			-fill white +opaque black -negate +write $dir/tmpM.mpc \) +delete \
+		-scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
+	echo "refinedcolor=$color"
+elif [ "$method" = "floodfill" -a "$icolor" = "" ]; then
+echo "got here"
+	color=`convert $dir/tmpI.mpc -fuzz $refinefuzz% -fill none \
+		-draw "matte $coords floodfill" \
+		\( +clone -alpha extract +write $dir/tmpM.mpc -fill white +opaque black -negate \) \
+		-alpha off -compose over -compose copy_opacity -composite \
+		-scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
+	echo "refinedcolor=$color"
+fi
+
+
+# do CCL to get crop region bbox
+if [ "$method" = "floodfill" -a "$icolor" = "" ]; then
+	OLDIFS=$IFS
+	IFS=$'\n'
+	dataArr=(`convert $dir/tmpM.mpc \
+		-define connected-components:verbose=true \
+		-connected-components 8 null: | tail -n +2`)
+	IFS=$OLDIFS
+	num=${#dataArr[*]}
+	for ((i=0; i<num; i++)); do
+		bbox=`echo ${dataArr[$i]} | cut -d\  -f2 | sed 's/^[ ]*//'`
+		rcolor=`echo ${dataArr[$i]} | cut -d\  -f5 | sed 's/^[ ]*//'`
+		if [ "$rcolor" = "white" -o "$rcolor" = "gray(255)" -o "$rcolor" = "srbg(255,255,255)" ]; then
+			echo "bbox=$bbox; rcolor=$rcolor;"
+			break
+		fi
+	done
+		
+elif [ "$method" = "threshold" ]; then
+	convert $dir/tmpM.mpc -define connected-components:verbose=true \
+		-define connected-components:area-threshold=$area \
+		-define connected-components:mean-color=true \
+		-connected-components 8 \
+		-auto-level $dir/tmpT.mpc
+
+		OLDIFS=$IFS
+		IFS=$'\n'
+		dataArr=(`innercrop $dir/tmpT.mpc null:`)
+		IFS=$OLDIFS
+		offset=`echo ${dataArr[2]} | cut -d: -f2 | sed 's/^[ ]*//'`
+		dim=`echo ${dataArr[4]} | cut -d: -f2 | sed 's/^[ ]*//'`
+		xoff=`echo $offset | cut -d, -f1`
+		yoff=`echo $offset | cut -d, -f2`
+		bbox="${dim}+${xoff}+${yoff}"
+fi
+#echo "bbox=$bbox;"
+
+# show mask
+if [ "$showmask" = "view" -a "$method" = "floodfill" ]; then
+	convert $dir/tmpM.mpc show:
+elif [ "$showmask" = "view" -a "$method" = "threshold" ]; then
+	convert $dir/tmpT.mpc show:
+elif [ "$showmask" = "save"  -a "$method" = "floodfill" ]; then
+	convert $dir/tmpM.mpc "${inname}_mask.gif"
+elif [ "$showmask" = "save"  -a "$method" = "threshold" ]; then
+	convert $dir/tmpT.mpc "${inname}_mask.gif"
+fi
+
+# set up for stretch
+if [ "$stretch" = "separate" ]; then
+	stretching="-channel rgba -contrast-stretch ${cliplo}x${cliphi}%"
+elif [ "$stretch" = "together" ]; then
+	stretching="-contrast-stretch ${cliplo}x${cliphi}%"
+else
+	stretching=""
+fi
+#echo "stretching=$stretching"
+
+# set up for trimming
+if [ "$trimfuzz" != "none" ]; then
+	trimming="-fuzz $trimfuzz% -trim +repage "
+else
+	trimming=""
+fi
+
+# crop image
+if [ "$crop" = "yes" -a "$method" != "none" -a "$icolor" = "" ]; then
+	convert $dir/tmpI.mpc \( +clone -fill "$color" -colorize 100% \) \
+		+swap -compose divide -composite -negate \
+		-crop $bbox +repage \
+		$trimming $stretching $dir/tmpI.mpc
+else
+	convert $dir/tmpI.mpc -shave 10x10 \( +clone -fill "$color" -colorize 100% \) \
+		+swap -compose divide -composite -negate \
+		$trimming $stretching $dir/tmpI.mpc
+fi
+
+# set up -recolor or -color-matrix for color balancing
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
+fi
+
+
+# Process colorbalance
+if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" -o "$colorbalance" = "auto" ]; then
+#echo "gray"
+
+	# get ratios for graybalance
+	# get mask of top percent closest to gray
+	# approximation using negated saturation and solarized brightness multiplied
+	ref=0.5
+	ave=`convert $dir/tmpI.mpc $setcspace \
+		\( -clone 0 -colorspace HSB -channel G -negate -separate +channel \) \
+		\( -clone 0 -colorspace HSB -channel B -separate +channel -solarize 50% -level 0x50% \) \
+		\( -clone 1 -clone 2 -compose multiply -composite \) \
+		\( -clone 3 -contrast-stretch 0,${percent}% -fill black +opaque white +write $dir/tmpM.mpc \) \
+		-delete 1-3 -compose over -alpha off -compose copy_opacity -composite \
+		-scale 1x1! -format "%[fx:mean.r],%[fx:mean.g],%[fx:mean.b]" info:`
+	#echo "ave=$ave"
+	if [ "$ave" != "0,0,0" ]; then
+		redave=`echo "$ave" | cut -d, -f1`
+		greenave=`echo "$ave" | cut -d, -f2`
+		blueave=`echo "$ave" | cut -d, -f3`
+		redratio=`convert xc: -format "%[fx:$ref/$redave]" info:`
+		greenratio=`convert xc: -format "%[fx:$ref/$greenave]" info:`
+		blueratio=`convert xc: -format "%[fx:$ref/$blueave]" info:`
+		#echo "R: ave=$redave; redratio=$redratio"
+		#echo "G: ave=$greenave; greenratio=$greenratio;"
+		#echo "B: ave=$blueave; blueratio=$blueratio;"
+
+		# normalize r,g,b ratios by ave ratio, so no added increase in brightness
+		gnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+		redratio=`convert xc: -format "%[fx: $redratio/$gnormfact]" info:`
+		greenratio=`convert xc: -format "%[fx: $greenratio/$gnormfact]" info:`
+		blueratio=`convert xc: -format "%[fx: $blueratio/$gnormfact]" info:`
+		#echo "R: ave=$redave; ratio=$redratio"
+		#echo "G: ave=$greenave; ratio=$greenratio;"
+		#echo "B: ave=$blueave; ratio=$blueratio;"
+		convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpG.mpc
+
+		# compute rmse difference from gray for masked pixels
+		gray_pixels=`convert $dir/tmpM.mpc -format "%[fx:mean*w*h]" info:`
+		#echo "gray_pixels=$gray_pixels;"
+
+		rmse_gray=`convert xc: -format "%[fx: ((0.5-$redave)^2 + (0.5-$greenave)^2 + (0.5-$blueave)^2)/(3*$gray_pixels) ]" info:`
+		#echo "rmse_gray=$rmse_gray"
+	else 
+		colorbalance="white"
+	fi
+
+fi
+
+
+
+# Process whitebalance
+if [ "$colorbalance" = "white" -o "$colorbalance" = "both" -o "$colorbalance" = "auto" ]; then
+#echo "white"
+
+	# get ratios for whitebalance
+	# get mask of top percent closest to white
+	# approximation using negated saturation and brightness channels multiplied
+	ref=1
+	ave=`convert $dir/tmpI.mpc $setcspace \
+		\( -clone 0 -colorspace HSB -channel G -negate -channel GB -separate +channel \
+		-compose multiply -composite \
+		-contrast-stretch 0,${percent}% -fill black +opaque white +write $dir/tmpM.mpc \) \
+		-compose over -alpha off -compose copy_opacity -composite \
+		-scale 1x1! -format "%[fx:mean.r],%[fx:mean.g],%[fx:mean.b]" info:`
+	#echo "ave=$ave"
+	redave=`echo "$ave" | cut -d, -f1`
+	greenave=`echo "$ave" | cut -d, -f2`
+	blueave=`echo "$ave" | cut -d, -f3`
+	redratio=`convert xc: -format "%[fx:$ref/$redave]" info:`
+	greenratio=`convert xc: -format "%[fx:$ref/$greenave]" info:`
+	blueratio=`convert xc: -format "%[fx:$ref/$blueave]" info:`
+	#echo "R: ave=$redave; redratio=$redratio"
+	#echo "G: ave=$greenave; greenratio=$greenratio;"
+	#echo "B: ave=$blueave; blueratio=$blueratio;"
+
+	# normalize r,g,b ratios by ave ratio, so no added increase in brightness
+	wnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+	redratio=`convert xc: -format "%[fx: $redratio/$wnormfact]" info:`
+	greenratio=`convert xc: -format "%[fx: $greenratio/$wnormfact]" info:`
+	blueratio=`convert xc: -format "%[fx: $blueratio/$wnormfact]" info:`
+	#echo "R: ave=$redave; ratio=$redratio"
+	#echo "G: ave=$greenave; ratio=$greenratio;"
+	#echo "B: ave=$blueave; ratio=$blueratio;"
+	convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpW.mpc
+
+	# compute per pixel rmse difference from white for masked pixels
+	white_pixels=`convert $dir/tmpM.mpc -format "%[fx:mean*w*h]" info:`
+	#echo "white_pixels=$white_pixels;"
+	rmse_white=`convert xc: -format "%[fx: ((1-$redave)^2 + (1-$greenave)^2 + (1-$blueave)^2)/(3*$white_pixels) ]" info:`
+	#echo "rmse_white=$rmse_white"
+
+fi
+
+
+# Save to output
+if [ "$colorbalance" = "none" ]; then
+#echo "none"
+	convert $dir/tmpI.mpc "$outfile"
+elif [ "$colorbalance" = "gray" ]; then
+#echo "gray"
+	convert $dir/tmpG.mpc "$outfile"
+elif [ "$colorbalance" = "white" ]; then
+#echo "white"
+	convert $dir/tmpW.mpc "$outfile"
+elif [ "$colorbalance" = "both" ]; then
+#echo "both"
+	convert \( $dir/tmpG.mpc $dir/tmpW.mpc -evaluate-sequence mean \) "$outfile"
+elif [ "$colorbalance" = "auto" ]; then
+#echo "auto"
+	# test rmse difference and use smalles one; gray or white
+	test=`convert xc: -format "%[fx:($rmse_white <= $rmse_gray)?1:0]" info:`
+	#echo "test=$test;"
+	if [ $test -eq 1 ]; then
+		#echo "white"
+		convert $dir/tmpW.mpc "$outfile"
+	else
+		#echo "gray"
+		convert $dir/tmpG.mpc "$outfile"
+	fi
+fi
+
+exit 0

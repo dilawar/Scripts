@@ -1,0 +1,240 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/2/2011 .......... 2/17/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: interweave [-m mode] [-b bandsize] infile1 infile2 outfile
+# USAGE: interweave [-h or -help]
+#
+# OPTIONS:
+#
+# -m      mode               mode of effect; choices are: row (or r), 
+#                            column (or col or c), both (or b); default=both
+# -b      bandsize           size of bands in pixels; integer>0; 
+#                            default=half the size of the images.
+#
+# Both images must be the same size.
+#
+###
+#
+# NAME: INTERWEAVE 
+# 
+# PURPOSE: To interleave two images together in swaths.
+# 
+# DESCRIPTION: INTERWEAVE interleaves two images together in swaths. The swaths 
+# may be interleaved by row or by column or both together making a 
+# checkerboard pattern. 
+# 
+# OPTIONS: 
+#
+# -m mode ... MODE of interweave effect. The choices are: row (or r), column or 
+# (col or c), both (or b). The default=both
+# 
+# -b bandsize ... Size of bands or swaths in pixels. Values are integers>0. 
+# The default=half the size of the images.
+# 
+# Both images must be the same size.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+mode="both"		# row, column, both
+bandsize=""     	# size in pixels for bands or swaths
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+					   		row|r) mode="row" ;;
+					   		column|col|c) mode="column" ;;
+					   		both|b) mode="both" ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get bandsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BANDSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   bandsize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bandsize" = "" ] && errMsg "BANDSIZE=$bandsize MUST BE AN INTEGER"
+		   			   test=`echo "$bandsize < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- BANDSIZE=$bandsize MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
+	[ "$4" != "" ] && errMsg "--- TOO MANY IMAGES SPECIFIED ---"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that outfile provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 2 SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set up temp files
+tmpA1="$dir/interweave_1_$$.mpc"
+tmpB1="$dir/interweave_1_$$.cache"
+tmpA2="$dir/interweave_2_$$.mpc"
+tmpB2="$dir/interweave_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# test input images
+convert -quiet "$infile1" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+convert -quiet "$infile2" +repage "$tmpA2" ||
+	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+# get image width, height and test the same size
+w1=`convert $tmpA1 -ping -format "%w" info:`
+h1=`convert $tmpA1 -ping -format "%h" info:`
+w2=`convert $tmpA2 -ping -format "%w" info:`
+h2=`convert $tmpA2 -ping -format "%h" info:`
+
+[ $w1 -ne $w2 ] && errMsg "--- FILES $infile1 AND $infile2 ARE NOT THE SAME WIDTH ---"
+[ $h1 -ne $h2 ] && errMsg "--- FILES $infile1 AND $infile2 ARE NOT THE SAME HEIGHT ---"
+dim="${w1}x${h1}"
+
+# set default bandsize to half the image size
+[ "$bandsize" = "" ] && bandsize=`convert xc: -format "%[fx:round($w1/2)]" info:`
+
+# set up mask
+if [ "$mode" = "column" ]; then 
+
+	convert $tmpA1 $tmpA2 \
+		\( -size ${bandsize}x1 xc:black xc:white +append \
+		-write mpr:check +delete \
+		-size $dim tile:mpr:check \) \
+		-composite "$outfile"
+
+elif [ "$mode" = "row" ]; then 
+
+	convert $tmpA1 $tmpA2 \
+		\( -size 1x${bandsize} xc:black xc:white -append \
+		-write mpr:check +delete \
+		-size $dim tile:mpr:check \) \
+		-composite "$outfile"
+
+elif [ "$mode" = "both" ]; then 
+
+	convert $tmpA1 $tmpA2 \
+		\( -size ${bandsize}x${bandsize} xc:black xc:white +append \
+		\( +clone -negate \) -append \
+		-write mpr:tile +delete  \
+		-size $dim tile:mpr:tile \) \
+		-composite "$outfile"
+
+fi
+
+exit 0

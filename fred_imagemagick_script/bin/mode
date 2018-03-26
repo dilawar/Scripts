@@ -1,0 +1,253 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/24/2014 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: mode [-p processing] [-d depth] infile
+# USAGE: mode [-h or -help]
+# 
+# OPTIONS:
+# 
+# -p     processing        processing of images; choices are: gray (convert 
+#                          to grayscale first), global (append all channels 
+#                          into one grayscale image), all (process each 
+#                          channel separately) and color (find an rgb triplet); 
+#                          default=color
+# -d     depth             preprocessing depth; 1<=integer<=8; default=8
+# 
+###
+# 
+# NAME: MODE 
+# 
+# PURPOSE: To compute the mode value of an image.
+# 
+# DESCRIPTION: MODE computes the mode value of an image. The mode is the most 
+# frequent color or graylevel in the image. In other words, it is that color 
+# or graylevel that has the largest count in the histogram. The user may choose 
+# either to process the image to grayscale, to append all the channels into one 
+# grayscale image, process each channel separately, or process for a color.
+#
+# Arguments: 
+# 
+# -p processing ... PROCESSING of the images. The choices are: gray (convert 
+# to grayscale first), global (append all channels into one grayscale image), 
+# all (process each channel separately) and color (find an rgb triplet). 
+# The default=color
+# 
+# -d depth DEPTH is the preprocessing image depth. Values are integers 
+# between 1 and 8, inclusive. The default=8.
+#
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+processing="color"			# gray, global, all (each channel separately), color
+depth=8						# 1 to 8
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 5 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0
+				   ;;
+			-p)    # get processing
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PROCESSING SPECIFICATION ---"
+				   checkMinus "$1"
+				   processing=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$processing" in
+						gray) ;;
+						global) ;;
+						all) ;;
+						color) ;;
+						*) errMsg "--- PROCESSING=$processing IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-d)    # get depth 
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DEPTH SPECIFICATION ---"
+				   checkMinus "$1"
+				   depth=`expr "$1" : '\([1-8]\)'`
+				   [ "$depth" = "" ] && errMsg "DEPTH=$depth MUST BE AN INTEGER BETWEEN 1 AND 8"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			 *)    # end of arguments
+				   break
+				   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# setup temporary images and auto delete upon exit
+tmpA1="$dir/mode_1_$$.mpc"
+tmpB1="$dir/mode_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+
+# read the input image1 into the temp files and test validity.
+convert -quiet "$infile[0]" -alpha off +repage -depth $depth "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get colorspace and type for each image
+cspace=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+type=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+
+# separate into proper colormode
+if [ "$type" = "Grayscale" -o "$type" = "Bilevel" ]; then
+	colormode="Gray"
+elif [ "$cspace" = "sRGB" ]; then
+	colormode="RGB"
+elif [ "$cspace" = "CMYK" ]; then
+	colormode="CMYK"
+fi
+#echo "type=$type; colormode=$colormode;"
+
+# set up processing
+if [ "$processing" = "gray" -a "$colormode" != "Gray" ]; then
+	convert $tmpA1 -colorspace gray $tmpA1
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "RGB" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "CMYK" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	colormode="Gray"
+fi
+#echo "colormode=$colormode;"
+
+
+# get sparse IM histogram data for image
+histdata=`convert $tmpA1 -depth 8 -format "%c" histogram:info:`
+
+# compute median for channels
+if [ "$processing" = "color" ]; then
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | sed -n 's/^.*:.*[ ]\(.*\)$/\1/p'`
+	echo "$processing: $mode"
+		
+elif [ "$colormode" = "Gray" ]; then
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f2`
+	echo "$processing: $mode"
+
+elif [ "$colormode" = "RGB" ]; then
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f2`
+	echo "red: $mode"
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f3`
+	echo "green: $mode"
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f4`
+	echo "blue: $mode"
+
+elif [ "$colormode" = "CMYK" ]; then
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f2`
+	echo "cyan: $mode"
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f3`
+	echo "magenta: $mode"
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f4`
+	echo "yellow: $mode"
+	mode=`echo "$histdata" | sort -k 1 -r | head -n 1 | tr -cs "[0-9]" " " | sed 's/^ *//' | cut -d\  -f5`
+	echo "black: $mode"
+fi
+
+exit 0
+
+

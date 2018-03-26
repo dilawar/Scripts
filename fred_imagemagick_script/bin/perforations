@@ -1,0 +1,385 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/8/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: perforations [-n number] [-s size] [-p position] [-b border] 
+# infile outfile
+# USAGE: perforations [-h or -help]
+#
+# OPTIONS:
+#
+# -n     number       number of perforations; integer>0; default=8
+# -s     size         size of perforations as percentage of smaller image 
+#                     dimension; 0<float<=15; default=6
+# -p     position     position of perforations; choices are: TB (for top/bottom
+#                     sides or LR (for left/right sides); default is along the 
+#                     sides corresponding to the larger image dimension
+# -b     border       border type; choices are: black, aged, faded or none;
+#                     default=black
+# 
+###
+#
+# NAME: PERFORATIONS 
+# 
+# PURPOSE: To apply film-like perforations to two opposite edges of an image.
+# 
+# DESCRIPTION: PERFORATIONS applies film-like perforations to two opposite 
+# edges of an image. Various border types may be selected.
+# 
+# OPTIONS: 
+# 
+# -n number ... NUMBER of perforations. Values are integers>0. The default=8.
+# 
+# -s size ... SIZE of perforations as percentage of smaller image dimension. 
+# Values are 0<floats<=15. The default=6.
+# 
+# -p position POSITION of perforations. The choices are: TB (for top/bottom
+# sides or LR (for left/right sides). The default is along the sides 
+# corresponding to the larger image dimension.
+# 
+# -b border ... BORDER type. The choices are: black (b), aged (a), faded (f) 
+# or none (n). The default=black. Note: border=faded fades to transparent.
+# 
+# Requirements: IM 6.5.9.3 or higher due to the use of 1D morphology blur 
+# for border=aged or faded.
+# 
+# References: 
+# http://motion.kodak.com/motion/uploadedFiles/US_plugins_acrobat_en_motion_newsletters_filmEss_11_Film_Specs.pdf
+# http://en.wikipedia.org/wiki/Film_perforations
+# http://askville.amazon.com/Sprockets-frame-film/AnswerViewer.do?requestId=1796570
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+number=8			# number of perforations
+size=6				# size of perforation as percent of smaller image dimension
+position=""			# TB or LR; default=longer sides of image
+border="black"		# border type: black, faded, burned, none
+
+# internal arguments
+ratio=0.71			# width to height ratio of perforation ( Kodak =1.981/2.794 )
+rndfact=0.21		# rounding ( Kodak = 0.51 mm; fact=0.51/((1.981+2.794)/2)=0.21 )
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 13 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-n)    # get number
+					   shift  # to get the next parameter - spread
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMBER SPECIFICATION ---"
+					   checkMinus "$1"
+					   number=`expr "$1" : '\([0-9]*\)'`
+					   [ "$number" = "" ] && errMsg "NUMBER=$number MUST BE AN INTEGER"
+		   			   test=`echo "$number <= 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- NUMBER=$number MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter - spread
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "SIZE=$size MUST BE A FLOAT"
+		   			   testA=`echo "$size <= 0" | bc`
+		   			   testB=`echo "$size > 15" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SIZE=$size MUST BE A POSITIVE FLOAT LESS THAN OR EQUAL TO 15 --- "
+					   ;;
+				-p)    # get  position
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POSITION SPECIFICATION ---"
+					   checkMinus "$1"
+					   position=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$position" in 
+					   		tb) ;;
+					   		lr)  ;;
+					   		*) errMsg "--- POSITION=$position IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get  border
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BORDER SPECIFICATION ---"
+					   checkMinus "$1"
+					   border=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$border" in 
+					   		black|b) border=black ;;
+					   		faded|f) border=faded ;;
+					   		aged|a) border=aged ;;
+					   		none|n) border=none ;;
+					   		*) errMsg "--- BORDER=$border IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# References: 
+# http://motion.kodak.com/motion/uploadedFiles/US_plugins_acrobat_en_motion_newsletters_filmEss_11_Film_Specs.pdf
+# http://en.wikipedia.org/wiki/Film_perforations
+# http://askville.amazon.com/Sprockets-frame-film/AnswerViewer.do?requestId=1796570
+
+
+# setup temporary images
+tmpA1="$dir/perforations_1_$$.mpc"
+tmpB1="$dir/perforations_1_$$.cache"
+tmpA2="$dir/perforations_2_$$.mpc"
+tmpB2="$dir/perforations_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get image dimensions
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+
+# determine side for perforations
+maxd=`convert xc: -format "%[fx:max($ww,$hh)]" info:`
+mind=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+if [ "$position" = "" ]; then
+	if [ $maxd -eq $ww ]; then
+		loc="tb"
+	else
+		loc="lr"
+	fi
+else
+	loc=$position
+fi
+
+# compute wd, ht and rd of perforation in pixels
+if [ "$loc" = "tb" ]; then
+	ht=`convert xc: -format "%[fx:round($mind*$size/100)]" info:`
+	wd=`convert xc: -format "%[fx:round($ratio*$ht)]" info:`
+	rd=`convert xc: -format "%[fx:round($rndfact*($wd+$ht)/2)]" info:`
+	wd1=$((wd-1))
+	ht1=$((ht-1))
+elif [ "$loc" = "lr" ]; then
+	wd=`convert xc: -format "%[fx:round($mind*$size/100)]" info:`
+	ht=`convert xc: -format "%[fx:round($ratio*$wd)]" info:`
+	rd=`convert xc: -format "%[fx:round($rndfact*($wd+$ht)/2)]" info:`
+	wd1=$((wd-1))
+	ht1=$((ht-1))
+fi
+
+
+# compute cell size for single perforation and set other parameters
+if [ "$loc" = "tb" ]; then
+	cellw=`convert xc: -format "%[fx:floor($ww/$number)]" info:`
+	cellh=`convert xc: -format "%[fx:floor(2*$ht)]" info:`
+	tilew=`convert xc: -format "%[fx:$number*$cellw]" info:`
+	gravity1="north"
+	gravity2="south"
+	midw=$ww
+	midh=$((hh-2*cellh))
+	flipping="-flip"
+	appending="-append"
+	blurring="blur:0x${cellh}+90"
+	shaving="0x2"
+elif [ "$loc" = "lr" ]; then
+	cellh=`convert xc: -format "%[fx:floor($hh/$number)]" info:`
+	cellw=`convert xc: -format "%[fx:floor(2*$wd)]" info:`
+	tileh=`convert xc: -format "%[fx:$number*$cellh]" info:`
+	gravity1="west"
+	gravity2="east"
+	midw=$((ww-2*cellw))
+	midh=$hh
+	flipping="-flop"
+	appending="+append"
+	blurring="blur:0x${cellw}"
+	shaving="2x0"
+fi
+
+# create cell (round rectangle padded out) and tile out in row or column
+if [ "$loc" = "tb" ]; then
+	convert -size ${wd}x${ht} xc:black -fill white \
+		-draw "roundrectangle 0,0 $wd1,$ht1 $rd,$rd" -alpha off \
+		-gravity center -background black -extent ${cellw}x${cellh} \
+		-write mpr:cell +delete -size ${tilew}x${cellh} tile:mpr:cell \
+		-extent ${ww}x${cellh} $tmpA2
+elif [ "$loc" = "lr" ]; then
+	convert -size ${wd}x${ht} xc:black -fill white \
+		-draw "roundrectangle 0,0 $wd1,$ht1 $rd,$rd" -alpha off \
+		-gravity center -background black -extent ${cellw}x${cellh} \
+		-write mpr:cell +delete -size ${cellw}x${tileh} tile:mpr:cell \
+		-extent ${cellw}x$hh $tmpA2
+fi
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# need to change blurring image (for use in alpha channel) from gamma=1 to gamma=0.4545 for IM prior to 6.7.7.8
+# note: neither -set colorspace RGB nor -colorspace RGB seems to change the gamma value for older systems
+if [ "$im_version" -lt "06070708" ]; then
+	gammaproc="-gamma 0.4545"
+else
+	gammaproc=""
+fi
+
+
+# process image
+if [ "$border" = "black" ]; then
+	# read input row or column clone and flip
+	# composite one row or column at top or left
+	# delete temps and composite other row or column at bottom or right
+	convert $tmpA1 $tmpA2 \( +clone $flipping \) \
+		\( -clone 0 -clone 1 -gravity $gravity1 -compose over -composite \) \
+		-delete 0,1 +swap -gravity $gravity2 -compose over -composite \
+		$outfile
+elif [ "$border" = "none" ]; then
+	# read input row or column clone and flip
+	# clone top/left, create middle, clone top/right, append and negate
+	# delete temps and put appended image into alpha channel
+	# flatten over black
+	convert $tmpA1 $tmpA2 \( +clone $flipping \) \
+		\( -clone 1 -size ${midw}x${midh} xc:black -clone 2 $appending -negate \) \
+		-delete 1,2 -compose copy_opacity -composite \
+		-compose over -background black -flatten $outfile
+elif [ "$border" = "faded" ]; then
+	# read input row or column clone and flip
+	# clone top/left, create middle, clone top/right, append and negate to be used for alpha channel
+	# clone image and fill with white and set virtual pixel to black
+	# multiply the two mask images
+	# put the product into alpha channel of original
+	# flatten over white
+	convert $tmpA1 $tmpA2 \( +clone $flipping \) \
+		\( -clone 1 -size ${midw}x${midh} xc:black -clone 2 $appending -negate \) \
+		\( -clone 0 -fill white -colorize 100% -virtual-pixel black \
+			-morphology convolve $blurring -level 0x90% -level 35x100% $gammaproc \) \
+		\( -clone 3 -clone 4 -compose over -compose multiply -composite \) \
+		-delete 1,2,3,4 -alpha off -compose over -compose copy_opacity -composite \
+		-background white -compose over -flatten $outfile
+elif [ "$border" = "aged" ]; then
+	# read input row or column clone and flip
+	# clone top/left, create middle, clone top/right, append and negate to be used for alpha channel
+	# clone image and fill with white and set virtual pixel to black
+	# do single direction blur and level to adjust taper
+	# clone blurred image and put into alpha channel of original
+	# flatten over orange color
+	# delete temps and put appended image into alpha channel of previous flattened image
+	# flatten over black
+	# shave 2 pixels from top/bottom or left/right, pad back out with 2 pixels orange4 for an darker edge
+	convert $tmpA1 $tmpA2 \( +clone $flipping \) \
+		\( -clone 1 -size ${midw}x${midh} xc:black -clone 2 $appending -negate \) \
+		\( -clone 0 -fill white -colorize 100% -virtual-pixel black \
+			-morphology convolve $blurring -level 0x90% +level 35x100% $gammaproc \) \
+		\( -clone 0 -clone 4 -compose over -compose copy_opacity -composite \
+			-compose over -background orange -compose over -flatten \) \
+		-delete 0,1,2,4 +swap -compose over -compose copy_opacity -composite \
+		-background black -compose over -flatten \
+		-shave $shaving -background orange4 -gravity center -extent ${ww}x${hh} "$outfile"
+fi
+
+exit 0
+

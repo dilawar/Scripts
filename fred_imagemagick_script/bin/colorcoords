@@ -1,0 +1,260 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/4/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorcoords [-c color] [-m mode] [-f fuzzval] infile
+# USAGE: colorcoords [-h or -help]
+#
+# OPTIONS:
+#
+# -c      color       Any valid IM color specification; default=white
+# -m      mode        Output coordinate location mode: choices are:
+#                     first (f) or last (l) or both (b);
+#                     default=first
+# -f      fuzzval     Fuzz value in percent for locating nearest color; 
+#                     0<=float<=100; default=0 
+#
+###
+#
+# NAME: COLORCOORDS
+# 
+# PURPOSE: To locate in the image the first location and/or last location 
+# for the closest pixel within the fuzz value to the color specified
+# 
+# DESCRIPTION: COLORCOORDS locates in the image the first location and/or last 
+# both locations for the closest pixel within the fuzz value to the color 
+# specified.
+# 
+# 
+# OPTIONS: 
+# 
+#
+# -c color ... COLOR is any valid IM color specification, including RGB, HEX, 
+# HSL, HSB, CMYK or by name. If not a color name, the color specification 
+# should be enclosed in quotes.
+#
+# -m mode ... MODE is the output coordinate location mode: choices are:
+# first (f) or last (l) or both (b). The default=first.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz value in percent for locating nearest 
+# color. Values must be floats between 0 and 100. The default=0 
+# 
+# NOTE: Prior to IM 6.5.6-6, HSL/HSB colors may not work correctly, as changes
+# and bugs were fixed starting with IM 6.5.6-4. Prior to IM 6.5.6-4, 
+# HSL colors were specified only with hue in range 0-360 and saturation and 
+# lightness as percentages. HSB color specification and swatches were only 
+# first available and correct starting with IM 6.5.6-6. For current color 
+# specifications, see http://www.imagemagick.org/script/color.php
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+color="white"
+mode="first"
+fuzzval=0
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 		-c)    # color
+					   shift  # to get the next parameter - color
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-m)    # mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+							first|f) mode=first;;
+							last|l) mode=last;;
+							both|b) mode=both;;
+							*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---"
+					   esac
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOAT ---"
+					   test1=`echo "$fuzzval < 0" | bc`
+					   test2=`echo "$fuzzval > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE FLOAT BETWEEN 0 AND 100 ---"
+ 					   ;;
+ 				 -)    # STDIN, end of arguments
+  				 	   break
+  				 	   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;					   
+				*)     # end of arguments
+					   break ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile="$1"
+fi
+
+# set up temp files
+tmpA1="$dir/huemap_A_$$.mpc"
+tmpA2="$dir/huemap_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get width and height
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+
+# get im version where -subimage-search introduced for compare
+if [ "$im_version" -ge "06060305" ]; then
+	searching="-subimage-search"
+else
+	searching=""
+fi
+
+# set up for fuzz
+if [ "$fuzzval" = 0 ]; then
+	fuzzing=""
+else
+	fuzzing="-fuzz ${fuzzval}%"
+fi
+
+
+echo ""
+
+if [ "$mode" = "first" -o "$mode" = "both" ]; then
+	data=`compare -metric AE $fuzzing $searching $tmpA1 \
+		\( -size 1x1 xc:"$color" \) null: 2>&1 |\
+		tr -cs ".0-9\n" " "`
+
+	# get location
+	score=`echo "$data" | cut -d\  -f1`
+	[ "$score" != 0 ] && errMsg "--- NO PERFECT MATCH FOUND  ---"
+	x=`echo "$data" | cut -d\  -f2`
+	y=`echo "$data" | cut -d\  -f3`
+
+	echo "First Location = $x,$y"
+fi
+
+if [ "$mode" = "last" -o "$mode" = "both" ]; then
+	convert $tmpA1 -rotate 180 $tmpA1
+	data=`compare -metric AE $fuzzing $searching $tmpA1 \
+		\( -size 1x1 xc:"$color" \) null: 2>&1 |\
+		tr -cs ".0-9\n" " "`
+
+	# get location
+	score=`echo "$data" | cut -d\  -f1`
+	[ "$score" != 0 ] && errMsg "--- NO PERFECT MATCH FOUND  ---"
+	x=`echo "$data" | cut -d\  -f2`
+	y=`echo "$data" | cut -d\  -f3`
+
+	echo "Last Location = $((ww-1-x)),$((hh-1-y))"
+
+fi
+
+echo ""
+exit 0

@@ -1,0 +1,580 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/28/2011 .......... revised 3/10/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: redeye [-k kind] [-l light] [-s sat] [-f fuzz] [-i inc] [-b begin] 
+# [-e end] [-d dilate] [-t type] [-r rad] "x1,y1 x2,y2 ..." infile outfile
+# 
+# USAGE: redeye [-k kind] [-l light] [-s sat] [-f fuzz] [-i inc] [-b begin] 
+# [-e end] [-d dilate] [-t type] [-r rad] -p point_file infile outfile
+# 
+# USAGE: redeye [-h or -help]
+#
+# OPTIONS:
+# 
+# "x1,y1 x2,y2 ..."     x,y coordinates in image where redeye needs 
+#                       to be corrected; one or more point pairs 
+#                       are allowed; atleast one pair must be provided; 
+#                       list pair list must be specified just prior 
+#                       to the infile
+# -p     point_file     text file containing list of point pairs; 
+#                       one x,y pair per line
+# -k     kind           kind of image to process for redeye region: 
+#                       1 is image or 2 is HSB saturation channel; 
+#                       default=1
+# -l     light          desired lightness; 0<=integer<=100; default=15
+# -s     sat            desired saturation; 0<=integer<=100; default=0
+# -f     fuzz           fuzz value for redeye floodfill; 0<=float<=100;
+#                       nominal 15 to 20; default is for automatic 
+#                       detection of optimal fuzz value
+# -i     inc		    fuzz iteration increment in automatic mode; 
+#                       0<integer<100; default=5
+# -b     begin		    fuzz interation begin value in automatic mode; 
+#                       0<integer<100; default=10
+# -e     end            fuzz interation end value in automatic mode; 
+#                       0<integer<100; default=50
+# -d     dilate         dilation amount to increase the size of the  
+#                       detected redeye areas; integer>=0; default=1
+# -t     type           type of white specular reflection processing; 
+#                       choices are: desat or remove; default=desat
+# -r     rad            radius of white specular reflection region
+#                       float>0; default=3
+#                         
+###
+#
+# NAME: REDEYE
+#
+# PURPOSE: To remove redeye from an image.
+#
+# DESCRIPTION: REDEYE removes redeye from an image. It does so by 
+# the user specifying coordinates in each redeye area. Processing 
+# then floodfills at those coordinates either in the image or the 
+# saturation channel to create a mask. The mask is then used with 
+# a desaturated version of the image and the original image to 
+# modify the color of the redeye areas. The white specular 
+# component inside the redeye region may optionally be removed.
+# The user may specify a particular fuzz value to use or let the 
+# script attempt to find an optimal value.
+# 
+# OPTIONS: 
+# 
+# "x1,y1 x2,y2" ... x,y coordinates in the image where redeye needs 
+# to be corrected. One or more point pairs are allowed. Atleast one 
+# pair must be provided. IMPORTANT: the list of point pairs must be 
+# specified just prior to infile.
+# 
+# -f point_file ... point-file is a text file containing the list of  
+# point pairs, one x,y pair per line. Atleast one pair must be provided.
+# 
+# -k kind ... KIND of image to process for redeye region. Choices are: 
+# 1 for input image or 2 for the HSB saturation channel. The default=1
+# 
+# -l light ... LIGHT is the desired lightness in the redeye area. 
+# Values are 0<=integer<=100. The default=15
+# 
+# -s sat ... SAT is the desired saturation in the redeye area. 
+# Values are 0<=integer<=100. The default=0
+# 
+# -f fuzz ... FUZZ is the desired fuzz value for the redeye floodfill.
+# Values are in the range of 0<=float<=100 . Nominal values appear to 
+# be about 15 to 20 from limited testing. The default is for automatic
+# interative detection of an optimal fuzz value. This usually works
+# reasonably well, but tends to be an under estimate. It seems to work
+# better for the saturation channel than the image, but tends to be more
+# underestimated in the former case. In the latter case, it can
+# overestimates more frequently than in the former case. To correct for
+# understimation either increase the value reported or increase the
+# dilation argument. For overstimation reduce the fuzz value.
+# 
+# -i inc ... INC is the fuzz iteration increment in automatic mode. 
+# Values are 0<integer<100. The default=5
+# 
+# -b begin ... BEGIN is the fuzz interation begin value in automatic 
+# mode. Values are 0<integer<100. The default=10
+# 
+# -e end ... END is the fuzz interation end value in automatic mode. 
+# Values are 0<integer<100. The default=50
+# 
+# -d dilate ... DILATE is the dilation amount to increase the size of 
+# the detected redeye areas. Values are integers>=0. The default=1
+# 
+# -t type ... TYPE of white specular reflection processing. The 
+# choices are: desat (d) for desaturation or remove (r). The
+# default=desat
+# 
+# -r rad ... RAD is the radius of the white specular reflection region. 
+# Values are floats>0. The default=3
+# 
+# REQUIREMENTS: IM 6.5.9-0 in order to support the -morphology methods 
+# used in the script. However, due to possible bugs, it may require at  
+# least IM 6.5.9-3
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, nor that 
+# trapping of inconsistent parameters is complete and foolproof. Use At Your 
+# Own Risk.
+# 
+######
+# 
+
+# set default value for scale and height of lut
+kind=1			# kind of image to process for redeye region: 1 is image or 2 is HSB saturation
+light=15		# redeye desaturated lightness
+sat=0			# redeye saturation amount
+fuzz=""			# redeye fuzz value; null means auto; nominal 15 to 20 seems to work well
+inc=5			# redeye fuzz increment
+begin=10		# redeye fuzz begin value
+end=50			# redeye fuzz end value
+dilate=1		# dilation size for redeye area
+type="desat"	# type of specular reflection removal; desat or remove
+rad=3			# specular reflection radius
+quitratio=10	# redeye fuzz stopration
+opt=""			# test for file; default is no file
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages, usage and exit
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# function to test if valid positive float point pair
+testFloatPair()
+	{
+	[ "$1" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+	v1=`echo $1 | cut -d, -f1`
+	v2=`echo $1 | cut -d, -f2`
+	test1=`expr "$v1" : '\([.0-9]*\)'`
+	test2=`expr "$v2" : '\([.0-9]*\)'`
+	[ "$test1" = "" -o "$test2" = "" ] && errMsg "$1 IS NOT A VALID POINT PAIR"
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "$1 IS NOT A VALID POINT PAIR"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0  ;;
+				-k)    # get kind
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID KIND SPECIFICATION ---"
+					   checkMinus "$1"
+					   kind=`expr "$1" : '\([0-9]*\)'`
+					   [ "$kind" = "" ] && errMsg "--- KIND=$kind MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ $kind -ne 1 -a $kind -ne 2 ] && errMsg "--- KIND=$kind MUST BE EITHER 1 OR 2 ---"
+					   ;;
+				-l)    # get light
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   light=`expr "$1" : '\([0-9]*\)'`
+					   [ "$light" = "" ] && errMsg "--- LIGHT=$light MUST BE AN INTEGER ---"
+					   test1=`echo "$light < 0" | bc`
+					   test2=`echo "$light > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- LIGHT=$light MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-s)    # get sat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   sat=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SAT=$sat MUST BE AN INTEGER ---"
+					   test1=`echo "$sat < 0" | bc`
+					   test2=`echo "$sat > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- SAT=$sat MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-f)    # get fuzz
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZ SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzz=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzz" = "" ] && errMsg "--- FUZZ=$fuzz MUST BE A FLOAT ---"
+					   test1=`echo "$fuzz < 0" | bc`
+					   test2=`echo "$fuzz > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- FUZZ=$fuzz MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-i)    # get inc
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INC SPECIFICATION ---"
+					   checkMinus "$1"
+					   inc=`expr "$1" : '\([0-9]*\)'`
+					   [ "$inc" = "" ] && errMsg "--- INC=$inc MUST BE AN INTEGER ---"
+					   test1=`echo "$inc < 0" | bc`
+					   test2=`echo "$inc > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- INC=$inc MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
+					   ;;
+				-b)    # get begin
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BEGIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   begin=`expr "$1" : '\([0-9]*\)'`
+					   [ "$begin" = "" ] && errMsg "--- BEGIN=$begin MUST BE AN INTEGER ---"
+					   test1=`echo "$begin < 0" | bc`
+					   test2=`echo "$begin > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BEGIN=$begin MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
+					   ;;
+				-e)    # get end
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID END SPECIFICATION ---"
+					   checkMinus "$1"
+					   end=`expr "$1" : '\([0-9]*\)'`
+					   [ "$end" = "" ] && errMsg "--- END=$end MUST BE AN INTEGER ---"
+					   test1=`echo "$end < 0" | bc`
+					   test2=`echo "$end > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- END=$end MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
+					   ;;
+				-d)    # get dilate
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DILATE SPECIFICATION ---"
+					   checkMinus "$1"
+					   dilate=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$dilate" = "" ] && errMsg "--- DILATE=$dilate MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   ;;
+				-t)    # get  type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$type" in 
+					   		desat|d) type=desat;;
+					   		remove|r) type=remove;;
+					   		*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get rad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   rad=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$rad" = "" ] && errMsg "--- RAD=$rad MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   test1=`echo "$rad <= 0" | bc`
+					   [ $test1 -eq 1 ] && errMsg "--- RAD=$rad MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-p)    # get point pair file
+					   opt=-f
+					   shift  # to get the next parameter - point_file
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INCORRECT POINT_FILE SPECIFICATION ---"
+					   checkMinus "$1"
+					   point_file=$1
+					   #test if point_file is a valid file
+					   [ -f $point_file -a -r $point_file -a -s $point_file ] || errMsg "--- POINT FILE $point_file DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"  ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"  ;;
+				*)     # end of arguments
+					   break ;;
+			esac
+			shift   # next option
+	done
+fi
+
+# extract and test point pair values
+if [ "$opt" = "-f" ]
+	then
+	# get infile and outfile as the last arguments left
+    infile=$1
+    outfile=$2
+	# put the file with line breaks into parm
+	parms=`cat $point_file`
+	# strip the line breaks (works ONLY if $parm is NOT put into quotes "$parm")
+	parms=`echo $parms | grep '.*'`
+	# remove leading spaces
+	parms=`echo "$parms" | sed -n 's/^[ ]*\(.*\)$/\1/p'`
+	# remove trailing spaces
+	parms=`echo "$parms" | sed -n 's/^\(.*\)[ ]*$/\1/p'`
+	# first pattern below replaces all occurrences of commas and spaces with a space => 1 2 3 4 5 6
+	# second pattern below replaces the first occurrence of a space with a comma => 1,2[ 3 4][ 5 6] - ignore [], they are for emphasis only
+	# third pattern below looks for all space number space number pairs and replaces them with a space followed by number1,number2 => 1,2 3,4 5,6
+	set - `echo "$parms" | sed 's/[, ][, ]*/ /g; s/ /,/; s/ \([^ ]*\) \([^ ]*\)/ \1,\2/g'`
+	[ "$parms" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+	# test for valid non-negative floats for x and y
+	# keep all points from file
+	index=0
+	plist=""
+	while [ $# -gt 0 ]
+		do
+		testFloatPair $1
+		plist="$plist $1"
+		shift
+		index=`expr $index + 1`
+	done
+	pairArray=($plist)
+	np=${#pairArray[*]}
+#	echo "np=$np"
+#	echo ${pairArray[*]}
+else
+	# get plist, infile and outfile
+	parms="$1"
+	infile="$2"
+	outfile="$3"
+	[ "$outfile" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+	# remove leading spaces
+	parms=`echo "$parms" | sed -n 's/^[ ]*\(.*\)$/\1/p'`
+	# remove trailing spaces
+	parms=`echo "$parms" | sed -n 's/^\(.*\)[ ]*$/\1/p'`
+	# first pattern below replaces all occurrences of commas and spaces with a space => 1 2 3 4 5 6
+	# second pattern below replaces the first occurrence of a space with a comma => 1,2[ 3 4][ 5 6] - ignore [], they are for emphasis only
+	# third pattern below looks for all space number space number pairs and replaces them with a space followed by number1,number2 => 1,2 3,4 5,6
+	set - `echo "$parms" | sed 's/[, ][, ]*/ /g; s/ /,/; s/ \([^ ]*\) \([^ ]*\)/ \1,\2/g'`
+	[ "$parms" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+	# test for valid non-negative floats for x and y
+	# keep all points from file
+	index=0
+	plist=""
+	while [ $# -gt 0 ]
+		do
+		testFloatPair $1
+		plist="$plist $1"
+		shift
+		index=`expr $index + 1`
+	done
+	pairArray=($plist)
+	np=${#pairArray[*]}
+#	echo "np=$np"
+#	echo ${pairArray[*]}
+fi
+
+# setup temp files
+tmpA1="$dir/redeye_1_$$.mpc"
+tmpB1="$dir/redeye_1_$$.cache"
+tmpA2="$dir/redeye_2_$$.mpc"
+tmpB2="$dir/redeye_2_$$.cache"
+tmpA3="$dir/redeye_3_$$.mpc"
+tmpB3="$dir/redeye_3_$$.cache"
+tmpA4="$dir/redeye_4_$$.mpc"
+tmpB4="$dir/redeye_4_$$.cache"
+tmpA5="$dir/redeye_5_$$.mpc"
+tmpB5="$dir/redeye_5_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5 $tmpB5; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5 $tmpB5; exit 1" 1 2 3 15
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using redeye.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+# create desaturated image
+convert $tmpA1 -modulate $light,$sat,100 $tmpA2
+
+# setup processing for kind
+if [ $kind -eq 1 ]; then
+	convert $tmpA1 -alpha off $tmpA5
+else	
+	# convert input to HSB saturation for fuzz fill
+	convert $tmpA1 -alpha off $setcspace -colorspace HSB -channel G -separate +channel $tmpA5
+fi
+
+# set up flood fill for each pairArray
+proc=""
+for ((i=0; i<np; i++)); do
+	proc="$proc matte ${pairArray[i]} floodfill"	
+done
+
+# process mask using interative fuzz method
+if [ "$fuzz" = "" ]; then
+echo ""
+	# create mask from floodfill of color image
+	stop1=0
+	stop2=0
+	stop=0
+	j=0
+	oldratio=""
+	for ((i=begin; i<=end; i=i+inc)); do
+		fuzz=$i
+		convert $tmpA5 -fuzz $fuzz% -fill none -draw "$proc" \
+		-fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" \
+		-fill "rgba(0,0,0,1)" -opaque "rgba(0,0,0,0)" \
+		-alpha off -negate $tmpA3
+	
+		# report mean and entropy
+		mean=`convert $tmpA3 -format "%[fx:100*mean]" info:`
+		if [ $j -gt 0 -a "$mean" != "0" ]; then
+			ratio=`convert xc: -format "%[fx:($mean/$oldmean)]" info:`
+			if [ $j -eq 1 ]; then 
+				stop=`convert xc: -format "%[fx:$ratio>=$quitratio?1:0]" info:`
+			elif [ $j -gt 1 ]; then 
+				stop1=`convert xc: -format "%[fx:($ratio>=$quitratio)?1:0]" info:`
+				stop2=`convert xc: -format "%[fx:($ratio<$oldratio)?1:0]" info:`
+				stop=`convert xc: -format "%[fx:max($stop1,$stop2)]" info:`
+			fi
+		fi
+		echo "fuzz=$fuzz; mean=$mean; ratio=$ratio;"
+		[ $stop -eq 1 ] && break
+		oldmean=$mean
+		oldratio=$ratio
+		j=$((j+1))
+	done
+	
+	[ "$mean" = "0" -o $i -eq $end ] && errMsg "--- THRESHOLD FAILED ---"
+	if [ $stop1 -eq 1 ]; then
+		fuzz=$((fuzz-inc))
+	fi
+	echo "fuzz=$fuzz"
+echo""
+fi
+
+# recreate previous fuzz value result or create from given fuzz value
+convert $tmpA5 -fuzz $fuzz% -fill none -draw "$proc" \
+	-fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" \
+	-fill "rgba(0,0,0,1)" -opaque "rgba(0,0,0,0)" \
+	-alpha off -negate $tmpA3
+
+# set up dilation
+if [ "$dilate" = 0 ]; then
+	dilation=""
+else
+	dilation="-morphology dilate disk:$dilate"
+fi
+
+# combine original and redeye desaturate
+convert $tmpA1 $tmpA2 $tmpA3 -compose over -composite $tmpA2
+
+
+# create diff mask that desaturates specular using close and optional dilation for outer redeye area possibly missed above
+convert $tmpA3 \( +clone -morphology close disk:$rad $dilation \) \
+	-compose difference -composite -auto-level \
+	-negate -threshold 0 -negate $tmpA4
+
+# process for type
+if [ "$type" = "desat" ]; then
+	# apply diff mask to previous desaturated image and zero sat full lightness image
+	convert $tmpA2 \( $tmpA1 -modulate 100,0,100 \) $tmpA4 \
+			-compose over -composite $outfile
+
+elif [ "$type" = "remove" ]; then 
+	# apply diff mask to previous desaturated image and zero sat full lightness image
+	convert $tmpA2 \( $tmpA1 -modulate 100,0,100 \) $tmpA4 \
+		-compose over -composite $tmpA2
+			
+	# create diff mask that recolors specular only using close and no dilate
+	convert $tmpA3 \( +clone -morphology close disk:$rad \) \
+		-compose difference -composite -auto-level \
+		-negate -threshold 0 -negate $tmpA4
+	
+	# get average color of desaturated regions at specified points
+	colors=""
+	for ((i=0; i<np; i++)); do
+	newcolor=`convert $tmpA2 -format "%[pixel:u.p{${pairArray[i]}}]" info:`
+	colors="$colors xc:$newcolor"
+	done
+	newcolor=`convert -size 1x1 $colors +append -scale 1x1! -format "%[pixel:u.p{0,0}]" info:`
+		
+	# combine previous desaturated image with diff mask and color
+	convert $tmpA2 \( -clone 0 -fill $newcolor -colorize 100 \) $tmpA4 \
+		-compose over -composite "$outfile"
+fi
+
+exit 0
+
+
+
+
+
+
+
+
+

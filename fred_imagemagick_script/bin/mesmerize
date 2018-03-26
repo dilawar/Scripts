@@ -1,0 +1,369 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/24/2016 .......... revised 11/24/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: mesmerize [-s shape] [-m mode] [-f factor] [-t thick] [-d delay] 
+# [-i incr] [-D direction] [-c colors] infile outfile
+#
+# USAGE: mesmerize [-help]
+# 
+# OPTIONS:
+# 
+# -s     shape         shape of mesmerizing pattern; choices are: round or 
+#                      diamond; default=round
+# -m     mode          mode of mesmerizing pattern; choices are: normal or 
+#                      split; default=split
+# -f     factor        scale factor for diamond shape pattern; choices are: 
+#                      1 or 2; default=2
+# -t     thick         thickness of pattern; integer>0; default=40; must be an 
+#                      integer multiple of the incr to animate smoothly
+# -d     delay         delay for each frame of animation; integer>=0; default=5
+# -i     incr          increment of frames in animation; integer>0; default=4
+# -D     direction     direction of motion of animation pattern; choices are: 
+#                      out or in; default=out
+# -c     colors        colors of pattern; either "none" or comma separated 
+#                      pair of opaque colors (names, rgb or hex values); 
+#                      default="red,blue"; for color images, use "none"
+# 
+# outfile should be of a type that supports multi-frames, such as gif
+# 
+###
+# 
+# NAME: MESMERIZE 
+# 
+# PURPOSE: To create a mesmerizing animation from an image.
+# 
+# DESCRIPTION: MESMERIZE creates a mesmerizing animation from an image. The 
+# image may be binary, grayscale or color. The user may select the shape and 
+# colors for the pattern.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s shape ... SHAPE of the mesmerizing pattern. The choices are: round (r) or 
+# diamond (d). The default=round.
+# 
+# -m mode ... MODE of the mesmerizing pattern. The choices are: normal (n) or 
+# split (s). The default=split.
+# 
+# -f factor ... FACTOR is the scale factor for the diamond shape pattern. 
+# Values are either 1 or 2. The default=2. Ignored for the round shape.
+# 
+# -t thick ... THICK is the thickness of the pattern. Value are integers>0. 
+# The default=40. Thick must be an integer multiple of the incr to animate 
+# smoothly.
+# 
+# -d delay ... DELAY for each frame of the animation. Values are integers>=0. 
+# The default=5. Provides fine adjustment of the animation speed.
+# 
+# -i incr ... INCR is the increment or skip for the frames in the animation. 
+# Values are integers>0. The default=4. Provides coarse adjustment of the 
+# animation speed.
+# 
+# -D direction .. DIRECTION of motion of the animation pattern. Choices are: 
+# out or in. The default=out.
+# 
+# -c colors ... COLORS of the animation pattern. Values may be either "none" 
+# or a comma separated pair of opaque colors (names, rgb or hex values).  
+# The default="red,blue". For color images, use "none".
+# 
+# outfile should be of a type that supports multi-frames, such as gif
+# 
+# NOTE: The effect on color images will produce an optical illusion 
+# whether you see the normal background image and moving stripes of its 
+# inverse or vice-versa. Look carefully and you can see either one.
+
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+shape="round"
+mode="split"
+factor=2
+thick=40
+delay=5
+incr=4
+direction="out"
+colors="red,blue"
+
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/MESMERIZE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # shape
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHAPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   shape=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$shape" in 
+							round|r) shape="round" ;;
+							diamond|d) shape="diamond" ;;
+							*) errMsg "--- SHAPE=$shape IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-m)    # mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+							normal|n) mode="normal" ;;
+							split|s) mode="split" ;;
+							*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-f)    # get  factor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FACTOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   factor=`expr "$1" : '\([1-2]*\)'`
+					   [ "$factor" = "" ] && errMsg "--- FACTOR=$factor MUST BE EITHER 1 OR 2 ---"
+				   	   ;;
+				-t)    # get  thick
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICK SPECIFICATION ---"
+					   checkMinus "$1"
+					   thick=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thick" = "" ] && errMsg "--- THICK=$thick MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   testA=`echo "$thick <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- THICK=$thick MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-d)    # get  delay
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DELAY SPECIFICATION ---"
+					   checkMinus "$1"
+					   delay=`expr "$1" : '\([0-9]*\)'`
+					   [ "$delay" = "" ] && errMsg "--- DELAY=$delay MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-i)    # get  incr
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INCR SPECIFICATION ---"
+					   checkMinus "$1"
+					   incr=`expr "$1" : '\([0-9]*\)'`
+					   [ "$incr" = "" ] && errMsg "--- INCR=$incr MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   testA=`echo "$incr <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- INCR=$incr MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-D)    # direction
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIRECTION SPECIFICATION ---"
+					   checkMinus "$1"
+					   direction=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$direction" in 
+							in|i) direction="in" ;;
+							out|o) direction="out" ;;
+							*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-c)    # get  colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   if [ "$1" != "none" ]; then
+					   		colors=`expr "$1" : '\([,%.a-zA-Z0-9]*,[,%.a-zA-Z0-9]*\)'`
+					   		[ "$colors" = "" ] && errMsg "--- COLORS=$colors MUST BE A COMMA SEPARATED PAIR OF COLOR VALUES OR NONE ---"
+					   fi
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INFILE FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# set up thresh related arguments
+if [ "$colors" != "none" ]; then
+	coloring="+level-colors $colors"
+else
+	coloring=""
+fi
+
+# read input image
+convert -quiet -regard-warnings "$infile" -alpha off +repage $dir/tmpI.mpc ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
+ww=`echo "$wxh" | cut -dx -f1`
+hh=`echo "$wxh" | cut -dx -f2`
+maxdim=`convert xc: -format "%[fx:max($ww,$hh)]" info:`
+hh2=`convert xc: -format "%[fx:round($hh/2)]" info:`
+maxdim2=$((maxdim*factor))
+#echo "ww=$ww; hh=$hh; maxdim=$maxdim; hh2=$hh2;"
+
+if [ "$thick" = "" ]; then
+	thick=`convert xc: -format "%[fx:$maxdim/32]" info:`
+fi
+#echo "thick=$thick;"
+
+# set up mode
+if [ "$mode" = "normal" ]; then
+	yroll=0
+	[ "$direction" = "in" -a "$shape" = "round" ] && sign="-"
+	[ "$direction" = "out" -a "$shape" = "round" ] && sign="+"
+	[ "$direction" = "in" -a "$shape" = "diamond" ] && sign="+"
+	[ "$direction" = "out" -a "$shape" = "diamond" ] && sign="-"
+elif [ "$mode" = "split" ]; then	
+	yroll=$hh2
+	[ "$direction" = "in" -a "$shape" = "round" ] && sign="+"
+	[ "$direction" = "out" -a "$shape" = "round" ] && sign="-"
+	[ "$direction" = "in" -a "$shape" = "diamond" ] && sign="-"
+	[ "$direction" = "out" -a "$shape" = "diamond" ] && sign="+"
+fi
+
+# create shaped gradient
+if [ "$im_version" -ge "06090205" -a "$shape" = "round" ]; then
+	convert -size ${ww}x${hh} -define gradient:extent=diagonal radial-gradient:black-white \
+	$dir/tmpG.mpc
+elif [ "$shape" = "diamond" ]; then
+	convert -size ${maxdim2}x${maxdim2} gradient: \( -clone 0 -rotate 90 \) \
+		-solarize 50% -level 0x50% -compose multiply -composite \
+		-gravity center -crop ${ww}x${hh}+0+0 +repage $dir/tmpG.mpc
+
+fi
+
+# create animation
+# line 1 -- read image into mpr
+# line 2-4 -- create striped 1D lut and roll
+# line 5 -- apply lut to gradient and roll vertically by half height of image
+# line 6 -- composite image with ring gradient
+# line 7 -- composite negated image with negated ring gradient
+# line 8 -- add the two composite images together
+frames=$((thick*2))
+	(
+	for ((i=0; i<frames; i=i+incr)); do
+		j=$((i/incr))
+		echo >&2 "frame=$j"
+		convert $dir/tmpI.mpc -write mpr:img +delete \
+			\( -size ${thick}x1 xc:black xc:white +append \
+				-size ${maxdim}x1 -write mpr:tile +delete tile:mpr:tile -roll ${sign}${i}+0 \) \
+			\( $dir/tmpG.mpc -clone 0 -clut -roll +0+$yroll \) \
+			-delete 0 \
+			\( mpr:img -clone 0 -compose multiply -composite \) \
+			\( mpr:img -clone 0 -negate -compose multiply -composite \) \
+			-delete 0 \
+			-compose over -compose plus -composite miff:-
+	done 
+	) | convert -delay $delay - $coloring -loop 0 "$outfile"
+
+exit 0

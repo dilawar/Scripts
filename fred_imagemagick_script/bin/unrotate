@@ -1,0 +1,581 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 12/12/2007 .......... revised 10/16/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: unrotate [-f fuzzval] [-c coords] [-C color] [-a angle] [-l left] [-r right ] 
+# [-t top ] [-b bottom ] infile [outfile]
+# USAGE: unrotate [-h or -help]
+# 
+# OPTIONS:
+# 
+# -f              fuzzval        fuzz value for determining border color;
+#                                expressed as (float) percent 0 to 100; 
+#                                default=0 (uniform color)
+# -c              coords         pixel coordinate to extract color; may be 
+#                                expressed as gravity value (NorthWest, etc)
+#                                or as "x,y" value; default is NorthWest=(0,0)
+# -C              color          border color; any valid IM color is allowed, 
+#                                default is to use coords to get color
+# -a              angle          angle of rotation of image; default indicates 
+#                                to autocalculate; -45<=angle<=45 degrees (float)
+# -l              left           pixel shift of left edge; +/- is right/left
+#                                default=0 (no change) 
+# -r              right          pixel shift of right edge; +/- is right/left
+#                                default=0 (no change) 
+# -t              top            pixel shift of top edge; +/- is down/up
+#                                default=0 (no change) 
+# -b              bottom         pixel shift of bottom edge; +/- is down/up
+#                                default=0 (no change) 
+# -h or -help                    get help
+# [outfile]                      if outfile is left off, the script will simply 
+#                                report the rotation angle needed to unrotate
+#                                the image.
+# 
+###
+# 
+# NAME: UNROTATE 
+#  
+# PURPOSE: To unrotate a rotated image and trim the surrounding border.
+# 
+# DESCRIPTION: UNROTATE computes the amount an image has been rotated and 
+# attempts to automatically unrotate the image. It assumes that the image 
+# contains a border area around the rotated data and that one must identify 
+# a coordinate within the border area for the algorithm to extract the base 
+# border color. A fuzz value should be specified when the border color is not 
+# uniform, but also because the edge of rotated image is a blend of image and 
+# border color. Thus, the fuzz value must be a compromise. If too large, the 
+# rotation angle will not be accurate. If too small, the blended edge around 
+# unrotated image will not be trimmed enough. The rotation angle displayed 
+# by the script for an appropriate fuzz value will typically be within a few 
+# tenths of a degree of the correct value. However, if the results are not 
+# accurate enough or there is still some border showing, you may rerun the 
+# script on the original image again and either specify an adjusted rotation 
+# angle or use the left/right/top/bottom arguments to specify extra trim.
+# 
+# 
+# Arguments: 
+# 
+# -h or -help    ---  displays help information. 
+# 
+# -f fuzzval --- FUZZVAL is the fuzz amount specified as a percent 0 to 100 
+# (without the % sign). The default is zero which indicates that border is a 
+# uniform color. Larger values are needed when the border is not a uniform 
+# color and to trim the border of the rotated area where the image data is 
+# a blend with the border color.
+# 
+# -c coords --- COORDS is any location within the border area for the 
+# algorithm to find the base border color. It may be specified in terms of 
+# gravity parameters (NorthWest, North, NorthEast, East, SouthEast, South, 
+# SouthWest or West) or as a pixel coordinate "x,y". The default is the 
+# upper left corner = NorthWest = "0,0".
+# 
+# -C color ... COLOR of border or background. Any valid IM color is allowed.
+# The default is to use coords to get color.
+#
+# -a angle --- ANGLE is the rotation angle needed to unrotate the picture data 
+# within the image. The default (no argument) tells the algorithm to automatically 
+# estimate the rotation angle. One may override the automatic determination and 
+# specify your own value. Values are positive floats between -45 and 45 degrees. 
+# Note that the algorithm cannot correct beyond 45 degrees and cannot 
+# distinguish between exactly +45 degrees and exactly -45. Therefore you 
+# may need to do a 90, 180, or 270 degree rotation after using this script. 
+# You may need to do a 90, 180, or 270 degree rotation after using this script. 
+# If the outfile is left off, then the script will simply report the rotation 
+# angle needed to unrotate the image.
+# 
+# -l left --- LEFT is the number of extra pixels to shift the trim of the left 
+# edge of the image. The trim is shifted right/left for +/- integer values.
+# The default=0.
+# 
+# -r right --- RIGHT is the number of extra pixels to shift the trim of the right 
+# edge of the image. The trim is shifted right/left for +/- integer values.
+# The default=0.
+# 
+# -t top --- TOP is the number of extra pixels to shift the trim of the top 
+# edge of the image. The trim is shifted down/up for +/- integer values.
+# The default=0.
+# 
+# -b bottom --- BOTTOM is the number of extra pixels to shift the trim of the 
+# bottom edge of the image. The trim is shifted down/up for +/- integer values.
+# The default=0.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values; 
+fuzzval=0				# fuzz threshold
+coords="NorthWest"		# coordinates to get color
+color=""
+pad=1					# border pad size
+rotang=""				# rotation angle -45 to 45 or "" for calc automatic
+lt=0					# left edge shift of trim (+/- is right/left)
+rt=0					# right edge shift of trim (+/- is right/left)
+tp=0					# top edge shift of trim (+/- is down/up)
+bm=0					# top bottom shift of trim (+/- is down/up)
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-f)    # fuzzval
+				   shift  # to get the next parameter - fuzzval
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   fuzzvaltest=`echo "$fuzzval < 0" | bc`
+				   [ $fuzzvaltest -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE ---"
+				   ;;
+			-c)    # coords
+				   shift  # to get the next parameter - coords
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+				   checkMinus "$1"
+				   coords=$1
+				   # further testing done later
+				   ;;
+			-C)    # color
+				   shift  # to get the next parameter - coords
+				   color="$1"
+				   ;;
+			-a)    # angle
+				   shift  # to get the next parameter - angle
+				   # test if parameter starts with minus sign 
+				   #errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+				   #checkMinus "$1"
+				   rotang=`expr "$1" : '\([.0-9\-]*\)'`
+				   [ "$rotang" = "" ] && errMsg "--- ANGLE=$rotang MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   rotangtestA=`echo "$rotang < -45" | bc`
+				   rotangtestB=`echo "$rotang > 45" | bc`
+				   [ $rotangtestA -eq 1 -a $rotangtestB -eq 1 ] && errMsg "--- ANGLE=$rotang MUST BE A NON-NEGATIVE FLOATING POINT VALUE LESS THAN OR EQUAL TO 45 ---"
+				   ;;
+			-l)    # left
+				   shift  # to get the next parameter - left
+				   lt=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$lt" = "" ] && errMsg "--- LEFT=$lt MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-r)    # right
+				   shift  # to get the next parameter - right
+				   rt=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$rt" = "" ] && errMsg "--- RIGHT=$rt MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-t)    # top
+				   shift  # to get the next parameter - top
+				   tp=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$tp" = "" ] && errMsg "--- TOP=$tp MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-b)    # bottom
+				   shift  # to get the next parameter - bottom
+				   bm=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$bm" = "" ] && errMsg "--- BOTTOM=$bm MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/unrotate_$$.mpc"
+tmpB="$dir/unrotate_$$.cache"
+tmp0="$dir/unrotate_0_$$.mpc"
+tmp0a="$dir/unrotate_0_$$.cache"
+tmp1="$dir/unrotate_1_$$.mpc"
+tmp1a="$dir/unrotate_1_$$.cache"
+tmp2="$dir/unrotate_2_$$.mpc"
+tmp2a="$dir/unrotate_2_$$.cache"
+tmp3="$dir/unrotate_3_$$.mpc"
+tmp3a="$dir/unrotate_3_$$.cache"
+tmp4="$dir/unrotate_4_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a $tmp4;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a $tmp4; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a; exit 1" ERR
+
+# test input image
+convert -quiet "$infile" +repage $tmpA ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autolevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace1="-set colorspace RGB"
+	setcspace2="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace1=""
+	setcspace2=""
+fi
+
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+	identifying="magick identify"
+else
+	matte_alpha="matte"
+	identifying="identify"
+fi
+
+# function to get dimensions
+dimensions()
+	{
+	width=`$identifying -format "%w" $1`
+	height=`$identifying -format "%h" $1`
+	widthm1=`expr $width - 1`
+	heightm1=`expr $height - 1`
+	midwidth=`echo "scale=0; $width / 2" | bc`
+	midheight=`echo "scale=0; $height / 2" | bc`
+	widthmp=`expr $width - 2 \* $pad`
+	heightmp=`expr $height - 2 \* $pad`
+	}
+
+# function to get color at user specified location
+getColor()
+	{
+	dimensions $tmpA
+	case "$coords" in
+		NorthWest|Northwest|northwest)	coords="0,0"
+										;;
+						  North|north)	coords="$midwidth,0"
+										;;
+		NorthEast|Northeast|northeast)	coords="$widthm1,0"
+										;;
+							East|east)	coords="$widthm1,$midheight"
+										;;
+		SouthEast|Southeast|southeast)	coords="$widthm1,$heightm1"
+										;;
+						  South|south)	coords="$midwidth,$heightm1"
+										;;
+		SouthWest|Southwest|southwest)	coords="0,$heightm1"
+										;;
+							West|west)	coords="0,$midheight"
+										;;
+						[0-9]*,[0-9]*)	coords=$coords
+										;;
+									*)	errMsg "--- INVALID COORDS ---"
+										;;
+	esac
+	tmpcolor=`convert $tmpA -format "%[pixel:u.p{$coords}]" info:`
+	if [ "$color" = "" ]; then
+		color=$tmpcolor
+	fi
+	}
+	
+# function to pad and extract binary image
+paddedBinary()
+	{
+	fuzzthresh=$1
+	# reset coords to 0,0
+	coords="0,0"
+
+	# pad image with border of color found at original coords
+	convert $tmpA -bordercolor "$color" -border ${pad}x${pad} $tmpA
+	
+	# get dimensions of padded image
+	dimensions $tmpA
+	
+	# make exterior transparent and inside white
+	convert $tmpA -fuzz $fuzzthresh% -fill none \
+		-draw "$matte_alpha $coords floodfill" -fill white +opaque none $tmp0
+	
+	# make exterior black and inside white	
+	convert \( -size ${width}x${height} xc:black \) $tmp0 -compose over -composite $tmp1
+#	convert $tmp0 -background black -compose over -flatten $tmp1
+	}
+
+# function to get black to white transition location along row or column
+# specify arguments 1D image of data, dimension=width,height,widthm1 or heightm1, and direction=inc or dec
+getTransition()
+	{
+	img1D=$1
+	dim=$2
+	direct=$3
+	rowcol=`convert $img1D -compress None -depth 8 txt:-`
+	vals=`echo "$rowcol" | sed -n 's/^[0-9]*,[0-9]*: [(].*[)]  #...... \(.*\)$/\1/p'`
+	vals_Array=($vals)
+#echo "$vals"
+	if [ "$direct" = "inc" ]
+		then
+		i=0
+		while [ $i -lt $dim ]
+			do
+			[ "${vals_Array[$i]}" = "white" ] && break
+			i=`expr $i + 1`
+		done
+		location=$i
+	elif [ "$direct" = "dec" ]
+		then
+		i=$dim
+		while [ $i -ge 0 ]
+			do
+			[ "${vals_Array[$i]}" = "white" ] && break
+			i=`expr $i - 1`
+		done
+		location=$i
+	fi
+	}
+	
+# function to process binary to get cropped image
+cropImage()
+	{
+	trim=$1
+	angle=$2
+	if [ "$angle" = "" ]
+		then
+		thresh=1
+		normalize=""
+	elif [ `echo "($angle >= -45) -a ($angle <= 45)" | bc` -eq 1 ]
+		then
+		# threshold relation to angle determined empirically and seems to be reasonably good, but not perfect
+		if [ `echo "$angle <= 5" | bc` -eq 1 ]
+			then
+			thresh=`echo "scale=1; (99 - (1.0 * $angle)) / 1" | bc`
+		else
+			thresh=`echo "scale=1; (99 - (1.07 * $angle)) / 1" | bc`
+		fi
+		thresh=$thresh%
+#		normalize="-normalize"
+		normalize="-contrast-stretch 0"
+
+	else
+		echo "--- INVALID ANGLE VALUE ---"
+		exit 1
+	fi
+
+	# average to one row and one column
+#	convert $tmp1 -filter box -resize 1x${height}! $normalize -threshold $thresh $tmp2
+#	convert $tmp1 -filter box -resize ${width}x1! $normalize -threshold $thresh $tmp3
+
+	# need to add -set colorspace RGB for versions after 6.7.7.7 to convert to nonlinear gray so thresholds correctly
+	# some versions after 6.6.9.10 and before 6.7.2.10 (tested at 6.7.2.0 and 6.7.2.1) produce srgb(...) values so must trap out -set colorspace sRGB before the output so they report black and white
+	# with the above scheme a few odd versions will show some white in the corners (e.g. tests show that in 6.7.7.8, 6.7.7.10, 6.7.8.2, 6.7.8.3, 6.8.4.0, 6.8.4.2, but not before 6.7.7.8 or 6.8.1.9, 6.8.3.9, 6.8.4.3 and after)
+	convert $tmp1 -scale 1x${height}! $normalize $setcspace1 -threshold $thresh $setcspace2 $tmp2
+	convert $tmp1 -scale ${width}x1! $normalize $setcspace1 -threshold $thresh $setcspace2 $tmp3
+
+	# get top and bottom by locating first occurence of value=white from top and bottom of column
+	getTransition $tmp2 $height "inc"
+	top=$location
+
+	getTransition $tmp2 $heightm1 "dec"
+	bottom=$location
+		
+	# get left and right by locating first occurence of value=white from left and right of row
+	getTransition $tmp3 $width "inc"
+	left=$location
+	
+	getTransition $tmp3 $widthm1 "dec"
+	right=$location
+
+	#compute start x and y and width and height
+	if [ "$trim" = "" ]
+		then
+		new_x=$left
+		new_y=$top
+		new_width=`expr $right - $left + 1`
+		new_height=`expr $bottom - $top + 1`
+	else
+		new_x=`expr $left + $lt`
+		new_y=`expr $top + $tp`
+		new_width=`expr $right - $left - $lt + $rt + 1`
+		new_height=`expr $bottom - $top - $tp + $bm + 1`
+	fi
+
+#echo "top=$top; bottom=$bottom; left=$left; right=$right;"		
+#echo "new_x=$new_x; new_y=$new_y; new_width=$new_width; new_height=$new_height;"		
+
+	#crop image
+	convert $tmpA[${new_width}x${new_height}+${new_x}+${new_y}] +repage $tmpA
+	}
+
+# function to compute rotation angle
+computeRotation()
+	{
+	# start with image already cropped to outside bounds of rotated image
+	
+	# get new dimension
+	dimensions $tmpA
+	
+	# get padded bindary image
+	paddedBinary  $fuzzval
+		
+	# trim off pad (repage to clear page offsets)
+	convert $tmp1[${widthmp}x${heightmp}+1+1] +repage $tmp1
+
+	# get rotation angle
+	# get coord of 1st white pixel in left column
+	getTransition $tmp1[1x${height}+0+0] $height "inc"
+	p1x=1
+	p1y=$location
+	
+	# get coord of 1st white pixel in top row
+	getTransition $tmp1[${width}x1+0+0] $width "inc"
+	p2x=$location
+	p2y=1
+	
+	# compute slope and angle (reverse sign of dely as y increases downward)
+	delx=`expr $p2x - $p1x`
+	dely=`expr $p1y - $p2y`
+	if [ $delx -eq 0 ]
+		then
+		rotang=0
+	else
+		pi=`echo "scale=10; 4*a(1)" | bc -l`
+		angle=`echo "scale=5; (180/$pi) * a($dely / $delx)" | bc -l`
+		if [ `echo "$angle > 45" | bc` -eq 1 ]
+			then
+			rotang=`echo "scale=2; ($angle - 90.005) / 1" | bc`
+		else
+			rotang=`echo "scale=2; ($angle + 0.005) / 1" | bc`
+		fi
+	fi
+	}
+
+
+# start processing 
+
+# get color at user specified location
+getColor
+
+# get rotation angle if appropriate
+if [ "$rotang" = "" ]
+	then
+	# crop out any border to get bounding box
+	paddedBinary  $fuzzval
+	cropImage "" ""
+	computeRotation
+fi
+if [ "$outfile" = "" ]
+	then
+	echo ""
+	echo "Image Needs To Be Rotated $rotang degrees"
+	echo ""
+else
+	echo ""
+	echo "Image Is Being Rotated $rotang degrees"
+	echo ""
+	# unrotate
+	# fixed 8/20/2012 +repage issue (after rotate) that started between IM 6.7.2.10 and IM 6.7.3.10 and continued
+	# convert $tmpA +repage -background $color -rotate $rotang $tmpA
+	convert $tmpA +repage -background "$color" -rotate $rotang +repage $tmpA
+	# process to trim (no rotation)
+	paddedBinary  $fuzzval
+	cropImage "trim" ""
+	# due to bug in IM 6.9.9.12 - 6.9.9.19 in freeing memory for MPC, write to miff, then save to output
+	# no problems with IM 7 versions
+	if [ "$im_version" -ge "06090909" -o "$im_version" -le "06090919" ]; then
+		convert $tmpA $tmp4
+		convert $tmp4 +repage "$outfile"
+	else
+		convert $tmpA +repage "$outfile"
+	fi
+fi
+exit 0

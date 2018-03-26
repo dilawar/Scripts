@@ -1,0 +1,413 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/30/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: histog [-l labels] [-c number] [-rgb] infile [outfile]
+# USAGE: histog [-h or -help]
+#
+# OPTIONS:
+#
+# -l        labels    quoted comma and/or space delimited list of labels for histogram:
+#                     1, 3 or 4 values such as: "Grayscale" or "Red Green Blue" 
+#                     or "Hue Saturation Lightness" 
+#                     or "Cyan Magenta Yellow Black" 
+#                     or just "4" to distinguish CMYK from all the 3 channel 
+#                     formats, but leave the label off
+# -c        number    color scheme number: 1, 2, 3 or 4; default=1
+# -rgb                convert infile to RGB before generating the histogram
+# outfile             if not specified, outfile will be named from the infile name
+#
+###
+#
+# NAME: HISTOG 
+# 
+# PURPOSE: To generate an output image which is composed of the histograms
+# from each channel of the input image. 
+# 
+# DESCRIPTION: HISTOG generates an output image which is composed of the 
+# separate histograms from each channel of the input image. Label names may 
+# be supplied for each channel, if desired. However, each channel histogram 
+# will display its corresponding min, max, mean, and standard deviation 
+# values. There is also an option for four different colorschemes for the 
+# histogram to optimize it presentation. Furthermore, the infile may be 
+# automatically converted from whatever colorspace it is in to RGB before 
+# generating the histogram.
+# 
+# 
+# OPTIONS: 
+# 
+# -l labels indicates to put label names on the histogram for each channel,
+# where labels is a quoted comma and/or space delimited list of 
+# labels for the histogram with 1, 3 or 4 values such as: "Grayscale" or 
+# "Red Green Blue" or "Hue Saturation Lightness" or "Cyan Magenta Yellow Black" 
+# or just "4" to distinguish CMYK from all the 3-channel formats, but leave the 
+# label off. Note that if the number of labels provided is 4 or the option is 
+# specified as -l "4", then a non-4-channel image will be converted to CMYK 
+# before generating the histogram.
+# 
+# -c number indicates the color scheme to use. The choices are:
+# 1  histogram in color; background black; border white
+# 2  histogram in color; background white; border black
+# 3  histogram in white; background black; border color
+# 4  histogram in black; background white; border color
+# where color is red, green and blue for 3 channel infile and 
+# color is cyan, magenta, yellow, black/white for 4 channel infile
+#
+# -rgb indicates to convert the image from whatever colorspace it 
+# has to sRGB/RGB before generating the histogram
+#
+# If no outfile is specified, then outfile will be named as 
+# infilename_hist.gif, where the suffix has been removed from infile 
+# to generate infilename.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values
+bordersize=10x30
+fontname="ArialB"
+fontsize=20
+fontlocation="5,22"
+colorscheme=1
+colormodel="color"
+labels=""
+labelArr[0]=""
+labelArr[1]=""
+labelArr[2]=""
+#
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+#
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+#
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+#
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+#
+# function to get min, max, mean, std from Brightness channel (or Graylevel image)
+imagestats()
+	{
+	data=`convert $1 -verbose info:`
+	min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$min" = "" ] && errMsg "--- MIN NOT FOUND --- "
+	max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$max" = "" ] && errMsg "--- MAX NOT FOUND --- "
+	mean=`echo "$data" | sed -n 's/^.*[Mm]ean:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$mean" = "" ] && errMsg "--- MEAN NOT FOUND --- "
+	std=`echo "$data" | sed -n 's/^.*[Ss]tandard.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$std" = "" ] && errMsg "--- STD NOT FOUND --- "
+	#
+	# express as percent
+	# Note: divide by 1 needed to force bc to honor scale=1; otherwise get 6 digits after decimal point
+	min=`echo "scale=1; $min * 100 / 1" | bc`
+	max=`echo "scale=1; $max * 100 / 1" | bc`
+	mean=`echo "scale=1; $mean * 100 / 1" | bc`
+	std=`echo "scale=1; $std * 100 / 1" | bc`
+	}
+#
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 -rgb|-RGB)    # convert to RGB
+					   colormodel="RGB"
+					   ;;
+				-l)    # get labels
+					   shift  # to get the next parameter - labels
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LABEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   labels="$1"
+						# extract labels
+						if [ "$labels" != "4" ]
+							then
+							# pattern below replaces all occurrences of commas and spaces with a space
+							label_list=`echo "$labels" | sed 's/[, ][, ]*/ /g'`
+							labelArr=($label_list)							
+							labelArr1=($label_list)
+							num=${#labelArr1[*]}
+							if [ $num -eq 1 ] 
+								then
+								labelArr[1]=${labelArr[0]}
+								labelArr[2]=${labelArr[0]}
+							elif [ $num -eq 0 -o $num -eq 2 -o  $num -gt 4 ]
+								then
+								errMsg "--- INVALID NUMBER OF LABELS ---"
+							fi
+						else
+							# no labels wanted and 4 channels
+							labelArr[0]=""
+							labelArr[1]=""
+							labelArr[2]=""
+							labelArr[3]=""
+						fi
+					   ;;
+				-c)    # color scheme
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SCHEME SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorscheme="$1"
+					   [ $colorscheme -lt 1 -o $colorscheme -gt 4 ] && errMsg errMsg "--- INVALID COLOR SCHEME NUMBER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+if [ "$outfile" = "" ]
+	then
+	# get infile name before suffix
+	inname=`convert "$infile" -format "%t" info:`
+	hg="_hist"
+	outfile="$inname$hg.gif"
+#	outfile="$inname$hg$colorscheme.gif"
+fi
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/histog_$$.mpc"
+tmpB="$dir/histog_$$.cache"
+tmp0="$dir/histog_0_$$.mpc"
+tmp00="$dir/histog_0_$$.cache"
+tmp1="$dir/histog_1_$$.mpc"
+tmp11="$dir/histog_1_$$.cache"
+tmp2="$dir/histog_2_$$.mpc"
+tmp22="$dir/histog_2_$$.cache"
+tmp3="$dir/histog_3_$$.mpc"
+tmp33="$dir/histog_3_$$.cache"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using histog.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+# NOTE: slight very differences in histograms before and after 6.7.6.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	cspace="sRGB"
+else
+	cspace="RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+		colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+		num_labels=${#labelArr[*]}
+		if [ "$colorspace" = "CMYK" ]
+			then
+				# image is CMYK (detectable for jpg files)
+			 	convert $tmpA $setcspace -channel C -separate $tmp0
+			 	convert $tmpA $setcspace -channel M -separate $tmp1
+			 	convert $tmpA $setcspace -channel Y -separate $tmp2
+			 	convert $tmpA $setcspace -channel K -separate $tmp3
+		elif [ $num_labels -eq 4 -o "$labels" = "4" ]
+			then
+				# convert to CMYK
+			 	convert $tmpA $setcspace -colorspace CMYK -channel C -separate $tmp0
+			 	convert $tmpA $setcspace -colorspace CMYK -channel M -separate $tmp1
+			 	convert $tmpA $setcspace -colorspace CMYK -channel Y -separate $tmp2
+			 	convert $tmpA $setcspace -colorspace CMYK -channel K -separate $tmp3
+		elif [ "$colormodel" = "RGB" ]
+			then
+				# convert to sRGB/RGB
+			 	convert $tmpA $setcspace -colorspace $cspace -channel R -separate $tmp0
+			 	convert $tmpA $setcspace -colorspace $cspace -channel G -separate $tmp1
+			 	convert $tmpA $setcspace -colorspace $cspace -channel B -separate $tmp2
+		elif [ "$colorspace" != "sRGB" -a "$colorspace" != "RGB" -a "$colorspace" != "CMYK" ]
+			then
+				# this option is not currently possible as IM does not recognize other colorspaces from the image -verbose info:
+			 	convert $tmpA $setcspace -colorspace $colorspace -channel R -separate $tmp0
+			 	convert $tmpA $setcspace -colorspace $colorspace -channel G -separate $tmp1
+			 	convert $tmpA $setcspace -colorspace $colorspace -channel B -separate $tmp2
+		elif [ "$colorspace" = "sRGB" -o "$colorspace" = "RGB" -o "$colorspace" = "Gray" ]
+			then
+			 	convert $tmpA $setcspace -channel R -separate $tmp0
+			 	convert $tmpA $setcspace -channel G -separate $tmp1
+			 	convert $tmpA $setcspace -channel B -separate $tmp2
+		else
+			errMsg "--- FILE $infile IS NOT IN RGB FORMAT ---"
+		fi
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get stats and add to label
+imagestats $tmp0
+labelArr[0]="${labelArr[0]} ($min,$max,$mean,$std)"
+imagestats $tmp1
+labelArr[1]="${labelArr[1]} ($min,$max,$mean,$std)"
+imagestats $tmp2
+labelArr[2]="${labelArr[2]} ($min,$max,$mean,$std)"
+
+if [ $num_labels -eq 4 -o "$labels" = "4" ]
+	then
+	imagestats $tmp3
+	labelArr[3]="${labelArr[3]} ($min,$max,$mean,$std)"
+	if [ $colorscheme -eq 1 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -fill cyan -opaque white -bordercolor white -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -fill magenta -opaque white -bordercolor white -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -fill yellow -opaque white -bordercolor white -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+		convert $tmp3 histogram:- | convert - $setcspace -fill gray50 -opaque white -bordercolor white -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[3]}'" $tmp3
+	elif [ $colorscheme -eq 2 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -negate -fill cyan -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -negate -fill magenta -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -negate -fill yellow -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+		convert $tmp3 histogram:- | convert - $setcspace -negate -fill gray50 -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[3]}'" $tmp3
+	elif [ $colorscheme -eq 3 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -bordercolor cyan -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -bordercolor magenta -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -bordercolor yellow -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+		convert $tmp3 histogram:- | convert - $setcspace -bordercolor white -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[3]}'" $tmp3
+	elif [ $colorscheme -eq 4 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -negate -bordercolor cyan -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -negate -bordercolor magenta -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -negate -bordercolor yellow -border $bordersize -fill black -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+		convert $tmp3 histogram:- | convert - $setcspace -negate -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[3]}'" $tmp3
+	fi
+else
+	if [ $colorscheme -eq 1 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -fill red -opaque white -bordercolor white -border $bordersize -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -fill green -opaque white -bordercolor white -border $bordersize -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -fill blue -opaque white -bordercolor white -border $bordersize -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+	elif [ $colorscheme -eq 2 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -negate -fill red -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -negate -fill green -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -negate -fill blue -opaque black -bordercolor black -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+	elif [ $colorscheme -eq 3 ]
+		then
+		convert $tmp0 -define histogram:unique-colors=false histogram:- | convert - $setcspace -bordercolor red -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 -define histogram:unique-colors=false histogram:- | convert - $setcspace -bordercolor green -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 -define histogram:unique-colors=false histogram:- | convert - $setcspace -bordercolor blue -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+	elif [ $colorscheme -eq 4 ]
+		then
+		convert $tmp0 histogram:- | convert - $setcspace -negate -bordercolor red -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[0]}'" $tmp0
+		convert $tmp1 histogram:- | convert - $setcspace -negate -bordercolor green -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[1]}'" $tmp1
+		convert $tmp2 histogram:- | convert - $setcspace -negate -bordercolor blue -border $bordersize -fill white -font $fontname -pointsize $fontsize -draw "text $fontlocation '${labelArr[2]}'" $tmp2
+	fi
+fi
+
+# append into one image
+if [ $num_labels -eq 4 -o "$labels" = "4" ]
+	then
+	convert $tmp0 $tmp1 $tmp2 $tmp3 -append -resize 50x50% "$outfile"
+else
+	convert $tmp0 $tmp1 $tmp2 -append -resize 50x50% "$outfile"
+fi
+exit 0

@@ -1,0 +1,252 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/24/14 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: median [-p processing] infile
+# USAGE: median [-h or -help]
+# 
+# OPTIONS:
+# 
+# -p     processing        processing of images; choices are: gray (convert 
+#                          to grayscale first), global (append all channels 
+#                          into one grayscale image) and all (process each 
+#                          channel separately); default=gray
+# 
+###
+# 
+# NAME: MEDIAN 
+# 
+# PURPOSE: To compute the median value of an image.
+# 
+# DESCRIPTION: MEDIAN computes the median value of an image. The median is  
+# that graylevel for which half the pixels in the image have larger values and  
+# half have smaller values. In other words, it is the graylevel that splits the 
+# histogram into two equal counts. The user may choose either to process the 
+# image to grayscale, to append all the channels into one grayscale image or  
+# process each channel separately.
+#
+# Arguments: 
+# 
+# -p processing ... PROCESSING of the images. The choices are: gray (convert 
+# to grayscale first), global (append all channels into one grayscale image) 
+# and all (process each channel separately). The default=gray.
+# 
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+processing="gray"			# gray, global, all (each channel separately)
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 3 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0
+				   ;;
+			-p)    # get processing
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PROCESSING SPECIFICATION ---"
+				   checkMinus "$1"
+				   processing=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$processing" in
+						gray) ;;
+						global) ;;
+						all) ;;
+						*) errMsg "--- PROCESSING=$processing IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			 *)    # end of arguments
+				   break
+				   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# setup temporary images and auto delete upon exit
+tmpA1="$dir/median_1_$$.mpc"
+tmpB1="$dir/median_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read the input image1 into the temp files and test validity.
+convert -quiet "$infile[0]" -alpha off +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# function to compute the median of a given channel
+medianChannel()
+	{
+	# gray/red/cyan=1; green/magenta=2; blue/yellow=3; black=4
+	channel="$1"
+	id=$((channel+1))
+	# convert layer 0 of image to rgb and separate and append channels to get global median
+	median=`echo "$histdata" |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" -v id="$id" '# AWK to find the median value of the channel from the histogram
+	{ bin[int($id)] += $1 }
+	END { { for (i=0;i<256;i++) { cum += bin[i]/totpix; if (cum>=0.5) break; } } print i } '`
+	}
+
+
+# get colorspace and type for each image
+cspace=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+type=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+
+# separate into proper colormode
+if [ "$type" = "Grayscale" -o "$type" = "Bilevel" ]; then
+	colormode="Gray"
+elif [ "$cspace" = "sRGB" ]; then
+	colormode="RGB"
+elif [ "$cspace" = "CMYK" ]; then
+	colormode="CMYK"
+fi
+#echo "type=$type; colormode=$colormode;"
+
+# set up processing
+if [ "$processing" = "gray" -a "$colormode" != "Gray" ]; then
+	convert $tmpA1 -colorspace gray $tmpA1
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "RGB" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "CMYK" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	colormode="Gray"
+fi
+
+# get total pixels
+totpix=`convert $tmpA1 -format "%[fx:w*h]" info:`
+#echo "totpix=$totpix;"
+
+# get sparse IM histogram data for image
+histdata=`convert $tmpA1 -depth 8 -format "%c" histogram:info:- \
+| tr -cs '0-9\012' ' '`
+
+# compute median for channels
+# Note: channel argument defined by: gray/red/cyan=1; green/magenta=2; blue/yellow=3; black=4
+if [ "$colormode" = "Gray" ]; then
+	medianChannel "1"
+	echo "$processing: $median"
+		
+elif [ "$colormode" = "RGB" ]; then
+	medianChannel "1"
+	echo "red: $median"
+	medianChannel "2"
+	echo "green: $median"
+	medianChannel "3"
+	echo "blue: $median"
+
+elif [ "$colormode" = "CMYK" ]; then
+	medianChannel "1"
+	echo "cyan: $median"
+	medianChannel "2"
+	echo "magenta: $median"
+	medianChannel "3"
+	echo "yellow: $median"
+	medianChannel "4"
+	echo "black: $median"
+fi
+
+exit 0
+
+

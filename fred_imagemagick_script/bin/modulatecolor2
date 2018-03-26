@@ -1,0 +1,456 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/16/2015 .......... revised 12/16/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: modulatecolor2 [-c color] [-b brightness] [-s saturation] [-u units] 
+# [-h hue] [-m mode] [-t tolerance ] [-r ramping] [-C colorspace] 
+# infile outfile
+#
+# USAGE: modulatecolor2 [-help]
+#
+# OPTIONS:
+#
+# -c     color          color to modify: red (r), yellow (y), green (g), 
+#                       cyan (c), blue (b), magenta (m); default=red
+# -b     brightness     percent brightness; float>=0; default=100 (no change)
+# -s     saturation     percent saturation; float>=0; default=100 (no change)
+# -u     units          units for hue; percent (p) or degrees (d); 
+#                       default=degrees
+# -h     hue            hue value; 0<=float<=100 percent or 0<=float<=360 
+#                       degrees; default=0 (red stays red)
+# -m     mode           mode for hue values; choices are: relative (r) or 
+#                       absolute (a); default=absolute
+# -t     tolerance      tolerance (fuzz value) on each side of color for range 
+#                       of hue change as specified by units; 0<=float<=180 
+#                       degrees or 0<=flaot<=50 percent; default=30 degrees.
+# -r     ramping        ramping (tapering) of new hue in the form of a Gaussian 
+#                       rolloff; value is the Gaussian sigma in the specified 
+#                       units; default=0 (no ramping)
+# -C     colorspace     colorspace in which to modulate the image; choices are:
+#                       HSL or HCLp; default=HSL
+# 
+###
+#
+# NAME: MODULATECOLOR2 
+# 
+# PURPOSE: To change brightness, saturation and/or hue for any primary or 
+# secondary color in an image.
+# 
+# DESCRIPTION: MODULATECOLOR2 changes the brightness and/or saturation and/or 
+# hue for any primary or secondary color in an image. Hues are arranged in a 
+# cyclical order in the range 0 to 100 percent or 0 to 360 degrees. Hue may 
+# be changed any amount in those ranges per the units specified. The colors  
+# allowed are: red, yellow, green, cyan, blue and magenta. Units for hue may 
+# be either percent or degrees.
+# 
+# OPTIONS: 
+# 
+# -c color ... COLOR to modify. The choices are: red (r), yellow (y), 
+# green (g), cyan (c), blue (b) or magenta (m). The default=red.
+# 
+# -b brightness ... BRIGHTNESS is the absolute percent brightness. Values are 
+# floats>=0. The default=100 (no change).
+# 
+# -s saturation ... SATURATION is the absolute percent saturation. Values are 
+# floats>=0. The default=100 (no change).
+# 
+# -u units ... UNITS for hue. Choices are: percent (p) or degrees (d). The 
+# default=degrees.
+# 
+# -h hue ... HUE is the absolute hue value to be used to replace the hue of 
+# the specified color. Values are 0<=floats<=100 for percent or 0<=floats<=360 
+# for degrees. The default=0 (red stays red). Hue change is cyclical in the 
+# range from 0 to either 100 percent or 360 degrees. So a hue value of 100 
+# percent or 360 degrees is equivalent to 0 or no change.
+# 
+# -m mode ... MODE for hue values. The choices are: relative (r) or 
+# absolute (a). Relative means the replacement hue value will be a shift 
+# relative to the specified color. Absolute means the hue value will be the 
+# exact hue value that will be used to replace the specified color. The 
+# default=absolute.
+# 
+# -t tolerance ... TOLERANCE (fuzz value) on each side of the specified color 
+# for the range of the hue change as specified by the selected units. Values 
+# are 0<=float<=180 for degrees or 0<=flaot<=50 for percent. The default=30 
+# degrees. Note that tolerance less than about 0.1 degree do not work well.
+# 
+# -r ramping ... RAMPING (tapering) of the new hue in the form of a Gaussian 
+# rolloff. The value is the Gaussian sigma in the specified units. Values are 
+# floats>=0. The default=0 (no ramping).
+# 
+# -C colorspace ... COLORSPACE is the colorspace in which to modulate the 
+# image. The choices are: HSL or HCLp. 
+# 
+# REQUIREMENTS: IM 6.5.3-7 so that -modulate uses HSL and not HSB colorspace. 
+# HCLp modulation is available as of version 6.8.6-7.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+color="red"				# color: red, yellow, green, cyan, blue, magenta
+brightness=100			# brightness percent
+saturation=100			# saturation percent
+units="degrees"			# units for hue; percent or degrees
+hue=0					# hue value (red)
+mode="absolute"			# hue mode: absolute or relative
+tolerance=30			# tolerance in degrees
+ramping=0				# gaussian rolloff sigma
+colorspace="hsl"		# modulation color space
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$color" in 
+					   		red|r) color="red";;
+					   		yellow|y) color="yellow";;
+					   		green|g) color="green";;
+					   		cyan|c) color="cyan";;
+					   		blue|b) color="blue";;
+					   		magenta|m) color="magenta";;
+					   		*) errMsg "--- COLOR=$color IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   brightness=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-s)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   saturation=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-u)    # get units
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UNITS SPECIFICATION ---"
+					   checkMinus "$1"
+					   units=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$units" in 
+					   		percent|p) units="percent";;
+					   		degrees|d) units="degrees";;
+					   		*) errMsg "--- UNITS=$units IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-h)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   hue=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		relative|r) mode="relative";;
+					   		absolute|a) mode="absolute";;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-t)    # get tolerance
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TOLERANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   tolerance=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$tolerance" = "" ] && errMsg "--- TOLERANCE=$tolerance MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-r)    # get ramping
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAMPING SPECIFICATION ---"
+					   checkMinus "$1"
+					   ramping=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$ramping" = "" ] && errMsg "--- RAMPING=$ramping MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-C)    # get colorspace
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORSPACE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorspace=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colorspace" in 
+					   		hsl) ;;
+					   		hclp) ;;
+					   		*) errMsg "--- COLORSPACE=$colorspace IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# define dir
+dir="$tmpdir/COLORBALANCE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+# read input image
+convert -quiet "$infile" $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test hue values
+if [ "$units" = "percent" ]; then
+	test=`convert xc: -format "%[fx:$hue>100?1:0]" info:`
+	[ $test -eq 1 ] && errMsg "--- HUE MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+elif [ "$units" = "degrees" ]; then
+	test=`convert xc: -format "%[fx:$hue>360?1:0]" info:`
+	[ $test -eq 1 ] && errMsg "--- HUE MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+fi
+
+# test tolerance values
+if [ "$units" = "percent" ]; then
+	test=`convert xc: -format "%[fx:$tolerance>50?1:0]" info:`
+	[ $test -eq 1 ] && errMsg "--- TOLERANCE MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+elif [ "$units" = "degrees" ]; then
+	test=`convert xc: -format "%[fx:$tolerance>180?1:0]" info:`
+	[ $test -eq 1 ] && errMsg "--- TOLERANCE MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+fi
+
+
+# set up hue for units
+if [ "$mode" = "relative" ]; then
+	if [ "$units" = "degrees" ]; then
+		hue=`convert xc: -format "%[fx:100+(200*$hue/360)]" info:`
+	elif [ "$units" = "percent" ]; then
+		hue=`convert xc: -format "%[fx:100+(2*$hue)]" info:`
+	fi
+elif [ "$mode" = "absolute" ]; then
+	if [ "$units" = "degrees" ]; then
+		if [ "$color" = "red" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*$hue/360)]" info:`
+
+		elif [ "$color" = "yellow" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*($hue-60)/360)]" info:`
+
+		elif [ "$color" = "green" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*($hue-120)/360)]" info:`
+
+		elif [ "$color" = "cyan" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*($hue-180)/360)]" info:`
+
+		elif [ "$color" = "blue" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*($hue-240)/360)]" info:`
+
+		elif [ "$color" = "magenta" ]; then
+			hue=`convert xc: -format "%[fx:100+(200*($hue-300)/360)]" info:`
+		fi
+	elif [ "$units" = "percent" ]; then
+		if [ "$color" = "red" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*$hue]" info:`
+
+		elif [ "$color" = "yellow" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*($hue-100*60/360))]" info:`
+
+		elif [ "$color" = "green" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*($hue-100*120/360))]" info:`
+
+		elif [ "$color" = "cyan" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*($hue-100*180/360))]" info:`
+
+		elif [ "$color" = "blue" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*($hue-100*240/360))]" info:`
+
+		elif [ "$color" = "magenta" ]; then
+			hue=`convert xc: -format "%[fx:100+(2*($hue-100*300/360))]" info:`
+		fi
+	fi
+fi
+#echo "hue=$hue; saturation=$saturation; brightness=$brightness; colorspace=$colorspace"
+
+
+# set up full_range in pixels from tolerance depending upon units for 0 to <360 corresponding to lut length 35999
+# max tolerance is 180 degrees or 50 percent
+if [ "$units" = "degrees" ]; then
+	full_range=`convert xc: -format "%[fx:2*round($tolerance*100)-1]" info:`
+elif [ "$units" = "percent" ]; then
+	full_range=`convert xc: -format "%[fx:2*round($tolerance*360)-1]" info:`
+fi
+
+# set up ramping in units
+if [ "$units" = "degrees" ]; then
+	sigma=`convert xc: -format "%[fx:$ramping*100]" info:`
+elif [ "$units" = "percent" ]; then
+	sigma=`convert xc: -format "%[fx:$ramping*360/100]" info:`
+fi
+
+# set up rollval from color
+if [ "$color" = "red" ]; then
+	rollval=0
+
+elif [ "$color" = "yellow" ]; then
+	rollval=`convert xc: -format "%[fx:round(60*100)]" info:`
+
+elif [ "$color" = "green" ]; then
+	rollval=`convert xc: -format "%[fx:round(120*100)]" info:`
+
+elif [ "$color" = "cyan" ]; then
+	rollval=`convert xc: -format "%[fx:round(180*100)]" info:`
+
+elif [ "$color" = "blue" ]; then
+	rollval=`convert xc: -format "%[fx:round(240*100)]" info:`
+
+elif [ "$color" = "magenta" ]; then
+	rollval=`convert xc: -format "%[fx:round(300*100)]" info:`
+fi
+
+# set up for ramping
+if [ "$ramping" != "0" -a "$im_version" -lt "06060200" ]; then
+	blurring="-blur 0x$sigma"
+elif [ "$ramping" != "0" -a "$im_version" -ge "06060200" ]; then
+	blurring="-morphology convolve blur:0x$sigma"
+else
+	blurring=""
+fi
+
+#echo "hue=$hue; full_range=$full_range; rollval=$rollval;"
+
+# process lut
+# roll midvalue to 0 and then roll for color
+convert -size 35999x1 xc:black \
+	\( -size ${full_range}x1 xc:white \) \
+	-gravity center -compose over -composite \
+	-roll -17998+0 -roll +${rollval}+0 \
+	$blurring \
+	$dir/lut.png
+
+# do processing
+convert $dir/tmpI.mpc \
+	\( -clone 0 -define modulate:colorspace=$colorspace \
+		-modulate $brightness,$saturation,$hue \) \
+	\( -clone 0 -colorspace $colorspace -channel r -separate +channel \
+		$dir/lut.png -interpolate nearest-neighbor -clut \) \
+	-compose over -composite "$outfile"
+
+exit 0
+

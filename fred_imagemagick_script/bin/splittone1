@@ -1,0 +1,370 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/16/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: splittone1 [-sc shadowcolor] [-sa shadowamt] [-hc highlightcolor] 
+# [-ha highlightamt] [-b bri] [-c con] [-s sat] [-h hue] [-m method] 
+# [-p processing] infile outfile
+# USAGE: splittone1 [-help]
+# 
+# OPTIONS:
+# 
+# -sc     shadowcolor        shadow color; any opaque IM color allowed; 
+#                        	 default=black
+# -hc     highlightcolor     highlight color; any opaque IM color allowed; 
+#                            default=white
+# -sa     shadowamt          shadow amount; 0<=integer<=100; default=30
+# -ha     highlightamt       highlight amount; 0<=integer<=100; default=30
+# -b      bri                brightness; -100<=integer<=100; default=0
+# -s      sat                saturation; -100<=integer<=100; default=0
+# -c      con                contrast; -100<=integer<=100; default=0
+# -h      hue                hue; -100<=integer<=100; default=0
+# -m      method             order of shadow and highlight processing; 
+#                            choices are: SH (shadow first) or HS (highlight
+#                            first); default=SH
+# -p      processing		 brightness and contrast processing; choices are: 
+#                            pre (preprocessing), post (postprocessing, or 
+#                            both; default=both
+#
+###
+# 
+# NAME: SPLITTONE1 
+# 
+# PURPOSE: To apply a color splittone effect to an image.
+# 
+# DESCRIPTION: SPLITTONE1 applies a color splittone effect to an image by 
+# adjusting shadow and highlight color separately. 
+# 
+# 
+# ARGUMENTS: 
+# 
+# -sc shadowcolor ... SHADOWCOLOR is the shadow color. Any opaque IM color is 
+# allowed. The default=black
+# 
+# -hc highlightcolor ... HIGHLIGHTCOLOR is the highlight color. Any opaque IM 
+# color is allowed. The default=black
+# 
+# -sa shadowamt ... SHADOWAMT is the shadow amount. Values are integers 
+# between 0 and 100. The default=30
+# 
+# -ha highlightamt ... HIGHLIGHTAMT is the highlight amount. Values are 
+# integers between 0 and 100. The default=30
+# 
+# -b bri ... BRI is the percent change in brightness. Values are integers 
+# between -100 and 100. The default=0 (no change)
+# 
+# -s sat ... SAT is the percent change in saturation. Values are integers 
+# between -100 and 100. The default=0 (no change)
+# 
+# -c con ... CON is the percent change in contrast. Values are integers 
+# between -100 and 100. The default=0 (no change)
+# 
+# -h hue ... HUE is the percent change in hue. Values are integers between
+# -100 and 100. The default=0 (no change)
+# 
+# -m method ... METHOD specifies the order of shadow and hightlight processing.
+# The choices are: SH (shadow first) or HS (highlight first. The default=SH
+# 
+# -p processing ... PROCESSING specifies where to adjust the brightness and 
+# contrast. The choices are: pre (for preprocessing), post (for postprocessing) 
+# or both (for both places). The default=both
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+scolor="black"				# shadow color; default=black
+hcolor="white"				# highlight color; default=white
+samt=30						# shadow amount; integer>=0
+hamt=30						# highlight amount; integer>=0
+bri=0						# brightness; -100<=integer<=100
+con=0						# contrast; -100<=integer<=100
+sat=0						# saturation; integer>=0; 100 is no change
+hue=0						# hue; 0<=integer<=200; 100 is no change
+method="SH"					# order of processing; SH or HS
+proc="both"					# bc processing; pre, post, both
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 22 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-sc)    # get  shadowcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHADOWCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   scolor="$1"
+					   ;;
+				-hc)    # get  highlightcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGHLIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   hcolor="$1"
+					   ;;
+				-sa)    # get shadowamt
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHADOWAMT SPECIFICATION ---"
+					   checkMinus "$1"
+					   samt=`expr "$1" : '\([0-9]*\)'`
+					   [ "$samt" = "" ] && errMsg "--- SHADOWAMT=$samt MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$samt < -100" | bc`
+					   testB=`echo "$samt > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SHADOWAMT=$samt MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-ha)    # get highlightamt
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGHLIGHTAMT SPECIFICATION ---"
+					   checkMinus "$1"
+					   hamt=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hamt" = "" ] && errMsg "--- HIGHLIGHTAMT=$hamt MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$hamt < -100" | bc`
+					   testB=`echo "$hamt > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HIGHLIGHTAMT=$hamt MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-b)    # get bri
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BRI SPECIFICATION ---"
+					   #checkMinus "$1"
+					   bri=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$bri" = "" ] && errMsg "--- BRI=$bri MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$bri < -100" | bc`
+					   testB=`echo "$bri > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRI=$bri MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-c)    # get con
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID CON SPECIFICATION ---"
+					   #checkMinus "$1"
+					   con=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$con" = "" ] && errMsg "--- CON=$con MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$con < -100" | bc`
+					   testB=`echo "$con > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- CON=$con MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-s)    # get sat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID SAT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   sat=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SAT=$sat MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$sat < -100" | bc`
+					   testB=`echo "$sat > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SAT=$sat MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-h)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   hue=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$hue < -100" | bc`
+					   testB=`echo "$hue > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HUE=$hue MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-m)    # get method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`echo "$1" | tr "[:lower:]" "[:upper:]"`
+					   [ "$method" != "SH" -a "$method" != "HS" ] && errMsg "--- METHOD=$method MUST BE EITHER HS OR SH ---"
+					   ;;
+			   	-p)    # processing
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PROCESSING SPECIFICATION ---"
+					   checkMinus "$1"
+					   proc=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$proc" in
+					   		pre) ;;
+					   		post) ;;
+					   		both) ;;
+					   		*) errMsg "--- PROCESSING=$proc IS NOT A VALID CHOICE ---" ;;
+					   esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# setup temporary images
+tmpA1="$dir/splittone1_1_$$.mpc"
+tmpB1="$dir/splittone1_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# convert sat and hue to modulate values
+sat=$((sat+100))
+hue=$((hue+100))
+
+# set up for bri/con 
+if [ "$proc" = "pre" ]; then
+	bcproc1="-brightness-contrast $bri,$con"
+	bcproc2=""
+elif [ "$proc" = "post" ]; then
+	bcproc1=""
+	bcproc2="-brightness-contrast $bri,$con"
+elif [ "$proc" = "both" ]; then
+	bcproc1="-brightness-contrast $bri,$con"
+	bcproc2="-brightness-contrast $bri,$con"
+fi
+
+# change sat and/or hue
+convert $tmpA1 $bcproc1 -modulate 100,$sat,$hue $tmpA1
+
+
+if [ "$method" = "SH" ]; then
+
+	if [ "$samt" != "0" ]; then
+		convert $tmpA1 \
+			\( +clone -fill "$scolor" -colorize 100% -alpha set -channel A -evaluate set $samt% +channel \) \
+			-compose lighten -composite $tmpA1
+	fi
+
+	if [ "$hamt" != "0" ]; then
+		convert $tmpA1 \
+			\( +clone -fill "$hcolor" -colorize 100% -alpha set -channel A -evaluate set $hamt% +channel \) \
+			-compose darken -composite $tmpA1
+	fi
+
+elif [ "$method" = "HS" ]; then
+
+	if [ "$hamt" != "0" ]; then
+		convert $tmpA1 \
+			\( +clone -fill "$hcolor" -colorize 100% -alpha set -channel A -evaluate set $hamt% +channel \) \
+			-compose darken -composite $tmpA1
+	fi
+
+	if [ "$samt" != "0" ]; then
+		convert $tmpA1 \
+			\( +clone -fill "$scolor" -colorize 100% -alpha set -channel A -evaluate set $samt% +channel \) \
+			-compose lighten -composite $tmpA1
+	fi
+
+fi
+
+
+convert $tmpA1 $bcproc2 "$outfile"
+
+
+exit 0

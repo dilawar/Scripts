@@ -1,0 +1,275 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/17/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: entropy infile
+# USAGE: entropy [-h or -help]
+# 
+# OPTIONS:
+# 
+# -h or -help     Displays help information
+# 
+###
+# 
+# NAME: ENTROPY 
+# 
+# PURPOSE: To compute the normalized entropy of an image channel-by-channel.
+# 
+# DESCRIPTION: ENTROPY computes the normalized entropy of an image 
+# channel-by-channel. Entropy is a measure of graylevel distribution 
+# (disorder or randomness) in the histogram. It is not a measure of spatial 
+# disorder or spatial randomness in the image. The entropy is computed from 
+# the histogram of the channel by accumulating -p*ln(p) over every 8-bit 
+# graylevel, where p = (count for a given graylevel) / (total pixels). 
+# The normalized entropy is equal to the entropy/ln(256). For example, if the 
+# image is a single grayscale, then the entropy=0. If the image is a uniform 
+# gradient including all values from 0 to 255 that are equally populated in 
+# the histogram, then the entropy=1.
+#
+# When the colorspace is Gray, only one Gray entropy value will be printed. 
+#
+# When the colorspace is CMYK, the following 5 values will be printed: 
+# Cyan, Magenta, Yellow and Black Entropies and the Average of those four 
+# entropies.
+# 
+# When the colorspace is RGB or any other colorspace, then the following 4 
+# values will be printed to the terminal:  Red, Green and Blue Entropies and 
+# the Average of those three entropies. For any colorspace other than RGB, 
+# then Red, Green and Blue should then be interpreted as channels 1, 2 and 3, 
+# respectively, for that colorspace.
+# 
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 1 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+
+# setup temporary images and auto delete upon exit
+tmpA1="$dir/entropy_1_$$.mpc"
+tmpB1="$dir/entropy_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile[0]" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get total number of pixels
+totpix=`convert $tmpA1 -ping -format "%[fx:w*h]" info:`
+#echo "totpix=$totpix"
+
+# get colorspace
+cspace=`convert $tmpA1 -format "%[colorspace]" info:`
+#echo "cspace=$cspace"
+
+echo ""
+if [ "$cspace" = "Gray" -o "$cspace" = "Rec709Luma" -o "$cspace" = "Rec601Luma" ]; then
+
+	# get gray entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	gray_entropy=$(convert $tmpA1 -channel r -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; gray_entropy += -p*log(p); numbins++; }
+	END { print gray_entropy/log(numbins); } ')
+	echo "Gray Entropy = $gray_entropy"
+
+
+elif [ "$cspace" = "CMYK" ]; then
+
+	# get cyan entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	cyan_entropy=$(convert $tmpA1 -channel c -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; cyan_entropy += -p*log(p); numbins++; }
+	END { print cyan_entropy/log(numbins); } ')
+
+	# get magenta entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	magenta_entropy=$(convert $tmpA1 -channel m -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; magenta_entropy += -p*log(p); numbins++; }
+	END { print magenta_entropy/log(numbins); } ')
+
+	# get yellow entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	yellow_entropy=$(convert $tmpA1 -channel y -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; yellow_entropy += -p*log(p); numbins++; }
+	END { print yellow_entropy/log(numbins); } ')
+
+	# get black entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	black_entropy=$(convert $tmpA1 -channel k -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; black_entropy += -p*log(p); numbins++; }
+	END { print black_entropy/log(numbins); } ')
+
+	ave_entropy=`echo "scale=6; ($cyan_entropy+$magenta_entropy+$yellow_entropy+$black_entropy)/4" | bc`
+
+	echo "Cyan Entropy = $cyan_entropy"
+	echo "Magenta Entropy = $magenta_entropy"
+	echo "Yellow Entropy = $yellow_entropy"
+	echo "Black Entropy = $black_entropy"
+	echo "Average CMYK Entropy = $ave_entropy"
+
+else
+
+	# get red entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	red_entropy=$(convert $tmpA1 -channel r -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; red_entropy += -p*log(p); numbins++; }
+	END { print red_entropy/log(numbins); } ')
+
+	# get green entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	green_entropy=$(convert $tmpA1 -channel g -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; green_entropy += -p*log(p); numbins++; }
+	END { print green_entropy/log(numbins); } ')
+
+	# get blue entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	blue_entropy=$(convert $tmpA1 -channel b -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; blue_entropy += -p*log(p); numbins++; }
+	END { print blue_entropy/log(numbins); } ')
+
+	ave_entropy=`echo "scale=6; ($red_entropy+$green_entropy+$blue_entropy)/3" | bc`
+
+	echo "Red Entropy = $red_entropy"
+	echo "Green Entropy = $green_entropy"
+	echo "Blue Entropy = $blue_entropy"
+	echo "Average RGB Entropy = $ave_entropy"
+
+fi
+echo ""
+exit 0
+

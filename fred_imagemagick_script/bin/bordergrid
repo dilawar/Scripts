@@ -1,0 +1,349 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/6/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bordergrid [-s size] [-t thickness] [-o offset] [-d dimension] [-a angle] [-c colors] [-b blur] infile outfile
+# USAGE: bordergrid [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s      size              size of border; integer>0; default=5
+# -t      thickness         thickness of image grid lines; integer>0;
+#                           default=10
+# -o      offset            offset between image grid lines (thickness of 
+#                           background grid lines); integer>0
+#                           default=3
+# -d      dimension         dimension of grid; dimension=1 or 2 for 1D or 2D
+#                           default=1
+# -a      angle             angle of rotation of grid lines; -180<=float<=180;
+#                           default=45
+# -c      colors            one or two comma delimited colors; 
+#                           if one color, then it will be the background color 
+#                           alternating with the image; 
+#                           if two colors, then the first will be the background  
+#                           color and the second color will be the foreground  
+#                           color replacing the image.
+# -b      blur              blur of grid lines; float>=0; default=0
+# 
+###
+# 
+# NAME: BORDERGRID 
+# 
+# PURPOSE: To create various grid effects in the border of an image.
+# 
+# DESCRIPTION: BORDERGRID creates various grid effects in the border of an 
+# image. The grid alternates betweens lines of image and lines of background 
+# if only one color is provide. It can also alternates between two colors. 
+# The grid can be either 1D or 2D and the grid thickness and spacing can be 
+# specified.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s size ... SIZE is the size or dimension of the border region. It will 
+# be the same size all around the image. Values are integer greater than 0. 
+# The default is 10.
+# 
+# -t thickness ... THICKNESS is the thickness of the image grid lines. Values 
+# are integers greater than 0. The default=3.
+# 
+# -o offset ... OFFSET is the offset or spacing between the image grid lines. 
+# This is equivalent to the thickness of the background grid lines. Values 
+# are integers greater than 0. The default=3.
+# 
+# -d dimension ... DIMENSION determines if the grid lines will be 1D or 2D. 
+# Values are either 1 or 2. The default is 1.
+# 
+# -a angle ... ANGLE is the angle of rotation of the grid lines (from horizontal 
+# for dimension=1). Values are floats between -180 and 180. The default=45.
+# 
+# -c colors ... COLORS one or two comma delimted colors. If only one color is 
+# profided, then it will be the background color alternating with the image. 
+# If two colors are provided, then the first will be the background color 
+# and the second color will be the foreground color replacing the image. 
+# The default is white.
+# 
+# -b blur ... BLUR is the amount of blurring of the grid lines. Values are 
+# floats greater or equal to 0. The default=0 (no blurring).
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+size=10					# size of border (integer)
+thickness=3 			# grid thickness
+offset=3 				# grid offset spacing
+dimension=1				# 1D or 2D
+angle=45				# rotation angle
+bgcolor="white"			# background color
+fgcolor=""				# foreground color
+blur=0  				# blur
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get  size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$size < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SIZE=$size MUST BE A POSITIVE INTEGER GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-t)    # get  thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$thickness < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-o)    # get  offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   checkMinus "$1"
+					   offset=`expr "$1" : '\([0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$offset < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- OFFSET=$offset MUST BE A POSITIVE INTEGER GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-d)    # get dimension
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   dimension="$1"
+					   [ $dimension -ne 1 -a $dimension -ne 2 ] && errMsg "--- DIMENSION=$dimension MUST BE EITHER 1 OR 2 ---"
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   # errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   # checkMinus "$1"
+					   angle=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE A FLOAT (with no positive sign) ---"
+					   test1=`echo "$angle < -180" | bc`
+					   test2=`echo "$angle > 180" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE A FLOAT BETWEEN -180 AND 180 ---"
+					   ;;
+				-c)    # get colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors="$1,"
+					   bgcolor=`echo "$colors" | cut -d, -f1`
+					   fgcolor=`echo "$colors" | cut -d, -f2`
+					   ;;
+				-b)    # get  blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set temporary file
+tmpA1="$dir/bordergrid_A_$$.mpc"
+tmpA2="$dir/bordergrid_A_$$.cache"
+tmp1="$dir/bordergrid_1_$$.miff"
+trap "rm -f $tmpA1 $tmpA2 $tmp1;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" ERR
+
+
+# test infile
+if convert -quiet "$infile" +repage "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get width and height of infile
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+
+# get rotated size use 1.1 as fudge factor on max of diagonal to be safe in worst case
+ww1=`convert xc: -format "%[fx:1.1*sqrt($ww^2+$hh^2)]" info:`
+hh1=$ww1
+
+# subtract border size
+ww2=`convert xc: -format "%[fx:($ww-2*$size)]" info:`
+hh2=`convert xc: -format "%[fx:($hh-2*$size)]" info:`
+
+#echo "ww=$ww; hh=$hh; ww2=$ww2; hh2=$hh2"
+
+# set up blur
+if [ "$blur" = "0" -o "$blur" = "0.0" ]; then
+	smooth=""
+else
+	smooth="-blur 0x${blur}"
+fi
+	
+
+# setup grid colors
+if [ "$fgcolor" = "" ];then
+	colorize=""
+else
+	colorize="+level-colors ${fgcolor},${bgcolor}"
+fi
+
+#echo "bgcolor=$bgcolor; fgcolor=$fgcolor; color1=$color1; color2=$color2;"
+
+# create grid mask image
+if [ $dimension -eq 2 ]; then
+# l1: create empty image of size 1.5ximage
+# l2: create grid primitive
+# l3: tile grid primitive to size of empty image
+# l4: create 90 degree rotated mask and composite with unrotated mask
+# l5: rotate tiled grid and crop to original image size at center
+# l6: create white image of size of original less border and composite over center of grid image
+# l7: blur and contrast stretch composited image
+convert -size ${ww1}x${hh1} xc:none \
+	\( -size 1x$thickness xc:white -size 1x$offset xc:black -append \) \
+	-channel RGBA -virtual-pixel tile -fx v \
+	\( +clone -rotate -90 \) -compose multiply -composite \
+	-background black -rotate $angle +repage -gravity center -crop ${ww}x${hh}+0+0 +repage \
+	\( -size ${ww2}x${hh2} xc:white \) -gravity center -compose over -composite \
+	$smooth -contrast-stretch 0 $colorize \
+	$tmp1
+else
+# l1: create empty image of size 1.5ximage
+# l2: create grid primitive
+# l3: tile grid primitive to size of empty image
+# l4: rotate tiled grid and crop to original image size at center
+# l5: create white image of size of original less border and composite over center of grid image
+# l6: blur and contrast stretch composited image
+convert -size ${ww1}x${hh1} xc:none \
+	\( -size 1x$thickness xc:white -size 1x$offset xc:black -append \) \
+	-channel RGBA -virtual-pixel tile -fx v \
+	-background black -rotate $angle +repage -gravity center -crop ${ww}x${hh}+0+0 +repage \
+	\( -size ${ww2}x${hh2} xc:white \) -gravity center -composite \
+	$smooth -contrast-stretch 0 $colorize \
+	$tmp1
+fi
+
+if [ "$fgcolor" = "" ];then
+	# composite image with background using bw grid mask
+	convert \( -size ${ww}x${hh} xc:"$bgcolor" \) $tmpA1 $tmp1 \
+		-compose atop -composite "$outfile"
+else
+	# composite image subsection over colored grid
+	convert $tmp1 $tmpA1[${ww2}x${hh2}+0+0] -gravity center \
+		-compose atop -composite "$outfile"
+fi
+exit 0
