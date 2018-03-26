@@ -1,0 +1,67 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 7/7/2014 .......... revised 4/25/2015
+# 
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+
+infile="$1"
+
+# syntax: phashconvert imagefile
+
+
+# get 42 values from each image and put into arrays
+# first: grep verbose info to get all lines that include PH
+# second: sed returns the pairs of comma separated values
+# third: sed removes all spaces
+# fourth: tr converts comma to new line so all values are on their own line
+# then convert list of values to arr
+
+
+arr1=(`identify -quiet -verbose -moments -alpha off "$infile[0]" | grep "PH[1-7]" | sed -n 's/.*: \(.*\)$/\1/p' | sed 's/ *//g' | tr "," "\n"`)
+num1="${#arr1[*]}"
+#echo $num1
+
+# test for correct number of values
+if [ $num1 -ne 42 ]; then
+	echo "--- Number of Phash Values ($num1) is Incorrect --- "
+	exit 1
+fi
+
+
+# convert 42 values into string of 168 digits as hash using 4 digits for each float
+hash1=""
+for ((i=0; i<42; i++)); do
+# bc cannot handle scientific notation; have to change e to 10^
+#val1=`printf %0004d $(echo "scale=0; if (${arr1[$i]}<0) 100*(${arr1[$i]}-0.005)/1 else 100*(${arr1[$i]}+0.005)/1" | bc)`
+val1=`echo "${arr1[$i]}" |\
+	awk ' { printf "%0004d", ($1<0)?100*($1-0.005):100*($1+0.005) } '`
+hash1="${hash1}${val1}"
+done
+
+echo "$hash1"
+
+exit 0
+

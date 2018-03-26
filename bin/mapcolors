@@ -1,0 +1,332 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/19/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: mapcolors [-f file] [-s safecolor] [-m] [-a] [-d depth] [-t type] infile outfile
+# USAGE: mapcolors [-help]
+#
+# OPTIONS:
+#
+# -f      file               Space delimited text file containing "from" and "to" colors; 
+#                            Any valid IM color is allowed;
+# -s      safecolor          Any color not used in the image; To be used as intermediary color;
+#                            Any valid IM color is allowed including none;
+#                            The default=none
+# -m                         Monitors the progess by printing a comment to the terminal for 
+#                            every color processed.
+# -a                         Disables transparency for the output image; Values are on or off;
+#                            The default leaves it as determined by the input image and processing.
+# -d      depth              Desired depth for output image, relevant to your IM Q level.
+#                            default is to leave it according to the input and processing.
+# -t      type				 Type forces the resulting image class to be either: 
+#                            palette or palettematte. The default is the leave the image class 
+#                            as determined by the input image and the processing.
+#
+###
+#
+# NAME: MAPCOLORS 
+# 
+# PURPOSE: Maps or translates one set of colors in an image to another set of colors.
+# 
+# DESCRIPTION: MAPCOLORS maps (or translates or changes) one set of colors in an image to 
+# another set of colors. The color pairs must be provided in a text file as a "from" color 
+# separated by one or more space followed by a "to" color, one pair per row in the file. 
+# 
+# 
+# OPTIONS: 
+#
+# -f file ... File containing space delimeted pairs of colors, one pair per row. The first color 
+# will be mapped or changed to the second color using a safecolor as intermediary. 
+# Any valid IM color is allowed such that it does not include the safecolor. 
+# See http://imagemagick.org/script/color.php
+# 
+# -s safecolor ... SAFECOLOR is the safe color to use as the intermediary in the mapping 
+# process. It must not a color that exists already in the input image. 
+# Any valid IM color is allowed. See http://imagemagick.org/script/color.php
+# For mapping colors that do not include transparency, use the default=none, but do not use 
+# none for any "from" or "to" color in the file. If you want to change transparnent colors, then 
+# you need to find some other non-used color in the image for the safecolor.
+# 
+# -m ... Enables progress monitoring by printing each color change to the terminal 
+# as it is processed. Use this when you have a large number of colors to map, since process 
+# is rather slow depending upon image size and number of colors to change.
+# 
+# -a ... Disables transparency in the resulting image. Use only if you know there are no 
+# transparent colors left or created in the output image. The default is to leave the 
+# transparency as determined by the input image and the processing.
+# 
+# -d depth ... Depth is the depth of the resulting image. Allowed values depend on the IM Q level 
+# of your IM build. You may set the depth to the smalles value that will account for 
+# all the colors in your image. The default is to leave it as determined by the input image's 
+# depth and processing.
+# 
+# -t type ... TYPE controls the image class of the resulting image. The default is to leave the 
+# image class unchanged. Other choices are palette or palettematte. They will force the image class 
+# to be pseudoclass rather than directclass. For some image formats and processing this can lead 
+# to smaller file sizes, but in other cases it appears that leaving it unchanged results in smaller 
+# files sizes. You may have to play with this for your image format.
+# 
+# Note: This script probably will not work for versions of IM prior to 6.4.1.4 due to a bug in +opaque
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+colors_file=""
+safecolor="none"	# any non used color or none
+monitor=""			# on enables monitor progress to terminal
+alpha=""			# disable transparency flag; 
+depth=""			# image depth desired or ""
+type=""				# palette or palettematte or ""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get colormap file
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR MAP FILE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors_file="$1"
+					   ;;
+				-s)    # get safecolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAFECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   safecolor="$1"
+					   ;;
+				-m)    # get monitor
+					   #shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID MONITOR SPECIFICATION ---"
+					   #checkMinus "$1"
+					   monitor="on"
+					   ;;
+				-a)    # get alpha
+					   #shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID ALPHA SPECIFICATION ---"
+					   #checkMinus "$1"
+					   alpha="off"
+					   ;;
+				-d)    # get depth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DEPTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   depth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$depth" = "" ] && errMsg "--- DEPTH=$depth MUST BE AN INTEGER ---"
+					   ;;
+				-t)    # get type
+					   shift  # to get the next parameter - type
+					   # test if parameter starts with minus sign
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test type values
+					   type="$1"
+					   case "$type" in
+							palette|palettematte) ;; # do nothing - valid type
+							*)  errMsg "--- TYPE=$type IS NOT A VALID VALUE ---" ;;
+					  esac
+					  ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	# get infile, outfile and lutfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# test that colors_file provided
+[ "$colors_file" = "" ] && errMsg "--- NO COLOR FILE SPECIFIED ---"
+
+
+tmpA="$dir/mapcolors_$$.mpc"
+tmpB="$dir/mapcolors_$$.cache"
+tmp0="$dir/mapcolors_0_$$.miff"
+tmp1="$dir/mapcolors_1_$$.miff"
+tmp2="$dir/mapcolors_2_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" ERR
+
+
+# test input image
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	: 'do nothing special'
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# set up depth
+if [ "$depth" = "" ]; then
+	bitdepth=""
+else
+	bitdepth="-depth $depth"
+fi
+
+# setup alpha for output
+if [ "$alpha" = "off" ]; then
+	transparent="-alpha off"
+elif [ "$alpha" = "" ]; then
+	transparent=""
+fi
+
+
+# setup type/class for output
+if [ "$type" = "palette" ]; then
+	otype="-type palette"
+elif [ "$type" = "palettematte" ]; then
+	otype="-type palettematte"
+elif [ "$type" = "" ]; then
+	otype=""
+fi
+
+
+#create transparent background image
+ww=`convert $tmpA -ping -format "%w" info:`
+hh=`convert $tmpA -ping -format "%h" info:`
+convert -size ${ww}x${hh} xc:none $tmp0
+
+
+echo ""
+# put the file with line breaks into list, filter and then array
+color_list=`cat $colors_file`
+# first pattern changes all multiple spaces to one space
+# second pattern removes leading space
+# third pattern changes all "commma space" to just a comma
+# fourth pattern changes spaces to colons so that cut can separate later
+color_list=`echo "$color_list" | sed 's/[ ][ ]*/ /g;  s/^[ ]\(.*\)$/\1/;  s/[,][ ]/,/g;  s/ /:/g'`
+colorArray=($color_list)
+[ "$monitor" = "on" ] && echo "Total Colors To Map: ${#colorArray[*]}"
+i=0
+for colorpair in ${colorArray[*]}; do
+	color1=`echo "$colorpair" | cut -d: -f1`
+	color2=`echo "$colorpair" | cut -d: -f2`
+	[ "$monitor" = "on" ] && echo "$i: $color1 to $color2"
+	if [ "$safecolor" = "none" ]; then
+		convert \( $tmpA -channel rgba -alpha on \
+			-fill none +opaque "$color1" \
+			-fill "$color2" -opaque "$color1" \) $tmp0 \
+			-composite $tmp0
+	else
+		convert $tmpA -channel rgba -alpha on \
+			-fill $safecolor +opaque "$color1" \
+			-fill "$color2" -opaque "$color1" $tmp1
+		convert $tmp1 \
+			-fill black -opaque "$safecolor" \
+			-fill white +opaque "$safecolor" $tmp2
+		convert $tmp0 $tmp1 $tmp2 -composite $tmp0
+	fi
+	i=`expr $i + 1`
+done
+if [ "$safecolor" = "none" ]; then
+	convert $tmpA $tmp0 -composite $bitdepth $transparent $otype "$outfile"
+else
+	convert $tmp0 -fill black -opaque "$safecolor" \
+		-fill white +opaque "$safecolor" $tmp2
+	convert $tmpA $tmp0 $tmp2 -composite $bitdepth $transparent $otype "$outfile"
+fi
+echo ""
+exit 0

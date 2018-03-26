@@ -1,0 +1,494 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/28/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colortoning [-ch highcolor] [-cl lowcolor] [-ca allcolor] 
+# [-bh -blendhigh] [-bl blendlow] [-ba blenall] [-o order] [-i images] 
+# infile outfile
+#
+# USAGE: colortoning [-help|h]
+#
+# OPTIONS:
+#
+# -ch     highcolor          desired highrange or highlight color; default=no 
+#                            highlight toning
+# -cl     lowcolor           desired lowrange or shadow color; default=no 
+#                            shadow toning
+# -ca     allcolor           desired overall color; default=no overall toning
+# -bh     blendhigh          blending amount for hightlights; 0<=integer<=100;
+#                            default=100 (all hightoned and no input)
+# -bl     blendlow           blending amount for shadows; 0<=integer<=100;
+#                            default=100 (all shadowtoned and no input)
+# -ba     blendall           blending amount for overall color; 0<=integer<=100;
+#                            default=100 (all shadowtoned and no input)
+# -o      order              order of tonal processing steps; comma separate 
+#                            string involving any non-duplicated combination 
+#                            of H,L,A; one, two, or three letters may be 
+#                            specified; default="HLA" to process highlights 
+#                            first, then shadows, then all
+# -i      images             choice of view or save intermediate images 
+#                            resulting from each toning step; default=neither
+#
+###
+#
+# NAME: COLORTONING 
+# 
+# PURPOSE: To color tone an image in highlights and/or shadows and/or overall.
+# 
+# DESCRIPTION: COLORTONING will color tone an image in highlights and/or 
+# shadows and/or overall. The amount of blending with the original image in 
+# each tonal range can be specified. The default is not to blend with the 
+# original image.  Processing occurs sequentially from highlights to shadows 
+# to overall toning.
+# 
+# OPTIONS: 
+# 
+# -ch highcolor ... HIGHCOLOR is the highrange or highlight color desired for 
+# the toning. Any valid opaque IM color is allowed. The default is no 
+# highlight color toning.
+# 
+# -cl lowcolor ... LOWCOLOR is the lowrange or shadow color desired for the 
+# toning. Any valid opaque IM color is allowed. The default is no shadow 
+# color toning.
+# 
+# -ca allcolor ... ALLCOLOR is the overall color desired for the toning. Any 
+# valid opaque IM color is allowed. The default is no overall color toning.
+# 
+# -bh blendhigh ... BLENDHIGH is the percent blending of the highlight toned 
+# image with the original (or previous toned version). Values are integers in  
+# the range of 0 to 100. The default=100 means all toned image and no blending.
+# 
+# -bl blendlow ... BLENDLOW is the percent blending of the shadow toned 
+# image with the original (or previous toned version). Values are integers in  
+# the range of 0 to 100. The default=100 means all toned image and no blending.
+# 
+# -ba blendall ... BLENDAll is the percent blending of the overall toned 
+# image with the original (or previous toned version). Values are integers in  
+# the range of 0 to 100. The default=100 means all toned image and no blending.
+# 
+# -o order  ... ORDER is the order of the tonal processing steps. Values are 
+# a comma separate string involving any non-duplicated combination of H,L and A.   
+# One, two or three letters may be specified. The default="H,L,A" to process 
+# highlights first, then shadows, then all.
+#
+# -i images ... IMAGES permits the viewing or saving of the intermediate  
+# images generated during the processing. The choices are: view (v) or save (s).
+# The default is neither. If images=save, then files will be named for the 
+# input image with _colortoning_#.png where #=1 and/or 2 and/or 3.
+# 
+# REFERENCE: http://phlearn.com/color-toning-with-reference-episode110
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+allcolor=""				# overall color
+lowcolor=""				# shadow color
+highcolor=""			# highlight color
+blendhigh=100			# highlight toned blending with image
+blendlow=100			# shadow toned blending with image
+blendall=100			# overall toned blending with image
+images=""				# view or save intermediate images
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		   -help|h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+			   -ch)    # get  highcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGHCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   highcolor="$1"
+					   ;;
+			   -cl)    # get  lowcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOWCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   lowcolor="$1"
+					   ;;
+			   -ca)    # get  allcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OVERALL COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   allcolor="$1"
+					   ;;
+			   -bh)    # get blendhigh
+					   shift  # to get the next parameter 
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLENDHIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   blendhigh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blendhigh" = "" ] && errMsg "--- BLENDHIGH=$blendhigh MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$blendhigh < 0" | bc`
+					   testB=`echo "$blendhigh > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BLENDHIGH=$blendhigh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+			   -bl)    # get blendlow
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLENDLOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   blendlow=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blendlow" = "" ] && errMsg "--- BLENDLOW=$blendlow MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$blendlow < 0" | bc`
+					   testB=`echo "$blendlow > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BLENDLOW=$blendlow MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+			   -ba)    # get blendall
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLENDALL SPECIFICATION ---"
+					   checkMinus "$1"
+					   blendall=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blendall" = "" ] && errMsg "--- BLENDALL=$blendall MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$blendall < 0" | bc`
+					   testB=`echo "$blendall > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BLENDALL=$blendall MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-o)    # order
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ORDER SPECIFICATION ---"
+					   checkMinus "$1"
+					   order=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   order=`expr "$order" : '\([hla]*,*[hla]*,[hla]*\)'`
+					   order=`echo $order | sed 's/ *//g'`
+				   	   ;;
+				-i)    # images
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID IMAGES SPECIFICATION ---"
+					   checkMinus "$1"
+					   images=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$images" in 
+							view|v) images=view;;
+							save|s) images=save;;
+							*) errMsg "--- IMAGES=$images IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# define dir
+dir="$tmpdir/COLORTONING.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+# get inname
+inname=`convert "$infile" -format "%t" info:`
+
+# test for minimum IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using colortoning.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+# Note: added $setcspace when creating tmpI.mpc to save doing it multiple times later for -compose and -separate
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# read input image
+convert -quiet "$infile" +repage $setcspace $dir/tmpI.mpc ||
+errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get colorspace and type
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+# not all formats report grayscale for colorspace (gif, tiff, jpg do not), but type will be grayscale
+colorspace=`identify -ping -verbose $dir/tmpI.mpc | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" -a "$colorspace" != "Gray" ]; then
+	errMsg "--- FILE $infile MUST BE RGB, sRGB or GRAY ---"
+fi
+
+# test order for duplicates
+order0="$order,"
+order1=`echo $order0 | cut -d, -f1`
+order2=`echo $order0 | cut -d, -f2`
+order3=`echo $order0 | cut -d, -f3`
+#echo "order=$order; order1=$order1; order2=$order2; order3=$order3;"
+[ "$order1" = "$order2" -a "$order1" != "" -a "$order2" != "" ] && \
+	errMsg  "--- DUPLICATES OF H,L or A NOT ALLOWED  ---"
+[ "$order1" = "$order3" -a "$order1" != "" -a "$order3" != "" ] && \
+	errMsg  "--- DUPLICATES OF H,L or A NOT ALLOWED  ---"
+[ "$order2" = "$order3" -a "$order3" != "" -a "$order3" != "" ] && \
+	errMsg  "--- DUPLICATES OF H,L or A NOT ALLOWED  ---"
+
+function pause()
+	{
+	read -p "Press [ENTER/RETURN] To Resume"
+	}
+
+procImages()
+	{
+	ordering=$1
+	if [ "$images" = "save" ]; then
+		convert $dir/tmpP.mpc ${inname}_colortoning_$ordering.png
+	elif [ "$images" = "view" ]; then
+		convert $dir/tmpP.mpc show:
+		pause
+	fi
+	}
+
+procHigh()
+	{
+	blendhigh2=$((100-blendhigh))
+	convert $dir/tmpP.mpc \
+	\( -clone 0 -fill "$highcolor" -colorize 100% \) \
+	\( -clone 0 -colorspace gray \) \
+	-compose blend -define compose:args=$blendhigh,$blendhigh2 -composite \
+	$dir/tmpP.mpc
+	}
+	
+procLow()
+	{
+	blendlow2=$((100-blendlow))
+	convert $dir/tmpP.mpc \
+	\( -clone 0 -fill "$lowcolor" -colorize 100% \) \
+	\( -clone 0 -colorspace gray -negate \) \
+	-compose blend -define compose:args=$blendlow,$blendlow2 -composite \
+	$dir/tmpP.mpc
+	}
+
+procAll()
+	{
+	blendall2=$((100-blendall))
+	# note could have used -compose colorize, but it works in HSB and needs to be HSL
+	# so have to do it the long way
+	convert $dir/tmpP.mpc \
+	\( -clone 0 -fill "$allcolor" -colorize 100% \
+	-colorspace HSL -channel RG -separate +channel \) \
+	\( -clone 0 -colorspace HSL -channel B -separate +channel \) \
+	\( -clone 1 -colorspace HSL \
+			-clone 1 -compose CopyRed -composite \
+			-clone 2 -compose CopyGreen -composite \
+			-clone 3 -compose CopyBlue -composite \
+			-colorspace $cspace \) \
+	-delete 1,2,3 \
+	-compose blend -define compose:args=$blendall,$blendall2 -composite \
+	$dir/tmpP.mpc
+	}
+
+convert $dir/tmpI.mpc $dir/tmpP.mpc
+
+if [ "$order" = "h" ]; then
+	procHigh
+	procImages 1
+elif [ "$order" = "l" ]; then
+	procLow
+	procImages 1
+elif [ "$order" = "a" ]; then
+	procAll
+	procImages 1
+elif [ "$order" = "h,l" ]; then
+	procHigh
+	procImages 1
+	procLow
+	procImages 2
+elif [ "$order" = "h,a" ]; then
+	procHigh
+	procImages 1
+	procAll
+	procImages 2
+elif [ "$order" = "l,a" ]; then
+	procLow
+	procImages 1
+	procAll
+	procImages 2
+elif [ "$order" = "l,h" ]; then
+	procLow
+	procImages 1
+	procHigh
+	procImages 2
+elif [ "$order" = "a,h" ]; then
+	procAll
+	procImages 1
+	procHigh
+	procImages 2
+elif [ "$order" = "a,l" ]; then
+	procAll
+	procImages 1
+	procLow
+	procImages 2
+elif [ "$order" = "h,l,a" ]; then
+	procHigh
+	procImages 1
+	procLow
+	procImages 2
+	procAll
+	procImages 3
+elif [ "$order" = "l,a,h" ]; then
+	procLow
+	procImages 1
+	procAll
+	procImages 2
+	procHigh
+	procImages 3
+elif [ "$order" = "a,h,l" ]; then
+	procAll
+	procImages 1
+	procHigh
+	procImages 2
+	procLow
+	procImages 3
+elif [ "$order" = "a,l,h" ]; then
+	procAll
+	procImages 1
+	procLow
+	procImages 2
+	procHigh
+	procImages 3
+elif [ "$order" = "h,a,l" ]; then
+	procHigh
+	procImages 1
+	procAll
+	procImages 2
+	procLow
+	procImages 3
+elif [ "$order" = "l,h,a" ]; then
+	procLow
+	procImages 1
+	procHigh
+	procImages 2
+	procAll
+	procImages 3
+else
+	errMsg --- COMBINATION OF LETTERS $order IS NOT ALLOWED
+fi
+
+convert $dir/tmpP.mpc "$outfile"
+
+exit 0

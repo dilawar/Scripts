@@ -1,0 +1,446 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/19/2009 .......... revised 7/19/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cepstrum [-s size] [-o overlap] [-r rolloff] [-c constant] [-G] infile outfile
+# USAGE: cepstrum [-h or -help]
+#
+# OPTIONS:
+#
+# -s     size          percent size of original image to use for the 
+#                      dimension of regions; 0<integer<100; default=25
+# -o     overlap       percent overlap of regions; 0<=integer<100; default=50
+# -r     rolloff       cosine-bell window rolloff in percent for the regions;
+#                      0<integer<100; default=40
+# -c     constant      constant value used in log operation; integer>0;
+#                      default=10000
+# -G                   create grayscale cepstrum
+# 
+###
+#
+# NAME: CEPSTRUM 
+# 
+# PURPOSE: To create the cepstrum to depict the type, amount and orientation 
+# of camera type blurring in an image.
+# 
+# DESCRIPTION: CEPSTRUM creates the cepstrum of an image to detect its
+# blurring type, amount and orientation. The cepstrum is generate by first
+# computing a running average of the magnitude of the Fourier Transform from
+# a complete set of subsections of the image each of which is windowed using
+# typically about a 40% cosine-bell rolloff to black. The windowing is done 
+# to help assure that each subsection conforms to the Fourier Transform
+# assumption that the image is periodic. The negative log is applied to this
+# running average, which is then stretched to span the full dynamic range.
+# Finally, this result is treated as the real component and combined with a
+# black image for the imaginary component and inverse transformed back to the
+# spatial domain. The name cepstrum is derived from the word spectrum, but
+# with the first four letters reversed. It is in some sense a spectrum formed
+# backwards. Any alpha channel on the image will be removed automatically 
+# before processing.
+# 
+# For lens defocus, the cepstrum should produce a white ring in a generally 
+# dark background. The diameter of the white ring is equivalent to twice 
+# the diameter of the defocus amount.
+# 
+# For motion blur, the cepstrum should produce an array of dots on a line 
+# oriented at the angle of the motion blur. The distance between the two 
+# dots closest and on each side of the center of the cepstrum image is 
+# equivalent to twice the amount of motion blur.
+# 
+# OPTIONS: 
+# 
+# -s size ... SIZE of sub-regions used to generate the cepstrum expressed as 
+# percent of original image dimensions. Values are integers such that 
+# 0<size<100. The default=25
+# 
+# -o overlap ... OVERLAP is the percent overlap of the sub-regions used to 
+# generate the cepstrum. Values are integers such that 0<=overlap<100. 
+# Zero indicates that the sub-regions do not overlap. The default=50. 
+# The number of regions processed will be approximately 
+# ((100/overlap)*(100/size)-1)^2. With size=25 and overlap=50, this amounts
+# to approximate 49 regions.
+# 
+# -r rolloff ... ROLLOFF is the cosine-bell shaped windowing fuction rolloff 
+# in percent of the image dimensions used to taper the sub-regions from full 
+# image intensities to black near its edges. Values are integers such that 
+# 0<rolloff<100. The default=40.
+# 
+# -c constant ... CONSTANT is the multiplier value used in the log 
+# enhancement. Smaller values attenuate noise more than larger values. 
+# Values are integers>0. The default=10000
+# 
+# -G ... Creates GRAYSCALE cepstrum by converting the input image to 
+# grayscale before processing.
+# 
+# REQUIREMENTS: IM version 6.5.4-7 or higher, but compiled with HDRI enabled 
+# in any quantum level of Q8, Q16 or Q32. Also requires the FFTW delegate 
+# library.
+# 
+# See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
+# for more details about the Fourier Transform with ImageMagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+size=25				# subsection width and height factor (percent) of original
+overlap=50			# percent overlap of subsections
+rolloff=40			# cosine bell rolloff percent: typically 40-50
+constant=10000	 	# constant used in log to control curvature
+grayscale="no"      # create grayscale cepstrum
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# function to get min and max of image
+getMinMax()
+	{
+	img="$1"
+	if [ "$im_version" -ge "06030901" ]
+		then 
+		min=`convert $img -format "%[min]" info:`
+		max=`convert $img -format "%[max]" info:`
+		min=`convert xc: -format "%[fx:100*$min/quantumrange]" info:`
+		max=`convert xc: -format "%[fx:100*$max/quantumrange]" info:`
+	else
+		data=`convert $img -verbose info:`
+		min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		min=`convert xc: -format "%[fx:100*$min)]" info:`
+		max=`convert xc: -format "%[fx:100*$max)]" info:`
+	fi
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 11 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A NON-NEGATIVE INTEGER ---"
+					   sizetestA=`echo "$size <= 0" | bc`
+					   sizetestB=`echo "$size >= 100" | bc`
+					   [ $sizetestA -eq 1 -o $sizetestB -eq 1 ] && errMsg "--- SIZE=$size MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
+					   ;;
+				-o)    # get overlap
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OVERLAP SPECIFICATION ---"
+					   checkMinus "$1"
+					   overlap=`expr "$1" : '\([0-9]*\)'`
+					   [ "$overlap" = "" ] && errMsg "--- OVERLAP=$overlap MUST BE A NON-NEGATIVE INTEGER ---"
+					   overlaptestA=`echo "$overlap < 0" | bc`
+					   overlaptestB=`echo "$overlap >= 100" | bc`
+					   [ $overlaptestA -eq 1 -o $overlaptestB -eq 1 ] && errMsg "--- OVERLAP=$overlap MUST BE AN INTEGER GREATER THAN OR EQUAL TO 0 AND LESS THAN 100 ---"
+					   ;;
+				-r)    # get rolloff
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLLOFF SPECIFICATION ---"
+					   checkMinus "$1"
+					   rolloff=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rolloff" = "" ] && errMsg "--- ROLLOFF=$rolloff MUST BE A NON-NEGATIVE INTEGER ---"
+					   rollofftestA=`echo "$rolloff <= 0" | bc`
+					   rollofftestB=`echo "$rolloff >= 100" | bc`
+					   [ $rollofftestA -eq 1 -o $rollofftestB -eq 1 ] && errMsg "--- ROLLOFF=$rolloff MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
+					   ;;
+				-c)    # get constant
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONSTANT SPECIFICATION ---"
+					   checkMinus "$1"
+					   constant=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$constant" = "" ] && errMsg "--- CONSTANT=$constant MUST BE A NON-NEGATIVE FLOAT ---"
+					   constanttest=`echo "$constant <= 0" | bc`
+					   [ $constanttest -eq 1 ] && errMsg "--- CONSTANT=$constant MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-G)    # set grayscale mode
+					   grayscale="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/fftcepstrum_1_$$.mpc"
+tmpB1="$dir/fftcepstrum_1_$$.cache"
+tmp1="$dir/fftcepstrum_1_$$.pfm"
+tmp2="$dir/fftcepstrum_2_$$.pfm"
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" 1 2 3 15
+
+# get IM version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using spectrum.
+# Note: tested with 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# set grayscale mode
+if [ "$grayscale" = "yes" ]; then
+	gray="$setcspace -colorspace gray"
+else
+	gray=""
+fi
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" $gray +repage -auto-level "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# test for valid version of IM
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
+
+# test for hdri enabled
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+[ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+# get width and height of image
+ww=`identify -ping -format "%w" $tmpA1 `
+hh=`identify -ping -format "%h" $tmpA1 `
+
+# get min even dimension to crop input image
+# currently limited to be square even dimensions for fft/ift
+# but cannot pad as that introduces non-blurred areas
+dmin=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+dmin=`convert xc: -format "%[fx:($dmin%2)==0?$dmin:($dmin-1)]" info:`
+ww=$dmin
+hh=$dmin
+
+# get width and height of subsection
+sw=`convert xc: -format "%[fx:floor($size*$ww/100)]" info:`
+sh=`convert xc: -format "%[fx:floor($size*$hh/100)]" info:`
+
+# get -roll amount equal to half of sw and hw
+swr=`convert xc: -format "%[fx:floor($sw/2)]" info:`
+shr=`convert xc: -format "%[fx:floor($sh/2)]" info:`
+
+
+# get offset amount in pixelsd for subsection taking into account overlap
+ow=`convert xc: -format "%[fx:floor((100-$overlap)*$sw/100)]" info:`
+oh=`convert xc: -format "%[fx:floor((100-$overlap)*$sh/100)]" info:`
+
+# get ending pixel for stopping loops
+ew=`convert xc: -format "%[fx:$ww-$sw]" info:`
+eh=`convert xc: -format "%[fx:$hh-$sh]" info:`
+
+# compute cosine bell rolloff in pixels
+wr=`convert xc: -format "%[fx:$sw*$rolloff/100]" info:`
+hr=`convert xc: -format "%[fx:$sh*$rolloff/100]" info:`
+
+#echo "ww=$ww; hh=$hh; swr=$swr; shr=$shr; ow=$ow; oh=$oh, ew=$ew; eh=$eh; wr=$wr; hr=$hr"
+
+# get quantumrange and gain=1/quantumrange
+if [ "$im_version" -ge "06050410" ]; then
+	#HDRI was auto scaled by quantumrange
+	mult1=""
+	mult2=""
+else
+	#HDRI was unscaled by quantumrange
+	qmax=`convert xc: -format "%[fx:quantumrange]" info:`
+	gain=`convert xc: -format "%[fx:1/quantumrange]" info:`
+	mult1="-evaluate multiply $qmax"
+	mult2="-evaluate multiply $gain"
+fi
+
+# center crop image to min even dimension: 
+# currently limited to be square even dimensions for fft/ift
+convert $tmpA1 -gravity center -crop ${dmax}x${dmax}+0+0 +repage $tmpA1
+
+
+# setup autolevel
+if [ "$im_version" -lt "06050501" ]; then
+	getMinMax $dir/tmpA1.mpc
+	proc="-level $min%,$max%"
+else 
+	proc="-auto-level"
+fi
+
+# apply autolevel
+convert $tmpA1 $proc $tmpA1
+
+
+# create cosine bell 2 mask - actually is a sine window function - see profile from white image
+convert  \
+	\( -size ${sw}x1 xc: -fx "(0.5*cos(pi*max(0,(1-i/$wr)))+0.5)*(0.5*cos(pi*max(0,(1-(w-i)/$wr)))+0.5)" -scale ${sw}x${sh}\! \) \
+	\( -size 1x${sh} xc: -fx "(0.5*cos(pi*max(0,(1-j/$hr)))+0.5)*(0.5*cos(pi*max(0,(1-(h-j)/$hr)))+0.5)" -scale ${sw}x${sh}\! \) \
+	-compose multiply -composite $tmp2
+
+
+# create average of magnitude of subsections
+# compute number of sections
+k=0
+for ((i=0;i<=$eh;i+=$oh)); do
+	for ((j=0;j<=$ew;j+=$ow)); do
+		((k++))
+	done
+done
+num=$k
+
+
+# create initial black image for starting the average
+convert -size ${sw}x${sh} xc:black $tmp1
+
+echo ""
+# process subsections
+k=1
+dh=0
+for ((i=0;i<=$eh;i+=$oh)); do
+	dw=0
+	for ((j=0;j<=$ew;j+=$ow)); do
+#echo "sub=${sw}x${sh}+${dw}+${dh}"
+echo "Region: $k out of $num"
+		# compute running average of magnitude of fft
+		pct=`convert xc: -format "%[fx:100/($k)]" info:`
+		convert \( $tmpA1[${sw}x${sh}+${dw}+${dh}] $tmp2 \
+			-compose multiply -composite -fft -delete 1 \) $tmp1 \
+			+swap -compose blend -set option:compose:args $pct -composite $tmp1
+#echo "i=$i; j=$j; k=$k; pct=$pct"
+		dw=$(($dw+$ow))
+		((k++))
+	done
+	dh=$(($dh+$oh))
+done
+echo ""
+
+# scale result by quantumrange before apply log to 
+# emphasize small values and negate, then
+# scale result by 1/quantumrange before 
+# take IFT using average as real component and 
+# black image as imaginary component, then 
+# roll the image so that the center is moved to the upper left corner
+convert \( $tmp1 $mult1 -evaluate log $constant -negate $mult2 \) \
+	\( -size ${sw}x${sh} xc:black \) +ift \
+	-roll -${swr}-${shr} "$outfile"
+
+exit 0
+
+
+

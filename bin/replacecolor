@@ -1,0 +1,392 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/21/2016 .......... revised 2/8/2018
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: replacecolor [-i icolor] [-o ocolor] [-f fuzzval ] [-g gain] 
+# [-t thresh] [-b brightness] [-s saturation] infile [outdir]
+#
+# USAGE: replacecolor [-help]
+#
+# OPTIONS:
+#
+# -i     icolor         color in the input image to be replaced; 
+#                       any valid opaque IM color; default is the average 
+#                       non-grayish (non-low-saturation) color
+# -o     ocolor         color in the output image to replace the input color; 
+#                       any valid opaque IM color; default=red
+# -f     fuzzval        fuzzval on each side of icolor for the range of hues;   
+#                       0<=float<=180 degrees; default=40 degrees
+# -g     gain           gain on color conversion; integers>=0; default=100
+# -t     thresh         threshold value in percent for forcing low saturation
+#                       colors to zero saturation, i.e. converts near gray 
+#                       (white through black) to pure gray; float>=0; default=0
+# -b     brightness     percent change in newcolor brightness; integer>=-100; 
+#                       default=0 (no change)
+# -s     saturation     percent change in new color saturation;
+#                       -100<=integer<=100; default=0 (no change)
+# 
+###
+#
+# NAME: REPLACECOLOR 
+# 
+# PURPOSE: To change one color to another color in an image.
+# 
+# DESCRIPTION: REPLACECOLOR changes one color to another color in an image by 
+# modifying the input color hue to the desired output color hue and adjusting 
+# the saturation and brightness.
+# 
+# OPTIONS: 
+# 
+# -i icolor ... ICOLOR is the color in the input image to be changed. 
+# Any valid opaque IM color is allowed. The default=blue
+# 
+# -o ocolor ... OCOLOR is the replacement color for the output image. 
+# Any valid opaque IM color is allowed. The default=blue
+# 
+# -f fuzzval ... FUZZVAL on each side of the old color for the range of input  
+# hues to be recolored. Values are 0<=float<=180 degrees. The default=40.
+# 
+# -g gain ... GAIN on color conversion. Values are integers>=0. The 
+# default=100.
+# 
+# -t thresh ... THRESHOLD value in percent for forcing low saturation colors 
+# to zero saturation, i.e. converts near gray (white through black) to pure 
+# gray. Values are floats>=0. The default=0.
+# 
+# -b brightness ... BRIGHTNESS is the percent additional change in brightness. 
+# Values are integer>=-100. The default=0 (no change).
+# 
+# -s saturation ... SATURATION is the percent additional change in saturation. 
+# Values are -100<=integer<=100. The default=0 (no change).
+# 
+# REQUIREMENTS: IM 6.5.3-7 or higher, so that -modulate uses HSL and not 
+# HSB colorspace.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+icolor="blue"			# input color
+ocolor="red"			# output color
+fuzzval=40				# fuzzval on hue in degrees
+gain=100				# color conversion gain
+thresh=0				# gray protection threshold
+brightness=0			# brightness percent
+saturation=0			# saturation percent
+sthresh=10				# low saturation threshold
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-i)    # get icolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ICOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   icolor="$1"
+					   ;;
+				-o)    # get ocolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ocolor="$1"
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   testA=`echo "$fuzzval > 180" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A FLOAT BETWEEN 0 AND 180 ---"
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-t)    # get thresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   thresh=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-b)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   brightness=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER ---"
+		   			   testA=`echo "$brightness < -100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER LARGER THAN -100 ---"
+					   ;;
+				-s)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   #checkMinus "$1"
+					   saturation=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER ---"
+		   			   testA=`echo "$saturation < -100" | bc`
+		   			   testB=`echo "$saturation > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER -100 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# define dir
+dir="$tmpdir/COLORSWAP.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+# read input image and force near white to pure white
+convert -quiet "$infile" +repage -fuzz $thresh% -fill white -opaque white $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test if alpha solid white (fully opaque) (note IM 7 starts with cap first letter, but IM 6 does not)
+is_opaque=`convert $dir/tmpI.mpc -format "%[opaque]" info: | tr "[:upper:]" "[:lower:]"`
+if [ "$is_opaque" = "false" ]; then
+	convert $dir/tmpI.mpc -alpha extract $dir/tmpA.mpc
+	procA="$dir/tmpA.mpc -alpha off -compose copy_opacity -composite"
+else
+	procA=""
+fi
+
+# convert input color to hsl
+ihsl=`convert xc:"$icolor" -colorspace hsl txt: |\
+	tail -n +2 | sed 's/^[ ]*//' | sed 's/[ ][ ]*/ /g' |\
+	cut -d\  -f4 | sed -n 's/^.*[(]\(.*\)[)]$/\1/p'`
+ihue=`echo "$ihsl" | cut -d, -f1`
+isat=`echo "$ihsl" | cut -d, -f2`
+ibri=`echo "$ihsl" | cut -d, -f3`
+#echo "ihsl=$ihsl; ihue=$ihue; isat=$isat; ibri=$ibri;"
+# convert hue to range 0-360
+test=`echo "$ihue" | grep '%'`
+if [ "$test" != "" ]; then
+	ihue=`echo "$ihue" | sed 's/%//g'`
+	ihue=`echo "scale=6; 360*$ihue/100" | bc`
+fi
+# convert sat to percent (and remove % symbol)
+test=`echo "$isat" | grep '%'`
+if [ "$test" != "" ]; then
+	isat=`echo "$isat" | sed 's/%//g'`
+else
+	isat=`echo "scale=6; 100*$isat/255" | bc`
+fi
+# convert bri to percent (and remove % symbol)
+test=`echo "$ibri" | grep '%'`
+if [ "$test" != "" ]; then
+	ibri=`echo "$ibri" | sed 's/%//g'`
+else
+	ibri=`echo "scale=6; 100*$ibri/255" | bc`
+fi
+#echo "ihsl=$ihsl; ihue=$ihue; isat=$isat; ibri=$ibri;"
+
+# convert output color to hsl
+ohsl=`convert xc:"$ocolor" -colorspace hsl txt: |\
+	tail -n +2 | sed 's/^[ ]*//' | sed 's/[ ][ ]*/ /g' |\
+	cut -d\  -f4 | sed -n 's/^.*[(]\(.*\)[)]$/\1/p'`
+ohue=`echo "$ohsl" | cut -d, -f1`
+osat=`echo "$ohsl" | cut -d, -f2`
+obri=`echo "$ohsl" | cut -d, -f3`
+#echo "ohsl=$ohsl; ohue=$ohue; osat=$osat; obri=$obri;"
+# convert hue to range percent
+test=`echo "$ohue" | grep '%'`
+if [ "$test" != "" ]; then
+	ohue=`echo "$ohue" | sed 's/%//g'`
+else
+	ohue=`echo "scale=6; 100*$ohue/360" | bc`
+fi
+# convert sat to percent (and remove % symbol)
+test=`echo "$osat" | grep '%'`
+if [ "$test" != "" ]; then
+	osat=`echo "$osat" | sed 's/%//g'`
+else
+	osat=`echo "scale=6; 100*$osat/255" | bc`
+fi
+# convert bri to percent (and remove % symbol)
+test=`echo "$obri" | grep '%'`
+if [ "$test" != "" ]; then
+	obri=`echo "$obri" | sed 's/%//g'`
+else
+	obri=`echo "scale=6; 100*$obri/255" | bc`
+fi
+#echo "ohsl=$ohsl; ohue=$ohue; osat=$osat; obri=$obri; thresh=$thresh"
+
+# compute saturation and brightness as fraction relative to 1
+# add 50% to bri to convert from full bri=50% in hsl, then convert to range 0 to 1
+bri=`echo "scale=6; (50+$obri+$brightness)/100" | bc`
+sat=`echo "scale=6; ($osat+$saturation)/100" | bc`
+[ `echo "$bri < 0.0" | bc` -eq 1 ] && bri=0
+[ `echo "$sat < 0.0" | bc` -eq 1 ] && sat=0
+#echo "ohue=$ohue; sat=$sat; bri=$bri;"
+
+
+# set up full_range in pixels from fuzzval for 0 to <360 corresponding to lut length 35999
+# max fuzzval is 180 degrees or 50 percent
+full_range=`convert xc: -format "%[fx:2*round($fuzzval*100)-1]" info:`
+
+# set up rollval for icolor hue
+rollval=`convert xc: -format "%[fx:round($ihue*100)]" info:`
+#echo "full_range=$full_range; rollval=$rollval;"
+
+# create hue lut
+# roll midvalue to 0 and then roll for color
+convert -size 35999x1 xc:black \
+	\( -size ${full_range}x1 xc:white \) \
+	-gravity center -compose over -composite \
+	-roll -17998+0 -roll +${rollval}+0 \
+	$dir/hlut.png
+
+# set up gain from change to absolute value for +level where 100 is no change
+gain=$((100+gain))
+
+
+# do processing
+# line 1 - convert to depth 8
+# line 2 - separate hsl channels
+# line 3 - make constant image of ohue
+# line 4 - multiply saturation channel by desired amount
+# line 5 - multiply brightness channel by desired amount
+# line 6 - combine modified hsl channels from previous lines and convert back to RGB
+# line 7 - create binary hue mask for desired fuzz values
+# line 8 - modify sat channel to threshold to 0 low saturation values and to apply gain to other saturation values as saturation mask
+# line 9 - composite last two images (hue mask and enhanced saturation mask image)
+# line 10 - delete temporary images
+# line 11 - composite original, modified RGB image and mask image
+# line 12 - write output
+convert \( $dir/tmpI.mpc -depth 8 \) \
+	\( -clone 0 -alpha off -colorspace hsl -separate +channel \) \
+	\( -clone 1 -fill "gray($ohue%)" -colorize 100 \) \
+	\( -clone 2 -evaluate multiply $sat \) \
+	\( -clone 3 -evaluate multiply $bri \) \
+	\( -clone 4,5,6 -set colorspace hsl -combine -colorspace sRGB \) \
+	\( -clone 1 $dir/hlut.png -interpolate bilinear -clut \) \
+	\( -clone 2 -black-threshold ${thresh}% +level 0x$gain% \) \
+	\( -clone 8 -clone 9 -compose over -compose multiply -composite \) \
+	-delete 1-6,8,9 \
+	\( -clone 0 -clone 1 -clone 2 -compose over -composite \) \
+	-delete 0-2 $procA \
+	"$outfile"
+
+exit 0
+

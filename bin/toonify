@@ -1,0 +1,387 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/11/2017 .......... revised 11/11/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: toonify [-b blur] [-t threshold] [-e edge] [-g gain] [-l lothresh] 
+# [-h hithresh] [-q quantize] [-s smoothing] [-B brightness] [-C contrast] 
+# [-S saturation] infile outfile
+# USAGE: toonify [-help]
+#
+# OPTIONS:
+#
+# -b     blur           blur sigma for selective-blur; integer>=0; default=4
+# -t     threshold      threshold for selective-blur; 0<=integer<=100; default=10
+# -e     edge           edge method; choices are: none, sobel, DoG, LoG and canny; 
+#                       default=sobel
+# -g     gain           gain for edge strength; integer>=0; default is automatically
+#                       computed for different edge methods; not used for edge=canny
+# -l     lothresh       low threshold for canny edge method; integer>=0; default=5
+# -h     hithresh       high threshold for canny edge method; integer>=0; default=20
+# -q     quantize       quantization number of color levels; 0<=integer<=255; zero means 
+#                       no quantization; default=8
+# -s     smoothing      smoothing of quantization boundaries; float>=0; default=1
+# -B     brightness     brightness change; integer; default=0
+# -C     contrast       contrast change; integer; default=0
+# -S     saturation     saturation increase; 0<=integer<=49; default=0
+#
+###
+#
+# NAME: TOON 
+# 
+# PURPOSE: To apply a cartoon-like effect to an image.
+# 
+# DESCRIPTION: TOONIFY applies a cartoon-like effect to an image. Edges and color 
+# quantization are optional. There are several choices for the edge method.
+# 
+# OPTIONS: 
+# 
+# -b blur ... BLUR sigma for selective-blur. Values are integers>=0. The default=4.
+# 
+# -t threshold ... THRESHOLD for selective-blur. Values are 0<=integers<=100. 
+# The default=10.
+# 
+# -e edge ... EDGE method. The choices are: none (n), sobel (s), DoG (d) 
+# (for difference of gaussians), LoG (l) (for log of gaussian) and canny (c). 
+# The default=sobel.
+# 
+# -g gain ... GAIN for edge strength. Values are integers>=0. The default is 
+# automatically computed for different edge methods. For DoG it is 20. For LoG it is 15. 
+# For sobel it is 4. This option is not used for canny.
+# 
+# -l lothresh ... LOTHRESH is the low threshold for the canny edge method. Values are 
+# integers>=0. The default=5.
+# 
+# -h hithresh ... HITHRESH is the high threshold for the canny edge method. Values are 
+# integers>=0. The default=20.
+# 
+# -q quantize ... QUANTIZE is the quantization number of color levels. Values are 
+# 0<=integers<=255. A value of zero means no quantization. The default=8.
+# 
+# -s smoothing ... SMOOTHING of the quantization color boundaries. Values are floats>=0. 
+# The default=1.
+# 
+# -B brightness ... BRIGHTNESS change. Value are integers. The default=0.
+# 
+# -C contrast ... CONTRAST change. Values are integers. The default=0.
+# 
+# -S saturation ... SATURATION increase. Values are 0<=integer<=49. The default=0.
+# 
+# REFERENCES:
+# http://www.cs.cornell.edu/courses/cs4670/2010fa/projects/final/results/group_of_pw272_zkd2/ComputerVisionFinalReport/ComputerVisionFinalWriteup.pdf
+# https://stacks.stanford.edu/file/druid:yt916dh6570/Dade_Toonify.pdf
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+blur=4				# sigma for selective blur
+threshold=10		# threshold for selective blur
+edge="sobel"		# edge method: none, DoG, LoG, sobel, canny
+gain=""				# edge gain
+lothresh=5			# canny low threshold
+hithresh=20			# canny high threshold
+quantize=8			# quantization number of levels
+smoothing=1			# smoothing of quantization boundaries
+brightness=0		# brighness change
+contrast=0			# contrast change
+saturation=0		# saturation increase
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-t)    # get threshold
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   threshold=`expr "$1" : '\([0-9]*\)'`
+					   [ "$threshold" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$threshold > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+			   	-e)    # edge
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EDGE SPECIFICATION ---"
+					   checkMinus "$1"
+					   edge=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$edge" in
+					   		none|n) edge="none" ;;
+					   		sobel|s) edge="sobel" ;;
+					   		dog|d) edge="dog" ;;
+					   		log|l) edge="log" ;;
+					   		canny|c) edge="canny" ;;
+					   		*) errMsg "--- EDGE=$edge IS NOT A VALID CHOICE ---" ;;
+					   esac
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-l)    # get lothresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   lothresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lothresh" = "" ] && errMsg "--- LOTHRESH=$lothresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-h)    # get hithresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HITHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   hithresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hithresh" = "" ] && errMsg "--- HITHRESH=$hithresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-q)    # get quantize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID QUANTIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   quantize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$quantize" = "" ] && errMsg "--- QUANTIZE=$quantize MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$quantize > 255" | bc`
+					   [ $test -eq 1 ] && errMsg "--- QUANTIZE=$quantize MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+					   ;;
+				-s)    # get smoothing
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTHING SPECIFICATION ---"
+					   checkMinus "$1"
+					   smoothing=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$smoothing" = "" ] && errMsg "--- SMOOTHING=$smoothing MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-B)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   brightness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   checkMinus "$1"
+					   contrast=`expr "$1" : '\([0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-S)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   saturation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$saturation >= 50" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN 0 AND 49 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up tmp files
+tmpA="$dir/toonify_$$.mpc"
+tmpB="$dir/toonify_$$.cache"
+trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+
+# read input
+convert -quiet "$infile" $tmpA ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# set up for saturation
+if [ "$saturation" = "0" ]; then
+	satproc=""
+else
+	loval=$saturation
+	hival=$((100-saturation))
+	satproc="-level ${loval}x${hival}%"
+fi
+#echo "satproc=$satproc"
+
+# set up for brightness and Contrast
+if [ "$brightness" = "0" -a "$contrast" = "0" ]; then
+	bcproc=""
+else
+	bcproc="-brightness-contrast ${brightness},${contrast}"
+fi
+#echo "bcproc=$bcproc"
+
+
+# set up for edge method
+if [ "$edge" = "dog" ]; then
+	[ "$gain" = "" ] && gain=20
+	edgeproc="-define convolve:scale=!$gain -morphology convolve DoG:0,0,1 -negate"
+elif [ "$edge" = "log" ]; then
+	[ "$gain" = "" ] && gain=15
+	edgeproc="-define convolve:scale=!$gain -morphology convolve LoG:0,1 -negate"
+elif [ "$edge" = "sobel" ]; then
+	[ "$gain" = "" ] && gain=4
+	edgeproc="-define convolve:scale=!$gain -define morphology:compose=Lighten -morphology Convolve Sobel:> -negate"
+elif [ "$edge" = "canny" ]; then
+	edgeproc="-canny 0x1+${lothresh}+${hithresh}% -negate"
+fi
+#echo "$edgeproc"
+
+# set up for smoothing
+if [ "$smoothing" = "0" ]; then
+	smoothproc=""
+else
+	smoothproc="-blur 0x$smoothing"
+fi
+#echo "smoothproc=$smoothproc"
+
+# process image
+if [ "$quantize" = "0" -a "$edge" = "none" ]; then
+	convert -respect-parenthesis $tmpA -colorspace LAB -separate +channel \
+		\( -clone 0 -selective-blur 0x${blur}+${threshold}% $bcproc \) \
+		\( -clone 2 -clone 1 $satproc -clone 3 -reverse -set colorspace LAB -combine -colorspace sRGB \) \
+		-delete 0-3 "$outfile"
+
+elif [ "$quantize" = "0" -a "$edge" != "none" ]; then
+	convert -respect-parenthesis $tmpA -colorspace LAB -separate +channel \
+		\( -clone 0 -selective-blur 0x${blur}+${threshold}% $bcproc \) \
+		\( -clone 3 $edgeproc \) \
+		\( -clone 2 -clone 1 $satproc -clone 3 -reverse -set colorspace LAB -combine -colorspace sRGB \) \
+		-delete 0-3 -compose multiply -composite \
+		"$outfile"
+
+elif [ "$quantize" != "0" -a "$edge" = "none" ]; then
+	convert -respect-parenthesis $tmpA -colorspace LAB -separate +channel \
+		\( -clone 0 -selective-blur 0x${blur}+${threshold}% $bcproc \) \
+		\( -clone 3 +dither -colors $quantize $smoothproc \) -swap 3,4 +delete \
+		\( -clone 2 -clone 1 $satproc -clone 3 -reverse -set colorspace LAB -combine -colorspace sRGB \) \
+		-delete 0-3 "$outfile"
+
+else
+	convert -respect-parenthesis $tmpA -colorspace LAB -separate +channel \
+		\( -clone 0 -selective-blur 0x${blur}+${threshold}% $bcproc \) \
+		\( -clone 3 $edgeproc \) \
+		\( -clone 3 +dither -colors $quantize $smoothproc \) -swap 3,5 +delete \
+		\( -clone 2 -clone 1 $satproc -clone 3 -reverse -set colorspace LAB -combine -colorspace sRGB \) \
+		-delete 0-3 -compose multiply -composite \
+		"$outfile"
+fi
+
+exit 0

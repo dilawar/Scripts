@@ -1,0 +1,414 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/6/2018 .......... revised 1/6/2018
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: outfitwarper [-r reduce] [-m modulate] [-x xroll] [-y yroll] [-o orientation]
+# [-d displace] [-D directory] infile bgfile outfile
+# 
+# or
+# 
+# USAGE: outfitwarper [-r reduce] [-m modulate] [-x xroll] [-y yroll] [-o orientation]
+# [-d displace] [-D directory] lightingfile displacementfile maskfile infile 
+# bgfile outfile
+#
+# USAGE: outfitwarper [-help|-h]
+#
+# OPTIONS:
+#
+# -r     reduce          reduction amount as percent for the infile (pattern image) 
+#                        before tiling it; integer>=0; default=10
+# -m     modulate        modulation (lightness, saturation, hue) for the infile 
+#                        (pattern image) before tiling it; comma separate triplet 
+#                        L,S,H; integers>=0; default="100,100,100" (no change)
+# -x     xroll           roll amount in pixels for the tiled image in the horizontal 
+#                        dimension; integer; default=0 
+# -y     xroll           roll amount in pixels for the tiled image in the vertical 
+#                        dimension; integer; default=0
+# -o     orientation     orientation angle for rotation of the tiled image; 
+#                        -360<=integer<=360; default=0
+# -d     displace        displacement amount when applying the displacement image; 
+#                        integer>=0; default=5
+# -D     directory       directory to write all the exported data, including a text file 
+#                        called outfit.txt containing the same textual parameter data 
+#                        sent to terminal. The directory can be specified in the  
+#                        outfitwarp script to import all the needed images and textual 
+#                        data.
+#
+# infile is the pattern image to be applied to the background outfit (clothing) image. 
+#
+###
+#
+# NAME: OUTFITWARPER 
+# 
+# PURPOSE: Transforms a pattern image to place it over an image of some piece of 
+# clothing or outfit.
+# 
+# DESCRIPTION: OUTFITWARPER transforms a pattern image to place it over an image of  
+# same piece of clothing or outfit. The transformed image will display hightlights  
+# from the outfit image and be distorted to match the wrinkles in the outfit image.  
+# The outfitwarper script must be run once first using -E to create the lighting,  
+# displacement and mask images. This can be done with or without -D directory.
+# 
+# 
+# OPTIONS: 
+# 
+# -r reduce ... REDUCE is the reduction amount as percent for the infile (pattern image) 
+# before tiling it. Values are integers>=0. The default=10.
+# 
+# -m modulate ... MODULATE is the modulation (lightness, saturation, hue) applied to the  
+# infile (pattern image) before tiling it. Values are a comma separate triplet L,S,H of 
+# integers>=0. The default="100,100,100" (no change).
+# 
+# -x xroll ... XROLL is the roll amount in pixels for the tiled image in the horizontal 
+# dimension. Values are integers. The default=0.
+# 
+# -x yroll ... YROLL is the roll amount in pixels for the tiled image in the vertical 
+# dimension. Values are integers. The default=0.
+# 
+# -o orientation ... ORIENTATION angle in degrees for rotation of the tiled pattern 
+# image. Values are -360<=integer<=360; default=0.
+# 
+# -d displace ... DISPLACE is the displacement amount when applying the displacement 
+# image to distort the pattern on the background image. Values are integers>=0. The 
+# default=5.
+# 
+# -D directory ... DIRECTORY to write all the exported data, including a text file 
+# called outfit.txt containing the same textual parameter data as sent to terminal. 
+# The directory can be specified later in the outfitwarp script to import all the 
+# needed images and textual data.
+# 
+# REQUIREMENTS: IM 6.5.3.4 due to the use of -compose displace.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# initialize argument for later testing
+reduce=""					# reduce pattern image before tiling
+modulate=""		# modulate pattern image before tiling
+xroll=""					# horizontal (x-direction) roll of the tiled pattern
+yroll=""					# horizontal (y-direction) roll of the tiled pattern
+orientation=""				# orientation angle for rotation of tiled pattern
+displace=""					# displacement amount
+directory=""				# directory to write the lighting image, displacement map and text file
+
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 20 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help|-h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get reduce
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REDUCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   reduce=`expr "$1" : '\([0-9]*\)'`
+					   [ "$reduce" = "" ] && errMsg "--- REDUCE=$reduce MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-m)    # get modulate
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODULATE SPECIFICATION ---"
+					   checkMinus "$1"
+					   modulate=`expr "$1" : '\([0-9]*,[0-9]*,[0-9]*\)'`
+					   [ "$modulate" = "" ] && errMsg "--- MODULATE=$modulate MUST BE A COMMA SEPARATED INTEGER TRIPLET---"
+					   ;;
+				-x)    # get xroll
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID XROLL SPECIFICATION ---"
+#					   checkMinus "$1"
+					   xroll=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$xroll" = "" ] && errMsg "--- XROLL=$xroll MUST BE AN INTEGER ---"
+					   ;;
+				-y)    # get yroll
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID YROLL SPECIFICATION ---"
+#					   checkMinus "$1"
+					   yroll=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$yroll" = "" ] && errMsg "--- YROLL=$yroll MUST BE AN INTEGER ---"
+					   ;;
+				-o)    # get orientation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ORIENTATION SPECIFICATION ---"
+#					   checkMinus "$1"
+					   orientation=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$orientation" = "" ] && errMsg "--- ORIENTATION=$orientation MUST BE A NON-NEGATIVE INTEGER ---"
+					   test1=`echo "$orientation < -360" | bc`
+					   test2=`echo "$orientation > 360" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ORIENTATION=$orientation MUST BE AN INTEGER BETWEEN -360 AND 360 ---"
+					   ;;
+				-d)    # get displace
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DISPLACE SPECIFICATION ---"
+					   checkMinus "$1"
+					   displace=`expr "$1" : '\([0-9]*\)'`
+					   [ "$displace" = "" ] && errMsg "--- DISPLACE=$displace MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-D)    # set directory
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIRECTORY SPECIFICATION ---"
+					   checkMinus "$1"
+					   directory="$1"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, bgfile, maskfile outfile
+	if [ $# -eq 6 ]; then
+		lightingfile="$1"
+		displacementfile="$2"
+		maskfile="$3"
+		infile="$4"
+		bgfile="$5"
+		outfile="$6"
+	elif [ $# -eq 3 ]; then
+		infile="$1"
+		bgfile="$2"
+		outfile="$3"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+if [ "$directory" = "" ]; then
+# test that lightingfile and displacementfile and maskfile provided
+[ "$lightingfile" = "" ] && errMsg "NO LIGHTING FILE SPECIFIED"
+[ "$displacementfile" = "" ] && errMsg "NO DISPLACEMENT FILE SPECIFIED"
+[ "$maskfile" = "" ] && errMsg "NO MASK FILE SPECIFIED"
+else
+# verify lightingfile, displacementfile, maskfile and outfit.txt exist
+[ ! -d "$directory" ] && errMsg "DIRECTORY $directory COULD NOT BE FOUND"
+[ ! -f "$directory/lighting.png" -a ! -r "$directory/lighting.png" -a ! -s "$directory/lighting.png" ] && errMsg "LIGHTING FILE $directory/lighting.png COULD NOT BE FOUND"
+[ ! -f "$directory/displace.png" -a ! -r "$directory/displace.png" -a ! -s "$directory/displace.png" ] && errMsg "DISPLACEMENT FILE $directory/displace.png COULD NOT BE FOUND"
+[ ! -f "$directory/mask.png" -a ! -r "$directory/mask.png" -a ! -s "$directory/mask.png" ] && errMsg "MASK FILE $directory/mask.png COULD NOT BE FOUND"
+[ ! -f "$directory/outfitdata.txt" -a ! -r "$directory/outfitdata.txt" -a ! -s "$directory/outfitdata.txt" ] && errMsg "OUTFITDATA FILE $directory/outfitdata.txt COULD NOT BE FOUND"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INFILE (PATTERN) FILE SPECIFIED"
+
+# test that bgfile provided
+[ "$bgfile" = "" ] && errMsg "NO BACKGROUND (OUTFIT) FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/OUTFITWARPER.$$"
+mkdir "$dir" || {
+  echo >&2 "UNABLE TO CREATE WORKING DIR \"$dir\" -- ABORTING"
+  exit 10
+}
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 10 15
+trap "rm -rf $dir; exit 1" ERR
+
+if [ "$directory" = "" ]; then
+	[ "$reduce" = "" ] && reduce="10"
+	[ "$xroll" = "" ] && xroll=0
+	[ "$yroll" = "" ] && yroll=0
+	[ "$orientation" = "" ] && orientation=10
+	[ "$displace" = "" ] && displace=5
+	[ "$modulate" = "" ] && modulate="100,100,100"
+
+else
+	# store arguments from input into _in variable
+	reduce_in=$reduce
+	xroll_in=$xroll
+	yroll_in=$yroll
+	orientation_in=$orientation
+	displace_in=$displace
+	modulate_in=$modulate
+	
+	# read the arguments from the textfile in the directory
+	source $directory/outfitdata.txt
+
+	# override directory arguments with input arguments
+	[ "$reduce_in" != "" ] && reduce=$reduce_in
+	[ "$xroll_in" != "" ] && xroll=$xroll_in
+	[ "$yroll_in" != "" ] && yroll=$yroll_in
+	[ "$orientation_in" != "" ] && orientation=$orientation_in
+	[ "$displace_in" != "" ] && displace=$displace_in
+	[ "$modulate_in" != "" ] && modulate=$modulate_in
+fi
+
+# setup for flattening
+if [ "$extract" != "alpha" ]; then
+	flattening="-flatten"
+else
+	flattening=""
+fi
+
+# set up for modulating the pattern image
+if [ "$modulate" = "100,100,100" ]; then
+	modulating=""
+else
+	modulating="-modulate $modulate"
+fi
+
+
+# read pattern infile image
+convert -quiet "$infile" $modulating $dir/tmpP.mpc ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read background outfit file
+convert -quiet "$bgfile" $flattening -colorspace gray $dir/tmpB.mpc ||
+	echo  "--- FILE $bgfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read lightingfile and displacementfile
+if [ "$directory" = "" ]; then
+	if ! convert -quiet "$lightingfile" +repage $dir/tmpL.mpc; then
+		errMsg "--- FILE $lightingfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+	
+	if ! convert -quiet "$displacementfile" +repage $dir/tmpD.mpc; then
+		errMsg "--- FILE $displacementfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+
+	if ! convert -quiet "$maskfile" +repage $dir/tmpM.mpc; then
+		errMsg "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+else
+	if ! convert -quiet "$directory/lighting.png" +repage $dir/tmpL.mpc; then
+		errMsg "--- FILE $directory/lighting.png DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+
+	if ! convert -quiet "$directory/displace.png" +repage $dir/tmpD.mpc; then
+		errMsg "--- FILE $directory/displace.png DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+
+	if ! convert -quiet "$directory/mask.png" +repage $dir/tmpM.mpc; then
+		errMsg "--- FILE $directory/mask.png DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi
+fi
+
+
+# setup for rolling tiled pattern image
+if [ "$xroll" != "0" -o "$yroll" != "0" ]; then
+	rolling="-roll +${xroll}+${yroll}"
+else
+	rolling=""
+fi
+
+# tile infile (pattern image)
+ww=`convert -ping $dir/tmpB.mpc -format "%w" info:`
+hh=`convert -ping $dir/tmpB.mpc -format "%h" info:`
+dim=`convert xc: -format "%[fx:1.5*max($ww,$hh)]" info:`
+if [ "$orientation" = "0" ]; then
+	convert -size ${ww}x${hh} xc: \( $dir/tmpP.mpc -resize $reduce% +write mpr:tile +delete \) \
+		-tile mpr:tile -draw "color 0,0 reset" -alpha off $rolling $dir/tmpTP.mpc
+else
+	convert -size ${dim}x${dim} xc: \( $dir/tmpP.mpc -resize $reduce% +write mpr:tile +delete \) \
+		-tile mpr:tile -draw "color 0,0 reset" -alpha off $rolling \
+		-rotate $orientation -gravity center -crop ${ww}x${hh}+0+0 +repage $dir/tmpTP.mpc
+fi
+
+# process for lighting and displacement
+convert $dir/tmpTP.mpc $dir/tmpL.mpc -compose hardlight -composite -compose over \
+	$dir/tmpD.mpc -define compose:args=${displace}x${displace} -compose displace -composite -compose over \
+	$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
+	"$outfile"
+
+
+exit 0
+

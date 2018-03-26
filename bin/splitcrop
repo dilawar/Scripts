@@ -1,0 +1,280 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus revised 6/9/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: splitcrop [-x xcoord] [-y ycoord] [-L] infile [outfile]
+# USAGE: splitcrop [-h or -help]
+#
+# OPTIONS:
+#
+# -x     xcoord     x coordinate for split; 0<integer<width; default=center 
+# -y     xcoord     y coordinate for split; 0<integer<height; default=center
+# -L                list crop dimensions and offsets to the terminal
+# 
+# Note, the output images will be named automatically from the outfile name and 
+# suffix.  Two or four of the following: _left, _right, _top, _bottom, 
+# _topleft, _topright, _bottomleft, _bottomright will be appended before the
+# suffix. If no outfile is provided, then the infile name and suffix will be 
+# used for the output.
+# 
+###
+#
+# NAME: SPLITCROP 
+# 
+# PURPOSE: To crop an image into two or four sections according to the given
+# x,y coordinates.
+# 
+# DESCRIPTION: SPLITCROP crops an image into two or four sections according to 
+# the given x,y coordinates. One or both of the x,y coordinates may be 
+# specified. If one coordinate is specified, then the image will be split into 
+# two parts. If two coordinate are specified, then the image will be split both 
+# ways into four parts. Note that these are coordinates and not sizes. The top, 
+# left or topleft section will include the coordinate specified. The size of 
+# the split will be the coordinate plus 1. If the image dimension is odd, 
+# then the top, left or topleft will contain the extra pixel(s).
+# 
+# OPTIONS: 
+# 
+# -x xcoord ... XCOORD is the x coordinate for the split. Values are 
+# 0<integers<width. The default=center of image
+# 
+# -y ycoord ... YCOORD is the y coordinate for the split. Values are 
+# 0<integers<height. The default=center of image
+# 
+# -L ... LIST crop dimensions and offsets to the terminal
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+xcoord=""			# x coordinate for split
+ycoord=""			# y coordinate for split
+list="off"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-x)    # get xcoord
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID XCOORD SPECIFICATION ---"
+					   checkMinus "$1"
+					   xcoord=`expr "$1" : '\([0-9]*\)'`
+					   [ "$xcoord" = "" ] && errMsg "--- XCOORD=$xcoord MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-y)    # get ycoord
+					   shift  # to get the neyt parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID YCOORD SPECIFICATION ---"
+					   checkMinus "$1"
+					   ycoord=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ycoord" = "" ] && errMsg "--- YCOORD=$ycoord MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-L)    # get list
+					   list="on"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+
+if [ "$outfile" = "" ]; then
+	# separate infile to outname and suffix
+	outname=`echo "$infile" | sed -n 's/^\(.*\)[\.].*$/\1/p'`
+	suffix=`echo "$infile" | sed -n 's/^.*[\.]\(.*\)$/\1/p'`
+else
+	# separate outfile to outname and suffix
+	outname=`echo "$outfile" | sed -n 's/^\(.*\)[\.].*$/\1/p'`
+	suffix=`echo "$outfile" | sed -n 's/^.*[\.]\(.*\)$/\1/p'`
+fi
+
+# setup temporary images
+tmpA1="$dir/split_A_$$.mpc"
+tmpA2="$dir/split_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get input dimensions
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+#echo "ww=$ww; hh=$hh"
+
+x=$xcoord
+y=$ycoord
+
+# trap for no coordinates specified
+if [ "$x" = ""  -a "$y" = "" ]; then
+	x=`convert xc: -format "%[fx:round($ww/2)-1]" info:`
+	y=`convert xc: -format "%[fx:round($hh/2)-1]" info:`
+fi
+
+# trap for coordinates at boundary or outside image
+if [ "$x" != "" ]; then
+	( [ $x -eq 0 ] || [ $x -ge $ww ] ) && errMsg "--- INVALID X COORDINATE SPECIFIED  ---"
+fi
+if [ "$y" != "" ]; then
+	 ( [ $y -eq 0 ] || [ $y -ge $ww ] ) && errMsg "--- INVALID Y COORDINATE SPECIFIED  ---"
+fi
+
+# options depending upon whether x or y or (x and y) specified
+if [ "$x" != "" -a "$y" != "" ]; then
+	#split into four parts
+	tlsize=`convert xc: -format "%[fx:$x+1]x%[fx:$y+1]+0+0" info:`
+	trsize=`convert xc: -format "%[fx:$ww-$x-1]x%[fx:$y+1]+%[fx:$x+1]+0" info:`
+	blsize=`convert xc: -format "%[fx:$x+1]x%[fx:$hh-$y-1]+0+%[fx:$y+1]" info:`
+	brsize=`convert xc: -format "%[fx:$ww-$x-1]x%[fx:$hh-$y-1]+%[fx:$x+1]+%[fx:$y+1]" info:`
+	if [ "$list" = "on" ]; then
+		echo "tlsize=$tlsize"
+		echo "trsize=$trsize"
+		echo "blsize=$blsize"
+		echo "brsize=$brsize"
+	fi
+	convert $tmpA1 -crop $tlsize +repage "${outname}_topleft.$suffix"
+	convert $tmpA1 -crop $trsize +repage "${outname}_topright.$suffix"
+	convert $tmpA1 -crop $blsize +repage "${outname}_bottomleft.$suffix"
+	convert $tmpA1 -crop $brsize +repage "${outname}_bottomright.$suffix"
+elif [ "$x" != "" ]; then
+	#split into two parts horizontally
+	lsize=`convert xc: -format "%[fx:$x+1]x${hh}+0+0" info:`
+	rsize=`convert xc: -format "%[fx:$ww-$x-1]x${hh}+%[fx:$x+1]+0" info:`
+	if [ "$list" = "on" ]; then
+		echo "lsize=$lsize"
+		echo "rsize=$rsize"
+	fi
+	convert $tmpA1 -crop $lsize +repage "${outname}_left.$suffix"
+	convert $tmpA1 -crop $rsize +repage "${outname}_right.$suffix"
+elif [ "$y" != "" ]; then
+	#split into two parts vertically
+	tsize=`convert xc: -format "${ww}x%[fx:$y+1]+0+0" info:`
+	bsize=`convert xc: -format "${ww}x%[fx:$hh-$y-1]+0+%[fx:$y+1]" info:`
+	if [ "$list" = "on" ]; then
+		echo "tsize=$tsize"
+		echo "bsize=$bsize"
+	fi
+	convert $tmpA1 -crop $tsize +repage "${outname}_top.$suffix"
+	convert $tmpA1 -crop $bsize +repage "${outname}_bottom.$suffix"
+fi
+
+exit 0
+
+
+
+
+
+
+
+
+
+
+
+

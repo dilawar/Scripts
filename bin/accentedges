@@ -1,0 +1,281 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/11/2012 .......... revised 10/9/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: accentedges [-w width] [-s strength] [-p polarity] [-b blur] 
+# [-c cmethod] infile outfile
+#
+# USAGE: accentedges [-help]
+#
+# OPTIONS:
+#
+# -w     width        width of edges; integer>0; default=1
+# -s     strength     strenght of edges; integer>=0; default=20
+# -p     polarity     polarity of edges; choices are: white or black; 
+#                     default=black
+# -b     blur         blurring (smoothing) of edges; float>=0; default=0.5
+# -c     cmethod      compose method for blending edges with image; choices 
+#                     are: over or overlay; default=over
+#
+###
+#
+# NAME: ACCENTEDGES 
+# 
+# PURPOSE: To apply accented edges to an image.
+# 
+# DESCRIPTION: ACCENTEDGES applies accented edges to an image. The edges may 
+# be either black or white. The compose method may be either over or overlay 
+# for slightly different effects. This script attempts to duplicate some of the 
+# features of Photoshop's Accented Edges.
+# 
+# OPTIONS: 
+# 
+# -w width ... WIDTH of the edges. Values are integers>0. The default=1.
+# 
+# -s strength ... STRENGTH of the edges. Values are integers>=0. The default=20.
+# 
+# -p polarity ... POLARITY of the edges. The choices are: white or black. The  
+# default=black.
+# 
+# -b blur ... BLUR is the blurring (smoothing) of the edges. Values are 
+# floats>=0. The default=0.5.
+# 
+# -c cmethod ... CMETHOD is the compose method for blending the edges with 
+# the image. The choices are: over or overlay. The default=over.
+#
+# REQUIREMENTS: IM 6.5.9.3 is required due to the use of -morphology edgeout.
+#  
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+width=1				# edge width
+strength=20			# edge strength
+polarity="black" 	# edge polarity
+blur=0.5			# edge blur	
+cmethod="over"		# compose method: over or overlay
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$width < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- WIDTH=$percent MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-s)    # get strength
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID STRENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   strength=`expr "$1" : '\([0-9]*\)'`
+					   [ "$strength" = "" ] && errMsg "--- WIDTH=$strength MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+		 		-p)    # polarity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POLARITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test gravity values
+					   polarity="$1"
+					   polarity=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$polarity" in 
+					   		black) ;;
+					   		white) ;;
+					   		*) errMsg "--- POLARITY=$polarity IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+		 		-c)    # cmethod
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CMETHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test gravity values
+					   cmethod="$1"
+					   cmethod=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$cmethod" in 
+					   		over) ;;
+					   		overlay) ;;
+					   		*) errMsg "--- CMETHOD=$cmethod IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up temp files
+tmpA1="$dir/accentedges_A_$$.mpc"
+tmpA2="$dir/accentedges_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using accentedges.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.0.8
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read input image
+convert -quiet "$infile" $setcspace +repage $tmpA1 ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# divide strength by 10
+strength=`convert xc: -format "%[fx:$strength/10]" info:`
+
+# set up blur
+if [ "$blur" = "0" ]; then
+	blurring=""
+else
+	blurring="-blur 0x$blur"
+fi
+
+convert $tmpA1 \
+	\( -clone 0 -fill $polarity -colorize 100 \) \
+	\( -clone 0 $setcspace -colorspace gray \
+		-morphology edgeout diamond:$width $blurring -evaluate multiply $strength \) \
+	-compose $cmethod -composite "$outfile"
+
+
+exit 0
+
+

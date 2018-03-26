@@ -1,0 +1,186 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/18/2012 .......... revised 6/2/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: vibrance [-a amount] infile outfile
+# USAGE: vibrance [-h or -help]
+#
+# OPTIONS:
+#
+# -a     amount     vibrance amount as percent; integer; default=0; no change
+#
+###
+#
+# NAME: VIBRANCE 
+# 
+# PURPOSE: To apply a non-linear change to the saturation of an image.
+# 
+# DESCRIPTION: VIBRANCE applies a non-linear change to the saturation of an 
+# image.
+# 
+# OPTIONS: 
+# 
+# -a amount ... AMOUNT is the percent non-linear change in saturation. 
+# Values are -100<=integers<=100. The default=0 (no change).
+#
+# REQUIREMENTS: IM 6.5.3-4 or greater in order to support -compose 
+# blend with convert.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+amount=0			# amount of non-linear saturation change
+blend="25,75"		# blend of lightness and saturation channels as mask	
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter - bluramt
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   # checkMinus "$1"
+					   amount=`expr "$1" : '\([0-9\-]*\)'`
+					   [ "$amount" = "" ] && errMsg "AMOUNT=$amount MUST BE AN INTEGER"
+					   amt=`convert xc: -format "%[fx:abs($amount)]" info:`
+		   			   test=`echo "$amt > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE AN INTEGER BETWEEN -100 and 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmp1A="$dir/vibrance_1_$$.mpc"
+tmp1B="$dir/vibrance_1_$$.cache"
+trap "rm -f $tmp1A $tmp1B;" 0
+trap "rm -f $tmp1A $tmp1B; exit 1" 1 2 3 15
+trap "rm -f $tmp1A $tmp1B; exit 1" ERR
+
+# test input image
+convert -quiet "$infile" +repage "$tmp1A" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# setup gval from amount
+if [ $amount -lt 0 ]; then
+	gval=`convert xc: -format "%[fx:1-$amount*(0.25/100)]" info:`
+else
+	gval=`convert xc: -format "%[fx:1-$amount*(0.50/100)]" info:`
+fi
+
+# convert amount for use by -modulate
+amount=`convert xc: -format "%[fx:100+$amount]" info:`
+
+# process image
+convert $tmp1A \
+\( -clone 0 -modulate 100,$amount,100 \) \
+\( -clone 0 -colorspace HSL -channel GB -separate +channel -negate \
+-compose blend -define compose:args=$blend -composite -gamma $gval \) \
+-compose over -composite \
+"$outfile"
+
+exit 0

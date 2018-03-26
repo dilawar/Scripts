@@ -1,0 +1,986 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/3/2013 .......... revised 5/3/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: 3Dcover [-s size] [-a angle] [-e exfact] [-w weight] [-t tone] 
+# [-o opacity] [-d diameter] [-r ramp] [-g gamma] [-v vcolor] [-m method] 
+# [-u umbra] [-p penumbra] [-l length] [-b bcolor] [-x xyoffset] [-f fuzzval] 
+# [-H oheight] [-S sharpen] [-P pad] [-sc scolor] [-F fadeval] infile outfile
+# 
+# USAGE: 3Dcover [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s     size         length of left or right side of cover; pixels or 
+#                     percent of original image; if pixels, the integer>0;
+#                     if percent then 0<float<100 and % must be included; 
+#                     default=20%; alternately the 3D cover dimensions as 
+#                     TxWxH (Thickness x Width x Height) in any consistent set 
+#                     of units; 3 values must be specified as integers>0
+# -a     angle        rotation angle in deg; -90<integer<90; default=25;
+#                     not recommended beyond 60 or -60 when method=ground
+# -e     exfact       perspective exaggeration factor; 0<float<3; 
+#                     value of 1 is normal perspective; value of 0.5 
+#                     is close to orthographic; default=1
+# -w     weight       line (stroke) weight for translucent gray join line
+#                     between front and side; integer>0; default=2
+# -t     tone         tone (brightness in percent) of join line;
+#                     0<=integer<=100; 100 is white; 0 is black; default=100
+# -o     opacity      opacity (percent) of join line; 0<=integer<=100; 
+#                     0 is transparent and 100 is fully opaque; default=0
+# -d     diameter     diameter of vignette in percent of size of front; 
+#                     integer>=0; default=0 (no vignette); nominal is 100
+# -r     ramp         ramp (taper) of vignette effect; integer>=0; 
+#                     default=75
+# -g     gamma        gamma adjustment of vignette; float>0; values less 
+#                     than 1 will lighten/soften the vignette and values 
+#                     less than 1 will darker/harden the vignette; 
+#                     default=0.5
+# -v     vcolor       vignette color; any valid opaque IM color; 
+#                     default=black
+# -m     method       shadow method (type); choices are: none (n), 
+#                     backdrop (b) and ground (g); default=none
+# -u     umbra        graylevel percent value for dark inner part of shadow; 
+#                     0<=integer<=100; default=50
+# -p     penumbra     extent in pixels of light outer part of shadow; 
+#                     integer>0; default=10 for method=backdrop and 
+#                     default=6 for method=ground
+# -l     length       length of shadow; for method=backdrop, it is the 
+#                     offset between the cover and the shadow with 
+#                     default=15; for method=ground, it is a factor of 
+#                     the length of the side in perspective and the 
+#                     default=1.5 
+# -b     bcolor       background color; any valid IM color including 
+#                     transparent (none); default=white
+# -x     xyoffset     offset of shadow for method=ground to refine 
+#                     alignment, if needed; comma separate pair of 
+#                     integers; default="0,0"		
+# -f     fuzzval      fuzz factor for trimming the front and side 
+#                     perspectives before joining together and trimming the 
+#					  final image; float>=0; default=0
+# -G     gravity      gravity setting for cropping the input image when size 
+#                     is specified as TxWxH; choices are: north (n), east (e), 
+#                     south (s), west (w) and center (c); default=center
+# -H     oheight      desired output height; integer>0; default is the height
+#                     of the input; if specified, the input image will be 
+#                     resized to this height. The output width will depend 
+#                     upon the oheight value and the amount of rotation angle 
+#                     specified and thus will be smaller than the original or 
+#                     resized width
+# -S     sharpen      sharpening to apply to the (optionally resized) input 
+#                     image; float>=0; default=0
+# -P     pad          amount of pad to put around the output image using the 
+#                     background color; integer>=0; default=0
+# -sc    scolor       background color; any valid IM color including 
+#                     transparent (none); default=white
+# -F     fadevals     spine fade to gray values; comma separated pair of 
+#                     integers between 0 and 100; The first value is the front 
+#                     value and the second is the back value; 0 is black
+#                     and 100 is no fade; default="100,100" (no fade)
+# 
+###
+# 
+# NAME: 3DCOVER
+# 
+# PURPOSE: To wrap an image around the front and left or right side of box 
+# viewed in rotated perspective.
+# 
+# DESCRIPTION: 3DCOVER wraps an image around the front and left or right side 
+# of box viewed in rotated perspective. The box size will be proportional to 
+# the dimensions of the two sides. Optionally, the box cover may have a 
+# vignette effect shown on the front face and a translucent gray line may be 
+# drawn on the join between the two faces. Two kinds of shadows may be cast; 
+# either a backdrop or ground shadow.  The box may be rotated either direction 
+# and its perspective exaggeration controlled.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s size ... size is the length of left or right side of the cover. Values 
+# are either  pixels or percent of the width of the original image.  If in 
+# pixels, then values are integers>0. If percent, then values are 0<floats<100 
+# with a trailing % and no spaces. The default=20%. Alternately, the 3D cover 
+# dimensions as TxWxH (Thickness x Width x Height) in any consistent set of 
+# units; 3 values must be specified as integers>0. If the height to width 
+# aspect ratio of the image (Height/Width) does not match that of the 
+# specified units H/(T+W), then the image will be center cropped to match.
+# 
+# -a angle ... ANGLE is the box rotation angle in degrees. Values are
+# -90<integers<90. The default=25. Note that it is not recommended to go 
+# beyond 60 or -60, when method=ground. The (pseudo-)shadow will not look right  
+# and may be misplaced. Note, if angle is within 2 degrees of zero, it will 
+# be converted to 0.
+# 
+# -e exfact ... EXFACT is the perspective exaggeration factor. Values are
+#  0<floats<3. A value of 1 is normal perspective and a value of 0.5 is close 
+# to orthographic. The default=1.
+# 
+# -w weight ... WEIGHT is the line (stroke) weight for a translucent gray join 
+# line between the front and side faces. Values are integers>0. The default=2.
+# 
+# -t tone ... TONE is the brightness in percent of the join line. Values are 
+# 0<=integers<=100. A value of 100 is white and a value of 0 is black. The 
+# default=100 (white).
+# 
+# -o opacity ... OPACITY of the join line in percent. Values are 
+# 0<=integers<=100. A value of 0 is transparent and a value of 100 is fully 
+# opaque. The default=0 indicates no join line.
+# 
+# -d diameter ... DIAMETER of the vignette effect in percent of the size of 
+# the front face. The vignette is only applied to the front face. Values are 
+# integers>=0. The default=0 indicates no vignette. The nominal value is 100.
+# 
+# -r ramp ... RAMP is the taper or roll-off of the vignette effect. Values are 
+# integers>=0. The default=75.
+# 
+# -g gamma... GAMMA is the gamma adjustment of vignette. Values are floats>0. 
+# Values less than 1 will lighten/soften the vignette and values  less than 1 
+# will darker/harden the vignette. The default=0.5.
+# 
+# -v vcolor ... VCOLOR is the vignette color. Any valid opaque IM color is 
+# allowed. The default=black.
+# 
+# -m method ... METHOD is theshadow method (type). The choices are: none (n), 
+# backdrop (b) and ground (g). The default=none.
+# 
+# -u umbra ... UMBRA is the graylevel percent value for the dark inner part 
+# of the shadow. Values are 0<=integers<=100. The default=50.
+# 
+# -p penumbra ... PENUMBRA is the extent in pixels of the light outer part of 
+# of the shadow. Values are integers>0. The default=10 for method=backdrop and 
+# the default=6 for method=ground.
+# 
+# -l length ... LENGTH of the shadow. For method=backdrop, it is the offset 
+# between the box and the shadow with values as integers>0 and a default=15. 
+# For method=ground, it is a factor of the length of the side in perspective 
+# with values as floats>0 and the default=1.5.
+#  
+# -b bcolor ... BCOLOR is the background color. Any valid IM color including 
+# transparent or none is allowed. The default=white.
+# 
+# -x xyoffset ... XYOFFSET is an offset correction for the shadow for \
+# method=ground to refine its alignment, if needed. Values are a comma 
+# separate pair of integers. The default="0,0".
+# 		
+# -f fuzzval ... FUZZVAL is the fuzz factor for trimming the front and side 
+# perspectives images before joining them together and trimming the final 
+# image. Values are float>=0. The default=0.
+# 
+# -G gravity ... GRAVITY setting for cropping the input image when size is 
+# specified as TxWxH. The choices are: north (n), east (e), south (s), 
+# west (w) and center (c). The default=center.
+# 
+# -H oheight ... OHEIGHT is the desired output height. Values are integers>0. 
+# The default is the height of the input. If specified, the input image will  
+# be resized to this height. The output width will depend upon the oheight 
+# value and the amount of rotation angle specified and thus will be smaller 
+# than the original or resized width.
+# 
+# -S sharpen ... SHARPEN is the sharpening sigma to apply to the (optionally 
+# resized) input image. Values are floats>=0. The default=0.
+# 
+# -P pad ... PAD is the amount of padding to put around the output image 
+# using the background color. Values are integers>=0. The default=0.
+# 
+# -sc scolor ... SCOLOR is the optional spine color. It overrides using image 
+# texture for the spine. Any valid opaque IM color is allowed. The default is 
+# image texture for the spine. If scolor is specified, then the spine will be  
+# that color and the whole image will be on the front face.
+# 
+# -F fadevals ... FADEVALS is the spine fade to gray values. This is a comma 
+# separated pair of integers between 0 and 100. The first value is the front 
+# value and the second is the back value. 0 is black and 100 is no fade. The 
+# default="100,100" (no fade). 
+# 
+# REQUIREMENTS: This script requires my 3Drotate script to function.
+# 
+# NOTE: For mode=ground, the ground shadow works between IM 6.6.0.10 and 
+# 6.7.2.0; is unknow between 6.7.2.1 and 6.7.2.9; fails for between 6.7.2.10 
+# and 6.7.6.9; works again from 6.7.6.10 to 6.8.3.4; fails again from 6.8.3.5 
+# to 6.8.3.9; then works again starting after 6.8.3.9. The shadow will be 
+# slightly different and there will be extra white space on the shadow side, 
+# which can be removed using the -f fuzzval argument for versions after 6.8.3.9.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+size=20%			# length of side: pixels or percent of original image
+angle=25			# pan rotation angle; -90<float<90
+exfact=1			# perspective exaggeration factor; float>0
+weight=2			# line (stroke) weight for translucent gray join line
+tone=100			# tone (brightness in percent) of translucent gray line; 100 is white; 0 is black; integer
+opacity=0			# opacity in percent of gray line drawn along join between left and right sides; integer; default=0 (no line); nominal 20
+diameter=0			# diameter of vignette in percent of size of front face; default=0 (no vignette); nominal=100
+ramp=75				# vignette ramp; integer>=0
+gamma=0.5			# gamma adjustment of vignette ramp rolloff; float>0
+vcolor=black		# vignette color; default=black
+method="none"		# shadow method; backdrop (b) or ground (g) or none (n); default=none
+umbra=50			# shadow umbra percent intensity for both methods (nominal 50)
+penumbra=""			# shadow penumbra size; sigma blur amount for both methods; method backdrop (nominal 10); method ground (nominal 6)
+length=""			# shadow length; offset for method backdrop in pixels (nominal 15); length factor for method ground (nominal 1.5)
+bcolor=white		# background color; default=transparent
+xyoffset=0,0		# offset of shadow for method=ground to refine alignment		
+fuzzval=0			# trim fuzz; may be needed esp for large angles if shadow goes haywire
+gravity="center"	# gravity for cropping input
+oheight=""			# desired output height; integer>0
+sharpen=0			# input image sharpening; float>=0
+pad=0				# padding for the output; integer>=0
+sc=""				# spine color; default=""
+fadevals="100,100"	# fadevals; 0<=integers<=100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 48 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   #test if parameter starts with minus sign 
+					   errorMsg="--- INVALID size SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([x.0-9%]*\)'`
+					   [ "$size" = "" ] && errMsg "--- size=$size DOES NOT CONFORM TO THE REQUIRED FORMATS ---"
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   angle=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$angle >= 90" | bc`
+					   testB=`echo "$angle <= -90" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE AN INTEGER BETWEEN -90 AND 90 (EXCLUSIVE) ---"
+					   ;;
+				-e)    # get exfact
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXFACT SPECIFICATION ---"
+					   checkMinus "$1"
+					   exfact=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$exfact" = "" ] && errMsg "--- EXFACT=$exfact MUST BE A NUMBER ---"
+					   testA=`echo "$exfact <= 0" | bc`
+					   testB=`echo "$exfact >= 3" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- EXFACT=$exfact MUST BE A FLOAT LARGER THAN 0 AND SMALLER THAN 3 ---"
+					   ;;
+				-w)    # get weight
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WEIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   weight=`expr "$1" : '\([0-9]*\)'`
+					   [ "$weight" = "" ] && errMsg "--- WEIGHT=$weight MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$weight == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- WEIGHT=$weight MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-t)    # get tone
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TONE SPECIFICATION ---"
+					   checkMinus "$1"
+					   tone=`expr "$1" : '\([0-9]*\)'`
+					   [ "$tone" = "" ] && errMsg "--- TONE=$tone MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$tone >= 100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- TONE=$tone MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-o)    # get opacity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "--- OPACITY=$opacity MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$opacity > 100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- OPACITY=$opacity MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-d)    # get diameter
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETER SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameter=`expr "$1" : '\([0-9]*\)'`
+					   [ "$diameter" = "" ] && errMsg "--- DIAMETER=$diameter MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-r)    # get ramp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAMP SPECIFICATION ---"
+					   checkMinus "$1"
+					   ramp=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ramp" = "" ] && errMsg "--- RAMP=$ramp MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-g)    # get gamma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAMMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   gamma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gamma" = "" ] && errMsg "--- GAMMA=$gamma MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$gamma == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- GAMMA=$gamma MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-v)    # get vcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   vcolor="$1"
+					   ;;
+				-m)    # get  method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method="$1"
+					   method=`echo "$method" | tr "[:upper:]" "[:lower:]"`
+					   case "$method" in 
+					   		none|n) method="none" ;;
+					   		backdrop|b) method="backdrop" ;;
+					   		ground|g) method="ground" ;;
+					   		*) errMsg "--- METHOD=$method IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-u)    # get umbra
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UMBRA SPECIFICATION ---"
+					   checkMinus "$1"
+					   umbra=`expr "$1" : '\([0-9]*\)'`
+					   [ "$umbra" = "" ] && errMsg "--- UMBRA=$umbra MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$umbra > 100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- UMBRA=$umbra MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-p)    # get penumbra
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PENUMBRA SPECIFICATION ---"
+					   checkMinus "$1"
+					   penumbra=`expr "$1" : '\([0-9]*\)'`
+					   [ "$penumbra" = "" ] && errMsg "--- PENUMBRA=$penumbra MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$penumbra == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- PENUMBRA=$penumbra MUST BE AN INTEGER LARGER THAN 0 ---"
+					   ;;
+				-l)    # get length
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   length=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$length" = "" ] && errMsg "--- LENGTH=$length MUST BE A NUMBER ---"
+					   testA=`echo "$length == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- LENGTH=$length MUST BE A NUMBER LARGER THAN 0 ---"
+					   ;;
+				-b)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-x)    # get xyoffset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID XYOFFSET SPECIFICATION ---"
+					   #checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -le 1 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF XYOFFSETS SUPPLIED ---"
+					   xyoffset=`expr "$1" : '\([-0-9]*,[-0-9]*\)'`
+					   [ "$xyoffset" = "" ] && errMsg "--- XYOFFSET=$xyoffset MUST BE A PAIR OF INTEGERS SEPARATED BY A COMMA ---"
+					   xyoffset=`echo "$xyoffset" | sed 's/ *//g'`
+					   [ "$xyoffset" = "" -o "$xyoffset" = "," ] && errMsg "--- NO XYOFFSETS SUPPLIED ---"
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-g)    # get  gravity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity="$1"
+					   gravity=`echo "$gravity" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity" in 
+					   		center|c) gravity="center" ;;
+					   		north|n) gravity="north" ;;
+					   		south|s) gravity="south" ;;
+					   		east|e) gravity="east" ;;
+					   		west|w) gravity="west" ;;
+					   		*) errMsg "--- GRAVITY=$gravity IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-H)    # get oheight
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OHEIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   oheight=`expr "$1" : '\([0-9]*\)'`
+					   [ "$oheight" = "" ] && errMsg "--- OHEIGHT=$oheight MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$oheight <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- OHEIGHT=$oheight MUST BE AN INTEGER LARGER THAN 0 ---"
+					   ;;
+				-S)    # get sharpen
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHARPEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   sharpen=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$sharpen" = "" ] && errMsg "--- SHARPEN=$sharpen MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-P)    # get pad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   pad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pad" = "" ] && errMsg "--- PAD=$pad MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-sc)   # get scolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   scolor="$1"
+					   ;;
+				-F)    # get fadeval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FADEVALS SPECIFICATION ---"
+					   checkMinus "$1"
+					   fadevals=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$fadevals" = "" ] && errMsg "--- FADEVALS=$fadevals MUST BE NON-NEGATIVE, COMMA SEPARATED PAIR OF INTEGERS  ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# NOTE: must put grep before trap using ERR in case it does not find a match
+# extract components from sizes
+test1=`echo "$size" | grep "%"`
+test2=`echo "$size" | grep "x"`
+
+# setup temporary images
+tmpA1="$dir/3Dcover_1_$$.mpc"
+tmpB1="$dir/3Dcover_1_$$.cache"
+tmpL1="$dir/3Dcover_L_$$.mpc"
+tmpL2="$dir/3Dcover_L_$$.cache"
+tmpR1="$dir/3Dcover_R_$$.mpc"
+tmpR2="$dir/3Dcover_R_$$.cache"
+tmpS1="$dir/3Dcover_S_$$.mpc"
+tmpS2="$dir/3Dcover_S_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpL1 $tmpL2 $tmpR1 $tmpR2 $tmpS1 $tmpS2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpL1 $tmpL2 $tmpR1 $tmpR2 $tmpS1 $tmpS2; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpL1 $tmpL2 $tmpR1 $tmpR2 $tmpS1 $tmpS2; exit 1" ERR
+
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using 3Dcover
+# For mode=ground, it works between IM 6.6.0.10 and 6.7.2.0
+# unknow between 6.7.2.1 and 6.7.2.9
+# but fails for between 6.7.2.10 and 6.7.6.9
+# then works again from 6.7.6.10 to 6.8.3.4
+# then fails again from 6.8.3.5 to 6.8.3.9
+# then starting with 6.8.4.0 the shadow will be slightly different and there will be extra white space on the shadow side
+# For mode=backdrop and mode=none (latter with or without vignette), 
+# it works normally for IM 6.7.4.10, 6.7.6.10 and 6.8.1.5, 6.8.5.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get image dimensions and aspect rato
+ww=`convert -ping $tmpA1 -format "%w" info:`
+hh=`convert -ping $tmpA1 -format "%h" info:`
+hm1=$((hh-1))
+ari=`convert xc: -format "%[fx:$hh/$ww]" info:`
+
+# get fadevals
+fadeval1=`echo $fadevals | cut -d, -f1`
+fadeval2=`echo $fadevals | cut -d, -f2`
+testA=`echo "$fadeval1 > 100" | bc`
+testB=`echo "$fadeval2 > 100" | bc`
+[ $testA -eq 1 ] && errMsg "--- FRONT FADEVAL=$fadeval1 MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+[ $testB -eq 1 ] && errMsg "--- BACK FADEVAL=$fadeval2 MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+
+
+if [ "$test1" != "" -a "$test2" != "" ]; then
+	errMsg "--- SIZE=$size IS NOT VALID ---"
+elif [ "$test1" = "" -a "$test2" = "" ]; then
+	side=$size
+elif [ "$test1" != "" ]; then
+	side=`echo "$size" | sed 's/%//g'`
+	side=`convert xc: -format "%[fx:round($side*$ww/100)]" info:`
+elif [ "$test2" != "" ]; then
+	tk=`echo "$size" | cut -dx -f1`
+	wd=`echo "$size" | cut -dx -f2`
+	ht=`echo "$size" | cut -dx -f3`
+	ar=`convert xc: -format "%[fx:$ht/($wd+$tk)]" info:`
+	arr=`convert xc: -format "%[fx:$ar/$ari]" info:`
+	test3=`convert xc: -format "%[fx:($arr>1)?2:($arr<1)?1:0]" info:`
+	if [ $test3 -eq 2 ]; then
+		arr=`convert xc: -format "%[fx:100/$arr]" info:`	
+		convert $tmpA1 -gravity $gravity -extent $arr%x100 +repage $tmpA1
+
+	elif [ $test3 -eq 1 ]; then
+		arr=`convert xc: -format "%[fx:100*$arr]" info:`
+		convert $tmpA1 -gravity $gravity -extent 100x$arr% +repage $tmpA1
+	fi
+	ww=`convert -ping $tmpA1 -format "%w" info:`
+	hh=`convert -ping $tmpA1 -format "%h" info:`
+	hm1=$((hh-1))
+	side=`convert $tmpA1 -format "%[fx:round(($tk/($tk+$wd))*$ww)]" info:`	
+fi
+#echo "side=$side"
+
+# setup default penumbra
+if [ "$penumbra" = "" -a "$method" = "backdrop" ]; then
+	penumbra=10
+elif [ "$penumbra" = "" -a "$method" = "ground" ]; then
+	penumbra=6
+fi
+
+# setup default length
+if [ "$length" = "" -a "$method" = "backdrop" ]; then
+	length=15
+elif [ "$length" = "" -a "$method" = "ground" ]; then
+	length=1.5
+fi
+
+# compute crop of input into front and side
+sign=`convert xc: -format "%[fx:$angle<0?0:1]" info:`
+if [ $sign -eq 1 ]; then
+	#crop side on left and rotate about join line
+	rangle=$angle
+	langle=$((angle-90))
+	wl=$side
+	wr=$((ww-wl+1))
+	lcrop="${wl}x${hh}+0+0"
+	rcrop="${wr}x${hh}+${wl}+0"
+	shadsign="-"
+	if [ "$fadeval" != "100,100" ]; then
+		fadeleft="-size ${hh}x${side} gradient:gray$fadeval1-gray$fadeval2 -rotate 90"
+	else
+		fadeleft=""
+	fi
+	faderight=""
+	if [ "$fadeval" != "100,100" ]; then
+		composingleft="-compose multiply -composite"
+	else
+		composingleft=""
+	fi
+	composingright=""
+else
+	#crop side on right and rotate about join line
+	langle=$angle
+	rangle=$((90+angle))
+	wr=$side
+	wl=$((ww-wr+1))
+	lcrop="${wl}x${hh}+0+0"
+	rcrop="${wr}x${hh}+${wl}+0"
+	shadsign="+"
+	if [ "$fadeval" != "100,100" ]; then
+		faderight="-size ${hh}x${side} gradient:gray$fadeval1-gray$fadeval2 -rotate -90"
+	else
+		faderight=""
+	fi
+	fadeleft=""
+	if [ "$fadeval" != "100,100" ]; then
+		composingright="-compose multiply -composite"
+	else
+		composingright=""
+	fi
+	composingleft=""
+fi
+
+# crop the input into left and right faces
+if [ "$scolor" = "" ]; then
+	convert $tmpA1 -gravity northwest -crop $lcrop +repage \
+		\( $fadeleft \) $composingleft $tmpL1
+	convert $tmpA1 -gravity northwest -crop $rcrop +repage \
+		\( $faderight \) $composingright $tmpR1
+elif [ $sign -eq 1 ]; then
+	#create scolor on left side and rotate about join line
+	convert -size ${side}x${hh} xc:"$scolor" \
+		\( $fadeleft \) $composingleft $tmpL1
+	convert $tmpA1 $tmpR1
+else 
+	#create scolor on right side and rotate about join line
+	convert $tmpA1 $tmpL1
+	convert -size ${side}x${hh} xc:"$scolor" \
+		\( $faderight \) $composingright $tmpR1
+fi
+
+# apply vignette to appropriate face
+if [ "$diameter" != "0" ]; then
+	if [ $sign -eq 1 ]; then
+		cx=`convert $tmpR1 -format "%[fx:w/2]" info:`
+		cy=`convert $tmpR1 -format "%[fx:h/2]" info:`
+		ww2=`convert xc: -format "%[fx:$cx*$diameter/100]" info:`
+		hh2=`convert xc: -format "%[fx:$cy*$diameter/100]" info:`
+		args="0,0 $ww2,$hh2 0,360"
+		convert $tmpR1 \
+			\( -clone 0 -fill $vcolor -colorize 100%  \) \
+			\( -clone 0 -fill white -colorize 100% -fill black \
+				-draw "translate $cx,$cy ellipse $args" -blur 0x$ramp -gamma $gamma \) \
+			$setcspace -compose over -composite $tmpR1
+	else
+		cx=`convert $tmpL1 -format "%[fx:w/2]" info:`
+		cy=`convert $tmpL1 -format "%[fx:h/2]" info:`
+		ww2=`convert xc: -format "%[fx:$cx*$diameter/100]" info:`
+		hh2=`convert xc: -format "%[fx:$cy*$diameter/100]" info:`
+		args="0,0 $ww2,$hh2 0,360"
+		convert $tmpL1 \
+			\( -clone 0 -fill $vcolor -colorize 100%  \) \
+			\( -clone 0 -fill white -colorize 100% -fill black \
+				-draw "translate $cx,$cy ellipse $args" -blur 0x$ramp -gamma $gamma \) \
+			$setcspace -compose multiply -composite $tmpL1
+	fi
+	#echo "cx=$cx; cy=$cy; ww2=$ww2; hh2=$hh2; ww=$ww, hh=$hh"
+fi
+
+# do perspective rotate on left face
+xoff=`convert $tmpL1 -format "%[fx:w/2]" info:`
+3Drotate pan=$langle pef=$exfact auto=out idx=$xoff idy=0 bgcolor=none skycolor=none $tmpL1 $tmpL1
+
+# do perspective rotate on right face
+xoff=`convert $tmpR1 -format "%[fx:-w/2]" info:`
+3Drotate pan=$rangle pef=$exfact auto=out idx=$xoff idy=0 bgcolor=none skycolor=none $tmpR1 $tmpR1
+
+# trim images and get length left image for offset for right image and length of right image
+convert $tmpL1 -fuzz $fuzzval% -trim +repage $tmpL1
+convert $tmpR1 -fuzz $fuzzval% -trim +repage $tmpR1
+wl=`convert $tmpL1 -format "%w" info:`
+wr=`convert $tmpR1 -format "%w" info:`
+wlm1=$((wl-1))
+wrm1=$((wr-1))
+#echo "wl=$wl; wr=$wr;"
+
+# append the two parts and draw translucent line
+# shift right image two pixels to the left to avoid antialiased seem between the two parts
+xs=$((wl-2))
+opacity=`convert xc: -format "%[fx:$opacity/100]" info:`
+if [ "$im_version" -ge "07000000" ]; then
+	convert \( $tmpL1 -set page +0+0 \) \( $tmpR1 -set page +${xs}+0 \) -background none -layers merge +repage \
+		-alpha on -channel rgba -fill "graya($tone%,$opacity)" \
+		-stroke "graya($tone%,$opacity)" -strokewidth $weight -draw "line $wl,1 $wl,$((hh-1))" \
+		+repage $tmpA1
+else
+	convert -page +0+0 $tmpL1 -page +${xs}+0 $tmpR1 -background none -layers merge +repage \
+		-alpha on -channel rgba -fill "graya($tone%,$opacity)" \
+		-stroke "graya($tone%,$opacity)" -strokewidth $weight -draw "line $wl,1 $wl,$((hh-1))" \
+		+repage $tmpA1
+fi
+
+
+# set background color
+if [ "$bcolor" != "" ]; then
+	coloring="-background $bcolor -flatten"
+else
+	coloring=""
+fi
+
+#set up for alpha processing in triangle shadow
+if [ "$im_version" -ge "07000000" ]; then
+	aproc1="-alpha discrete"
+	aproc2="-alpha on"
+fi
+
+
+# set up for height resizing
+if [ "$oheight" != "" ]; then
+	factor=`convert -ping $tmpA1 -format "%[fx:100*$oheight/h]" info:`	
+	resizing="-resize $factor%"
+else
+	resizing=""
+fi
+#echo "oheight=$oheight; resizing=$resizing;"
+
+# set up for padding
+if [ "$pad" != "0" ]; then
+	padding="-bordercolor $bcolor -border $pad"
+else
+	padding=""
+fi
+#echo "padding=$padding;"
+
+
+# add shadow
+if [ "$method" = "none" ]; then
+	convert $tmpA1 $coloring $resizing $padding "$outfile"
+
+elif [ "$method" = "backdrop" ]; then
+
+		[ "$penumbra" = "" ] && penumbra=10
+		[ "$length" = "" ] && length=15
+		# invert umbra from brightness to opacity for -shadow
+		umbra=$((100-umbra))
+		
+		convert $tmpA1 \
+		\( +clone -background black -shadow ${umbra}x${penumbra}${shadsign}${length}+${length} \) \
+			+swap -background none -layers merge +repage \
+		$coloring $resizing $padding "$outfile"
+
+elif [ "$method" = "ground" ]; then
+
+	angletest1=`convert xc: -format "%[fx:(abs($angle))<2?1:0]" info:`
+	angletest2=`convert xc: -format "%[fx:(90-abs($angle))<2?1:0]" info:`
+#	echo "angletest1=$angletest1; angletest2=$angletest2"
+	[ $angletest2 -eq 1 -o $angletest2 -eq 1 ] && errMsg "--- ANGLE TOO CLOSE TO 0 OR 90 OR -90 WITH METHOD=GROUND  ---"
+
+	# compute shadow triangle and merge with image
+	[ "$penumbra" = "" ] && penumbra=6
+	[ "$length" = "" ] && length=1.5
+
+	# compute height of bottom outside triangle of each face
+	# make non-transparent black and transparent white
+	# floodfill black at upper white triangle
+	# draw black line on larger side of face to cover aliased pixels from perspective along the seam
+	# trim to black/white diagonal rectangle
+	# get height
+	# compute diagonal angles from length and height
+
+	hl=`convert $tmpL1 -fill black +opaque none -fill white -opaque none \
+		-fill black -draw "color 0,0 floodfill" -alpha off \
+		-fill black -draw "line $wlm1,0 $wlm1,$hm1" -alpha off \
+		-trim +repage -format "%h" info:`
+
+	aleft=`convert xc: -format "%[fx:atan2($hl,$wl)]" info:`
+	
+	hr=`convert $tmpR1 -fill black +opaque none -fill white -opaque none \
+		-fill black -draw "color $wrm1,0 floodfill" -alpha off \
+		-fill black -draw "line 0,0 0,$hm1" -alpha off \
+		-trim +repage -format "%h" info:`
+
+	aright=`convert xc: -format "%[fx:atan2($hr,$wr)]" info:`
+#	echo "hl=$hl; hr=$hr; aleft=$aleft; aright=$aright;"
+
+	# compute vertically inverted coordinates (0,0 at bottom left side of rectangle), then flip image
+	ff=$length
+	penumbra2=$((2*penumbra))
+
+	if [ $sign -eq 0 ]; then
+
+		# shadow on right side
+		bx=0
+		by=0
+		mx=`convert xc: -format "%[fx:round($ff*$wr)]" info:`
+		my=`convert xc: -format "%[fx:round($ff*$hr)]" info:`
+		# add fudgefactor to angle to diminish it in proportion to half the $angle so it the top of the shadow looks more realistic
+		ht=`convert xc: -format "%[fx:round($ff*($hr+$wr*tan($aleft*(1+$angle*(pi/360)))))]" info:`
+		tx=0
+		ty=$ht
+		wd=`convert xc: -format "%[fx:round($ff*$wr)]" info:`
+#		echo "aleft=$aleft; aright=$aright; bx=$bx; by=$by; mx=$mx; my=$my; ht=$ht; wd=$wd; tx=$tx; ty=$ty"
+		
+		# set up page offsets for merging
+		# compute xshift to partially take into account the penumbra blurring, fudge in proportion to $angle
+		xshift=`convert xc: -format "%[fx:round(min(1.5,(-$angle/30))*$penumbra/tan($aright))]" info:`
+		# adjust mx for xshift
+		mx=$((mx+xshift))
+		xoff=`echo "$xyoffset" | cut -d, -f 1`
+		yoff=`echo "$xyoffset" | cut -d, -f 2`
+		if [ "$im_version" -ge "06080400" ]; then
+			pagesx=$((wl+wr-penumbra2+1-xshift+xoff))
+			pagesy=$((hh-ht-hr+yoff-2))
+			penumbra=$((penumbra+1))
+		else
+			pagesx=$((wl+wr-penumbra2-4-xshift+xoff))
+			pagesy=$((hh-ht-hr+yoff))
+		fi
+		pageax=0
+		pageay=0
+		pageshadow=`printf "%+d%+d"  ${pagesx} ${pagesy}`
+		pageimage=`printf "%+d%+d"  ${pageax} ${pageay}`
+#		echo "pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay;"
+
+	elif [ $sign -eq 1 ]; then
+		# shadow on left side
+		bx=`convert xc: -format "%[fx:round($ff*$wl)]" info:`
+		by=0
+		mx=0
+		my=`convert xc: -format "%[fx:round($ff*$hl)]" info:`
+		# add fudgefactor to angle to diminish it in proportion to half the $angle so it the top of the shadow looks more realistic
+		ht=`convert xc: -format "%[fx:round($ff*($hl+$wl*tan($aright*(1-$angle*(pi/360)))))]" info:`
+		tx=`convert xc: -format "%[fx:round($ff*$wl)]" info:`
+		ty=$ht
+		wd=$tx
+#		echo "aleft=$aleft; aright=$aright; bx=$bx; by=$by; mx=$mx; my=$my; ht=$ht; wd=$wd; tx=$tx; ty=$ty"
+
+		# set up page offsets for merging
+		# compute xshift to partially take into account the penumbra blurring, fudge in proportion to $angle
+		xshift=`convert xc: -format "%[fx:round(min(1.5,($angle/30))*$penumbra/tan($aleft))]" info:`
+		# adjust bx and tx for xshift
+		bx=$((bx+xshift))
+		tx=$((tx+xshift))
+		xoff=`echo "$xyoffset" | cut -d, -f 1`
+		yoff=`echo "$xyoffset" | cut -d, -f 2`
+		if [ "$im_version" -ge "06080400" ]; then
+			pageax=$((tx-2-xshift-xoff+6))
+			pageay=$((-yoff))
+			penumbra=$((penumbra+1))
+		else
+			pageax=$((tx-2-xshift-xoff))
+			pageay=$((-yoff))
+		fi
+		pagesx=0
+		pagesy=$((hh-ht-hl))
+		pageshadow=`printf "%+d%+d"  ${pagesx} ${pagesy}`
+		pageimage=`printf "%+d%+d"  ${pageax} ${pageay}`
+#		echo "pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay;"
+	fi
+#echo "wd=$wd; xshift=$xshift; ht=$ht; bx=$bx; by=$by; mx=$mx; my=$my; tx=$tx; ty=$ty; umbra=$umbra; penumbra=$penumbra;"
+
+		# draw shadow triangle
+		convert -size $((wd+$xshift))x${ht} xc:"rgba(255,255,255,0)" -fill "gray($umbra%)" \
+			-draw "polygon $bx,$by $mx,$my $tx,$ty" -flip \
+			-channel rgba -bordercolor "rgba(255,255,255,0)" -border ${penumbra} \
+			-background "rgba(255,255,255,0)" -alpha background $aproc1 -blur ${penumbra}x65000 $aproc2 \
+			-level 0x100% -gravity south +repage $tmpS1
+
+		# merge shadow and image and background color
+#		echo "wl=$wl; hh=$hh; hl=$hl; pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay"
+		if [ "$im_version" -ge "07000000" ]; then
+			convert $setcspace \( -page $pageshadow $tmpS1 \) \
+				\( -page $pageimage $tmpA1 \) \
+				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
+				$resizing $padding "$outfile"
+		else
+			convert $setcspace -page $pageshadow $tmpS1 \
+				-page $pageimage $tmpA1 \
+				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
+				$resizing $padding "$outfile"
+		fi
+fi
+
+exit 0
+
+

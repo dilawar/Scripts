@@ -1,0 +1,434 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/7/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bubblewarp ["osx,dx,isx,iox [osy,dy,isy,ioy]"] [-t type] [-m mode] [-f format] [-v vp] [-c vpcolor] [-b bgcolor] infile outfile
+# USAGE: bubblewarp [-h or -help]
+#
+# OPTIONS:
+#
+# osx,dx,isx,iox        x dimension parameters; 
+#                       osx=output scale factor; dx=distortion factor;
+#                       isx=input scale factor; iox=input offset;
+#                       osx=1,dx=1,isx=1,iox=0 are default values;
+#                       osx,dx,isx,iox are floating point values;
+# osy,dy,isy,ioy        y dimension parameters; 
+#                       osy=output scale factor; dy=distortion factor;
+#                       isy=input scale factor; ioy=input offset;
+#                       osy=1,dy=1,isy=1,ioy=0 are default values;
+#                       osy,dy,isy,ioy are floating point values;
+# -t      type          type=arcsin or sin; default=arcsin
+# -m      mode          mode=polar of rect; polar is a radial warp;
+#                       rect is a separate warp in x and y;
+#                       default is polar
+# -f      format        format=circ or oval; circle produces a sphere 
+#                       within the bounds of the minimum of width or 
+#                       height; oval produces an ellipsoid which spans
+#                       the width and height if not equal dimensions;
+#                       default=circ
+# -v      vp            vp is the virtual-pixel method; default=black
+# -c      vpcolor       vpcolor is the color for the case when 
+#                       -virtual-pixel=background; this is where parts 
+#                       of the sphere map outside image; default=black
+# -b      bgcolor       bgcolor is the color for the area outside the 
+#                       circular area of the sphere; default=black
+# 
+# Note: if only one set of values are provided, then they 
+# will be used for both dimensions. Enclose the set of 
+# coefficients in double quotes and separate the two sets 
+# with a space.
+# 
+###
+#
+# NAME: BUBBLEWARP 
+# 
+# PURPOSE: To apply or reverse a warp of an image onto a bubble.
+# 
+# DESCRIPTION: BUBBLEWARP is designed to apply an arcsin or sin function
+# warp to an image. If mode is polar, the arcsin warps the image onto a
+# hemisphere and the sin will "reverse" or unwarp the process. Note this
+# produces an effect which is similar but not equivalent to a full 180
+# degree field of view fisheye view. If mode is rect, then the warp effect
+# is more of a rectangular extrusion. The script makes use of -fx and
+# therefore will be rather slow.
+# 
+# 
+# ARGUMENTS: 
+# 
+# osx,dx,isx,iox ... These are the x dimension parameters. 
+# osx=output scale factor. osx larger/smaller than 1 magnifies/minifies 
+# the area of the result in the output. dx=distortion factor. 
+# dx larger/smaller than 1 increases/decreases the distortion. 
+# isx=input scale factor. isx larger/smaller than 1 magnifies/minifies 
+# the input image in the result. iox=input offset. iox=positive/negative 
+# shifts the input to the right/left in the result. Default values are 
+# osx=1,dx=1,isx=1,iox=0
+# 
+# osy,dy,isy,ioy ... These are the y dimension parameters. 
+# osy=output scale factor. osy larger/smaller than 1 magnifies/minifies 
+# the area of the result in the output. dy=distortion factor. 
+# dy larger/smaller than 1 increases/decreases the distortion. 
+# isy=input scale factor. isy larger/smaller than 1 magnifies/minifies 
+# the input image in the result. ioy=input offset. ioy=positive/negative 
+# shifts the input to the right/left in the result. Default values are 
+# osy=1,dy=1,isy=1,ioy=0
+# 
+# -t ... TYPE is either arcsin or sin. The default is arcsin. When type=arcsin  
+# and mode=polar, the image is warped onto a hemisphere.
+# 
+# -m ... MODE is either polar of rect. Mode=polar represents a radial warp. 
+# Mode=rect represents a warp in the x and y dimensions. The default is polar. 
+# When mode=polar and type=arcsin, the image will be warped onto a hemisphere.
+# 
+# -f ... FORMAT is either circ or oval. Format applies only to mode=polar. 
+# When mode is polar and type is warp, the image will be warped onto a half 
+# sphere when format is circ and will be mapped onto a half ellipsoid when 
+# format is oval. In the circ case, the hemisphere will nominally have a 
+# diameter of the smaller of the width or height of the image. In the oval 
+# case the ellipsoid will span the width and height. Format of circ and 
+# oval produce the same hemisphere when the image is square. The default 
+# is circ.
+# 
+# -v ... VP is the virtual-pixel method to use. Any valid IM virtual-pixel may 
+# be used. The default is black.
+# 
+# -c ... VPCOLOR is the virtual-pixel color to use when vp=background. This
+# color is used to fill the sphere where no image shows when mode=polar and 
+# type=warp. The default is black.
+# 
+# -b ... BGCOLOR is the color to use to fill the area around the hemisphere
+# when mode=polar and type=warp. In addition, there is a special option, 
+# bgcolor=image, that uses the original image as background. The default is 
+# black.
+# 
+# This is an adaptation of the technique described at 
+# http://local.wasp.uwa.edu.au/~pbourke/projection/lenscorrection/
+# 
+# NOTE: This script will NOT unwarp an image photographed with a 180 degree 
+# field of fiew fisheye lens. The fisheye distortion is modeled by a completely 
+# different set of equations.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default value
+osx=1			#output scale factor x
+osy=1			#output scale factor y
+dx=1			#distortion factor in x: exponent of func; 
+dy=1			#distortion factor in y: exponent of func; 
+isx=1			#input scale factor x
+isy=1			#input scale factor y
+iox=0			#input x offset
+ioy=0			#input y offset
+type="arcsin"
+mode="polar"
+format="circ"
+vp="black"		#virtual-pixel type
+vc="black"		#vpcolor for virtual-pixel=background
+bg="black"		#background color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 15 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get  type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type="$1"
+					   [ "$type" != "sin" -a "$type" != "arcsin" ] && errMsg "--- INVALID TYPE VALUE ---"
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   [ "$mode" != "polar" -a "$mode" != "rect" ] && errMsg "--- INVALID MODE VALUE ---"
+					   ;;
+				-f)    # get  format
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   format="$1"
+					   [ "$format" != "circ" -a "$format" != "oval" ] && errMsg "--- INVALID TYPE VALUE ---"
+					   ;;
+				-v)    # get  vp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIRTUAL-PIXEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   vp="$1"
+					   ;;
+				-c)    # get  vpcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIRTUAL-PIXEL BACKGROUND COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   vc="$1"
+					   ;;
+				-b)    # get  bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bg="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+	   [\ 0-9,.-]*)    # Parameters
+		 			   params="$1"
+					   params=`echo "$params" | sed -n 's/[ ]*,[ ]*/,/gp'`  # remove spaces from around commas
+					   params=`echo "$params" | sed -n 's/^ *//p'` 		 	# remove leading spaces
+					   params=`echo "$params" | sed -n 's/ *$//p'` 		 	# remove trailing spaces
+					   test=`echo "$params" | wc -w`
+					   if [ $test -gt 1 ]
+							then
+							params=`echo "$params" | sed -n 's/[ ][ ]*/ /gp'`	 # change multiple spaces to single space
+					   	fi
+					   test=`echo "$params" | wc -w`
+					   [ $test -gt 2 ] && errMsg "--- TOO MANY SPACES IN SUPPLIED PARAMETERS ---"
+		   			   xparams=`echo "$params" | tr " " ":" | cut -d: -f1`
+		   			   yparams=`echo "$params" | tr " " ":" | cut -d: -f2`
+		   			   # yparams = xparams automatically if second set does not exist
+		   			   testx=`echo "$xparams" | tr "," " " | wc -w`
+		   			   [ $testx -ne 4 ] && errMsg "--- FOUR X PARAMETERS REQUIRED ---"
+		   			   testy=`echo "$yparams" | tr "," " " | wc -w`
+		   			   [ $testy -ne 4 ] && errMsg "--- FOUR Y PARAMETERS REQUIRED ---"
+		   			   osx=`echo "$xparams" | cut -d, -f1`
+		   			   dx=`echo "$xparams" | cut -d, -f2`
+		   			   isx=`echo "$xparams" | cut -d, -f3`
+		   			   iox=`echo "$xparams" | cut -d, -f4`
+		   			   osy=`echo "$yparams" | cut -d, -f1`
+		   			   dy=`echo "$yparams" | cut -d, -f2`
+		   			   isy=`echo "$yparams" | cut -d, -f3`
+		   			   ioy=`echo "$yparams" | cut -d, -f4`
+		   			   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmpA="$dir/bubblewarp_$$.mpc"
+tmpB="$dir/bubblewarp_$$.cache"
+tmp0="$dir/bubblewarp_0_$$.png"
+trap "rm -f $tmpA $tmpB $tmp0;" 0
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" ERR
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	width=`identify -format %w $tmpA`
+	height=`identify -format %h $tmpA`
+	
+	# compute center coords
+	xc=`echo "scale=1; ($width - 1) / 2" | bc`
+	yc=`echo "scale=1; ($height -1) / 2" | bc`
+	
+	#compute combined output scaling factors  as inverse so that > magnifies and < minifies
+	sxc=`echo "scale=5; 1 / ($osx*$xc)" | bc`
+	syc=`echo "scale=5; 1 / ($osy*$yc)" | bc`
+	test1=`echo "$width == $height" | bc`
+	test2=`echo "$width > $height" | bc`
+	if [ "$mode" = "polar" -a "$format" = "circ" -a $test1 -eq 0 -a $test2 -eq 1 ]
+		then
+		sxc=$syc
+	elif [ "$mode" = "polar" -a "$format" = "circ" -a $test1 -eq 0 -a $test2 -eq 0 ]
+		then
+		syc=$sxc
+	fi
+	
+	# compute input scaling factors as inverse so that > magnifies and < minifies
+	isx=`echo "scale=6; 1 / $isx" | bc`
+	isy=`echo "scale=6; 1 / $isy" | bc`
+	
+	# compute pi/2 and 2/pi
+	pid2=`echo "scale=6; 2*a(1)" | bc -l`
+	ipid2=`echo "scale=6; 1/$pid2" | bc`
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# set background color to none (transparent) for special case of bg=image
+if [ "$bg" = "image" ]
+	then
+	bg1="none"
+else
+	bg1=$bg
+fi
+
+# generate effective warping functions for -fx
+if [ "$type" = "sin" ]
+	then
+	# use sin function
+	ffx="ffx=sin($pid2*xd);"
+	[ "$dx" != "1" ] && ffx="ffx=(sin($pid2*xd))^$dx;"
+	ffy="ffy=sin($pid2*yd);"
+	[ "$dy" != "1" ] && ffy="ffy=(sin($pid2*yd))^$dy;"
+	ffrx="ffrx=rd?sin($pid2*rd)/rd:0;"
+	ffry="ffry=rd?sin($pid2*rd)/rd:0;"
+	[ "$dx" != "1" ] && ffrx="ffrx=rd?((sin($pid2*rd))/rd)^$dx:0;"
+	[ "$dy" != "1" ] && ffry="ffry=rd?((sin($pid2*rd))/rd)^$dy:0;"
+	result="u.p{xs,ys}"
+elif [ "$type" = "arcsin" ]
+	then
+	# use arcsin
+	ffx="ffx=$ipid2*asin(xd);"
+	[ "$dx" != "1" ] && ffx="ffx=($ipid2*asin(xd))^$dx;"
+	ffy="ffy=$ipid2*asin(yd);"
+	[ "$dy" != "1" ] && ffy="ffy=($ipid2*asin(yd))^$dy;"
+
+	ffrx="ffrx=rd?$ipid2*asin(rd)/rd:0;"
+	[ "$dx" != "1" ] && ffrx="ffrx=rd?($ipid2*asin(rd)/rd)^$dx:0;"
+	ffry="ffry=rd?$ipid2*asin(rd)/rd:0;"
+	[ "$dy" != "1" ] && ffry="ffry=rd?($ipid2*asin(rd)/rd)^$dy:0;"
+
+	result="(rd>1)?$bg1:u.p{xs,ys}"
+fi
+
+echo ""
+echo "Please Wait - Progress Reporting"
+echo ""
+
+# process image
+if [ "$mode" = "rect" ]
+	then
+	convert -monitor $tmpA -virtual-pixel $vp -fx \
+		"xd=(i-$xc)/$xc; yd=(j-$yc)/$yc; $ffx $ffy xs=$isx*$xc*ffx+$xc+$iox; ys=$isy*$yc*ffy+$yc+$ioy; u.p{xs,ys}" \
+		$outfile
+elif [ "$mode" = "polar" ]
+	then
+	# set outfile to composite with infile for special case of bg=image
+	if [ "$bg" = "image" ]
+		then
+		out="$tmpA +swap -composite $outfile"
+	else
+		out="-alpha off $outfile"
+	fi
+	im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	if [ "$im_version" -ge "06030600" ]
+		then 
+		rd="rd=hypot(xd,yd);"
+	else
+		rd="rd=sqrt(xd^2+yd^2);"
+	fi
+
+	if [ "$dx" = "$dy" ]; then 
+		if [ "$type" = "sin" ]; then
+			ffr="ffr=rd?sin($pid2*rd)/rd:0;"
+		else
+			ffr="ffr=rd?$ipid2*asin(rd)/rd:0;"
+		fi			
+		convert -monitor $tmpA -alpha set -channel RGBA -virtual-pixel $vp -background $vc -fx \
+			"xd=$sxc*(i-$xc); yd=$syc*(j-$yc); $rd $ffr xs=$isx*$xc*ffr*xd+$xc+$iox; ys=$isy*$yc*ffr*yd+$yc+$ioy; $result" \
+			$out
+	else
+		convert -monitor $tmpA -alpha set -channel RGBA -virtual-pixel $vp -background $vc -fx \
+			"xd=$sxc*(i-$xc); yd=$syc*(j-$yc); $rd $ffrx $ffry xs=$isx*$xc*ffrx*xd+$xc+$iox; ys=$isy*$yc*ffry*yd+$yc+$ioy; $result" \
+			$out
+	fi	
+fi
+exit 0

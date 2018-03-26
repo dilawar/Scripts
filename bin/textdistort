@@ -1,0 +1,396 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/2/2017 .......... 6/2/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: textdistort -t text [-p pointsize] [-f font] [-c color] [-s soften] 
+# [-C contrast] [-d distort] [-r roll] [-b background] [-u ucolor] [-P] [-R rfactor]
+# infile outfile
+# 
+# USAGE: textdistort [-help or -h]
+#
+# OPTIONS:
+#
+# -t     text           text to apply to the image. Required.
+# -p     pointsize      pointsize for the text; integer>0; default=16
+# -f     font           font name or path to font file; default=arial
+# -c     color          color of font; any valid opaque IM color is allowed; 
+#                       default=white
+# -s     soften         soften (blur) the grayscale version of the image used in the 
+#                       distort processing; integer>=0; default=20
+# -C     contast        sigmoidal-contrast adjustment of the grayscale image to increase 
+#                       contrast to make the image stand out when using 
+#                       background=undercolor and also to help distort the text; 
+#                       integer>=0; default=5
+# -d     distort        comma separate pair of distortion values for x and y distortion 
+#                       directions; integers>=0; default="10,10"
+# -r     roll           roll the text overlay to the left to adjust for distortion bias; 
+#                       integer>=0; default=0
+# -b     background     background type; choices are: undercolor (u) to use a constant 
+#                       color under the text or image (i) to use the original image 
+#                       under the text; default=undercolor
+# -u     ucolor         undercolor color; any valid opaque IM color is allowed; 
+#                       default=black
+# -P                    use pango: rather than caption: to create the text; pango will 
+#                       justify the text; caption will center the text as it wraps; 
+#                       pango must be installed as a delegate to use it; default is 
+#                       to use caption:
+# -R     rfactor        rfactor is a repeat factor to adjust the automatic computation 
+#                       of how many times to repeat the text; it is needed when fonts 
+#                       are not monospaced; float>=1; default=2.5
+###
+#
+# NAME: TEXTDISTORT 
+# 
+# PURPOSE: Distorts repeated text to warp it to the shape of the image content.
+# 
+# DESCRIPTION: TEXTDISTORT distorts repeated text to warp it to the shape of the 
+# image content. The image is typically a human face. The background of the result 
+# may be some solid color or the original image.
+# 
+# 
+# OPTIONS: 
+# 
+# -t text ... TEXT to apply to the image. Required.
+# 
+# -p pointsize ... POINTSIZE for the text. Values are integer>0. The default=16.
+# 
+# -f font ... FONT name or path to font file. The default=arial.
+# 
+# -c color ... COLOR of the font. Any valid opaque IM color is allowed. The 
+# default=white.
+# 
+# -s soften ... SOFTEN (blur) the grayscale version of the image used in the distort 
+# processing. Values are integers>=0. The default=20.
+# 
+# -C contast ... CONTRAST is a sigmoidal-contrast adjustment of the grayscale image 
+# to increase contrast in order to make the image stand out when using 
+# background=undercolor and also to help distort the text better. Values are  
+# integers>=0. The default=5.
+# 
+# -d distort ... DISTORT is a comma separate pair of distortion values for the x and y 
+# distortion directions. Values are integers>=0. The default="10,10".
+# 
+# -r roll ... ROLL the text overlay to the left to adjust for distortion bias. Values 
+# are integers>=0. The default=0.
+# 
+# -b background ... BACKGROUND is the type of background for the text. The choices are: 
+# undercolor (u) to use a constant color under the text or image (i) to use the 
+# original image under the text. The default=undercolor.
+# 
+# -u ucolor ... UCOLOR is the color to use for the background. Any valid opaque IM 
+# color is allowed. The default=black.
+# 
+# -P ... USE PANGO: rather than CAPTION: to create the text overlay. Pango will 
+# justify the text, while caption will center the text as it wraps. Pango will run 
+# faster than caption and may require smaller pointsizes to match that of caption. 
+# Pango must be installed as a delegate to use it. The default is to use caption:
+# 
+# -R rfactor ... RFACTOR is a repeat factor to adjust the automatic computation 
+# of how many times to repeat the text. It is needed when fonts are not monospaced. 
+# Values are floats>=1. The default=2.5
+# 
+# REFERENCE:
+# https://blog.spoongraphics.co.uk/tutorials/how-to-create-a-text-portrait-effect-in-photoshop
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+text=""						# text is required
+pointsize=16				# font pointsize
+font="arial"				# font name
+color="white"				# font color
+soften=20					# blur the grayscale image
+contrast=5					# sigmoidal contrast increase of the grayscale image
+distort="10,10"				# x and y distortion amounts
+roll=0						# left roll of the text overlay
+background="undercolor"		# image or undercolor
+ucolor="black"				# color for undercolor mode
+pango="no"					# use pango: (vs caption:) default is caption:
+rfactor=2.5					# repeat adjustment factor
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 25 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		   -help|h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get text
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   text="$1"
+		   			   ;;
+				-p)    # get pointsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POINTSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   pointsize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pointsize" = "" ] && errMsg "--- POINTSIZE=$pointsize MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$pointsize <= 0" | bc`
+					   [ $test -eq 1  ] && errMsg "--- POINTSIZE=$pointsize MUST BE A POSITIVE INTEGER ---"
+		   			   ;;
+				-f)    # get font
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   checkMinus "$1"
+					   font="$1"
+		   			   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+		   			   ;;
+				-s)    # get soften
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SOFTEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   soften=`expr "$1" : '\([0-9]*\)'`
+					   [ "$soften" = "" ] && errMsg "--- SOFTEN=$soften MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   checkMinus "$1"
+					   contrast=`expr "$1" : '\([0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   ;;
+				-d)    # get distort
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DISTORT SPECIFICATION ---"
+					   checkMinus "$1"
+					   distort=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$distort" = "" ] && errMsg "--- DISTORT=$distort MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE INTEGERS ---"
+		   			   ;;
+				-r)    # get roll
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLL SPECIFICATION ---"
+					   checkMinus "$1"
+					   roll=`expr "$1" : '\([0-9]*\)'`
+					   [ "$roll" = "" ] && errMsg "--- ROLL=$roll MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   ;;
+				-b)    # get background
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BACKGROUND SPECIFICATION ---"
+					   checkMinus "$1"
+					   background=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$background" in 
+					   		undercolor|u) background="undercolor" ;;
+					   		image|i) background="image" ;;
+					   		*) errMsg "--- BACKGROUND=$background IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-u)    # get ucolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ucolor="$1"
+		   			   ;;
+				-P)    # get pango
+					   pango="yes"
+		   			   ;;
+				-R)    # get rfactor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RFACTOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   rfactor=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$rfactor" = "" ] && errMsg "--- RFACTOR=$rfactor MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$rfactor < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- RFACTOR=$rfactor MUST BE A FLOAT GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+			 	 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/textdistort_1_$$.mpc"
+tmpB1="$dir/textdistort_1_$$.cache"
+tmpA2="$dir/textdistort_2_$$.mpc"
+tmpB2="$dir/textdistort_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# check if text provided
+[ "$text" = "" ] && errMsg "--- TEXT MUST BE PROVIDED  ---"
+
+# get width, height and total pixels
+declare `convert -ping $infile -format "ww=%w\nhh=%h" info:`
+tot=$((ww*hh))
+#echo "ww=$ww; hh=$hh; tot=$tot;"
+
+# separate x and y distorts
+distortx=`echo "$distort" | cut -d, -f1`
+distorty=`echo "$distort" | cut -d, -f2`
+
+# compute number of needed repeats of text to more than cover the input image at the pointsize
+count=`echo "$text" | wc -c`
+#echo $count
+repeats=`convert xc: -format "%[fx:round($rfactor*$tot/($pointsize*$pointsize*$count))]" info:`
+#echo "repeats=$repeats"
+
+# repeat the text
+fulltext=""
+for ((i=0; i<repeats; i++)); do
+fulltext="$fulltext $text"
+done
+
+# create text image
+if [ "$pango" = "yes" ]; then
+	# use pango:
+	convert -size ${ww}x -background none -pointsize $pointsize \
+	-font $font -fill $color -define pango:justify=true pango:"$fulltext" \
+	-gravity north -crop ${ww}x${hh}+0+0 +repage $tmpA2
+else
+	# use caption:
+	convert -size ${ww}x -background none -pointsize $pointsize \
+	-font $font -fill $color -gravity center caption:"$fulltext" \
+	-gravity south -background black -splice 0x1 -trim +repage -chop 0x1 \
+	-gravity north -crop ${ww}x${hh}+0+0 +repage $tmpA2
+fi	
+
+
+# setup background mode and distort and overlay text image
+if [ "$background" = "undercolor" ]; then
+	convert $tmpA2 \
+		\( $tmpA1 -colorspace gray -sigmoidal-contrast ${contrast}x50% -write mpr:mask -blur 0x$soften \) \
+		-virtual-pixel none -define compose:args=-$distortx,-$distorty -compose displace -composite \
+		\( +clone -alpha extract \( mpr:mask \) -compose over -compose multiply -composite -auto-level \) \
+		-alpha off -compose copy_opacity -composite -roll -${roll}+0 \
+		-compose over -background $ucolor -flatten \
+		"$outfile"
+elif [ "$background" = "image" ]; then
+	convert $tmpA1 \
+		\( $tmpA2 \
+		\( $tmpA1 -colorspace gray -sigmoidal-contrast ${contrast}x50% -blur 0x$soften \) \
+		-virtual-pixel none -define compose:args=-$distortx,-$distorty -compose displace -composite -roll -${roll}+0 \) \
+		-gravity center -compose over -composite \
+		"$outfile"
+fi
+
+
+
+exit 0
+
+
+
+
+
+

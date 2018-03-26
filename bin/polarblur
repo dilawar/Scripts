@@ -1,0 +1,234 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/23/2014 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: polarblur [-r radial ] [-a angular] infile outfile
+#
+# USAGE: polarblur [-h|-help]
+#
+# OPTIONS:
+#
+# -r     radial      radial blur amount; float>=0; default=10
+# -a     angular     angular blur amount; float>=0; default=0
+#
+###
+#
+# NAME: POLARBLUR 
+# 
+# PURPOSE: To apply a polar blur to an image.
+# 
+# DESCRIPTION: POLARBLUR applies a polar blur to an image. The blur direction 
+# may be either or both radial or angular. The processing is a gaussian-like 
+# blur performed in the polar domain. A cartesian to polar transform is first 
+# applied, then the blur, then a polar to cartesian transform is applied.
+# 
+# OPTIONS: 
+# 
+# -r radial ... RADIAL is the radial blur amount in pixels. Values are 
+# floats>=0. The default=10. A value of zero means no radial blur.
+# 
+# -a angular ... ANGULAR is the angular blur amount in degrees. Values are 
+# floats>=0. The default=0. A value of zero means no radial blur.
+# 
+# REQUIREMENTS: IM 6.5.9.3 is required due to the use of -morphology 
+# convolve blur.
+#  
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+radial=10
+angular=0
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get radial
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADIAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   radial=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$radial" = "" ] && errMsg "--- RADIAL=$radial MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-a)    # get angular
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGULAR SPECIFICATION ---"
+					   checkMinus "$1"
+					   angular=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$angular" = "" ] && errMsg "--- ANGULAR=$angular MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up temp files
+tmpA1="$dir/polarblur_A_$$.mpc"
+tmpA2="$dir/polarblur_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# test for valid IM version for -morphology convolve blur
+[ "$im_version" -lt "06050903" ] && errMSG  "--- IM Version $im_version IS NOT SUPPORTED BY THIS SCRIPT ---"
+
+
+# read input image
+if [ -f "$infile" -a -e "$infile" -a -r "$infile" -a -s "$infile" ]; then
+	convert -quiet "$infile" +repage $tmpA1
+else
+	errMSG  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+
+ww=`convert -ping $tmpA1 -format "%w" info:`
+hh=`convert -ping $tmpA1 -format "%h" info:`
+
+# divisors determined by measurement on point as visible bounds of non-thresholded blurs
+rsigma=`convert xc: -format "%[fx:$radial/3]" info:`
+#echo "rsigma=$rsigma"
+
+asigma=`convert xc: -format "%[fx:(360/$ww)*$angular/5]" info:`
+#echo "asigma=$asigma"
+
+
+# process image
+if [ "$angular" = "0" -a "$radial" = "0" ]; then
+	errMSG  "--- RADIAL AND ANGULAR CANNOT BOTH BE ZERO  ---"
+
+elif [ "$angular" = "0" -a "$radial" != "0" ]; then
+# radial blur
+convert $tmpA1 -virtual-pixel edge -distort DePolar -1 \
+-morphology Convolve Blur:0x${rsigma},90 \
+-virtual-pixel HorizontalTile -background black -distort Polar -1 "$outfile"
+
+elif [ "$angular" != "0" -a "$radial" = "0" ]; then
+# angular blur
+convert $tmpA1 -virtual-pixel edge -distort DePolar -1 \( +clone \) \( +clone \) +append \
+-morphology Convolve Blur:0x${asigma} \
+ -gravity center -crop ${ww}x${hh}+0+0 +repage \
+-virtual-pixel HorizontalTile -background black -distort Polar -1 "$outfile"
+
+elif [ "$angular" != "0" -a "$radial" != "0" ]; then
+# polar blur (both radial and angular)
+convert $tmpA1 -virtual-pixel edge -distort DePolar -1 \( +clone \) \( +clone \) +append \
+-morphology Convolve Blur:0x${rsigma},90 \
+-morphology Convolve Blur:0x${asigma} \
+ -gravity center -crop ${ww}x${hh}+0+0 +repage \
+-virtual-pixel HorizontalTile -background black -distort Polar -1 "$outfile"
+fi
+
+exit 0

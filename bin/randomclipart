@@ -1,0 +1,413 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/30/2009 .......... revised 10/30/2009
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: randomclipart [-d dims] [-p percent] [-c color] [-a angles] 
+# infile clipartfiles outfile
+# USAGE: randomclipart [h|-help]
+#
+# OPTIONS:
+#
+# -d     dims        DIMS is the range of square dimensions of clip art; comma 
+#                    separate pair of values in range of 0<integer<min image 
+#                    dimension; default="64,16"
+# -p     percent     PERCENTAGE of clip art coverage across the image; 
+#                    0<=integer<=100; default=50
+# -c     color       COLOR of clip art; any valid Imagemagick opaque color is 
+#                    allowed or random or image; use image to indicate that 
+#                    the clip art file is a transparent image and not to be 
+#                    colored; default=random
+# -a     angles      ANGLES is the range of rotation angles of clip art; comma 
+#                    separate pair of values in the range of 
+#                    -360<=integer<=360; default="45,-45"
+# 
+# clipartfiles should be either all white on black images to be colored or all  
+# transparent images, such as an emojis.
+###
+#
+# NAME: RANDOMCLIPART 
+# 
+# PURPOSE: To randomly distribute clip art over the image.
+# 
+# DESCRIPTION: RANDOMCLIPART randomly distributes clip art over the image. The 
+# clip art can have randomized sizes, angles and colors and can be more or 
+# less frequently distributed over the image. There is no restriction on the 
+# dimensions of the clipartfile, since it will be scaled to have a maximum  
+# dimension defined by the dims arguments. The randomization process ensures 
+# that no copy of the clip art image will overlap.
+# 
+# OPTIONS: 
+# 
+# -d dims ... DIMS is the range of scaled values for the maximum dimension of
+# the clip art image. Values are expressed as a comma separate pair (larger
+# first) of values in range of 0<integer<min image dimension. The
+# default="64,16". Best to keep dims much smaller than the minimum input image
+# dimension. If both values are the same or only one value is specified
+# without a comma. The dimension will be a fixed amount. Note that the image
+# will be trimmed on the left and bottom if not a whole multiple of the larger
+# dims argument.
+# 
+# -p percent ... PERCENTAGE distribution of the clip art coverage across the 
+# image. Values are 0<=integer<=100. The default=50.
+# 
+# -c color ... COLOR of clip art. Any valid Imagemagick opaque color is 
+# allowed or random or image; use image to indicate that the clip art file is 
+# a transparent image and not to be colored. The default=random.
+# 
+# -a angles ... ANGLES is the range of rotation angles of the clip art. Values 
+# are expressed as a comma separate pair of values (larger first) in the range  
+# of -360<=integer<=360. The default="45,-45". If both values are the same or  
+# onlyone value is specified without a comma. The rotation will be a fixed 
+# amount.
+# 
+# The clipartfiles should be either all white on black images to be colored or   
+# all transparent images, such as an emojis. There is no restriction on the  
+# dimensions of the clipartfile, since it will be scaled to have a maximum  
+# dimension defined by the dims arguments.
+#
+# NOTE: If the bash random value utility, jot, is available the script will 
+# run about 30% faster than getting random values using Imagemagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+dims="64,8"			# range of square dimensions of clip art
+percent=50			# percent of coverage
+color=""			# clip art color
+angles="45,-45"		# range of angles of clip art
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+#elif [ $# -gt $numargs ]
+#	then
+#	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get dims
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMS SPECIFICATION ---"
+					   checkMinus "$1"
+					   dims=`expr "$1" : '\([,0-9]*\)'`
+					   ;;
+				-p)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([0-9]*\)'`
+					   test=`echo "$percent > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-a)    # get angles
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGLES SPECIFICATION ---"
+					   #checkMinus "$1"
+					   angles=`expr "$1" : '\([-,0-9]*\)'`
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, clipartfiles and outfile
+	num="$#"
+	numm1=$((num-1))
+	numm2=$((num-2))
+	numm3=$((num-3))
+	fileArr=($*)
+	infile="${fileArr[0]}"
+	outfile="${fileArr[$numm1]}"
+	clipartfiles=""
+	for ((i=1; i<numm1; i++)); do
+		clipartfiles="$clipartfiles ${fileArr[$i]}"
+	done
+
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that clipartfile provided
+[ "$clipartfiles" = "" ] && errMsg "--- NO CLIP ART FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images
+tmpA1="$dir/randomclipart_1_$$.mpc"
+tmpB1="$dir/randomclipart_1_$$.cache"
+tmpA2="$dir/randomclipart_2_$$.mpc"
+tmpB2="$dir/randomclipart_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+# get image dimensions and center
+wh=`convert -ping "$infile" -format "%wx%h" info:`
+ww=`echo "$wh" | cut -dx -f1`
+hh=`echo "$wh" | cut -dx -f2`
+
+# separate max and min variables
+maxdim=`echo "$dims" | cut -d, -f1`
+mindim=`echo "$dims" | cut -d, -f2`
+maxangle=`echo "$angles" | cut -d, -f1`
+minangle=`echo "$angles" | cut -d, -f2`
+#echo "maxdim=$maxdim; mindim=$mindim; maxangle=$maxangle, minangle=$minangle;"
+
+# test that max >= min
+[ $maxdim -lt $mindim ] &&  errMsg "--- MAXDIM SMALLER THAN MINDIM ---"
+[ $maxangle -lt $minangle ] &&  errMsg "--- MAXANGLE SMALLER THAN MINANGLE ---"
+
+# test that maxdim <= min image size
+minwh=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+[ $maxdim -gt $minwh ] && errMsg "--- MAXDIM IS LARGER THAN MINUIMUM IMAGE DIMENSION ---"
+
+# test that mindim not empty
+[ "$mindim" = "" ] && errMsg "--- MINDIM IS NOT VALID ---"
+
+# test that minangle not empty
+[ "$minangle" = "" ] && errMsg "--- MINANGLE IS NOT VALID ---"
+
+
+# test that max and min angles are within 360
+absmaxangle=`convert xc: -format "%[fx:abs($maxangle)]" info:`
+absminangle=`convert xc: -format "%[fx:abs($minangle)]" info:`
+[ $absmaxangle -gt 360 -o $absminangle -gt 360 ] && errMsg "--- MAXANGLE AND/OR MINANGLE ARE OUTSIDE RANGE 0 TO 360 ---"
+
+
+# convert maxdim and mindim to scale value
+maxscale=100
+minscale=`convert xc: -format "%[fx:round(100*$mindim/$maxdim)]" info:`
+
+# convert to width and height to a multiples of the specified dimension
+ww=`convert xc: -format "%[fx:$maxdim*floor($ww/$maxdim)]" info:`
+hh=`convert xc: -format "%[fx:$maxdim*floor($hh/$maxdim)]" info:`
+
+# get number of random regions
+numx=$((ww/maxdim))
+numy=$((hh/maxdim))
+totnum=$((numx*numy))
+num=`convert xc: -format "%[fx:floor($totnum*$percent/100)]" info:`
+#echo "numx=$numx; numy=$numy; totnum=$totnum; percent=$percent; num=$num; "
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" -crop ${ww}x${hh}+0+0 +repage $tmpA1 ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# read the clip art image into the temporary cached image and test if valid
+convert -quiet -regard-warnings $clipartfiles -resize ${maxdim}x${maxdim} $tmpA2 ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# generate array of UNIQUE randomized numbers in range 0 to totnum
+list=""
+list=`for ((i=0; i<totnum; i++)); do
+echo "$i"
+done`
+randArr=(`echo "$list" | awk 'BEGIN{srand();}{print rand()" "$0}' | sort -k1 -n | cut -d\  -f2`)
+
+diffangle=`convert xc: -format "%[fx:($maxangle-$minangle)]" info:`
+diffscale=`convert xc: -format "%[fx:($maxscale-$minscale)]" info:`
+
+# test if jot bash function exists (for random number generator)
+jot -r 1 0 1 >/dev/null
+test=$?
+
+# compute random tiles, angles and scale
+# and set up list of commands
+if [ "$color" = "image" ]; then	
+	proc_list=""
+	for ((i=0; i<num; i++)); do
+	tilenum=${randArr[$i]}
+	tilenumx=`convert xc: -format "%[fx:mod($tilenum,$numx)]" info:`
+	tilenumy=`convert xc: -format "%[fx:floor($tilenum/$numy)]" info:`
+	left=`convert xc: -format "%[fx:$tilenumx*$maxdim]" info:`
+	top=`convert xc: -format "%[fx:$tilenumy*$maxdim]" info:`
+	if [ $test -eq 0 ]; then
+		# jot test ran successfully
+		angle=`jot -r 1 $minangle $maxangle`
+		scale=`jot -r 1 $minscale $maxscale`
+		layer=`jot -r 1 0 $numm3`
+	else
+		# use slower IM random() in range 0 to 1, but convert to max and min values
+		angle=`convert xc: -format "%[fx:$diffangle*random()+$minangle]" info:`
+		scale=`convert xc: -format "%[fx:$diffscale*random()+$minscale]" info:`
+		layer=`convert xc: -format "%[fx:round($numm3*random())]" info:`
+	fi
+	# divide scale by rotational unit diagonal to avoid overlap or cut off art
+	factor=`convert xc: -format "%[fx:$scale/((abs(sin($angle*(pi/180)))+abs(cos($angle*(pi/180)))))]" info:`
+	proc_list="$proc_list \( $tmpA2[$layer] -scale $factor% -background none -rotate $angle -set page +${left}+${top} \)"
+	#echo "tilenumx=$tilenumx; tilenumy=$tilenumy; left=$left; top=$top; angle=$angle; factor=$factor;"
+	#if [ $i -eq $((num-1)) ]; then
+	#echo "$proc_list"
+	#fi
+	done
+elif [ "$color" = "random" ]; then
+	# also compute random color
+	proc_list=""
+	for ((i=0; i<num; i++)); do
+	tilenum=${randArr[$i]}
+	tilenumx=`convert xc: -format "%[fx:mod($tilenum,$numx)]" info:`
+	tilenumy=`convert xc: -format "%[fx:floor($tilenum/$numy)]" info:`
+	left=`convert xc: -format "%[fx:$tilenumx*$maxdim]" info:`
+	top=`convert xc: -format "%[fx:$tilenumy*$maxdim]" info:`
+	if [ $test -eq 0 ]; then
+		# jot test ran successfully
+		angle=`jot -r 1 $minangle $maxangle`
+		scale=`jot -r 1 $minscale $maxscale`
+		layer=`jot -r 1 0 $numm3`
+		rr=`jot -r 1 0 255`
+		gg=`jot -r 1 0 255`
+		bb=`jot -r 1 0 255`
+	else
+		# use slower IM random() in range 0 to 1, but convert to max and min values
+		angle=`convert xc: -format "%[fx:$diffangle*random()+$minangle]" info:`
+		scale=`convert xc: -format "%[fx:$diffscale*random()+$minscale]" info:`
+		layer=`convert xc: -format "%[fx:round($numm3*random())]" info:`
+		rr=`convert xc: -format "%[fx:round(255*random())]" info:`
+		gg=`convert xc: -format "%[fx:round(255*random())]" info:`
+		bb=`convert xc: -format "%[fx:round(255*random())]" info:`
+	fi
+	color="rgb($rr,$gg,$bb)"
+	# divide scale by rotational unit diagonal to avoid overlap or cut off art
+	factor=`convert xc: -format "%[fx:$scale/((abs(sin($angle*(pi/180)))+abs(cos($angle*(pi/180)))))]" info:`
+	proc_list="$proc_list \( $tmpA2[$layer] -background \"$color\" -alpha shape +repage -scale $factor% -background none -rotate $angle -set page +${left}+${top} \)"
+	#echo "tilenumx=$tilenumx; tilenumy=$tilenumy; left=$left; top=$top; angle=$angle; factor=$factor;"
+	#if [ $i -eq $((num-1)) ]; then
+	#echo "$proc_list"
+	#fi
+	done
+else
+	# assign user selected color
+	convert $tmpA2 -background "$color" -alpha shape +repage $tmpA2
+	
+	proc_list=""
+	for ((i=0; i<num; i++)); do
+	tilenum=${randArr[$i]}
+	tilenumx=`convert xc: -format "%[fx:mod($tilenum,$numx)]" info:`
+	tilenumy=`convert xc: -format "%[fx:floor($tilenum/$numy)]" info:`
+	left=`convert xc: -format "%[fx:$tilenumx*$maxdim]" info:`
+	top=`convert xc: -format "%[fx:$tilenumy*$maxdim]" info:`
+	if [ $test -eq 0 ]; then
+		# jot test ran successfully
+		angle=`jot -r 1 $minangle $maxangle`
+		scale=`jot -r 1 $minscale $maxscale`
+		layer=`jot -r 1 0 $numm3`
+	else
+		# use slower IM random() in range 0 to 1, but convert to max and min values
+		angle=`convert xc: -format "%[fx:$diffangle*random()+$minangle]" info:`
+		scale=`convert xc: -format "%[fx:$diffscale*random()+$minscale]" info:`
+		layer=`convert xc: -format "%[fx:round($numm3*random())]" info:`
+	fi
+	# divide scale by rotational unit diagonal to avoid overlap or cut off art
+	factor=`convert xc: -format "%[fx:$scale/((abs(sin($angle*(pi/180)))+abs(cos($angle*(pi/180)))))]" info:`
+	proc_list="$proc_list \( $tmpA2[$layer] -scale $factor% -background none -rotate $angle -set page +${left}+${top} \)"
+	#echo "tilenumx=$tilenumx; tilenumy=$tilenumy; left=$left; top=$top; angle=$angle; factor=$factor;"
+	#if [ $i -eq $((num-1)) ]; then
+	#echo "$proc_list"
+	#fi
+	done
+fi
+
+# process command
+eval 'convert -respect-parentheses \( $tmpA1 -set page +0+0 \)' $proc_list '-flatten "$outfile"'
+
+exit 0

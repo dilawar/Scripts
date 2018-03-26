@@ -1,0 +1,403 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/20/2012 .......... 6/2/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: vignette3 [-d diameter] [-x xycenter] [-c] [-o outramp] [-i inramp] 
+# [-g gamma] [-v vcolor] [-b bright] [-s sat] infile outfile
+#
+# USAGE: vignette3 [-help|-h]
+#
+# OPTIONS:
+#
+# -d     diameter      vignette region boundary; relative size compared to the
+#                      input image expressed as width,height in percent;
+#                      integer>0; default=70
+# -x     xycenter      x,y center of vignette; comma separate pair; integers>=0;
+#                      default is center of image
+# -c     circle        constrain shape to circle rather than ellipse for 
+#                      non-square image; default is no constraint
+# -o     outramp       vignette outer ramp extent; -100<=integer<=100; 
+#                      larger values lengthen the ramp and shorter values 
+#                      shorten the ramp; default is linear ramp to most 
+#                      distant image point.
+# -i     inramp        vignette inner ramp extent in pixels; integer>=0;
+#                      the default=0
+# -g     gammma        gamma adjustment of shape of ramps; gamma>=0; values less 
+#                      than 1 lengthen the ramps and values larger than 1 
+#                      shorten the ramp; default=1
+# -v     vcolor        vignette color; any opaque IM color allowed or "none" 
+#                      for a transparency vignette; default=black
+# -b     bright        brightness change of image under the vignette; 
+#                      -100<=integer<=100; default=0 (no change)
+# -s     sat           saturation change of image under the vignette; 
+#                      -100<=integer<=100; default=0 (no change)
+#  
+###
+#
+# NAME: VIGNETTE3 
+# 
+# PURPOSE: Applies a vignette effect to a picture.
+# 
+# DESCRIPTION: VIGNETTE3 applies a vignette effect to a picture. The vignette 
+# center may be moved.
+# 
+# 
+# OPTIONS: 
+# 
+# -d diameter ... DIAMETER controls the vignette region boundary. It is 
+# expressed as a percentage of the input image width,height. Values are 
+# integers>0. The default=70
+# 
+# -x xycenter ... XYCENTER specify the x,y center of the vignette effect. 
+# Values are a comma separate pair of integers>=0. The default is center of 
+# image.
+# 
+# -c circle ... CIRCLE indicates to constrain the shape to a circle rather than 
+# an ellipse for non-square image. The default=no constraint
+# 
+# -o outramp ... OUTRAMP is the vignette linear outer ramp extent. Values are 
+# -100<=integer<=100. Larger values lengthen the ramp and shorter values 
+# shorten the ramp. The default is a linear ramp tapering to zero at the most 
+# distant image point.
+# 
+# -i inramp ... INRAMP is the vignette inner ramp extent in pixels. Value are 
+# 0<=integer<=100. The default=0.
+# 
+# -g gammma ... GAMMA adjusts the shape (and length) of the ramps. Values are 
+# floats>=0. Values less than 1 lengthen the ramps and values larger than 1 
+# shorten the the ramp. The default=1.
+# 
+# -v vcolor ... VCOLOR is the vignette color. Any opaque IM color is allowed 
+# or "none" for a transparency vignette effect, The default=black.
+# 
+# -b bright ... BRIGHT is the brightness change of the image under the vignette. 
+# Values are -100<=integer<=100. The default=0 (no change).
+# 
+# -s sat ... SAT is the saturation change of the image under the vignette.  
+# Values are -100<=integer<=100. The default=0 (no change).
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set up defaults
+diameter=70			# diameter of vignette in percent width and height
+xycenter=""			# xycenter of vignette; default is center of image
+circle="no"			# constrain to circle of min dimension
+outramp=0			# vignette outer ramp extent
+inramp=0			# inner inner ramp in pixels
+gamma=1				# gamma non-linear adjustment of vignette ramps rolloff
+vcolor=black		# vignette color
+bright=0			# brightness percent change of image under the vignette
+sat=0			# saturation percent change of image under the vignette
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 19 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help|-h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get diameter
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETER SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameter=`expr "$1" : '\([0-9]*\)'`
+					   [ "$diameter" = "" ] && errMsg "--- DIAMETER=$diameter MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-x)    # get xycenter
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID XYCENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   xycenter=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$xycenter" = "" ] && errMsg "--- XYCENTER=$xycenter MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE INTEGERS (with no sign) ---"
+					   ;;
+				-o)    # get outramp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OUTRAMP SPECIFICATION ---"
+					   #checkMinus "$1"
+					   outramp=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$outramp" = "" ] && errMsg "--- OUTRAMP=$outramp MUST BE AN INTEGER ---"
+					   test1=`echo "$outramp < -100" | bc`
+					   test2=`echo "$outramp > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- OUTRAMP=$outramp MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-i)    # get inramp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INRAMP SPECIFICATION ---"
+					   #checkMinus "$1"
+					   inramp=`expr "$1" : '\([0-9]*\)'`
+					   [ "$inramp" = "" ] && errMsg "--- INRAMP=$inramp MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-g)    # get gamma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAMMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   gamma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gamma" = "" ] && errMsg "--- GAMMA=$gamma MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-v)    # get vcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   vcolor="$1"
+					   ;;
+				-b)    # get bright
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   bright=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$bright" = "" ] && errMsg "--- BRIGHT=$bright MUST BE AN INTEGER ---"
+					   test1=`echo "$bright < -100" | bc`
+					   test2=`echo "$bright > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BRIGHT=$bright MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-s)    # get sat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   sat=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SAT=$sat MUST BE AN INTEGER ---"
+					   test1=`echo "$sat < -100" | bc`
+					   test2=`echo "$sat > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- SAT=$sat MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-c)    # get circle
+					   circle="no"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temp files
+tmpA1="$dir/vignette3_1_$$.mpc"
+tmpB1="$dir/vignette3_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using vignette3
+# with IM 6.7.4.10, 6.7.6.10, 6.8.1.9
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# get image dimensions for later cropping as input is padded to square, even dimensions
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+min=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+
+# compute half width
+ww2=`convert xc: -format "%[fx:$ww/2]" info:`
+hh2=`convert xc: -format "%[fx:$hh/2]" info:`
+
+# get center if xc and yc not provided
+if [ "$xycenter" != "" ]; then
+	xc=`echo "$xycenter" | cut -d, -f 1`
+	yc=`echo "$xycenter" | cut -d, -f 2`
+	[ "$yc" = "" ] && echo "--- INVALID COORDINATES SPECIFIED ---"
+else
+	xc=$ww2
+	yc=$hh2
+fi
+
+
+# get size of ellipse/circle to draw
+ww2=`convert xc: -format "%[fx:$ww2*$diameter/100]" info:`
+hh2=`convert xc: -format "%[fx:$hh2*$diameter/100]" info:`
+
+# constrain to circle if requested
+if [ "$circle" = "yes" ]; then
+	ww2=`convert xc: -format "%[fx:min($ww2,$hh2)]" info:`
+	hh2=$ww2
+fi
+
+# set ellipse args (center at 0,0 because will use translate to xc,yc)
+args="0,0 $ww2,$hh2 0,360"
+
+
+# convert brightness and saturate from percent to modulate format
+bright=`convert xc: -format "%[fx:$bright+100]" info:`
+sat=`convert xc: -format "%[fx:$sat+100]" info:`
+
+# trap for zero inner ramp blur
+if [ "$inramp" = "0" ]; then
+	inramping=""
+else
+	inramping="-blur ${inramp}x65000"
+fi
+
+
+# set up outer ramp leveling
+rampval=`convert xc: -format "%[fx:100-abs($outramp)]" info:`
+test=`convert xc: -format "%[fx:sign($outramp)<0?0:1]" info:`
+if [ $test -eq 0 ]; then 
+	leveling="-level 0x$rampval%"
+else
+	leveling="+level 0x$rampval%"
+fi
+
+
+
+
+
+if [ "$vcolor" = "none" -o "$vcolor" = "transparent" ]; then 
+	convert $tmpA1 \
+		\( -clone 0 -modulate ${bright},${sat},100 \) \
+		\( -clone 0 -fill white -colorize 100% -fill black \
+			-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
+			-auto-level $leveling $inramping -gamma $gamma -negate \) \
+		-delete 0 -alpha off -compose copy_opacity -composite "$outfile"
+
+else
+	# read input
+	# brighten input
+	# create black ellipse on white background as mask and blur and adjust gamma
+	# create black image
+	# create composite of brightened and original using mask
+	# delete tmps and reverse the images
+	# create composite of previous composite with vignette color using mask
+	convert $tmpA1 \
+		\( -clone 0 -modulate ${bright},${sat},100 \) \
+		\( -clone 0 -fill white -colorize 100% -fill black \
+			-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
+			-auto-level $leveling $inramping -gamma $gamma \) \
+		\( -clone 0 -fill $vcolor -colorize 100% \) \
+		\( -clone 1 -clone 0 -clone 2 -compose over -composite \) \
+		-delete 0,1 -reverse $setcspace -compose over -composite "$outfile"
+fi
+
+exit 0
+

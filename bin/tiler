@@ -1,0 +1,302 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/8/2011 .......... revised 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: tiler [-m method] [-o overlap] [-v vpmethod] infile outfile
+# USAGE: tiler [-h or -help]
+#
+# OPTIONS:
+#
+# -m      method          method of overlap blending; choices are 1 or 2;
+#                         1 is simple average blending; 2 is ramped blending;
+#                         default=1
+# -o      overlap         seam overlap amount in pixels; integer>=0; default=2
+# -v      vpmethod        virtual-pixel method used to extend the quadrants; 
+#                         any valid IM non-background virtual-pixel method
+#                         is allowed. Best choices seem to be mirror or edge;
+#                         default=mirror
+#
+# NOTE: the input image (infile) must be square and have even dimensions.
+# 
+###
+#
+# NAME: TILER 
+# 
+# PURPOSE: To convert an image into a tilable texture.
+# 
+# DESCRIPTION: TILER converts an image into a tilable texture. It does this 
+# by swapping diagonal quadrants, exending the borders to get overlap and 
+# then composite blending the extended quadrants. The extension and blending
+# attempt to minimize or avoid manual painting/blurring/cloning along the 
+# seams.
+# 
+# OPTIONS: 
+# 
+# -m method ... METHOD of overlap blending. The choices are 1 or 2. Method 1 
+# is a simple average blending. Method 2 is a ramped blending. The default=1.
+# 
+# -o overlap ... OVERLAP is amount of extension of the quadrants in order to 
+# cover the center horizontal and vertical seems. Values are integers>=0. 
+# The default=2
+#
+# -v vpmethod ... VPMETHOD is the virtual-pixel method used to extend the 
+# quadrants. Any valid IM non-background virtual-pixel method is allowed.
+# Recommended values are either mirror or edge. The default is mirror.
+# 
+# Requirement: IM 6.5.3-4 or higher due to the use in method 1 of 
+# convert ... -compose blend -define compose:args=50,50 -composite ...
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+method=1		# blending method
+overlap=2		# overlap of quadrants
+vp="mirror"		# virtual pixel method for extending the quadrants
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`expr "$1" : '\([0-2]*\)'`
+					   [ "$method" = "" ] && errMsg "--- METHOD=$method MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ $method -ne 1 -a $method -ne 2 ] && errMsg "--- METHOD=$method MUST BE EITHER 1 OR 2 ---"
+					   ;;
+				-o)    # get overlap
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OVERLAP SPECIFICATION ---"
+					   checkMinus "$1"
+					   overlap=`expr "$1" : '\([0-9]*\)'`
+					   [ "$overlap" = "" ] && errMsg "--- OVERLAP=$overlap MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-v)    # get  vpmethod
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VPMETHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   vp="$1"
+					   vp=`echo "$vp" | tr "[:upper:]" "[:lower:]"`
+					   case "$vp" in 
+					   		black) ;;
+					   		dither) ;;
+					   		edge) ;;
+					   		gray) ;;
+					   		mirror) ;;
+					   		random) ;;
+					   		tile) ;;
+					   		transparent) ;;
+					   		white) ;;
+					   		*) errMsg "--- VPMETHOD=$vp IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up temp files
+tmpA1="$dir/tiler_A_$$.mpc"
+tmpA2="$dir/tiler_A_$$.cache"
+tmpM1="$dir/tiler_M_$$.mpc"
+tmpM2="$dir/tiler_M_$$.cache"
+tmpN1="$dir/tiler_N_$$.mpc"
+tmpN2="$dir/tiler_N_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2; exit 1" ERR
+
+
+# read the input image into the tmp cached image.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# validate input image is square
+wd=`convert $tmpA1 -ping -format "%w" info:`
+ht=`convert $tmpA1 -ping -format "%h" info:`
+test0=`convert xc: -format "%[fx:$wd==$ht?1:0]" info:`
+[ $test0 -eq 0 ] && errMsg "--- FILE $infile IS NOT SQUARE ---"
+test1=`convert xc: -format "%[fx:mod($wd,2)]" info:`
+test2=`convert xc: -format "%[fx:mod($ht,2)]" info:`
+[ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- FILE $infile DOES NOT HAVE EVEN DIMENSIONS ---"
+
+
+# compute half width and other parameters
+ww=`convert xc: -format "%[fx:$wd/2]" info:`
+hh=`convert xc: -format "%[fx:$ht/2]" info:`
+wwo=`convert xc: -format "%[fx:$ww+$overlap]" info:`
+hho=`convert xc: -format "%[fx:$hh+$overlap]" info:`
+rollamount="+${ww}+${hh}"
+cropsize="${ww}x${hh}+0+0"
+www=$(($ww+$overlap))
+hhh=$(($hh+$overlap))
+sesize="${www}x${hhh}+0+0"
+swsize="${www}x${hhh}-$overlap+0"
+nesize="${www}x${hhh}+0-$overlap"
+nwsize="${www}x${hhh}-$overlap-$overlap"
+gsize=$(($overlap + 2))
+
+
+# process image
+if [ $method -eq 1 ]; then
+	# test for valid IM version
+	im_version=`convert -list configure | \
+		sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	[ "$im_version" -lt "06050304" ] && errMsg "--- REQUIRES IM VERSION 6.5.3-4 OR HIGHER ---"
+	# Do simple average blending in overlap
+	convert $tmpA1 \
+		\( -clone 0 -gravity southeast -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$sesize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity southwest -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$swsize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity northeast -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$nesize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity northwest -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$nwsize -distort SRT 0 +repage \) \
+		\( -clone 0 -roll $rollamount \
+			-clone 1 -gravity northwest -compose blend -define compose:args=50,50 -composite \
+			-clone 2 -gravity northeast -compose blend -define compose:args=50,50 -composite \
+			-clone 3 -gravity southwest -compose blend -define compose:args=50,50 -composite \
+			-clone 4 -gravity southeast -compose blend -define compose:args=50,50 -composite \) \
+		-delete 0-4 \
+		"$outfile"
+
+elif [ $method -eq 2 ]; then
+	# Create horizontal mask; black on left, gradient, white on right
+	convert \( -size ${ww}x${hho} xc:black xc:white +append \) \
+		\( -size ${hho}x$gsize gradient: -rotate 90 \) -gravity center \
+		-compose over -composite +repage $tmpM1
+	# create vertical mask; black on top, gradient, white on bottom
+	convert \( -size ${wd}x${hh} xc:black xc:white -append \) \
+		\( -size ${wd}x$gsize gradient: -rotate 180 \) -gravity center \
+		-compose over -composite +repage $tmpN1
+	# Do ramped blending in overlap
+	convert $infile \
+		\( -clone 0 -gravity southeast -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$sesize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity southwest -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$swsize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity northeast -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$nesize -distort SRT 0 +repage \) \
+		\( -clone 0 -gravity northwest -crop $cropsize +repage -virtual-pixel $vp \
+			-define distort:viewport=$nwsize -distort SRT 0 +repage \) \
+		\( -clone 1 -gravity northwest -extent ${wd}x${hho} -clone 2 $tmpM1 \
+			-gravity northeast -composite \) \
+		\( -clone 3 -gravity southwest -extent ${wd}x${hho} -clone 4 $tmpM1 \
+			-gravity southeast -composite \) \
+		\( -clone 5 -gravity north -extent ${wd}x${ht} -clone 6 $tmpN1 \
+			-gravity south -composite \) \
+		-delete 0-6 \
+		"$outfile"
+fi
+
+exit 0

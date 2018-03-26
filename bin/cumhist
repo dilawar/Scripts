@@ -1,0 +1,448 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/1/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cumhist [-f format ] [-L] [-C] [-g graph] [-m mode] [-P] [-i imgdir ] [infile1 infile2 ...]
+# USAGE: cumhist [-h or -help]
+# 
+# OPTIONS:
+#
+# -f     format      grayscale format to use for processing; normal (n), 
+#                    ave (a) or global (g); default=gray
+# -L                 use linear channels; default is non-linear channels
+# -C                 complement cumulative histogram percent counts above 50%;
+#                    default is normal cumulative histogram
+# -g     graph       type of graph to create; simple (s) or gnuplot (g); 
+#                    default is no graph
+# -m     mode        mode for graph; view (v) or save (s); default=view, if 
+#                    graph is requested
+# -P                 progress report showing list of images as they are 
+#                    processed. The default is no progress report.
+# -i     imgdir      (full) path to directory of images
+# 
+###
+# 
+# NAME: CUMHIST 
+# 
+# PURPOSE: To create the combined grayscale cumulative histogram of one or 
+# more images.
+# 
+# DESCRIPTION: CUMHIST creates the combined 256 bin grayscale cumulative 
+# histogram of one or more images. The results are listed to the terminal and 
+# optionally may be graphed. Images may be provided as a list in the command 
+# line or by providing a path to the image directory containing the images to 
+# be processed.
+#
+# OPTIONS: 
+#
+# -f format ... FORMAT is the grayscale image format to use for processing. 
+# Choices are: normal (n), ave (a) or global (g). The default=gray. For 
+# format=normal, the R,B,B channnels will be converted to -colorspace gray. For 
+# format=ave, the R,G,B channels will be average. For format=global, the 
+# R,G,B channels will be appended.
+# 
+# -L ... use LINEAR channels. The default is non-linear channels.
+# 
+# -C ... COMPLEMENT the cumulative histogram percent counts above 50%. That 
+# for those percent counts above 50% convert them to (100-50)%. The default 
+# is a normal (non-complemented) cumulative histogram.
+# 
+# -g graph ... GRAPH is the type of graph to create. Choices are: simple (s) 
+# or gnuplot (g). The default is no graph.
+# 
+# -m mode ... MODE for the graph. Choices are: view (v) or save (s). The
+# default=view, if a graph is requested. If mode=save, then an output image 
+# named cumhist_graph.png will be created.
+# 
+# -P ... PROGRESS report showing the list of images as they are processed. 
+# The default is no progress report.
+# 
+# -i imgdir ... IMGDIR is the (full) path to directory of images to be 
+# processed. If images are provided in the command line, this option will be 
+# ignored.
+# 
+# REQUIREMENTS: GNUPLOT must be installed when graph=gnuplot
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+format="normal"				# image format: normal, ave, global
+linear="no"					# linear or non-linear grayscale				
+complement="no"				# complement cumhist for counts above 50%
+graph=""					# simple or gnuplot or "" for no graph
+mode="view"					# view or save
+progress="false"			# show image names as processed
+imgdir=""					# directory (with path) to get images
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -lt 1 ]
+	then
+	errMsg "--- TOO FEW ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get  format
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   format=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$format" in 
+					   		normal|n) format="normal" ;;
+					   		ave|a) format="ave" ;;
+					   		global|g) format="global" ;;
+					   		*) errMsg "--- FORMAT=$format IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-L)    # get  linear
+					   linear="yes"
+					   ;;
+				-C)    # get  complement
+					   complement="yes"
+					   ;;
+				-g)    # get  graph
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAPH SPECIFICATION ---"
+					   checkMinus "$1"
+					   graph=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$graph" in 
+					   		simple|s) graph="simple" ;;
+					   		gnuplot|g) graph="gnuplot" ;;
+					   		*) errMsg "--- GRAPH=$graph IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		view|v) mode="view" ;;
+					   		save|s) mode="save" ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-P)    # get  progress
+					   progress="true"
+					   ;;
+				-i)    # get  imgdir
+					   shift  # to get the next parameter
+					   imgdir="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+fi
+
+
+# get images from arguments or from imgdir
+if [ "$imgdir" = "" ]; then
+	imgArr=("$@")
+else
+	# test if imgdir exists
+	[ -d "$imgdir" ] || { 
+	errMsg  "--- DIRECTORY $imgdir DOES NOT EXIST ---"
+	exit 1 
+	}
+	
+	oldIFS=$IFS
+	IFS=","
+	# use -m option to insert commas and sed to remove spaces after commas
+	# but preserve spaces in names
+	imgArr=(`ls -m "$imgdir" | sed 's/,[ ]*/,/g'`)
+	IFS=$oldIFS
+fi
+num=${#imgArr[*]}
+#echo "${imgArr[*]}"
+#echo "$num"
+
+# trap if no images provided
+if [ $num -eq 0 -o "$num" = "" ]; then
+	errMsg "--- NO IMAGES PROVIDED ---"
+	exit 1
+fi
+
+# set up temp file
+tmp1A="$dir/cumhist_1_$$.mpc"
+tmp1B="$dir/cumhist_1_$$.cache"
+trap "rm -f $tmp1A $tmp1B plist.txt;" 0
+trap "rm -f $tmp1A $tmp1B plist.txt; exit 1" 1 2 3 15
+trap "rm -f $tmp1A $tmp1B plist.txt; exit 1" ERR
+
+
+getHist()
+	{
+	# create 256 bin histogram of single channel image
+	img="$1"
+
+	histArr=(`convert "$img" -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' |\
+	awk '
+	# AWK to generate a filled histogram (missing bins assigned 0 counts)
+	{ bin[int($2)] += $1; max = 0; } 
+	{ for (i=0;i<256;i++) max = bin[i]>max?bin[i]:max; } 
+	END { for (i=0;i<256;i++) {hist = bin[i]+0; print hist; }
+	} '`)
+#	echo ${histArr[*]}
+#	echo ${#histArr[*]}
+	}
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cumhist.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.2
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# set up for linear or nonlinear grayscale
+if [ "$linear" = "no" ]; then
+	nonlinear="$setcspace"
+else
+	nonlinear=""
+fi
+
+# set up for grayscale format
+if [ "$format" = "normal" ]; then
+	proc="-colorspace gray"
+	proc="-grayscale rec601luma"
+elif [ "$format" = "ave" ]; then
+	proc="-colorspace OHTA -channel R -separate +channel"
+elif [ "$format" = "global" ]; then
+	proc="-channel RGB -separate +channel +append"
+fi
+
+#initialize histogram array for accumulation
+totpix=0
+for ((i=0; i<256; i++)); do
+	histArray[$i]=0
+done
+echo ""
+#echo ${histArray[*]}
+#echo ${#histArray[*]}
+
+# add / to end of imgdir if needed
+if [ "$imgdir" != "" ]; then
+	lastchar=`echo "$string" | sed -n 's/^.*\(.\)$/\1/p'`
+	[ "$lastchar" != "\\" ] && imgdir="${imgdir}/"
+fi
+#echo "$imgdir"
+
+# accumate histograms from all images
+for ((i=0; i<num; i++)); do
+	$progress && echo "${imgArr[$i]}"
+	
+	# test input image, process to linear/non-linear gray and save as temp file
+	convert -quiet "${imgdir}${imgArr[$i]}" $nonlinear $proc +repage "$tmp1A" ||
+		errMsg "--- INPUT FILE(s) DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+	# sum old and new histograms
+	numpix=`convert -ping "$tmp1A" -format "%[fx:w*h]" info:`
+	totpix=`convert xc: -format "%[fx:$totpix+$numpix]" info:`
+	getHist "$tmp1A"
+	for ((j=0; j<256; j++)); do
+		histArray[$j]=$(( ${histArray[$j]}+${histArr[$j]} ))
+	done
+#echo ${histArray[*]}
+#echo ${#histArray[*]}
+done
+
+# compute cumulative histogram and scale to 0 to 100
+cumhistArray=( $(for ((i=0; i<256; i++)); do
+	echo "$i ${histArray[$i]}"
+	done |\
+	awk -v totpix="$totpix" '
+	# AWK 
+	{ bin[$1] = $2; }
+	END { for (i=0;i<256;i++) {cum += bin[i]/totpix; print 100*cum; } } ') )
+
+
+# print cumulative histogram and complement if specified
+# note minus sign is left justified
+printf "%-5s %-10s %-10s\n" "Bin" "Count%" "Gray%"
+printf "%-5s %-10s %-10s\n" "---" "-------" "-----"
+for ((i=0; i<256; i++)); do
+	if [ "$complement" = "yes" -a `echo "${cumhistArray[$i]} > 50" | bc` -eq 1 ]; then
+		cumhistArray[$i]=`echo "100.0000-${cumhistArray[$i]}" | bc`
+	fi
+#	gray=`convert xc: -format "%[fx:100*$i/255]" info:`
+	gray=`echo "scale=6; 100*$i/255" | bc`
+	printf "%-5d %-10.3f %-10.3f\n" $i ${cumhistArray[$i]} $gray
+done
+
+# make graph if desired
+if [ "$graph" = "simple" ]; then
+
+	# create point pair list
+	for ((i=0; i<256; i++)); do
+		x=`echo "scale=6; 100*$i/255" | bc`
+		y=${cumhistArray[$i]}
+		pairArr[$i]="$x,$y"
+	done
+	plist="${pairArr[*]}"
+
+	# create and display/view mode
+    # echo "Points = $plist"
+	convert -size 150x150 xc: -fill white -stroke black \
+		-draw "rectangle 40,10 141,112" $tmp1A
+	convert $tmp1A \
+	\( -size 100x101 xc: -stroke red -fill white -draw "polyline $plist" -flip \) \
+	-compose over -geometry 100x101+41+11 -composite $tmp1A
+	convert $tmp1A -font Arial -pointsize 11 \
+		-draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' \
+		text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'g r a y %'" $tmp1A
+	convert -respect-parenthesis $tmp1A \
+		\( -background white -fill black -font Arial -pointsize 11 \
+		-gravity center label:'c \no \nu \nn \nt \n\% ' -trim \) \
+		-geometry +10+30 -compose over -composite $tmp1A
+	if [ "$mode" = "view" ]; then
+		convert $tmp1A show:
+	elif [ "$mode" = "save" ]; then
+		convert $tmp1A PNG8:cumhist_graph.png
+	fi
+
+elif [ "$graph" = "gnuplot" ]; then
+
+	# create point pair list	
+	for ((i=0; i<256; i++)); do
+		x=`echo "scale=6; 100*$i/255" | bc`
+		y=`echo "scale=6; ${cumhistArray[$i]}" | bc`
+		echo "$x $y"
+	done > plist.txt
+
+
+	# create and display/view mode
+	# note gnuplot must be left flush
+	# note << EOF is needed when gnuplot is in a script
+
+gnuplot << EOF
+set terminal gif size 400,400 pointsize 10
+set size square
+set title "Cumulative Histogram - Count% vs Gray%"
+set grid
+unset key
+set xlabel "Gray%"
+set ylabel "Count%"
+set output "cumhist_graph.png"
+plot [0:100] "plist.txt" with lines
+quit
+EOF
+	
+	if [ "$mode" = "view" ]; then
+		convert cumhist_graph.png show:
+		rm -f cumhist_graph.png
+	fi
+
+fi
+
+exit 0

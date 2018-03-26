@@ -1,0 +1,199 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 6/1/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+#
+# USAGE: exposure -a amount infile outfile
+# USAGE: exposure [-h or -help]
+#
+# OPTIONS:
+#
+# -a amount       amount of exposure change in percent; -100<=amount<=100;
+#                 positive will be brighter and negative will be darker; 
+#                 default=0 (no change)
+#
+###
+#
+# NAME: EXPOSURE 
+# 
+# PURPOSE: To change the exposure level of an image.
+# 
+# DESCRIPTION: EXPOSURE changes the exposure level of an image to make  
+# it either brighter or darker. It uses -level 0x(100-amount)% to make 
+# it brighter and +level 0x(100+amount)% to make it darker.
+# 
+# OPTIONS: 
+#
+# -a amount ...  AMOUNT of exposure change in percent. Values are floats 
+# between -100 and 100. Positive values increase exposure (make it brighter) 
+# and negative values decrease exposure (make it darker darker). The default 
+# is zero or no change.
+# 
+# NOTE: This script requires IM 6.4.2-0 or higher due to the use of 
+# +level, if making the image darker.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+amount=0
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   amount=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE A FLOAT ---"
+					   amounttestA=`echo "$amount < -100" | bc`
+					   amounttestB=`echo "$amount > 100" | bc`
+					   [ $amounttestA -eq 1 -o $amounttestB -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE A FLOAT BETWEEN -100 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INFILE FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+tmpA1="$dir/exposure_A_$$.mpc"
+tmpA2="$dir/exposure_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+# read the input image into the TMP cached image.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get sign of amount
+sign=`convert xc: -format "%[fx:sign($amount)]" info:`
+
+#echo "amount=$amount; sign=$sign"
+
+# test if IM version compatible with +level
+[ "$sign" = "-1" -a "$im_version" -lt "06040200" ] && errMsg "--- IM VERSION IS NOT COMPATIBLE WITH +LEVEL ---"
+
+
+# set up operation
+if [ "$amount" = "0" -o "$amount" = "0.0" ]; then
+	operation=""
+elif [ "$sign" = "1" -o "$sign" = "+1" ]; then
+	amount=`convert xc: -format "%[fx:100-$amount]" info:`
+	operation="-level 0%x${amount}%"
+elif [ "$sign" = "-1" ]; then
+	amount=`convert xc: -format "%[fx:100+$amount]" info:`
+	operation="+level 0%x${amount}%"
+fi
+
+#echo "amount=$amount; operation=$operation"
+
+# process image
+convert $tmpA1 $operation "$outfile"
+
+exit 0

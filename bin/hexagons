@@ -1,0 +1,292 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/16/2016 .......... revised 12/16/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: hexagons [-d dimension] [-c cellsize] [-e edgecolor] [-t thickness] 
+# infile outfile
+# USAGE: hexagons [-h or -help]
+#
+# OPTIONS:
+#
+# -d     dimension      square size of the output image; default is the 
+#                       minimum dimension of the input
+# -c     cellsize       square size of hexagon cellsize; pixels or percent with 
+#                       % symbol included; default is 1/3 of dimension; the
+#                       minumum size is the equivalent of 50 pixels and the 
+#                       maximum size is dimension (100%)
+# -e     edgecolor      edge color assigned to border of hexagons; any valid 
+#                       IM color is allowed; default is no edge color
+# -t     thickness      thickness of edges in pixels; integer>=0; default=0
+# 
+###
+#
+# NAME: HEXAGONS
+# 
+# PURPOSE: To create a hexagonal grid of the randomly rotated input image.
+# 
+# DESCRIPTION: HEXAGONS creates a hexagonal grid of scaled and randomly rotated 
+# copies of the input image. The input image will be center cropped to its 
+# minimum dimension for use in the hexagons.
+# 
+# OPTIONS: 
+# 
+# -d dimension ... DIMENSION is the square size of the output image. The 
+# default is the minimum dimension of the input.
+#  
+# -c cellsize ... CELLSIZE is the square size of the hexagon cells. Units 
+# are either pixels or percent with % symbol included. The default is 1/3 of 
+# the dimension value. The minumum allowed size is the equivalent of 50 pixels 
+# and the maximum size is the dimension argument (i.e. 100%).
+# 
+# -e edgecolor ... EDGECOLOR is the color assigned to edges (border) of the 
+# hexagons. Any valid IM color is allowed. The default is no edge color.
+# 
+# -t thickness ... THICKNESS of edges in pixels. Values are integers>=0. 
+# The default=0 (no edge color).
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+dim=""
+cellsize=""
+edgecolor=""
+thickness=0
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/HEXAGONS.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		   -h|help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # dimension
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   dimension=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dimension" = "" ] && errMsg "--- DIMENSION=$dimension MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-c)    # cellsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CELLSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   cellsize=`expr "$1" : '\([0-9]*%*\)'`
+					   [ "$cellsize" = "" ] && errMsg "--- CELLSIZE=$cellsize MUST BE A NON-NEGATIVE INTEGER (with no sign) WITH OR WITHOUT TRAILING % SYMBOL---"
+					   ;;
+				-e)    # edgecolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EDGECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   edgecolor="$1"
+					   ;;
+				-t)    # thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# get dim if not provided
+if [ "$dim" = "" ]; then
+	dim=`convert "$infile" -format "%[fx:min(w,h)]" info:`
+fi
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" -gravity center -crop ${dim}x${dim}+0+0 +repage $dir/tmpI.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get cellsize if not provided
+if [ "$cellsize" = "" ]; then
+	cellsize=`convert xc: -format "%[fx:round($dim/3)]" info:`
+else
+	test=`echo "$cellsize" | grep "%"`
+	if [ "$test" != "" ]; then
+		#convert from percent to pixels
+		cellsize=`echo "$cellsize" | sed 's/%*//g'`
+		cellsize=`convert xc: -format "%[fx:round($cellsize*$dim/100)]" info:`
+	fi
+fi
+[ $cellsize -lt 50 -o $cellsize -gt $dim ] && errMsg "--- INVALID CELLSIZE  ---"
+#echo "dim=$dim; cellsize=$cellsize;"
+
+# create array of hexagons to form regularly tiled pattern
+dim1=`convert xc: -format "%[fx:($dim-1)+0.5*$cellsize]" info:`
+# if cellsize cellsize is 1, then hexagon width = 1 and cellsize = 0.5, height = 0.866
+# so horizontal spacing = 1.5 and vertical spacing = 0.433
+hexArr=(`awk -v cellsize="$cellsize" -v dim1="$dim1" '
+BEGIN { j=0; y=0; while ( y < dim1 ) 
+{ if (j%2==0) {x=0.75*cellsize;} else {x=0;} while (x < dim1 ) 
+{ if (x>dim1) {x=dim1;} if (y>dim1) {y=dim1;} print "+"(x-0.5*cellsize)"+"(y-0.5*cellsize); x=x+1.5*cellsize; } 
+j++; y=y+0.433*cellsize; } }'`)
+num=${#hexArr[*]}
+#echo $num
+#echo "${hexArr[*]}"
+
+# create array of random angles
+rotArr=(`for ((i=0; i<num; i++)); do
+convert xc: -format "%[fx:360*random()]\n" info:
+done`)
+#echo "${rotArr[*]}"
+
+# create a hexagon shaped mask
+cellsize2=`convert xc: -format "%[fx:$cellsize/2]" info:`
+for ((i=0; i<6; i++)); do
+xArr[$i]=`convert xc: -format "%[fx:$cellsize2*cos(2*pi*$i/6+pi)+$cellsize2]" info:`
+yArr[$i]=`convert xc: -format "%[fx:$cellsize2*sin(2*pi*$i/6+pi)+$cellsize2]" info:`
+ptArr[$i]="${xArr[$i]},${yArr[$i]}"
+done
+convert -size ${cellsize}x${cellsize} xc:black -fill white -draw "polygon ${ptArr[*]}" $dir/tmpM.mpc
+
+# resize the input image
+cellsize3=`convert xc: -format "%[fx:1.414*$cellsize]" info:`
+convert $dir/tmpI.mpc -resize ${cellsize3}x${cellsize3} $dir/tmpI.mpc
+
+if [ "$edgecolor" = "" -o $thickness -eq 0 ]; then
+
+	# fill cells with rotated images at grid offsets
+	( for ((i=0; i<num; i++)); do
+	convert -respect-parenthesis \( $dir/tmpI.mpc -rotate "${rotArr[$i]}" +repage \) \
+	$dir/tmpM.mpc -gravity center -alpha off -compose copy_opacity -composite \
+	-trim +repage -resize ${cellsize}x${cellsize} +repage -set page "${hexArr[$i]}" miff:-
+	done ) | convert - $dir/tmpT.mpc
+
+else 
+	
+	# fill cells with rotated images at grid offsets and add border color to each hexagon
+	( for ((i=0; i<num; i++)); do
+	convert -respect-parenthesis \( $dir/tmpI.mpc -rotate "${rotArr[$i]}" +repage \) \
+	$dir/tmpM.mpc -gravity center -alpha off -compose copy_opacity -composite \
+	-trim +repage -resize ${cellsize}x${cellsize} +repage \
+	\( -clone 0 -alpha extract -write mpr:alpha +delete \) \
+	\( mpr:alpha -fill "$edgecolor" -colorize 100 \) \
+	\( mpr:alpha -morphology edgein diamond:$thickness \) \
+	-compose over -composite \
+	mpr:alpha -alpha off -compose copy_opacity -composite \
+	-set page "${hexArr[$i]}" miff:-
+	done ) | convert - $dir/tmpT.mpc
+
+fi
+
+# flatten filled hexagons to form the output image
+convert -size ${dim}x${dim} xc:black $dir/tmpT.mpc -flatten "$outfile"
+
+
+exit 0

@@ -1,0 +1,357 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/31/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: sigmoidal [-b bri] [-c con] [-C channels] [-l lutlength] [-g] infile outfile
+# USAGE: sigmoidal [-h or -help]
+#
+# OPTIONS:
+# 
+# -b     bri     	     brightness change; float; positive increases brightness; 
+#                        negative decreases brightness; default=0 (no change)
+# -c     con     	     contrast change; float; positive increases contrast; 
+#                        negative decreases contrast; default=0 (no change)
+# -C     channels        any valid IM combination of channels corresponding to 
+#                        the image's colorspace to which to apply the 
+#                        transformation: r,g,b,a, or c,m,y,k,a; 
+#                        default=all non-alpha channels
+# -l     lutlength       length of 1D lut; integer>0; default=1000
+# -g                	 enables the creation of a graph of the sigmoidal curve 
+#                        mapping transformation, which is then displayed 
+#                        automatically. There is a default setting below that 
+#                        can be changed to enable this to be save to a file 
+#                        named outfile_sigmoidal_graph.gif rather than just viewed.
+#                         
+###
+#
+# NAME: SIGMOIDAL
+#
+# PURPOSE: To apply a sigmoidal brightness and/or contrast adjustment to an image.
+#
+# DESCRIPTION: SIGMOIDAL applies a sigmoidal brightness and/or contrast 
+# adjustment to an image. The contrast change is the IM 
+# -/+sigmoidal-contrast con,50%. The brightness change is the IM
+# -/+sigmoidal-contrast bri,0%. Thus it is half the sigmoidal curve.  
+# The bri values are 10 time larger than those used in the IM function and 
+# the con values are 5 time larger than those used in the IM function.
+# The transformation is generated as a 1D lut and applied to the image using 
+# -clut to affect the desired brightness and/or contrast transformation. 
+# The transformation is sensitive to the specified channels. This script is 
+# similar to, but not exactly identical to the Photoshop new (CS3 or higher) 
+# brightness contrast function.
+# 
+# OPTIONS: 
+# 
+# -b bri ... BRI is the amount of brightness change. Values are positive or 
+# negative floats. Positive values increase the brightness, while negative 
+# values decrease the brightness. The default=0 for no change.
+# 
+# -c con ... CON is the amount of contrast change. Values are positive or 
+# negative floats. Positive values increase the contrast, while negative 
+# values decrease the contrast. The default=0 for no change.
+# 
+# -C  channels ... CHANNELS are any valid IM combination of channels 
+# corresponding to the image's colorspace to which to apply the transformation. 
+# Combinations include: r,g,b,a, or c,m,y,k,a (with no commas). The 
+# default=all non-alpha channels.
+# 
+# -l lutlength ... LUTLENGTH is the length of 1D lut. Values are integer>0. 
+# The default=1000.
+# 
+# -g ... enables the creation of a graph of the knee curve mapping 
+# transformation, which is then displayed automatically. There is a default 
+# setting below that can be changed to enable this to be save to a file named 
+# outfile_sigmoidal_graph.gif. The graph will be scaled to size 100x100.
+# 
+# REQUIREMENTS: IM 6.3.5-7 is required to support the use of -clut
+# 
+# NOTE: Negative values for con do not work properly between IM 6.7.6.4 and 
+# IM 6.7.8.2 inclusive due to bug in +sigmoidal-contrast
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, nor that 
+# trapping of inconsistent parameters is complete and foolproof. Use At Your 
+# Own Risk.
+# 
+######
+# 
+
+# set default value for scale and height of lut
+bri=0				# amount of brightness change; float
+con=0				# amount of contrast change; float
+channels=""			# combination of channels: r,g,b,a or c,m,y,k,a
+lutlength=1000		# length of 1D lut
+
+# set flag if graph is permanent (graph=save) or temporary (graph=view)
+graph="view"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages, usage and exit
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 11 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0  ;;
+				-g)    # display graph
+					   display_graph="yes" ;;
+				-b)    # get brightness amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRI SPECIFICATION ---"
+					   # checkMinus "$1"
+					   # test values
+					   bri=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$bri" = "" ] && errMsg "--- BRI=$bri MUST BE A FLOAT ---"
+					   ;;
+				-c)    # get contrast amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CON SPECIFICATION ---"
+					   # checkMinus "$1"
+					   # test values
+					   con=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$con" = "" ] && errMsg "--- CON=$con MUST BE A FLOAT ---"
+					   ;;
+				-l)    # get lutlength
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LUTLENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test values
+					   lutlength=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lutlength" = "" ] && errMsg "--- LUTLENGTH=$lutlength MUST BE AN INTEGER ---"
+				   	   testA=`echo "$amlutlengthount <= 0" | bc`
+				       [ $testA -eq 1 ] && errMsg "--- LUTLENGTH=$lutlength MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-C)    # get channels
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNELS SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test values
+					   channels=`expr "$1" : '\([-rgbcmyka]\)'`
+					   [ "$channels" = "" ] && errMsg "--- CHANNELS=$channels MUST BE A COMBINATION OF R,G,B,A OR C,M,Y,K,A WITH NO COMMAS ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"  ;;
+				*)     # end of arguments
+					   break ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpI1="$dir/sigmoidal_I_$$.mpc"
+tmpI2="$dir/sigmoidal_I_$$.cache"
+tmpL1="$dir/sigmoidal_L_$$.mpc"
+tmpL2="$dir/sigmoidal_L_$$.cache"
+
+# get outfile name before suffix
+outname=`echo "$outfile" | sed -n 's/^\([^.]*\)[.][^.]*$/\1/ p'`
+gg="_sigmoidal_graph"
+graphfile="$outname$gg.gif"
+
+# delete temporaries
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2;" 0
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" 1 2 3 15
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" ERR
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpI1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# setup channels
+if [ "$channels" != "" ]; then
+	channelize="-channel $channels"
+else
+	channelize=""
+fi
+
+# scale bri and con to range used by IM -sigmoidal-contrast
+abri=`convert xc: -format "%[fx:(1/10)*abs($bri)]" info:`
+acon=`convert xc: -format "%[fx:(2/10)*abs($con)]" info:`
+#echo "abri=$abri; acon=$acon"
+
+# test abri and acon if zero, positive or negative
+# note values less than 0.0001 are essentially zero, but -sigmoidal-contrast fails at exactly zero
+britest=`convert xc: -format "%[fx:abs($abri)<0.0001?0:($bri>0?1:-1)]" info:`
+contest=`convert xc: -format "%[fx:abs($acon)<0.0001?0:($con>0?1:-1)]" info:`
+#echo "britest=$britest; contest=$contest;"
+
+
+# create gradient for base lut
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# then -gradients: had both linear an no-linear options between 6.7.6.7 and 6.7.8.3,
+# though much of the above probably not resolved until the latter
+# so change gradient to linear form with gray() rather than gray names
+# tested on 6.7.4.10, 6.7.6.10, 6.7.7.8 to 6.7.8.3
+convert -size 1x$lutlength gradient:"gray(255)-gray(0)" -rotate 90 $tmpL1
+
+# apply brightness and contrast using sigmoidal-contrast
+
+if [ $britest -eq 0 -a $contest -eq 1 ]; then
+	# positive contrast only
+	convert $tmpL1 $channelize -sigmoidal-contrast $acon,50% +channel $tmpL1 
+
+elif [ $britest -eq 0 -a $contest -eq -1 ]; then
+	# negative contrast only
+	convert $tmpL1 $channelize +sigmoidal-contrast $acon,50% +channel $tmpL1 
+
+elif [ $britest -eq 1 -a $contest -eq 0 ]; then
+	# positive brightness only
+	convert $tmpL1 $channelize -sigmoidal-contrast $abri,0% +channel $tmpL1 
+
+elif [ $britest -eq -1 -a $contest -eq 0 ]; then
+	# negative brightness only
+	convert $tmpL1 $channelize +sigmoidal-contrast $abri,0% +channel $tmpL1 
+
+elif [ $britest -eq 1 -a $contest -eq 1 ]; then
+	# positive brightness and positive contrast
+	convert $tmpL1 $channelize -sigmoidal-contrast $acon,50% -sigmoidal-contrast $abri,0% +channel $tmpL1 
+
+elif [ $britest -eq 1 -a $contest -eq -1 ]; then
+	# positive brightness and negative contrast
+	convert $tmpL1 $channelize +sigmoidal-contrast $acon,50% -sigmoidal-contrast $abri,0% +channel $tmpL1 
+
+elif [ $britest -eq -1 -a $contest -eq 1 ]; then
+	# negative brightness and positive contrast
+	convert $tmpL1 $channelize -sigmoidal-contrast $acon,50% +sigmoidal-contrast $abri,0% +channel $tmpL1 
+
+elif [ $britest -eq -1 -a $contest -eq -1 ]; then
+	# negative brightness and negative contrast
+	convert $tmpL1 $channelize +sigmoidal-contrast $acon,50% +sigmoidal-contrast $abri,0% +channel $tmpL1 
+fi
+
+# process output
+convert $tmpI1 $tmpL1 -clut "$outfile"
+
+# convert lut into text format and scale to 101x101
+frac=`convert xc: -format "%[fx:101/255]" info:`
+pixvals=`convert $tmpL1 -scale "101x1!" -depth 8 -evaluate multiply $frac \
+	-compress none pgm:- | sed '1,3d'`
+
+
+# display graph if option -g
+if [ "$display_graph" = "yes" ];then
+	# create point pair list
+	plist=""
+	x=0
+	for y in $pixvals; do
+	plist="$plist $x,$y"
+	x=$(($x+1))
+	done
+	numpairs=$(($x-1))
+
+	# create and display graph
+    # echo "Points = $plist"
+	convert -size 150x150 xc: -fill white -stroke black \
+		-draw "rectangle 40,10 141,112" $tmpI1
+	convert $tmpI1 \
+	\( -size 100x101 xc: -stroke red -fill white -draw "polyline $plist" -flip \) \
+	-compose over -geometry 100x101+41+11 -composite $tmpI1
+	convert $tmpI1 -font Arial -pointsize 10 \
+		-draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' \
+		text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'i n p u t'" $tmpI1
+	convert -respect-parenthesis $tmpI1 \
+		\( -background white -fill black -font Arial -pointsize 10 \
+		-gravity center label:'o \nu \nt \np \nu \nt ' -trim \) \
+		-geometry +10+20 -compose over -composite $tmpI1
+	if [ "$graph" = "view" ]; then
+		convert $tmpI1 show:
+	elif [ "$graph" = "save" ]; then
+		convert $tmpI1 $graphfile
+	fi
+fi
+
+exit 0
