@@ -1,0 +1,479 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/12/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: levelcolors [-c channels] [lowcolorxhighcolor] infile outfile
+# USAGE: levelcolors [-h or -help]
+#
+# OPTIONS:
+#
+# -c      channels            channels are the sequence of channels to be 
+#                             processed. Choices are: any combinations 
+#                             of 1 to 4 of r,g,b,a such rgb or rgba;
+#                             The default is all available channels
+#                             in the image. IMPORTANT: if specified, 
+#                             then it MUST be before lowcolorxhighcolor
+#                             in the command line!
+# lowcolorxhighcolor          lowcolor is the color values to map to black;
+#                             highcolor is the color values to map to white;
+#                             the default is "rgba(0%,0%,0%,0)xrgba(100%,100%,100%,0)"
+#                             namely, (opaque) blackxwhite.
+#                             
+#
+# infile is limited to single channel gray or three channel rgb with or 
+# without an alpha channel. CMYK is excluded.
+#
+###
+#
+# NAME: LEVELCOLORS 
+# 
+# PURPOSE: To apply a color level transformation to an image channel-by-channel.
+# 
+# DESCRIPTION: LEVELCOLORS apply a color level transformation to an image using 
+# the -level operator on a channel-by-channel basis using color values 
+# specified to be mapped to black and to white.
+# 
+# OPTIONS: 
+# 
+# -c channels ... CHANNELS are the sequence of channels to be processed. 
+# Choices are: any combinations of 1 to 4 of r,g,b,a such rgb or rgba.
+# For grayscale images with alpha, specify r if you do not want the alpha 
+# channel processed. Specify rgb if you want to colorize a grayscale image.
+# The default is all available channels in the image. IMPORTANT: if channels 
+# are specified, then it must be before lowcolorxhighcolor in the command line.
+# 
+# lowcolorxhighcolor ... LOWCOLORxHIGHCOLOR are the two colors to be
+# mapped to black and white respectively on a channel-by-channel basis. If
+# no color values are provided, then the output will be the same as the
+# input. If lowcolor is left off (value specified as xHIGHCOLOR), then low
+# color of rgba(0%,0%,0%,0) (opaque black) will be used. If highcolor is
+# left off (value specified either as LOWCOLOR or xLOWCOLOR), then
+# highcolor will be set to the complement of the lowcolor, i.e. 
+# (QuantumRange minus lowcolor). Colors may be specified in an valid 
+# IM format: rgb(...), rgba(...), hexcolor values or color names. Use of 
+# color names assumes the name does not include the letter "x". If not 
+# using color names, you must enclose this argument in quotes. Alpha values 
+# may be included. Note: graya(...) color specifications do not seem to be 
+# working to generate any amount of transparency prior to IM 6.4.1-8. 
+# See http://imagemagick.org/script/color.php
+# 
+# NOTE: infile is limited to single channel gray or three channel rgb with or 
+# without an alpha channel. CMYK is excluded. The alpha channel will 
+# not be modified, but will be tranferred from input to output.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+clow="rgba(0%,0%,0%,0)"
+#chigh=""
+chigh="rgba(100%,100%,100%,0)"
+channels=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 5 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get channels
+					   shift  # to get the next parameter - channels
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNELS SPECIFICATION ---"
+					   checkMinus "$1"
+					   channels=`expr "$1" : '\([rgba]*\)'`
+					   [ "$channels" = "" ] && errMsg "CHANNELS=$channels MUST BE A COMBINATION OF R G B OR A"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+#echo "channels=$channels"
+#echo "num args=$#"
+	# get colors, infile and outfile
+	if [ $# -eq 3 ]; then
+		colors="$1"
+		infile="$2"
+		outfile="$3"
+	elif 
+	[ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	else
+	errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images and auto delete upon exit
+tmpA="$dir/levelcolors_$$.mpc"
+tmpB="$dir/levelcolors_$$.cache"
+tmpRd="$dir/levelcolors_Rd_$$.mpc"
+tmpGr="$dir/levelcolors_Gr_$$.mpc"
+tmpBl="$dir/levelcolors_Bl_$$.mpc"
+tmpAl="$dir/levelcolors_Al_$$.mpc"
+tmpR="$dir/levelcolors_Rd_$$.cache"
+tmpG="$dir/levelcolors_Gr_$$.cache"
+tmpB="$dir/levelcolors_Bl_$$.cache"
+tmpA="$dir/levelcolors_Al_$$.cache"
+trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA;" 0
+trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" ERR
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	: ' Do Nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# separate colors from argument
+
+# test if ends in x
+clo1=`echo "$colors" | sed -n 's/^\(.*\)x$/\1/p'`
+#echo "clo1=$clo1"
+# test if no x
+clo2=`echo "$colors" | sed -n 's/^\([^x][^x]*\)$/\1/p'`
+#echo "clo2=$clo2"
+# test if x in middle
+clo3=`echo "$colors" | sed -n 's/^\([^x][^x]*\)x[^x]*$/\1/p'`
+#echo "clo3=$clo3"
+
+# test if starts with x
+chi1=`echo "$colors" | sed -n 's/^x\(.*\)$/\1/p'`
+#echo "chi1=$chi1"
+# test if x in middle
+chi2=`echo "$colors" | sed -n 's/^[^x][^x]*x\([^x][^x]*\)$/\1/p'`
+#echo "chi2=$chi2"
+
+[ "$clo1" != "" ] && cl=$clo1
+[ "$clo2" != "" ] && cl=$clo2
+[ "$clo3" != "" ] && cl=$clo3
+[ "$clo1" = "" -a "$clo2" = "" -a "$clo3" = "" ] && cl=$clow
+#echo "cl=$cl"
+
+[ "$chi1" != "" ] && ch=$chi1
+[ "$chi2" != "" ] && ch=$chi2
+[ "$chi1" = "" -a "$chi2" = "" ] && ch=$chigh
+#echo "ch=$ch"
+
+# get IM version for version trap
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get colorspace and channels of image
+if [ $im_version -ge 06030901 ]; then 
+	colorspace=`convert "$tmpA" -format "%[colorspace]" info:`
+else
+	data=`identify -verbose $tmpA`
+	colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+fi
+#echo "colorspace=$colorspace"
+
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using levelcolors.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+# need to use -set colorspace sRGB for Grayscale images in IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace="sRGB"
+fi
+
+
+
+# Prior to IM 6.7.5.5 colorspace was RGB afterwards colorspace was sRGB
+imagechannels=`convert $tmpA[1x1+0+0] txt:- | sed -n 's/^[#].*,\([srgbacmyk]*\)$/\1/p'`
+#echo "imagechannels=$imagechannels"
+if [ "$imagechannels" = "rgb" ]; then
+	imagechannels="rgb"
+#	cspace="RGB"
+elif [ "$imagechannels" = "srgb" ]; then
+	imagechannels="rgb"
+#	cspace="sRGB"
+elif [ "$imagechannels" = "rgba" ]; then
+	imagechannels="rgba"
+#	cspace="RGB"
+elif [ "$imagechannels" = "srgba" ]; then
+	imagechannels="rgba"
+#	cspace="sRGB"
+fi
+#echo "cspace=$cspace; imagechannels=$imagechannels;"
+
+imagechannels2=`convert $tmpA -format "%[channels]" info:`
+if [ "$imagechannels" = "rgb" -a "$colorspace" = "Gray" ]; then
+	imagechannels="g"
+elif [ "$imagechannels" = "rgba" -a "$colorspace" = "Gray" ]; then
+	imagechannels="ga"
+elif [ "$imagechannels2" = "gray" -a "$colorspace" = "Gray" ]; then
+	imagechannels="g"
+elif [ "$imagechannels2" = "graya" -a "$colorspace" = "Gray" ]; then
+	imagechannels="ga"
+elif [ "$imagechannels" != "rgb" -a "$imagechannels" != "rgba" ]; then
+	errMsg "--- THIS SCRIPT ONLY HANDLES COLORSPACE sRGB, RGB AND GRAY IMAGES ---"
+fi
+#echo "imagechannels=$imagechannels"
+
+# if no channels specified (default), then set channels=imagechannels
+[ "$channels" = "" -a "$imagechannels" = "g" ] && channels="r"
+[ "$channels" = "" -a "$imagechannels" = "ga" ] && channels="ra"
+[ "$channels" = "" -a "$imagechannels" = "rgb" ] && channels="rgb"
+[ "$channels" = "" -a "$imagechannels" = "rgba" ] && channels="rgba"
+
+# strip spaces in specified colors
+cl=`echo "$cl" | sed -n 's/[ ]*//g p'`
+ch=`echo "$ch" | sed -n 's/[ ]*//g p'`
+#echo "cl=$cl"
+#echo "ch=$ch"
+
+
+# get color triplet or quartet values in range 0-QuantumRange for cl
+# strip spaces then extract numbers
+# then replace commas with spaces and count words
+# need to convert grayscale to 3 channels for IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace2="-set colorspace sRGB"
+else
+	setcspace2=""
+fi
+
+cl=`convert -size 1x1 xc:"$cl" $setcspace2 txt:- | sed -n 's/[ ]*//g; s/^0,0:[(]\([0-9,%]*\)[)].*$/\1/p'`
+clnum=`echo "$cl" | tr "," " " | wc -w`
+#echo "clnum=$clnum"
+#echo "cl=$cl"
+
+# get complement of cl for ch if chigh=""
+if [ "$ch" = "" ]; then
+	# compute complement of rgb values
+	cl_list=`echo "$cl" | tr "," " "`
+	ch_array=($cl_list)
+	val=${ch_array[0]}
+#echo $val
+	ch_array[0]=`convert xc: -format "%[fx:QuantumRange-$val]" info:`
+	val=${ch_array[1]}
+#echo $val
+	ch_array[1]=`convert xc: -format "%[fx:QuantumRange-$val]" info:`
+	val=${ch_array[2]}
+#echo $val
+	ch_array[2]=`convert xc: -format "%[fx:QuantumRange-$val]" info:`
+	ch_list="${ch_array[*]}"
+	ch=`echo "$ch_list" | tr " " ","`
+#echo "ch=$ch"
+	chnum=$clnum
+#echo "chnum=$chnum"
+
+else
+	# get color triplet or quartet values in range 0-QuantumRange for ch
+	# strip spaces then extract numbers
+	# then replace commas with spaces and count words
+	chdata=`convert -size 1x1 xc:"$ch" txt:-`
+	ch=`echo "$chdata" | sed -n 's/[ ]*//g; s/^0,0:[(]\([0-9,%]*\)[)].*$/\1/p'`
+	chnum=`echo "$ch" | tr "," " " | wc -w`
+#echo "chnum=$chnum"
+#echo "ch=$ch"
+fi
+
+
+# extract individual color channel values in range 0-QuantumRange
+i=1
+while [ $i -le $clnum ]; do
+	eval cl$i=`echo "$cl" | cut -d, -f$i`
+	#eval echo \$cl$i
+i=`expr $i + 1`
+done
+i=1
+while [ $i -le $chnum ]; do
+	eval ch$i=`echo "$ch" | cut -d, -f$i`
+	#eval echo \$ch$i
+i=`expr $i + 1`
+done
+
+: ' # DOES NOT APPEAR TO BE NEEDED?
+# normalize alpha channel to 0-1
+# NOTE: graya(xx%,y) always produces opaque whether y=any value 0-1 or 0%-100%, etc
+if [ $clnum -eq 4 -a $chnum -eq 4 ]; then
+	cl4=`convert xc: -format "%[fx:$cl4/QuantumRange]" info:`
+	ch4=`convert xc: -format "%[fx:$ch4/QuantumRange]" info:`
+#echo $cl4
+#echo $ch4
+fi
+'
+
+# Prior to IM 6.7.6.8 -channel a -separate was opacity; thereafter it is transparency
+# so must negate the alpha channel after separate (for prior case to get transparency)
+if [ $im_version -ge 06070608 ]; then
+	negating=""
+else
+	negating="-negate"
+fi
+
+# separate channels of input image
+if [ "$imagechannels" = "g" ]; then
+	convert $tmpA $setcspace -channel Red -separate +channel $tmpRd
+	convert $tmpRd $tmpGr
+	convert $tmpRd $tmpBl
+elif [ "$imagechannels" = "ga" ]; then
+	convert $tmpA $setcspace -channel Red -separate +channel $tmpRd
+	convert $tmpRd $tmpGr
+	convert $tmpRd $tmpBl
+	convert $tmpA -channel Alpha -separate +channel $tmpAl
+elif [ "$imagechannels" = "rgb" ]; then
+	convert $tmpA $setcspace -channel Red -separate +channel $tmpRd
+	convert $tmpA $setcspace -channel Green -separate +channel $tmpGr
+	convert $tmpA $setcspace -channel Blue -separate +channel $tmpBl
+elif [ "$imagechannels" = "rgba" ]; then
+	convert $tmpA $setcspace -channel Red -separate +channel $tmpRd
+	convert $tmpA $setcspace -channel Green -separate +channel $tmpGr
+	convert $tmpA $setcspace -channel Blue -separate +channel $tmpBl
+	convert $tmpA $setcspace -channel Alpha -separate +channel $negating $tmpAl
+fi
+
+# test for individual channels specified
+# returns number of chars in $channels if match found; otherwise 0
+isR=`expr "$channels" : 'r.*'` 
+isG=`expr "$channels" : '.*g.*'` 
+isB=`expr "$channels" : '.*b.*'` 
+isA=`expr "$channels" : '.*a'` 
+#echo "isR=$isR"
+#echo "isG=$isG"
+#echo "isB=$isB"
+#echo "isA=$isA"
+
+# process channel by channel and then combine
+if [ "$imagechannels" = "g" -a "$channels" = "r" ]; then
+	convert $tmpRd -level ${cl1},${ch1} "$outfile"
+elif [ "$imagechannels" = "ga"  -a "$channels" = "ra" ]; then
+	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
+	[ $isA -ne 0 ] && convert $tmpAl -level ${cl4},${ch4} $tmpAl
+	# need to use copy_opacity -composite rather than -channel RA to keep 2 channels
+	convert $tmpRd $tmpAl -alpha off -compose copy_opacity -composite "$outfile"
+elif [ "$imagechannels" = "rgb" -o "$imagechannels" = "g" ]; then
+echo "got here; $cl1; $ch1; $cl2; $ch2; $cl3; $ch3;"
+	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
+	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} $tmpGr
+	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} $tmpBl
+	convert $tmpRd $tmpGr $tmpBl -colorspace $cspace -combine "$outfile"
+elif [ "$imagechannels" = "rgba" -o "$imagechannels" = "ga" ]; then
+	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
+	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} $tmpGr
+	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} $tmpBl
+	convert $tmpRd $tmpGr $tmpBl -colorspace $cspace -combine \
+		$tmpAl -alpha off -compose copy_opacity -composite "$outfile"
+fi
+exit 0

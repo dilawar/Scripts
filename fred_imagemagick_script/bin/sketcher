@@ -1,0 +1,287 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/31/2015 .......... revised 6/27/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: sketcher [-g gain] [-m method] [-s saturation] [-h hue] [-t thicken]  
+# infile outfile
+# USAGE: sketcher [-help]
+#
+# OPTIONS:
+#
+# -g     gain           edge gain (i.e. strength); float>=0; default=5
+# -m     method         sketch method; choices are: grayscale, color, screen, 
+#                       softlight, pegtoplight, hardlight, linearlight, and 
+#                       vividlight; default=grayscale
+# -s     saturation     color saturation; integer>=0; default=100 (no change).
+# -h     hue            color hue; integer>=0; default=100 (no change).
+# -t     thicken        thickening of edges; integer>=0; default=0    
+#
+###
+#
+# NAME: SKETCHER 
+# 
+# PURPOSE: To apply a sketch-like effect to an image.
+# 
+# DESCRIPTION: EDGEFX applies a variety of sketch-like effects to an image.
+# 
+# OPTIONS: 
+# 
+# -g  gain ... GAIN is the edge gain (i.e. strength or intensity). 
+# Values are floats>=0. The default=5.
+# 
+# -m method ... METHOD of sketch. The choices are: grayscale, color, screen, 
+# softlight, pegtoplight, hardlight, linearlight, and vividlight. The default 
+# is grayscale.
+# 
+# -s saturation ... color SATURATION. Values are integers>=0. The default=100 
+# (no change). 0 is grayscale and 200 is twice the saturation
+# 
+# -h hue ... color HUE.  Values are integers>=0. The default=100 (no change).
+# 0 is negative 180 degree rotation (toward blue). 200 is positive 180 degree 
+# rotation (toward green).
+# 
+# -t thicken ... THICKEN amount for edges. Values are integers>=0. The 
+# default=0 (no thickening).
+# 
+# REQUIREMENTS: IM 6.6.2.2 due to the use of rotated kernels in -morphology 
+# convolve.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+gain=5				# edge gain
+type="grayscale"	# sketch type
+saturation=100		# color saturation
+hue=100				# color hue
+thicken=0			# thickening of edges
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-m)    # get  method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$method" in 
+					   		hardlight) ;;
+					   		softlight) ;;
+					   		pegtoplight) ;;
+					   		linearlight) ;;
+					   		vividlight) ;;
+					   		screen) ;;
+					   		grayscale) ;;
+					   		color) ;;
+					   		*) errMsg "--- METHOD=$method IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-s)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   saturation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-h)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   checkMinus "$1"
+					   hue=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-t)    # get thicken
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   thicken=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thicken" = "" ] && errMsg "--- THICKEN=$thicken MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set directory for temporary files
+tmpdir="$dir"
+
+dir="$tmpdir/SOFTFOCUS.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+# read input image into temporary memory mapped (mpc) format image
+convert -quiet "$infile" +repage $dir/tmpI.mpc ||
+	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# set up for swap
+if [ "$method" = "softlight" -o "$method" = "pegtoplight" ]; then
+	swapping="+swap"
+else
+	swapping=""
+fi
+
+# set up for grayscale
+if [ "$method" = "grayscale" ]; then
+	graying="-colorspace gray"
+else
+	graying=""
+fi
+
+# set up for composite
+if [ "$method" = "grayscale" -o "$method" = "color" ]; then
+	composing=""
+	deleting="-delete 0"
+else
+	composing="-compose $method -composite"
+	deleting=""
+fi
+
+# set up for saturation
+if [ "$saturation" != "100" -o "$hue" != "100" ]; then
+	modulating="-modulate 100,$saturation,$hue"
+else
+	modulating=""
+fi
+
+# set up for thickening
+if [ "$thicken" != "0" ]; then
+	thickening="-morphology dilate octagon:$thicken"
+else
+	thickening=""
+fi
+
+#echo "swapping=$swapping; graying=$graying; composing=$composing; deleting=$deleting; modulating=$modulating; thicken=$thicken;"
+
+# process image
+convert $dir/tmpI.mpc $graying \
+	\( -clone 0 -define convolve:scale='!' \
+	-define morphology:compose=Lighten \
+	-morphology Convolve  'Sobel:>' \
+	$thickening \
+	-negate -evaluate pow $gain \) \
+	$swapping $composing $deleting \
+	$modulating \
+	"$outfile"
+
+
+exit 0

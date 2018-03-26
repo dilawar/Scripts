@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/18/2009 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: fftfilter infile filtfile outfile
+# USAGE: fftfilter [-h or -help]
+#
+# OPTIONS:
+#
+# No options are required.
+# 
+###
+#
+# NAME: FFTFILTER 
+# 
+# PURPOSE: To perform filtering on an image in the frequency domain.
+# 
+# DESCRIPTION: FFTFILTER performs filtering on an image in the frequency
+# domain using a frequency domain filter image. Two inputs are required. The 
+# image and a grayscale frequency domain filter. The image is transformed to 
+# the frequency domain using -fft and the filter image is then multiplied with 
+# the Fourier transform of the image and the product is then returned to the 
+# spatial domain using -ift. Any alpha channel on the filter will be removed 
+# automatically before processing. If the image has an alpha channel it will 
+# not be processed, but simply copied from the input to the output.
+# 
+# OPTIONS: 
+# 
+# No options are required
+# 
+# The filter image must be appropriately centered and padded with black to 
+# the same size as the input image.
+# 
+# REQUIREMENTS: IM version 6.5.4-7 or higher. HDRI is not required, but Q8 
+# compilations of IM are not recommended as it will not carry enough precision. 
+# Also requires the FFTW delegate library.
+# 
+# LIMITATIONS: This script works well only with even, square images. Otherwise,   
+# the FFT will pad them with black to conform. However, there will be excessive 
+# ringing due to the color discontinuity associated with the padding. This 
+# even, square limitation is a ramification of the current IM implementation 
+# that needs addressing at some future time. It is not a limitation of FFTW.
+# 
+# See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
+# for more details about the Fourier Transform with ImageMagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 3 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, filtfile and outfile
+	infile="$1"
+	filtfile="$2"
+	outfile="$3"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that filtfile provided
+[ "$filtfile" = "" ] && errMsg "NO FILTER FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/fftfilter_1_$$.mpc"
+tmpB1="$dir/fftfilter_1_$$.cache"
+tmpA2="$dir/fftfilter_2_$$.mpc"
+tmpB2="$dir/fftfilter_2_$$.cache"
+tmpA="$dir/fftfilter_A_$$.pfm"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
+
+# LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.8.0.2 all non-hdri on 10/24/2012
+
+# test for valid version of IM
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
+
+
+# read the input image and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read the filter image and test validity.
+convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
+	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# test if image has alpha and set up copy to output
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpA1 -alpha extract $tmpA 
+	addalpha="$tmpA -compose over -alpha off -compose copy_opacity -composite"
+else
+	addalpha=""
+fi
+
+
+: '
+For filtering, the magnitude of the fft of the image is multiplied by the filter
+F=A  filter fft
+P=Cexp(iD) image fft where i=sqrt(-1) and C is magnitude and D is phase 
+FxP= ACexp(iD)
+'
+
+# If image and filter are not even and square, then need to pad filter to size of expected fft
+# because the IM FFT will not tranform the filter correctly due to the IM FFT padding.
+# This can be demonstrated by doing -fft -ift on filter image and see that it is no longer centered
+
+# get image dimensions for later cropping as inputs are padded to square, even dimensions
+width=`identify -ping -format "%w" $tmpA2`
+height=`identify -ping -format "%h" $tmpA2`
+
+# get padded to even square size
+dim=`convert xc: -format "%[fx:floor((2*max($width,$height)+1)/2)]" info:`
+#echo "dim=$dim"
+
+# pad filter if needed
+if [ $dim -ne $width -o $dim -ne $height ]; then
+	convert $tmpA2 -gravity center -background black -extent ${dim}x${dim} $tmpA2
+fi
+
+# transform the image to magnitude and phase,
+# multiply magnitude by filter and use as produce magnitude
+# transform product magnitude and original phase back
+#
+convert \( $tmpA1 -fft \) \
+	\( -clone 0 $tmpA2 -compose multiply -composite \) \
+	-delete 0 +swap -ift \
+	-crop ${width}x${height}+0+0 +repage $addalpha "$outfile"
+
+exit 0

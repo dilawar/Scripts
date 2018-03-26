@@ -1,0 +1,271 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/24/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: melt [-l length] [-d direction] [-b blur] infile outfile
+# USAGE: melt [-h or -help]
+#
+# OPTIONS:
+#
+# -l      length         length of melt effect; integer>0
+# -d      direction      direction of melt; North,South,East,West
+#                        default=South
+# -b      blur           initial blur amount; float>=0; default=0
+#
+###
+#
+# NAME: MELT 
+# 
+# PURPOSE: To create a melting-like blur effect in an image.
+# 
+# DESCRIPTION: MELT creates a melting-like blur effect in an image using
+# an iterative offset and compare technique. The brighter of the comparison 
+# values will be used.
+# 
+# OPTIONS: 
+# 
+# -l length ... LENGTH is the melt distance. Values are integers greater 
+# than 0. The default is 10. The length determines the number of iterations.
+# 
+# -d direction ... DIRECTION is the melt direction. Values may  
+# be North, South, East, West (or abbreviations N,S,E,W). The default=South
+# 
+# -b blur ... BLUR is an initial blurring of the image to make the pixels wider 
+# before applying the melting process. Values for blur are floats>=0. Typical 
+# values are a few pixels. The default=0.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+length=10
+direction="South"
+blurwidth=0
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-l)    # get length
+					   shift  # to get the next parameter - length
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   length=`expr "$1" : '\([0-9]*\)'`
+					   [ "$length" = "" ] && errMsg "LENGTH=$length MUST BE AN INTEGER"
+		   			   lengthtest=`echo "$length <= 0" | bc`
+					   [ $lengthtest -eq 1 ] && errMsg "--- LENGTH=$length MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-d)    # get  direction
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIRECTION SPECIFICATION ---"
+					   checkMinus "$1"
+					   direction="$1"
+					   case "$1" in 
+					   		North) ;;
+					   		north) ;;
+					   		N) ;;
+					   		n) ;;
+					   		South) ;;
+					   		south) ;;
+					   		S) ;;
+					   		s) ;;
+					   		East) ;;
+					   		east) ;;
+					   		E) ;;
+					   		e) ;;
+					   		West) ;;
+					   		west) ;;
+					   		W) ;;
+					   		w) ;;
+					   		*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get blurwidth
+					   shift  # to get the next parameter - blur
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blurwidth=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blurwidth" = "" ] && errMsg "BLUR=$blurwidth MUST BE A FLOAT"
+		   			   blurtest=`echo "$blurwidth < 0" | bc`
+					   [ $blurtest -eq 1 ] && errMsg "--- BLUR=$blurwidth MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# test if image an ordinary, readable and non-zero size
+if [ -f $infile -a -r $infile -a -s $infile ]
+	then
+	: 'Do Nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# set temporary files
+tmpA="$dir/melt_1_$$.mpc"
+tmpB="$dir/melt_1_$$.cache"
+tmpC="$dir/melt_2_$$.mpc"
+tmpD="$dir/melt_2_$$.cache"
+trap "rm -f $tmpA $tmpB $tmpC $tmpD;" 0
+trap "rm -f $tmpA $tmpB $tmpC $tmpD; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpC $tmpD; exit 1" ERR
+
+# set parameters
+iter=$length
+ww=`convert $infile -format "%w" info:`
+hh=`convert $infile -format "%h" info:`
+ww1=`expr $ww - 1`
+hh1=`expr $hh - 1`
+wd3=`convert xc: -format "%[fx:$blurwidth/3]" info:`
+
+if [ "$blurwidth" != "0" -a "$blurwidth" != "0.0" ]
+	then
+	blur="-blur 0x$wd3"
+else
+	blur=""
+fi
+
+if [ "$direction" = "South" -o "$direction" = "south" -o "$direction" = "S" -o "$direction" = "s" ]
+	then
+	sub1="${ww}x1+0+0"
+	sub2="${ww}x${hh1}+0+0"
+	append="-append"
+elif [ "$direction" = "North" -o "$direction" = "north" -o "$direction" = "N" -o "$direction" = "n" ]
+	then
+	sub1="${ww}x${hh1}+0+1"
+	sub2="${ww}x1+0+${hh1}"
+	append="-append"
+elif [ "$direction" = "East" -o "$direction" = "east" -o "$direction" = "E" -o "$direction" = "e" ]
+	then
+	sub1="1x${hh}+0+0"
+	sub2="${ww1}x${hh}+0+0"
+	append="+append"
+elif [ "$direction" = "West" -o "$direction" = "west" -o "$direction" = "W" -o "$direction" = "w" ]
+	then
+	sub1="${ww1}x${hh}+1+0"
+	sub2="1x${hh}+${ww1}+0"
+	append="+append"
+fi
+
+echo ""
+echo "Iterations:"
+echo ""
+# process image
+convert $infile $blur $tmpA
+convert $tmpA[$sub1] $tmpA[$sub2] $append $tmpC
+i=0
+while [ $i -lt $iter ]
+	do
+echo $i
+	convert $tmpA $tmpC -compose lighten -composite $tmpA
+	convert $tmpA[$sub1] $tmpA[$sub2] $append $tmpC
+	i=`expr $i + 1`
+done
+convert $tmpA "$outfile"
+exit 0

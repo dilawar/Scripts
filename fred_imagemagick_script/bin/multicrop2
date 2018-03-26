@@ -1,0 +1,560 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/30/2015 .......... revised 1/14/2018
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: multicrop2 [-c coords] [-b bcolor] [-f fuzzval] [-d discard] 
+# [-u unrotate] [-i innertrim] [-e extend] [-m mask] [-t threshold] 
+# [-D density] [-s showstats] infile outfile
+# USAGE: multicrop [-h or -help]
+# 
+# OPTIONS:
+# 
+# -c     coords        pixel coordinate to extract background color; 
+#                      may be expressed as gravity value (NorthWest, etc)
+#                      or as "x,y" value; default is NorthWest=(0,0)
+# -b     bcolor        background color to use instead of option -c;
+#                      any valid IM color; default is to use option -c
+# -f     fuzzval       fuzz value for separating background color; expressed 
+#                      as (integer) percent 0 to 100; default=0 (uniform color)
+# -d     discard       discard any region that has an area smaller than
+#                      this size; integer>0; default is to keep all
+# -u     unrotate      unrotate method; choices are 1 for -deskew, 2 for 
+#                      unrotate script and 3 for no unrotate; default=1
+# -i     innertrim     trims inside the cropped area to an orthogonal rectangle;
+#                      yes or no; default=no      
+# -e     extend        extend crop on each side in pixels; integer; default=0  
+# -m     mask          mask presentation method; choices are view, 
+#                      save (to file) or output mask only; default 
+#                      is none of the above, just output the images
+# -t     threshold     threshold on number of objects; aborts if more than 
+#                      threshold number of objects are detected; integer>0; 
+#                      default is no abort and keep all objects.
+# -D     density       density to use when reading a single page of a PDF; 
+#                      integer>0; default is no assigned density
+# -s     showstats     show connected components stats; yes or no; default=no
+# 
+###
+# 
+# NAME: MULTICROP2
+# 
+# PURPOSE: To crop and unrotate multiple images from a scanned image.
+# 
+# DESCRIPTION: MULTICROP2 crops and unrotates multiple images from a scanned image.
+# The images must be well separated so that background color shows between them. 
+# The process uses a floodfill technique based upon a seed coordinate and a fuzz 
+# value to separate the individual images from the background of the scan. 
+# The correct choice of fuzz factor is very important. If too small, the images 
+# will not be separate. If too large, parts of the outer area of the image 
+# containing similar colors will be lost and the image may be separated into 
+# multiple parts. There are two unrotate methods. The first uses the IM deskew 
+# function, but is limited to 5 degrees of rotate or less. The second uses my 
+# unrotate script. It allows much larger rotations, but will be slower. If 
+# using the second method, my unrotate script must be downloaded and installed.
+# 
+# IMPORTANT: The images in the scanned file must be well separated in x and y
+# so that their bounding boxes do not overlap. This is especially important 
+# if the images have a significant rotation.
+# 
+# The output images will be named from the specified outfile and -000, -001, 
+# -002 etc, will be appended before the .suffix.
+# 
+# Arguments: 
+# 
+# -c coords ... COORDS is any location within the background (non-image) area 
+# for the algorithm to find the background color. It may be specified in terms  
+# of gravity parameters (NorthWest, North, NorthEast, East, SouthEast, South, 
+# SouthWest or West) or as a pixel coordinate "x,y". The default is the 
+# upper left corner = NorthWest = "0,0".
+# 
+# -b bcolor ... BCOLOR is the background color to use for flood fill instead 
+# of extracting this color from the image. This is useful when an image has 
+# no borders with sub-images hard against the edges. Any valid IM color is 
+# allowed. The default is to use option -c.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz amount specified as an integer percent
+# value between 0 to 100 (without the % sign). The correct choice of fuzz
+# factor is very important. If too small, the images will not be separate.
+# If too larger, parts of the outer area of the image containing similar
+# colors will be lost and the image may be separated into multiple parts.
+# Typical values are probably between 5 and 20 percent. The default=10
+# 
+# -d discard ... DISCARD any region that has an area smaller than the 
+# specified discard size. Values are integer>0. The default is to keep all 
+# regions.
+# 
+# -u unrotate ... UNROTATE is the unrotation method. Choices are: 1, 2 or 3.
+# The default is unrotate=1, which is fast and uses the IM -deskew function, 
+# but is limited to images that are rotated no more than 5 degrees in the scan
+# and generally a light background color. Option unrotate=2 uses my unrotate 
+# script. It can handle larger rotations, but is slower. If using the latter 
+# method, my unrotate script must be downloaded and also installed so that it 
+# is available for this script to use. Option unrotate=3 makes no attempt to 
+# unrotate the images.
+# 
+# -i innertrim ... INNERTRIM trims inside the cropped area to an orthogonal 
+# rectangle. Requires my script, autotrim. The choices are: yes or no. 
+# The default=no.
+#
+# -e extend ... EXTEND crop on each side for the output images in pixels. 
+# The extended region will come from the background of the image. Values are integers. 
+# Positive makes the results larger. Negative makes the results smaller. Positive 
+# values are only allowed for unrotate=3 (no unrotation) and innertrim=no. The default=0.
+# 
+# -m mask ... MASK provides several options for reviewing the initial mask that 
+# is generated by the fuzz value. The choices are: view (display to X11 window),
+# save (to disk) along with the images, or output (without processing the images).
+# The default is to simply process the images without showing or saving the mask.
+# If using the view mode, then processing will stop until the image is closed. 
+# But this allows you to then kill the script if the mask is not appropriate. 
+# A good approach is to use the output mode repeatedly with various fuzzvals 
+# until a reasonable mask is created. Note that the mask must separate the 
+# images, but the background can "eat" a little into the images so long as no 
+# full edge is lost or the images is split into multiple parts.
+# 
+# -t threshold ... THRESHOLD on the number of objects. The script aborts, if 
+# more than the threshold number of objects are detected. Value must be 
+# integers greater than 0. The default is no abort and keep all objects. 
+# To avoid an abort, use the -d discard option. 
+# 
+# -D density ... DENSITY to use when reading a single page of a PDF. Multipage pdf 
+# files are not permitted. Values are integers>0. The default is no assigned density.
+# 
+# -s showstats ... SHOWSTATS shows the connected components statistics. 
+# Choices are: yes (y) or no (n). The default=no.
+# 
+# REQUIREMENTS: IM 6.8.9.10 due to the use of -connected-components.
+# If using unrotate method 2, then my script, unrotate, is required. 
+# If using innertrim, then my script, autotrim is required.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values 
+coords=""			# initial coord for finding background color
+bcolor=""      			# initial background color
+fuzzval=10 				# fuzz amount in percent for making background transparent
+discard=""				# discard small regions
+extend=0				# extend the output crop on all sides
+mask=""					# view, save, output
+threshold=""			# threshold on number of objects; if larger, then abort
+unrotate=1				# 1=deskew 2=unrotate
+innertrim="no"			# trim inside cropped area to orthogonal rectangle
+density=""				# density to use for input PDF
+showstats="no"          # show CCL stats
+debug="false"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-f)    # fuzzval
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   fuzzval=`expr "$1" : '\([0-9]*\)'`
+				   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+				   fuzzvaltestA=`echo "$fuzzval < 0" | bc`
+				   fuzzvaltestB=`echo "$fuzzval > 100" | bc`
+				   [ $fuzzvaltestA -eq 1 -a $fuzzvaltestB -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE INTEGER VALUE BETWEEN 0 AND 100 ---"
+				   ;;
+			-c)    # coords
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+				   checkMinus "$1"
+				   coords=$1
+				   # further testing done later
+				   ;;
+			-b)    # bcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign
+				   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   bcolor=$1
+				   ;;
+			-d)    # discard
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DISCARD SPECIFICATION ---"
+				   checkMinus "$1"
+				   discard=`expr "$1" : '\([0-9]*\)'`
+				   [ "$discard" = "" ] && errMsg "--- DISCARD=$discard MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+				   testA=`echo "$discard < 1" | bc`
+				   [ $testA -eq 1 ] && errMsg "--- DISCARD=$discard MUST BE A NON-NEGATIVE INTEGER VALUE GREATER THAN 0 ---"
+				   ;;
+			-e)    # extend
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID EXTEND SPECIFICATION ---"
+				   #checkMinus "$1"
+				   extend=`expr "$1" : '\([-0-9]*\)'`
+				   [ "$extend" = "" ] && errMsg "--- EXTEND=$extend MUST BE AN INTEGER VALUE (with no sign) ---"
+				   ;;
+			-u)    # unrotate
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID UNROTATE SPECIFICATION ---"
+				   checkMinus "$1"
+				   unrotate=`expr "$1" : '\([0-9]\)'`
+				   [ $unrotate -lt 1 -a $unrotate -gt 3 ] && errMsg "--- UNROTATE=$unrotate MUST BE EITHER 1, 2, 3 OR 4 ---"
+				   ;;
+			-i)    # get innertrim
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID INNERTRIM SPECIFICATION ---"
+				   checkMinus "$1"
+				   innertrim="$1"
+				   innertrim=`echo "$innertrim" | tr "[:upper:]" "[:lower:]"`
+				   case "$innertrim" in 
+						yes|y) innertrim="yes" ;;
+						no|n) innertrim="no" ;;
+						*) errMsg "--- INNERTRIM=$innertrim IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			-m)    # mask
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID MASK SPECIFICATION ---"
+				   checkMinus "$1"
+				   mask=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   [ "$mask" != "view" -a "$mask" != "save" -a "$mask" != "output"  ] && errMsg "--- MASK=$mask MUST BE EITHER VIEW, SAVE OR OUTPUT ---"
+				   ;;
+			-t)    # threshold
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+				   checkMinus "$1"
+				   threshold=`expr "$1" : '\([0-9]*\)'`
+				   [ "$threshold" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+				   testA=`echo "$threshold < 1" | bc`
+				   [ $testA -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE A NON-NEGATIVE INTEGER VALUE GREATER THAN 0 ---"
+				   ;;
+			-D)    # density
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+				   checkMinus "$1"
+				   density=`expr "$1" : '\([0-9]*\)'`
+				   [ "$density" = "" ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+				   testA=`echo "$density == 0" | bc`
+				   [ $testA -eq 1 ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER VALUE GREATER THAN 0 ---"
+				   ;;
+			-s)    # showstats
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID SHOWSTATS SPECIFICATION ---"
+				   checkMinus "$1"
+				   showstats=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   [ "$showstats" != "yes" -a "$showstats" != "no" ] && errMsg "--- SHOWSTATS=$showstats MUST BE EITHER YES OR NO ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test if both bcolor and coords specified at the same time
+if [ "X$bcolor" != "X" -a "X$coords" != "X" ]; then
+  errMsg "--- BACKGROUND COLOR AND COODINATES CAN NOT BE USED TOGETHER ---"
+elif [ "X$bcolor" = "X" -a "X$coords" = "X" ]; then
+	coords="0,0"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# test if input is single layer/page/frame
+count=`convert -ping "$infile" -format "%m\n" info: | wc -l`
+[ $count -gt 1 ] && errMsg "--- MULTIPAGE/MULTIFRAME/MULTILAYER IMAGES ARE NOT ALLOWED ---"
+
+if [ "$density" != "" ]; then
+	dproc="-density $density"
+else
+	dproc=""
+fi
+
+# set up temp file
+tmpA1="$dir/multicrop2_1_$$.mpc"
+tmpB1="$dir/multicrop2_1_$$.cache"
+tmpA2="$dir/multicrop2_2_$$.mpc"
+tmpB2="$dir/multicrop2_2_$$.cache"
+tmpA3="$dir/multicrop2_3_$$.miff"
+
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3; exit 1" ERR
+
+# read the input image into the temp files and test validity.
+convert -quiet $dproc "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get output filename and suffix
+outnameArr=(`echo "$outfile" | sed -n 's/^\(.*\)[.]\([^.]*\)$/\1 \2/p'`)
+outname="${outnameArr[0]}"
+suffix="${outnameArr[1]}"
+#echo "outname=$outname"
+#echo "suffix=$suffix"
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
+# get image width and height
+width=`$identifying -ping -format "%w" $tmpA1`
+height=`$identifying -ping -format "%h" $tmpA1`
+
+# test for extend
+test=`convert xc: -format "%[fx:$extend>0?1:0]" info:`
+[ $test -eq 1 -a $unrotate -ne 3 ] && errMsg "--- SIGN FOR EXTEND=$extend MUST BE NEGATIVE ---"
+[ $test -eq 1 -a $unrotate -eq 3 -a "$innertrim" = "yes" ] && errMsg "--- SIGN FOR EXTEND=$extend MUST BE NEGATIVE ---"
+
+# get color at user specified location
+if [ "X$bcolor" != "X" ]; then
+	coords="0,0"
+else
+	widthm1=`convert xc: -format "%[fx:$width-1]" info:`
+	heightm1=`convert xc: -format "%[fx:$height-1]" info:`
+	midwidth=`convert xc: -format "%[fx:round(($width-1))/2]" info:`
+	midheight=`convert xc: -format "%[fx:round(($height-1))/2]" info:`
+	coords=`echo "$coords" | tr "[:upper:]" "[:lower:]"`
+	case "$coords" in
+		''|nw|northwest) coords="0,0" ;;
+		n|north)         coords="$midwidth,0" ;;
+		ne|northeast)    coords="$widthm1,0" ;;
+		e|east)          coords="$widthm1,$midheight" ;;
+		se|southeast)    coords="$widthm1,$heightm1" ;;
+		s|south)         coords="$midwidth,$heightm1" ;;
+		sw|southwest)    coords="0,$heightm1" ;;
+		w|west)          coords="0,$midheight" ;;
+		[0-9]*,[0-9]*)   coords=$coords ;;
+		*)  errMsg "--- INVALID COORDS ---" ;;
+	esac
+	bcolor=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+fi
+#echo "bcolor=$bcolor"
+
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+
+# add a border, and flood fill from all edges inward
+convert $tmpA1 -fuzz ${fuzzval}% -fill none \
+	-bordercolor $bcolor -border 1x1 \
+	-draw "$matte_alpha $coords floodfill" \
+	-shave 1x1 -fill white +opaque none \
+	-background black -alpha background -alpha off -type bilevel \
+	$tmpA2
+
+if [ "$mask" = "view" ]; then
+	display $tmpA2
+elif [ "$mask" = "save" ]; then
+	convert $tmpA2 ${outname}_mask.gif
+elif [ "$mask" = "output" ]; then
+	convert $tmpA2 ${outname}_mask.gif
+	exit 0
+fi
+
+# set up for unrotate 1 or 3
+if [ $unrotate -eq 1 ]; then
+	derotate="-background $bcolor -deskew 40%"
+elif [ $unrotate -eq 3 ]; then
+	derotate=""
+fi
+
+# set up discard
+if [ "$discard" != "" ]; then
+	discarding="-define connected-components:area-threshold=$discard"
+else
+	discarding=""
+fi
+
+# process image using connected components labeling
+echo ""
+data=`convert $tmpA2 \
+	-define connected-components:verbose=true \
+	$discarding -connected-components 4 null:`
+[ "$showstats" = "yes" ] && echo "$data"
+
+bboxArr=(`echo "$data" | tail -n +2 | sed 's/^[ ]*//' | cut -d\  -f2`)
+colorArr=(`echo "$data" | tail -n +2 | sed 's/^[ ]*//' | cut -d\  -f5`)
+num=${#bboxArr[*]}
+#echo $num
+
+# abort if too many objects
+# subtract 1 for background
+numm1=$((num-1))
+if [ "$threshold" != "" ]; then
+	[ $numm1 -gt $threshold ] && errMsg "--- TOO MANY OBJECTS DETECTED ---"
+fi
+
+echo ""
+k=0
+for ((i=0; i<num; i++)); do
+	color="${colorArr[$i]}"
+	if [ "$color" != "gray(0)" ]; then
+		echo "Processing Image $k"
+		kk=`printf "%03d" "$k"`
+		echo "Initial Crop Box: ${bboxArr[$i]}"
+		echo ""
+		if [ $unrotate -eq 3 ]; then
+			if [ $extend -eq 0 -o "$innertrim" = "yes" ]; then
+				convert $tmpA1 -crop "${bboxArr[$i]}" +repage $tmpA3
+			elif [ "$innertrim" = "no" -a $extend -ne 0 ]; then
+				wh=`echo "${bboxArr[$i]}" | cut -d+ -f1`
+				offx=`echo "${bboxArr[$i]}" | cut -d+ -f2`
+				offy=`echo "${bboxArr[$i]}" | cut -d+ -f3`
+				wd=`echo "$wh" | cut -dx -f1`
+				ht=`echo "$wh" | cut -dx -f2`
+				wd=$((wd+2*extend))
+				ht=$((ht+2*extend))
+				offx=$((offx-extend))
+				offy=$((offy-extend))
+				convert $tmpA1 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA3
+			fi
+		elif [ $unrotate -eq 1 ]; then
+			convert $tmpA1 -crop "${bboxArr[$i]}" +repage $derotate \
+				-bordercolor "$bcolor" -border 2 -fuzz ${fuzzval}% -trim +repage $tmpA3
+			if [ "$innertrim" = "no" -a $extend -ne 0 ]; then
+				wd=`$identifying -ping -format "%w" $tmpA3`
+				ht=`$identifying -ping -format "%h" $tmpA3`
+				wd=$((wd+2*extend))
+				ht=$((ht+2*extend))
+				offx=$((-extend))
+				offy=$((-extend))
+				convert $tmpA3 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA3
+			fi
+		elif [ $unrotate -eq 2 ]; then
+			convert $tmpA1 -crop "${bboxArr[$i]}" +repage \
+				-fuzz ${fuzzval}% -trim miff:- | \
+				unrotate -C "$bcolor" -f ${fuzzval}% - $tmpA3
+			if [ "$innertrim" = "no" -a $extend -ne 0 ]; then
+				wd=`$identifying -ping -format "%w" $tmpA3`
+				ht=`$identifying -ping -format "%h" $tmpA3`
+				wd=$((wd+2*extend))
+				ht=$((ht+2*extend))
+				offx=$((-extend))
+				offy=$((-extend))
+				convert $tmpA3 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA3
+			fi
+		fi
+		if [ "$innertrim" = "yes" ]; then
+			mextend=-$extend
+			autotrim -m inner -f $fuzzval -C "$bcolor" -l $mextend -t $mextend \
+				-r $extend -b $extend $tmpA3 ${outname}-${kk}.${suffix}
+		else
+			convert $tmpA3 ${outname}-${kk}.${suffix}
+		fi
+		k=$((k+1))
+	fi
+done
+echo ""
+
+exit 0
+
+
+

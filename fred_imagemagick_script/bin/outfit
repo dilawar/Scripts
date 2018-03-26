@@ -1,0 +1,643 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/4/2018 .......... revised 1/5/2018
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: outfit [-e extract] [-f fuzzval] [-b bgcolor] [-p position] [-a antialias] 
+# [-n] [-c reduce] [-m modulate] [-x xroll] [-y yroll] [-o orientation] [-l lightval] 
+# [-c contrast] [-d displace] [-s smooth] [-E] [-D directory] 
+# infile bgfile [maskfile] outfile
+#
+# USAGE: outfit [-help|-h]
+#
+# OPTIONS:
+#
+# -e     extract         method of providing a mask of object vs background; choices 
+#                        are: floodfill, refill or alpha; default=floodfill; the mask  
+#                        will become black at the background color and white elsewhere
+# -f     fuzzval         fuzz value for the extract method of floodfill or refill;  
+#                        float>=0; default=5
+# -b     bgcolor         background color to use for extracting the mask when using 
+#                        extract=refill; any valid IM opaque color is allowed; 
+#                        default=white
+# -p     position        positional coordinates to extract the background color when 
+#                        creating the mask using extract=floodfill; values are one 
+#                        integer x,y pair or a compass direction for one corner, side  
+#                        or middle of the image; default="0,0" (northwest corner of  
+#                        the image)
+# -a     antialias       mask boundary antialias blur amount; float>=0; default=1
+# -n                     negate (invert) the mask image
+# -r     reduce          reduction amount as percent for the infile (pattern image) 
+#                        before tiling it; integer>=0; default=10
+# -m     modulate        modulation (lightness, saturation, hue) for the infile 
+#                        (pattern image) before tiling it; comma separate triplet 
+#                        L,S,H; integers>=0; default="100,100,100" (no change)
+# -x     xroll           roll amount in pixels for the tiled image in the horizontal 
+#                        dimension; integer; default=0 
+# -y     xroll           roll amount in pixels for the tiled image in the vertical 
+#                        dimension; integer; default=0
+# -o     orientation     orientation angle for rotation of the tiled image; 
+#                        -360<=integer<=360; default=0
+# -l     lightval        average brightness in percent for the lighting image; 
+#                        integer>=0; default=40 
+# -c     contrast        shading contrast adjustment for the lighting image; integer>=0; 
+#                        default=5
+# -d     displace        displacement amount when applying the displacement image; 
+#                        integer>=0; default=5
+# -s     smooth          smoothing distance to apply to the perimeter between object 
+#                        and background of displacement image in order to reduce edge 
+#                        artifacts from too dark a region near the object perimenter
+# -E                     export the lighting image, displacement map and other 
+#                        needed parameters to be able to use a condensed outfitwarper  
+#                        script to repeat the processing on the same size and style  
+#                        outfit image for faster subsequent processing.
+# -D     directory       directory to write all the exported data, including a text file 
+#                        called outfit.txt containing the same textual parameter data 
+#                        sent to terminal. The directory can be specified in the  
+#                        outfitwarp script to import all the needed images and textual 
+#                        data.
+#
+# infile is the pattern image to be applied to the background outfit (clothing) image 
+#
+###
+#
+# NAME: OUTFIT 
+# 
+# PURPOSE: Transforms a pattern image to place it over an image of some piece of 
+# clothing or outfit.
+# 
+# DESCRIPTION: OUTFIT transforms a pattern image to place it over an image of some 
+# piece of clothing or outfit. The transformed image will display hightlights from the 
+# outfit image and be distorted to match the wrinkles in the outfit image. The process 
+# requires a mask image, which can be provided externally or created internally using 
+# either a floodfill or refill process. The floodfill or refill process change the 
+# background area to black and the rest to white. Floodfill requires a seed coordinate, 
+# and fuzz value and replaces color locally. Refill requires a background color and 
+# fuzz value and replaces color globally. The mask image or alpha channel must be a 
+# binary image (black/white) with at most the edges antialiased. This script will not 
+# bend textures to conform to curved or bent arms. Special processing such as at 
+# http://www.imagemagick.org/discourse-server/viewtopic.php?f=1&t=23348 will be 
+# needed, or alternately, use separate masks for each part that requires a different 
+# pattern orientation.
+# 
+# 
+# OPTIONS: 
+# 
+# -e extract ... EXTRACT is the method of extracting or providing a mask of object vs 
+# background. The choices are: floodfill (f), refill (r) or alpha (a). Floodfill 
+# generates the mask locally with a seed coordinate, background color and fuzz value. 
+# Refill generates a mask globally with a background color and fuzz value. Alpha gets 
+# the mask from the alpha channel of the background image. The default=floodfill. The 
+# mask will become black at the background color and white elsewhere. If maskfile is 
+# provide, it overrides this option.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz value for the extract method of floodfill or refill.
+# Values are floats>=0. The default=5.
+# 
+# -b bgcolor ... BGCOLOR is the background color to use for extracting the mask when  
+# using extract=refill. Any valid IM opaque color is allowed. The default=white. Note, 
+# extracting the mask when the background is very dark and the object (outfit) is very 
+# dark will not work well. Good separation of color is needed between the background 
+# and the object (outfit/clothing)
+# 
+# -p position ... POSITION is the positional coordinated to use to extract the mask when
+# using extract=floodfill. Values are either one integer x,y pair or a compass direction 
+# for a corner, side or middle of the background image. The default="0,0" (northwest 
+# corner of the background image).
+# 
+# -a antialias ... ANTIALIAS is the mask boundary antialias (blur sigma) amount. Values  
+# are floats>=0. The default=1.
+# 
+# -n ... NEGATE (invert) the mask image.
+# 
+# -r reduce ... REDUCE is the reduction amount as percent for the infile (pattern image) 
+# before tiling it. Values are integers>=0. The default=10.
+# 
+# -m modulate ... MODULATE is the modulation (lightness, saturation, hue) applied to the  
+# infile (pattern image) before tiling it. Values are a comma separate triplet L,S,H of 
+# integers>=0. The default="100,100,100" (no change).
+# 
+# -x xroll ... XROLL is the roll amount in pixels for the tiled image in the horizontal 
+# dimension. Values are integers. The default=0.
+# 
+# -x yroll ... YROLL is the roll amount in pixels for the tiled image in the vertical 
+# dimension. Values are integers. The default=0.
+# 
+# -o orientation ... ORIENTATION angle in degrees for rotation of the tiled pattern 
+# image. Values are -360<=integer<=360; default=0.
+# 
+# -l lightval ... LIGHTVAL is the average brightness in percent for the lighting image.
+# Values are integers>=0. The default=40.
+# 
+# -c contrast ... CONTRAST is the shading contrast adjustment for the lighting image. 
+# Values are integers>=0. The default=5.
+# 
+# -d displace ... DISPLACE is the displacement amount when applying the displacement 
+# image to distort the pattern on the background image. Values are integers>=0. The 
+# default=5.
+# 
+# -s smooth ... SMOOTH is the smoothing distance to apply to the perimeter between object 
+# and background of the displacement image in order to reduce edge artifacts from too 
+# dark a region near the object perimenter.
+# 
+# -E ... EXPORT the lighting image, the displacement image and other needed 
+# parameters to be able to use a condensed outfitwarp script to repeat the processing 
+# on the same size and style outfit image for faster subsequent processing.
+# 
+# -D directory ... DIRECTORY to write all the exported data, including a text file 
+# called outfitdata.txt containing the same textual parameter data as sent to terminal. 
+# The directory can be specified later in the outfitwarp script to import all the 
+# needed images and textual data.
+# 
+# NOTE: The mask image or alpha channel must be a binary image (black/white) with at 
+# most the edges antialiased.
+# 
+# NOTE: This script will not bend textures to conform to curved or bent arms. Special 
+# processing such as at 
+# http://www.imagemagick.org/discourse-server/viewtopic.php?f=1&t=23348 will be needed, 
+# or alternately, use separate masks for each part that requires a different 
+# pattern orientation.
+# 
+# REQUIREMENTS: IM 6.5.3.4 due to the use of -compose displace.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set up defaults
+extract="floodfill"			# extract mask: alpha, floodfill, refill; default=floodfill
+fuzzval=5					# fuzz value for floodfill or refill in percent; default=5
+bgcolor="white"				# background color to use to create mask; default=white
+position=""					# x,y position to start floodfill
+antialias=1					# antialias mask; default=1
+negate="no"					# negate (invert) mask
+reduce=10					# reduce pattern image before tiling; percent; default=0
+modulate="100,100,100"		# modulate pattern image before tiling; HSL values (0 to 200); default="100,100,100" (no change)
+xroll=0						# horizontal (x-direction) roll of the tiled pattern
+yroll=0						# horizontal (y-direction) roll of the tiled pattern
+orientation=0				# orientation angle for rotation of tiled pattern
+lightval=40					# desired lighting image average graylevel in percent; default=40 
+contrast=5					# contrast adjustment for shading the lighting image; default=0
+displace=5					# displacement amount; default=5
+smooth=0					# smooth boundary of object/background in displace map; default=0
+export="no"					# export lighting image, displacement map and other arguments
+directory=""				# directory to write the lighting image, displacement map and text file
+
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 35 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help|-h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 		-e)    # extract
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXTRACT SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test gravity values
+					   extract="$1"
+					   extract=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$extract" in 
+					   		floodfill|f) extract="floodfill" ;;
+					   		refill|r) extract="refill" ;;
+					   		alpha|a) extract="alpha" ;;
+					   		*) errMsg "--- EXTRACT=$extract IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				-p)    # get position
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POSITION SPECIFICATION ---"
+					   checkMinus "$1"
+					   position="$1"
+					   ;;
+				-a)    # get antialias
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANTIALIAS SPECIFICATION ---"
+					   checkMinus "$1"
+					   antialias=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$antialias" = "" ] && errMsg "--- ANTIALIAS=$antialias MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-n)    # get negate
+					   negate="yes"
+					   ;;
+				-r)    # get reduce
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REDUCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   reduce=`expr "$1" : '\([0-9]*\)'`
+					   [ "$reduce" = "" ] && errMsg "--- REDUCE=$reduce MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-m)    # get modulate
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODULATE SPECIFICATION ---"
+					   checkMinus "$1"
+					   modulate=`expr "$1" : '\([0-9]*,[0-9]*,[0-9]*\)'`
+					   [ "$modulate" = "" ] && errMsg "--- MODULATE=$modulate MUST BE A COMMA SEPARATED INTEGER TRIPLET---"
+					   ;;
+				-x)    # get xroll
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID XROLL SPECIFICATION ---"
+#					   checkMinus "$1"
+					   xroll=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$xroll" = "" ] && errMsg "--- XROLL=$xroll MUST BE AN INTEGER ---"
+					   ;;
+				-y)    # get yroll
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID YROLL SPECIFICATION ---"
+#					   checkMinus "$1"
+					   yroll=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$yroll" = "" ] && errMsg "--- YROLL=$yroll MUST BE AN INTEGER ---"
+					   ;;
+				-o)    # get orientation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ORIENTATION SPECIFICATION ---"
+#					   checkMinus "$1"
+					   orientation=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$orientation" = "" ] && errMsg "--- ORIENTATION=$orientation MUST BE A NON-NEGATIVE INTEGER ---"
+					   test1=`echo "$orientation < -360" | bc`
+					   test2=`echo "$orientation > 360" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ORIENTATION=$orientation MUST BE AN INTEGER BETWEEN -360 AND 360 ---"
+					   ;;
+				-l)    # get lightval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LIGHTVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   lightval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lightval" = "" ] && errMsg "--- LIGHTVAL=$lightval MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$lightval > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- LIGHTVAL=$lightval MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   checkMinus "$1"
+					   contrast=`expr "$1" : '\([0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-d)    # get displace
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DISPLACE SPECIFICATION ---"
+					   checkMinus "$1"
+					   displace=`expr "$1" : '\([0-9]*\)'`
+					   [ "$displace" = "" ] && errMsg "--- DISPLACE=$displace MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-s)    # get smooth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   smooth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$smooth" = "" ] && errMsg "--- SMOOTH=$smooth MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-E)    # get  export
+					   export="yes"
+					   ;;
+				-D)    # set directory
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIRECTORY SPECIFICATION ---"
+					   checkMinus "$1"
+					   directory="$1"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, bgfile, maskfile outfile
+	if [ $# -eq 4 ]; then
+		infile="$1"
+		bgfile="$2"
+		maskfile="$3"
+		outfile="$4"
+	elif [ $# -eq 3 ]; then
+		infile="$1"
+		bgfile="$2"
+		outfile="$3"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INFILE (PATTERN) FILE SPECIFIED"
+
+# test that bgfile provided
+[ "$bgfile" = "" ] && errMsg "NO BACKGROUND (OUTFIT) FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+dir="$tmpdir/OUTFIT.$$"
+mkdir "$dir" || {
+  echo >&2 "UNABLE TO CREATE WORKING DIR \"$dir\" -- ABORTING"
+  exit 10
+}
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 10 15
+trap "rm -rf $dir; exit 1" ERR
+
+# setup for flattening
+if [ "$extract" != "alpha" ]; then
+	flattening="-flatten"
+else
+	flattening=""
+fi
+
+# set up for antialiasing mask
+if [ "$antialias" != "0" ]; then
+	antialiasing="-blur 0x$antialias -level 50x100%"
+else
+	antialiasing=""
+fi
+
+# set up for sigmoidal contrast for lighting
+if [ "$contrast" != "0" ]; then
+	contrasting="-sigmoidal-contrast ${contrast}x50%"
+else
+	contrasting=""
+fi
+
+# set up for modulating the pattern image
+if [ "$modulate" = "100,100,100" ]; then
+	modulating=""
+else
+	modulating="-modulate $modulate"
+fi
+
+
+# read pattern infile image
+convert -quiet "$infile" $modulating $dir/tmpP.mpc ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read background outfit file
+convert -quiet "$bgfile" $flattening -colorspace gray $dir/tmpB.mpc ||
+	echo  "--- FILE $bgfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get coordinates and bgcolor
+if [ "$maskfile" = "" ]; then
+	if [ "$extract" = "floodfill" -a "$position" != "" ]; then
+		# direction specified
+		wd=`convert -ping $dir/tmpB.mpc -format "%w" info:`
+		ht=`convert -ping $dir/tmpB.mpc -format "%h" info:`
+		widthm1=$((wd-1))
+		heightm1=$((ht-1))
+		midwidth=`echo "scale=0; $wd / 2" | bc`
+		midheight=`echo "scale=0; $ht / 2" | bc`
+		position=`echo "$position" | tr "[:upper:]" "[:lower:]"`
+		case "$position" in
+			northwest)	position="0,0" ;;
+			north)	position="$midwidth,0" ;;
+			northeast)	position="$widthm1,0" ;;
+			southeast)	position="$widthm1,$heightm1" ;;
+			south)	position="$midwidth,$heightm1" ;;
+			southwest)	position="0,$heightm1" ;;
+			west)	position="0,$midheight" ;;
+			[0-9]*,[0-9]*)	position=$position ;;
+			*)	errMsg "--- INVALID position ---" ;;
+		esac
+		bgcolor=`convert "$dir/tmpB.mpc" -format "%[pixel:u.p{$position}]" info:`
+	else
+		# default coordinates
+		position="0,0"
+	fi
+fi
+#echo "bgcolor=$bgcolor; position=$position;"
+
+# set up for mask inversion
+if [ "$negate" = "yes" ]; then
+	inversion="-negate"
+else
+	inversion=""
+fi
+
+# setup for rolling tiled pattern image
+if [ "$xroll" != "0" -o "$yroll" != "0" ]; then
+	rolling="-roll +${xroll}+${yroll}"
+else
+	rolling=""
+fi
+
+# extract mask
+if [ "$maskfile" != "" ]; then
+	convert -quiet "$maskfile" $antialiasing $dir/tmpM.mpc ||
+		echo  "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+elif [ "$extract" = "alpha" ]; then
+	convert $dir/tmpB.mpc -alpha extract $inversion $antialiasing $dir/tmpM.mpc
+
+elif [ "$extract" = "floodfill" ]; then
+	convert $dir/tmpB.mpc $flattening -bordercolor "$bgcolor" -border 1 \
+		-fuzz $fuzzval% -fill black -draw "color $position floodfill" -alpha off \
+		-fill white +opaque black $inversion $antialiasing -shave 1x1 $dir/tmpM.mpc
+
+elif [ "$extract" = "refill" ]; then
+	convert $dir/tmpB.mpc $flattening \
+		-fuzz $fuzzval% -fill black -opaque "$bgcolor" \
+		-fill white +opaque black $inversion $antialiasing $dir/tmpM.mpc
+fi
+
+
+# tile infile (pattern image)
+ww=`convert -ping $dir/tmpB.mpc -format "%w" info:`
+hh=`convert -ping $dir/tmpB.mpc -format "%h" info:`
+dim=`convert xc: -format "%[fx:1.5*max($ww,$hh)]" info:`
+if [ "$orientation" = "0" ]; then
+	convert -size ${ww}x${hh} xc: \( $dir/tmpP.mpc -resize $reduce% +write mpr:tile +delete \) \
+		-tile mpr:tile -draw "color 0,0 reset" -alpha off $rolling $dir/tmpTP.mpc
+else
+	convert -size ${dim}x${dim} xc: \( $dir/tmpP.mpc -resize $reduce% +write mpr:tile +delete \) \
+		-tile mpr:tile -draw "color 0,0 reset" -alpha off $rolling \
+		-rotate $orientation -gravity center -crop ${ww}x${hh}+0+0 +repage $dir/tmpTP.mpc
+fi
+
+# compute average graylevel of bgfile (outfit file)
+color=`convert \( $dir/tmpB.mpc $flattening +write $dir/tmpBF.mpc \) \
+	$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
+	-scale 1x1! -alpha off -type grayscale -format "%[pixel:u.p{0,0}]" info: | \
+ 	tr -cs "0-9*\n" " " | sed 's/[ ]*//g'`
+diff_light=`convert xc: -format "%[fx:($lightval-100*($color/255))]" info:`
+diff_displace=`convert xc: -format "%[fx:(50-100*($color/255))]" info:`
+#echo "color=$color; diff_light=$diff_light; diff_displace=$diff_displace;"
+
+
+# create lighting image
+convert $dir/tmpBF.mpc -evaluate add $diff_light% $contrasting $dir/tmpL.mpc
+
+# create displace image
+if [ "$smooth" != "0" ]; then
+	convert \( $dir/tmpBF.mpc -evaluate add $diff_displace% \) \
+		$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
+		-background "gray(50%)" -alpha background -alpha off \
+		\( +clone -fill "gray(50%)" -colorize 100 \) \( $dir/tmpM.mpc -morphology edgein octagon:$smooth -level 0x50% \) \
+		-compose over -composite $dir/tmpD.mpc
+else
+	convert \( $dir/tmpBF.mpc -evaluate add $diff_displace% $contrasting \) \
+		$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
+		-background "gray(50%)" -alpha background -alpha off $dir/tmpD.mpc
+fi
+
+# check if export directory exists.
+if [ "$export" = "yes" -a "$directory" != "" ]; then
+	# remove trailing \
+	if [ ! -d "$directory" ]; then 
+		mkdir "$directory" || {
+  		echo >&2 "UNABLE TO CREATE DIRECTORY \"$directory\" -- ABORTING"
+  		exit 10
+  		}
+  	fi
+	# remove trailing \
+  	directory=`echo "$directory" | sed 's/[/]*$//'`
+	convert $dir/tmpM.mpc $directory/mask.png
+	convert $dir/tmpL.mpc $directory/lighting.png
+	convert $dir/tmpD.mpc -alpha set $directory/displace.png
+elif [ "$export" = "yes" -a "$directory" = "" ]; then
+	convert $dir/tmpM.mpc mask.png
+	convert $dir/tmpL.mpc lighting.png
+	convert $dir/tmpD.mpc -alpha set displace.png
+fi
+
+# process for lighting and displacement
+convert $dir/tmpTP.mpc $dir/tmpL.mpc -compose hardlight -composite -compose over \
+	$dir/tmpD.mpc -define compose:args=${displace}x${displace} -compose displace -composite -compose over \
+	$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
+	"$outfile"
+
+if [ "$export" = "yes" -a "$directory" = "" ]; then
+	# show arguments to terminal
+	echo "displace=\"$displace\""
+	echo "reduce=\"$reduce\""
+	echo "xroll=\"$xroll\""
+	echo "yroll=\"$yroll\""
+	echo "orientation=\"$orientation\""
+	echo "modulate=\"$modulate\""
+
+elif [ "$export" = "yes" -a "$directory" != "" ]; then
+	# save arguments to textfile
+	echo "displace=\"$displace\"" >> $directory/outfitdata.txt
+	echo "reduce=\"$reduce\"" >> $directory/outfitdata.txt
+	echo "xroll=\"$xroll\"" >> $directory/outfitdata.txt
+	echo "yroll=\"$yroll\"" >> $directory/outfitdata.txt
+	echo "orientation=\"$orientation\"" >> $directory/outfitdata.txt
+	echo "modulate=\"$modulate\"" >> $directory/outfitdata.txt
+fi
+
+exit 0
+

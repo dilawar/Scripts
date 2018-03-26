@@ -1,0 +1,411 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 6/20/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: spherize [-d diameter(s)] [-a amp] [-z zoom] [-b bcolor ] [-s] [-t] infile outfile
+# USAGE: spherize [-h or -help]
+# 
+# OPTIONS:
+# 
+# -d        diameter(s)         diameters; comma separate x and y diameters;
+#                               integers>0 and less than or equal to image
+#                               dimensions; if only one value provided, 
+#                               it will be used for both; default is the 
+#                               image "width,height"
+# -a        amp                 distortion amplification factor; float>=0;
+#                               default=0
+# -z        zoom                zoom factor; scales the input image on the 
+#                               sphere; float>=0; default=1
+# -b        bcolor              background color; any valid IM color or 
+#                               "none" for transparent or "image" for input 
+#                               image background; default=black
+# -s                            make result with both diameters equal to the  
+#                               smaller of the x or y diameters
+# -t                            trim image to diameters
+# 
+###
+# 
+# NAME: SPHERIZE 
+#  
+# PURPOSE: To warp an image onto a (hemi-)sphere.
+# 
+# DESCRIPTION: UNROTATE warps an image onto a (hemi-)sphere and views it 
+# orthographically. The x and y diameters can be specified along with the 
+# distortion amplification and input image zoom. The background around  
+# the sphere is also user controlled. This is a limited version of my 
+# bubblewarp script that is not limited by the use of the IM -fx function 
+# and therefore is very fast.
+# 
+# 
+# Arguments: 
+# 
+# -d diameter(s) --- DIAMETER(S) is a comma separate list of the desired 
+# x and y diameters of the sphere. If only one value is provided, then it 
+# will be used for both diameters. Values are integers greater than zero 
+# and equal to or smaller than the dimensions of the image. The default 
+# values are the size of the image. Thus if the image is square, then a  
+# spherical effect will be produced. But if the image is not square, then 
+# elliptical effect will be produced.
+# 
+# -a amp --- AMP is the distortion amplification factor. Values are floats 
+# greater than or equal to zero. The default=1. Values larger than one will 
+# make more distortion and values less than one will make less distortion.
+#
+# -z zoom --- ZOOM is the zoom factor for the input image before warping it 
+# onto the sphere. Values are floats greater than or equal to zero. The 
+# default=1. Values larger than one will magnify the input image on the sphere. 
+# Values less than one will minify the input image on the sphere.
+# 
+# -b bcolor ... BCOLOR is the color for the background outside the sphere. 
+# Any valid IM color is allowed or one may specify "none" for a transparent 
+# background or "image" to have the input image as the background. The default 
+# is black.
+# 
+# -s ... Make the result with both diameters equal to the smaller of the 
+# x or y diameters.
+# 
+# -t ... Trim the output image to the diameters.
+# 
+# NOTE: This script is a limited version of my bubblewarp script, but is 
+# much faster, since it does not use -fx.
+# 
+# NOTE: This script requires IM 6.5.3-9 or higher due to the use of 
+# -compose distort. Many thanks to Anthony Thyssen for his hard work 
+# developing it.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values; 
+dx=""					# x diameter
+dy=""					# y diameter
+amp=1					# distortion amplification
+zoom=1					# input image zoom factor
+bcolor="black"			# background color; none for transparency; or "image"
+symmetry="no"			# sphere with both diameters equal to min of x and y diameters
+trim="no"				# trim output to diameters
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-d)    # diameters
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DIAMETERS SPECIFICATION ---"
+				   checkMinus "$1"
+				   diameters=$1
+				   test=`echo "$1" | tr "," " " | wc -w`
+				   [ $test -eq 1 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF DIAMETERS SUPPLIED ---"
+				   diameters=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+				   [ "$diameters" = "" ] && errMsg "--- DIAMETERS=$diameters MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
+				   diameters="$1,"
+				   dx=`echo "$diameters" | cut -d, -f1`
+				   dy=`echo "$diameters" | cut -d, -f2`
+				   # further testing done later
+				   ;;
+			-a)    # amp
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID AMPLIFICATION SPECIFICATION ---"
+				   checkMinus "$1"
+				   amp=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$amp" = "" ] && errMsg "--- AMPLIFICATION=$amp MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   ;;
+			-z)    # zoom
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID ZOOM SPECIFICATION ---"
+				   checkMinus "$1"
+				   zoom=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$zoom" = "" ] && errMsg "--- ZOOM=$zoom MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   ;;
+			-b)    # get bcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   bcolor="$1"
+				   ;;
+			-s)    # set symmetry
+				   symmetry="yes"
+				   ;;
+			-t)    # set trim
+				   trim="yes"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporaries
+tmpA1="$dir/spherize_A_$$.mpc"
+tmpA2="$dir/spherize_A_$$.cache"
+tmpB1="$dir/spherize_B_$$.mpc"
+tmpB2="$dir/spherize_B_$$.cache"
+tmpF1="$dir/spherize_T_$$.mpc"
+tmpF2="$dir/spherize_T_$$.cache"
+tmpM1="$dir/spherize_M_$$.mpc"
+tmpM2="$dir/spherize_M_$$.cache"
+tmpX1="$dir/spherize_X_$$.mpc"
+tmpX2="$dir/spherize_X_$$.cache"
+tmpY1="$dir/spherize_Y_$$.mpc"
+tmpY2="$dir/spherize_Y_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpF1 $tmpF2 $tmpM1 $tmpM2 $tmpX1 $tmpX2 $tmpY1 $tmpY2;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2 $tmpX1 $tmpX2 $tmpY1 $tmpY2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2 $tmpX1 $tmpX2 $tmpY1 $tmpY2; exit 1" ERR
+
+
+# read the input image into the TMP cached image.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+# test for minimum IM version required
+# IM 6.5.3.9 or higher to conform to new -compose distort
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06050309" ] && errMsg "--- REQUIRES IM VERSION 6.5.3-9 OR HIGHER ---"
+
+# get image dimensions
+ww=`convert $tmpA1 -ping -format "%w" info:`
+hh=`convert $tmpA1 -ping -format "%h" info:`
+
+# set default diameters
+if [ "$dx" = "" ]; then
+	dx=$ww
+fi
+if [ "$dy" = "" ]; then
+	dy=$hh
+fi
+
+# compute min diameter
+dm=`convert xc: -format "%[fx:min($dx,$dy)]" info:`
+if [ "$symmetry" = "yes" ]; then
+	dx=$dm
+	dy=$dm
+fi
+
+# test diameters
+[ $dx -eq 0 -o $dx -gt $ww ] && errMsg "--- X DIAMETER MUST BE GREATER THAN 0 AND LESS OR EQUAL TO IMAGE WIDTH ---"
+[ $dy -eq 0 -o $dy -gt $hh ] && errMsg "--- Y DIAMETER MUST BE GREATER THAN 0 AND LESS OR EQUAL TO IMAGE HEIGHT ---"
+
+
+# scale radius so that that image fits circle or ellipse at any diameter with zoom=1
+# invert zoom so increases with larger values
+# use absolute coord displacement
+# xamount=(rx/zoom)*(ww/dx)=ww/(2*zoom); where rx = x radius
+xamount=`convert xc: -format "%[fx:$ww/(2*$zoom+quantumscale)]" info:`
+yamount=`convert xc: -format "%[fx:$hh/(2*$zoom+quantumscale)]" info:`
+
+
+# create radial gradient
+convert -size ${dm}x${dm} radial-gradient: -negate $tmpF1
+
+# convert circular gradient to elliptical
+if [ $dx -ne $dy ]; then
+	convert $tmpF1 -resize ${dx}x${dy}! $tmpF1
+fi
+
+# create mask
+convert $tmpF1 -negate -gravity center -background black -extent ${ww}x${hh} -threshold 0 $tmpM1
+
+# set up amplify for distortion
+if [ "$amp" = "1" ]; then
+	amplify=""
+else
+	amplify="-evaluate pow $amp"
+fi
+
+# compute spherize function F=(2/pi)*asin(rd)/rd
+convert $tmpF1 \( +clone -function arcsin '2,0,2,0' $amplify \) \
+	-compose divide -composite $tmpF1
+
+# set up x displacement
+# compute x gradient increasing with i
+convert -size ${dy}x${dx} gradient: -rotate 90 $tmpX1
+
+# compute u*v=xd*asin(rd)/rd; u=gradient 0,1; v=asin(rd)/rd 
+# but where want xd in range -1,1; so must use (2*u-1)
+# then modify to 0.5*u*v+0.5 to recenter at mid gray
+# old fx method: 0.5*((2*u-1)*v)+0.5 = u*v - 0.5*v + 0.5
+# convert $tmpX1 $tmpF1 -monitor -fx "u*v-0.5*v+0.5" $tmpX1
+
+if [ "$im_version" -ge "06050403" ]; then
+	convert $tmpX1 $tmpF1 +swap \
+	-compose Mathematics -set option:compose:args "1,0,-0.5,0.5" \
+	-composite $tmpX1
+else
+
+	# multiply arcsin(r)/(r) by abs of gradient relative to midgray as zero
+	# abs is computed as -solarize 50% -level 50,0%
+	# abs has V shape and ranges 0 to 1
+	# then scale so that range is 0.5 to 1
+	#
+	# convert gradient to sign of gradient 
+	# sign is computed as -threshold 50%
+	# thus zero (for neg) on left and one (for pos) on right
+	# use sign as mask to separate the right (pos) side, 
+	# then negate mask and arcsin-absgrad product 
+	# to get the left (neg) side and then combine with right side
+	convert $tmpX1 $tmpF1 \
+		\( -clone 0 -solarize 50% -level 50,0% \) \
+		\( -clone 1,2 -compose multiply -composite -function polynomial "0.5,0.5" \) \
+		\( -clone 0 -threshold 50% \) \
+		\( -clone 3,4 -compose multiply -composite \) \
+		\( -clone 3,4 -negate -compose multiply -composite \) \
+		-delete 0-4 -compose plus -composite \
+		$tmpX1
+fi
+
+# y displacement
+if [ $dx -eq $dy ]; then
+	# map is symmetric so just rotate x displacement
+	convert $tmpX1 -rotate 90 $tmpY1
+else
+	# compute y gradient increasing with j
+	convert -size ${dx}x${dy} gradient: -negate $tmpY1
+	
+	if [ "$im_version" -ge "06050403" ]; then
+		convert $tmpY1 $tmpF1 +swap \
+		-compose Mathematics -set option:compose:args "1,0,-0.5,0.5" \
+		-composite $tmpY1
+	else
+		convert $tmpY1 $tmpF1 \
+			\( -clone 0 -solarize 50% -level 50,0% \) \
+			\( -clone 1,2 -compose multiply -composite -function polynomial "0.5,0.5" \) \
+			\( -clone 0 -threshold 50% \) \
+			\( -clone 3,4 -compose multiply -composite \) \
+			\( -clone 3,4 -negate -compose multiply -composite \) \
+			-delete 0-4 -compose plus -composite \
+			$tmpY1
+	fi
+fi
+
+# displace image (center relative)
+# absolute coord displacement
+convert $tmpA1 $tmpX1 $tmpY1 \
+	-gravity center -compose distort \
+	-set option:compose:args ${xamount}x${yamount} -composite \
+	$tmpB1
+
+# set up trim
+if [ "$trim" = "yes" ]; then
+	trimming="-gravity center -crop ${dx}x${dy}+0+0 +repage"
+else
+	trimming=""
+fi
+
+# composite mask
+if [ "$bcolor" = "none" ]; then
+	convert $tmpB1 $tmpM1 \
+		-alpha off -compose copy_opacity -composite $trimming "$outfile"
+elif [ "$bcolor" = "image" -a "$symmetry" = "no" ]; then
+	convert $tmpB1 $trimming "$outfile"
+elif [ "$bcolor" = "image" -a "$symmetry" = "yes" ]; then
+	convert $tmpA1 $tmpB1 $tmpM1 -compose over -composite $trimming "$outfile"
+else
+	convert \( $tmpB1 $tmpM1 \
+		-gravity center -alpha off -compose copy_opacity -composite \) \
+		\( -size ${ww}x${hh} xc:"$bcolor" \) +swap \
+		-gravity center -compose over -composite $trimming "$outfile"
+fi
+
+exit 0

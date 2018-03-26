@@ -1,0 +1,618 @@
+Cannot Open File!eveloped by Fred Weinhaus 6/20/2015 .......... revised 6/20/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: negative2positive [-a autostretch] [-l cliplow] [-h cliphigh] 
+# [ -c color] [-d density] [-cb colorbalance] [-P1 percent1] [-P2 percent2] 
+# infile outfile
+#
+# USAGE: negative2positive [-h or -help]
+#
+# OPTIONS:
+#
+# -a      autostretch      autostretch image channels; options are: 
+#                          none (n), together (t), or separate (s); 
+#                          default=separate
+# -l      cliplow          clip percent on low end of histogram; 
+#                          float; 0<=cliplow<=100; default=1
+# -h      cliphigh         clip percent on high end of histogram;
+#                          float; 0<=cliphigh<=100; default=1
+# -c      color            desired filter color; any valid IM opaque color 
+#                          value is valid default=yellow
+# -d      density          density of filter; 0<=integer<=100; 0 is no change; 
+#                          100 is most change towards the color;
+#                          default=15 for colorbalance != level and  
+#                          default=0 for colorbalance = level 
+# -cb     colorbalance     color balance mode; choices are level, gray,  
+#                          white, both, auto or none; default=auto
+# -P1     percent          percent1 threshold for autolevel processing; 
+#                          0<float<100; default=1
+# -P2     percent          percent threshold for detecting gray/white 
+#                          for auto gray and auto white balance; 0<float<100;
+#                          default=1
+#
+###
+#
+# NAME: NEGATIVE2POSITIVE
+# 
+# PURPOSE: To convert from a (scanned film) negative image to a positive image.
+# 
+# DESCRIPTION: NEGATIVE2POSITIVE converts from a (scanned film) negative image 
+# to a positive image. Options include: autostretching the image channels with 
+# or without clipping, color filtering and to color balance via white balance, 
+# gray balance, both, automatic or via levels.
+# 
+# OPTIONS: 
+# 
+# -a autostretch --- autostretch image channels as preprocessing step. The options
+# are: together (t), separate (s) or none (n). The default=separate. 
+# Note, for some images with severe channel autostretch, the option separate 
+# can cause severe color shifts.
+# 
+# -l cliplow ... CLIPLOW is the cumulative percent at the low end of the 
+# histogram whose graylevel will be autostretched to full black. Values are 
+# floats between 0 and 100. If cliplow=0, then the autostretch will locate 
+# the minimum value in the channel histogram. The default=1.
+# 
+# -h cliphigh ... CLIPHIGH is the cumulative percent at the high end of  
+# the histogram whose graylevel will be autostretched to full white. Values are 
+# floats between 0 and 100. If cliplow=0, then the autostretch will locate 
+# the maximum value in the channel histogram. The default=1.
+#
+# -c color ... COLOR is the desired filter color. Any valid IM opaque color 
+# value is valid. The default=yellow, since yellow is the complement of blue.
+# (After the image is negated, the color is mostly bluish and yellow will 
+# remove most of the blue tint).
+# 
+# -d density ... DENSITY of the color filter. Values are 0<=integers<=100. 
+# 0 is no color filter processing. 100 is most change towards the selected 
+# color. The default=15 for colorbalance != level and the default=0 for 
+# colorbalance = level. Density, generally, will not make any significant 
+# change when colorbalance = level.
+# 
+# -cb colorbalance ... COLORBALANCE mode. The choices are none, gray, white, 
+# both, auto or level. The default=auto. Both will be an equal blend of gray and 
+# white. Auto will try to choose the better of gray or white depending upon 
+# which one's percent selected pixels' rmse value (from gray or white, 
+# respectively is the smallest value. Level uses an autolevel process to get 
+# the black point, white point and (gray point converted to) gamma values.
+# 
+# -P1 percent2 ... PERCENT2 threshold for level processing. Values are 
+# 0<floats<100; default=1.
+#
+# -P2 percent2 ... PERCENT2 is the percent threshold for detecting gray/white 
+# in the image for auto color balance. Values are 0<floats<100. The default=1.
+# 
+# NOTE: I thank Dr. Guenter Grau for the suggestion to normalize the r,g,b 
+# ratios by their average in the color balance part of the code.
+# 
+# REFERENCES AND TUTORIALS:
+# http://www.colorpilot.com/silver.html
+# http://www.instructables.com/id/How-to-Convert-Digitized-Film-Negatives-into-Quali/?ALLSTEPS
+# http://www.computer-darkroom.com/tutorials/tutorial_6_1.htm
+# https://stefanofoletti.wordpress.com/tag/silverfast/
+# http://photo.stackexchange.com/questions/23942/does-a-filter-exist-to-color-correct-color-negatives-when-copying-them-with-a-ds
+# http://howtoresolved.com/tube/NM5XzDYfG60/convert-film-negatives-to-positive-tutorial
+# https://www.youtube.com/watch?v=B2gLT0SWzpQ
+# http://petapixel.com/2012/05/18/how-to-scan-film-negatives-with-a-dslr/
+# https://www.youtube.com/watch?v=iMO50AlGyrw
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# defaults
+autostretch="separate"		# autolevel preprocess
+cliplow=1					# clip low end of histogram percent
+cliphigh=1					# clip low end of histogram percent
+color="yellow"				# color for color filter
+density=""					# color filter density; see below for actual defaults depending upon colorbalance
+colorbalance="auto"			# colorbalance mode; level, auto, gray, white, both, none
+percent1=1					# percent for autolevel processing
+percent2=1					# percent near white/gray from combined S and B channels of HSB to use for whitebalance
+midrange=0.5				# midrange gray for gray to gamma processing
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		      help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get  autostretch
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AUTOSTRETCH SPECIFICATION ---"
+					   checkMinus "$1"
+					   autostretch=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$autostretch" in 
+							together|t) autostretch="together" ;;
+							separately|separate|s) autostretch="separate" ;;
+							none|n) autostretch="none" ;;
+							*) errMsg "--- AUTOSTRETCH=$autostretch IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				-l)    # get cliplow
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPLOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliplow=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$cliplow" = "" ] && errMsg "--- CLIPLOW=$cliplow MUST BE A NON-NEGATIVE FLOAT ---"
+					   cliplowtestA=`echo "$cliplow < 0" | bc`
+					   cliplowtestB=`echo "$cliplow > 100" | bc`
+					   [ $cliplowtestA -eq 1 -o $cliplowtestB -eq 1 ] && errMsg "--- CLIPLOW=$cliplow MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-h)    # get cliphigh
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPHIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliphigh=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$cliphigh" = "" ] && errMsg "--- CLIPHIGH=$cliphigh MUST BE A NON-NEGATIVE FLOAT ---"
+					   cliphightestA=`echo "$cliphigh < 0" | bc`
+					   cliphightestB=`echo "$cliphigh > 100" | bc`
+					   [ $cliphightestA -eq 1 -o $cliphightestB -eq 1 ] && errMsg "--- CLIPHIGH=$cliphigh MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+			   -cb)    # get colorbalance mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORBALANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorbalance=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colorbalance" in 
+							none|n) colorbalance="none" ;;
+							gray|g) colorbalance="gray" ;;
+							white|w) colorbalance="white" ;;
+							both|b) colorbalance="both" ;;
+							auto|a) colorbalance="auto" ;;
+							level|l) colorbalance="level" ;;
+							*) errMsg "--- COLORBALANCE=$colorbalance IS AN INVALID VALUE ---" ;;
+						esac
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-d)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$density < 0" | bc`
+					   test2=`echo "$density > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- DENSITY=$density MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+			   -P1)    # get percent1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT1 SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent1=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$percent1" = "" ] && errMsg "--- PERCENT1=$percent1 MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$percent1 <= 0" | bc`
+					   testB=`echo "$percent1 >= 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- PERCENT1=$percent1 MUST BE A FLOAT GREATER THAN 0 AND SMALLER THAN 100 ---"
+					   ;;
+			   -P2)    # get percent2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT2 SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent2=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$percent2" = "" ] && errMsg "--- PERCENT2=$percent2 MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$percent2 <= 0" | bc`
+					   testB=`echo "$percent2 >= 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- PERCENT2=$percent2 MUST BE A FLOAT GREATER THAN 0 AND SMALLER THAN 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set directory for temporary files
+tmpdir="$dir"
+
+dir="$tmpdir/NEGATIVE2POSITIVE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# set up for -negate or profiles
+if [ "$profilepath1" = "" -a "$profilepath2" = "" ]; then
+	inversion="-negate"
+elif [ "$profilepath1" != "" -a "$profilepath2" = "" ]; then
+	errMsg "--- ONLY ONE PROFILE PATH PROVIDED ---"
+elif [ "$profilepath1" = "" -a "$profilepath2" != "" ]; then
+	errMsg "--- ONLY ONE PROFILE PATH PROVIDED ---"
+else
+	# test that both profilepath1 and profilepath2 are valid
+	if ! [ -f "$profilepath1" -a -e "$profilepath1" -a -r "$profilepath1" -a -s "$profilepath1" ]; then
+		errMsg  "--- FILE $profilepath1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	fi
+	if ! [ -f "$profilepath2" -a -e "$profilepath2" -a -r "$profilepath2" -a -s "$profilepath2" ]; then
+		errMsg  "--- FILE $profilepath2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	fi
+	inversion="-set colorspace CMYK -profile $profilepath1 -profile $profilepath2"
+fi
+
+
+# set up for autostretch
+if [ "$cliplow" = "0" -a "$cliphigh" = "0" -a "$im_version" -gt "06050501" ]; then
+	if [ "$autostretch" = "separate" ]; then
+		aproc="-channel rgb -auto-level"
+	elif [ "$autostretch" = "together" ]; then
+		aproc="-auto-level"
+	elif [ "$autostretch" = "none" ]; then
+		aproc=""
+	fi
+else 
+	if [ "$autostretch" = "separate" ]; then
+		aproc="-channel rgb -contrast-stretch $cliplow,$cliphigh%"
+	elif [ "$autostretch" = "together" ]; then
+		aproc="-contrast-stretch $cliplow,$cliphigh%"
+	elif [ "$autostretch" = "none" ]; then
+		aproc=""
+	fi
+fi
+#echo "aproc=$aproc;"
+
+
+# set up -recolor or -color-matrix for color balancing
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
+fi
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests 
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070607" ]; then
+	cspace1="RGB"
+	cspace1="sRGB"
+else
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+#echo "setscpace=$setscpace; cspace1=$cspace1; cspace2=$cspace2;"
+
+# read input image into temporary memory mapped (mpc) format image, 
+# do inversion using either -negate or CMYK to sRGB profiles
+# autostretch
+convert -quiet "$infile" $inversion $aproc +repage $dir/tmpI.mpc ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# set up default density
+#echo "cb=$colorbalance; density=$density;"
+if [ "$colorbalance" = "level" -a "$density" = "" ]; then
+	density=0
+elif [ "$colorbalance" != "level" -a "$density" = "" ]; then
+	density=15
+fi
+
+# set density to mimic photoshop values
+#echo "density=$density; color=$color;"
+density=`convert xc: -format "%[fx:$density/2]" info:`
+
+# process color filter
+if [ "$density" != "0" ]; then
+#echo "colorfilter"
+	convert $dir/tmpI.mpc -colorspace $cspace2 \
+		\( -clone 0 -fill "$color" -colorize $density% \) \
+		+swap -compose luminize -composite -colorspace $cspace1 \
+		$dir/tmpI.mpc
+fi
+
+
+
+
+# do color balance
+if [ "$colorbalance" = "level" ]; then
+	# process autolevel colorbalance
+
+	#echo "process autolevel colorbalance"
+	#echo ""
+	#echo "black"
+
+	# get black point
+	black_point=`convert $dir/tmpI.mpc \
+		\( -clone 0 -channel rgb -contrast-stretch ${percent1}x0% -separate +channel -fill white +opaque black -combine -negate \) \
+		-alpha off -compose copy_opacity -composite \
+		-scale 1x1! -format "%[fx:100*mean.r],%[fx:100*mean.g],%[fx:100*mean.b]" info:`
+	red_bp=`echo "$black_point" | cut -d, -f1`
+	green_bp=`echo "$black_point" | cut -d, -f2`
+	blue_bp=`echo "$black_point" | cut -d, -f3`
+	#echo "bp=$black_point, red_bp=$red_bp; green_bp=$green_bp; blue_bp=$blue_bp;"
+
+	#echo "white"
+
+	# get white point
+	white_point=`convert $dir/tmpI.mpc \
+		\( -clone 0 -channel rgb -contrast-stretch 0x${percent1}% -separate +channel -fill black +opaque white -combine \) \
+		-alpha off -compose copy_opacity -composite \
+		-scale 1x1! -format "%[fx:100*mean.r],%[fx:100*mean.g],%[fx:100*mean.b]" info:`
+	red_wp=`echo "$white_point" | cut -d, -f1`
+	green_wp=`echo "$white_point" | cut -d, -f2`
+	blue_wp=`echo "$white_point" | cut -d, -f3`
+	#echo "wp=$white_point, red_wp=$red_wp; green_wp=$green_wp; blue_wp=$blue_wp;"
+
+	#echo "gray"
+
+	# get gray point
+	gray_point=`convert $dir/tmpI.mpc \
+		\( -clone 0 -channel rgb -solarize 50% -level 0x50% \
+			-contrast-stretch 0x${percent1}% -separate +channel -fill black +opaque white -combine \) \
+		-alpha off -compose copy_opacity -composite \
+		-scale 1x1! -format "%[fx:100*mean.r],%[fx:100*mean.g],%[fx:100*mean.b]" info:`
+	red_gp=`echo "$gray_point" | cut -d, -f1`
+	green_gp=`echo "$gray_point" | cut -d, -f2`
+	blue_gp=`echo "$gray_point" | cut -d, -f3`
+	#echo "gp=$gray_point, red_gp=$red_gp; green_gp=$green_gp; blue_gp=$blue_gp;"
+
+	#echo "gamma"
+
+	# convert gray point to gamma values
+	red_gamma=`convert xc: -format "%[fx:log($red_gp/100)/log($midrange)]" info:`
+	green_gamma=`convert xc: -format "%[fx:log($green_gp/100)/log($midrange)]" info:`
+	blue_gamma=`convert xc: -format "%[fx:log($blue_gp/100)/log($midrange)]" info:`
+	#echo "rgam=$red_gamma: ggam=$green_gamma; bgam=$blue_gamma;"
+
+	#echo "proc"
+
+	# process image
+	convert $dir/tmpI.mpc \
+		-channel red -level ${red_bp}%,${red_wp}%,$red_gamma +channel \
+		-channel green -level ${green_bp}%,${green_wp}%,$green_gamma +channel \
+		-channel blue -level ${blue_bp}%,${blue_wp}%,$blue_gamma +channel \
+		$dir/tmpI.mpc
+else
+
+	#echo "process gray/white colorbalance"
+
+	# Process graybalance
+	if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" -o "$colorbalance" = "auto" ]; then
+	#echo "gray"
+
+		# get ratios for graybalance
+		# get mask of top percent closest to gray
+		# approximation using negated saturation and solarized brightness multiplied
+		ref=0.5
+		ave=`convert $dir/tmpI.mpc $setcspace \
+			\( -clone 0 -colorspace HSB -channel G -negate -separate +channel \) \
+			\( -clone 0 -colorspace HSB -channel B -separate +channel -solarize 50% -level 0x50% \) \
+			\( -clone 1 -clone 2 -compose multiply -composite \) \
+			\( -clone 3 -contrast-stretch 0,${percent2}% -fill black +opaque white +write $dir/tmpM.mpc \) \
+			-delete 1-3 -compose over -alpha off -compose copy_opacity -composite \
+			-scale 1x1! -format "%[fx:mean.r],%[fx:mean.g],%[fx:mean.b]" info:`
+		#echo "ave=$ave"
+		redave=`echo "$ave" | cut -d, -f1`
+		greenave=`echo "$ave" | cut -d, -f2`
+		blueave=`echo "$ave" | cut -d, -f3`
+		redratio=`convert xc: -format "%[fx:$ref/$redave]" info:`
+		greenratio=`convert xc: -format "%[fx:$ref/$greenave]" info:`
+		blueratio=`convert xc: -format "%[fx:$ref/$blueave]" info:`
+		#echo "R: ave=$redave; redratio=$redratio"
+		#echo "G: ave=$greenave; greenratio=$greenratio;"
+		#echo "B: ave=$blueave; blueratio=$blueratio;"
+	
+		# normalize r,g,b ratios by ave ratio, so no added increase in brightness
+		gnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+		redratio=`convert xc: -format "%[fx: $redratio/$gnormfact]" info:`
+		greenratio=`convert xc: -format "%[fx: $greenratio/$gnormfact]" info:`
+		blueratio=`convert xc: -format "%[fx: $blueratio/$gnormfact]" info:`
+		#echo "R: ave=$redave; ratio=$redratio"
+		#echo "G: ave=$greenave; ratio=$greenratio;"
+		#echo "B: ave=$blueave; ratio=$blueratio;"
+		convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpG.mpc
+
+	# compute rmse difference from gray for masked pixels
+	gray_pixels=`convert $dir/tmpM.mpc -format "%[fx:mean*w*h]" info:`
+	#echo "gray_pixels=$gray_pixels;"
+
+	rmse_gray=`convert xc: -format "%[fx: ((0.5-$redave)^2 + (0.5-$greenave)^2 + (0.5-$blueave)^2)/(3*$gray_pixels) ]" info:`
+	#echo "rmse_gray=$rmse_gray"
+
+	fi
+
+
+
+	# Process whitebalance
+	if [ "$colorbalance" = "white" -o "$colorbalance" = "both" -o "$colorbalance" = "auto" ]; then
+	#echo "white"
+
+		# get ratios for whitebalance
+		# get mask of top percent closest to white
+		# approximation using negated saturation and brightness channels multiplied
+		ref=1
+		ave=`convert $dir/tmpI.mpc $setcspace \
+			\( -clone 0 -colorspace HSB -channel G -negate -channel GB -separate +channel \
+			-compose multiply -composite \
+			-contrast-stretch 0,${percent2}% -fill black +opaque white +write $dir/tmpM.mpc \) \
+			-compose over -alpha off -compose copy_opacity -composite \
+			-scale 1x1! -format "%[fx:mean.r],%[fx:mean.g],%[fx:mean.b]" info:`
+		#echo "ave=$ave"
+		redave=`echo "$ave" | cut -d, -f1`
+		greenave=`echo "$ave" | cut -d, -f2`
+		blueave=`echo "$ave" | cut -d, -f3`
+		redratio=`convert xc: -format "%[fx:$ref/$redave]" info:`
+		greenratio=`convert xc: -format "%[fx:$ref/$greenave]" info:`
+		blueratio=`convert xc: -format "%[fx:$ref/$blueave]" info:`
+		#echo "R: ave=$redave; redratio=$redratio"
+		#echo "G: ave=$greenave; greenratio=$greenratio;"
+		#echo "B: ave=$blueave; blueratio=$blueratio;"
+
+		# normalize r,g,b ratios by ave ratio, so no added increase in brightness
+		wnormfact=`convert xc: -format "%[fx: ($redratio+$greenratio+$blueratio)/3]" info:`
+		redratio=`convert xc: -format "%[fx: $redratio/$wnormfact]" info:`
+		greenratio=`convert xc: -format "%[fx: $greenratio/$wnormfact]" info:`
+		blueratio=`convert xc: -format "%[fx: $blueratio/$wnormfact]" info:`
+		#echo "R: ave=$redave; ratio=$redratio"
+		#echo "G: ave=$greenave; ratio=$greenratio;"
+		#echo "B: ave=$blueave; ratio=$blueratio;"
+		convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpW.mpc
+
+	# compute per pixel rmse difference from white for masked pixels
+	white_pixels=`convert $dir/tmpM.mpc -format "%[fx:mean*w*h]" info:`
+	#echo "white_pixels=$white_pixels;"
+	rmse_white=`convert xc: -format "%[fx: ((1-$redave)^2 + (1-$greenave)^2 + (1-$blueave)^2)/(3*$white_pixels) ]" info:`
+	#echo "rmse_white=$rmse_white"
+
+	fi
+fi
+
+
+# Save to output
+if [ "$colorbalance" = "none" -o "$colorbalance" = "level" ]; then
+#echo "none"
+	convert $dir/tmpI.mpc "$outfile"
+elif [ "$colorbalance" = "gray" ]; then
+#echo "gray"
+	convert $dir/tmpG.mpc "$outfile"
+elif [ "$colorbalance" = "white" ]; then
+#echo "white"
+	convert $dir/tmpW.mpc "$outfile"
+elif [ "$colorbalance" = "both" ]; then
+#echo "both"
+	convert \( $dir/tmpG.mpc $dir/tmpW.mpc -evaluate-sequence mean \) "$outfile"
+elif [ "$colorbalance" = "auto" ]; then
+#echo "auto"
+	# test rmse difference and use smalles one; gray or white
+	test=`convert xc: -format "%[fx:($rmse_white <= $rmse_gray)?1:0]" info:`
+	#echo "test=$test;"
+	if [ $test -eq 1 ]; then
+		#echo "white"
+		convert $dir/tmpW.mpc "$outfile"
+	else
+		#echo "gray"
+		convert $dir/tmpG.mpc "$outfile"
+	fi
+fi
+
+exit 0
+

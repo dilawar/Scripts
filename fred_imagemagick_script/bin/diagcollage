@@ -1,0 +1,388 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/16/2014 .......... 6/22/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: diagcollage [-s size] [-b bordercolor] [-t thickness] [-d direction] 
+# [-g1 gravity1] [-g2 gravity2] [-g3 gravity3] [-c1 crop1] [-c2 crop2] 
+# [-c3 crop3] infile1 infile2 infile3 outfile
+#
+# USAGE: diagcollage [-h or -help]
+#
+# OPTIONS:
+#
+# -s      size          square output size; even integer>0; default=400 
+# -b      bcolor        border color; default=white
+# -t      thick         border thickness; even integer>0; default=10
+# -d      direction     direction of 5 deg rotation; p (positive) or 
+#                       n (negative); default=p
+# -g1     gravity1      crop gravity setting for image 1; default=center
+# -g2     gravity2      crop gravity setting for image 2; default=center
+# -g3     gravity3      crop gravity setting for image 3; default=center
+# -c1     crop1         crop offsets for image 1; default="+0+0"
+# -c2     crop2         crop offsets for image 2; default="+0+0"
+# -c3     crop3         crop offsets for image 3; default="+0+0"
+#
+###
+#
+# NAME: DIAGCOLLAGE 
+# 
+# PURPOSE: Collages three images in a diagonal orientation.
+# 
+# DESCRIPTION: DIAGCOLLAGE collages three images in a diagonal orientation.
+# The first image will span the top half (before rotation) and the other two 
+# images will be on the bottom left and bottom right quadrants, respectively.
+# 
+# OPTIONS: 
+#
+# -s size ... SIZE is the even square output size. Values are even integers>0. 
+# The default=400.
+# 
+# -b bcolor ... BCOLOR is the border color. Any valid IM opaque color is 
+# permitted. The default=white.
+# 
+# -t thick ... THICK is the border thickness. Values are even integer>0. The 
+# default=10.
+# 
+# -d direction ... DIRECTIONS of the 5 deg rotation. Values are: p (positive)  
+# or n (negative). The default=p (positive).
+# 
+# -g1 gravity1 ... GRAVITY1 is the crop gravity setting for image 1. Any IM  
+# gravity setting is allowed. The default=center.
+# 
+# -g2 gravity2 ... GRAVITY2 is the crop gravity setting for image 2. Any IM  
+# gravity setting is allowed. The default=center.
+# 
+# -g3 gravity3 ... GRAVITY3 is the crop gravity setting for image 3. Any IM  
+# gravity setting is allowed. The default=center.
+# 
+# -c1 crop1 ... CROP1 is the crop offsets for image 1. 
+# The format is +-X+-Y. The default="+0+0".
+#
+# -c2 crop2 ... CROP2 is the crop offsets for image 1. 
+# The format is +-X+-Y. The default="+0+0".
+#
+# -c3 crop3 ... CROP3 is the crop offsets for image 1. 
+# The format is +-X+-Y. The default="+0+0".
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+size=400			# square output size; must be even
+bcolor="white"		# border color
+thick=10			# border thickness; must be even
+direction="p"		# direction of 5 deg rotation; p (positive) or n (negative)
+gravity1="center"			# gravity for image 1
+gravity2="center"			# gravity for image 2
+gravity3="center"			# gravity for image 3
+crop1="+0+0"			# crop offsets for image 1
+crop2="+0+0"			# crop offsets for image 2
+crop3="+0+0"			# crop offsets for image 3
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   testA=`echo "$size < 2" | bc`
+					   testB=`echo "$size % 2" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SIZE=$size MUST BE AN EVEN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-b)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-t)    # get thick
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICK SPECIFICATION ---"
+					   checkMinus "$1"
+					   thick=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thick" = "" ] && errMsg "--- THICK=$thick MUST BE A NON-NEGATIVE INTEGER ---"
+		   			   testA=`echo "$thick < 2" | bc`
+					   testB=`echo "$thick % 2" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- THICK=$thick MUST BE AN EVEN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-d)    # direction
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIRECTION SPECIFICATION ---"
+					   checkMinus "$1"
+					   direction=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$direction" in 
+							positive|pos|p) direction="p" ;;
+							negative|neg|n) direction="n" ;;
+							*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-g1)    # gravity1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY1 SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity1=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity1" in 
+							northwest) ;;
+							north) ;;
+							northeast) ;;
+							west) ;;
+							center) ;;
+							east) ;;
+							southwest) ;;
+							south) ;;
+							southeast) ;;
+							*) errMsg "--- GRAVITY1=$gravity1 IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-g2)    # gravity2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY2 SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity2=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity2" in 
+							northwest) ;;
+							north) ;;
+							northeast) ;;
+							west) ;;
+							center) ;;
+							east) ;;
+							southwest) ;;
+							south) ;;
+							southeast) ;;
+							*) errMsg "--- GRAVITY2=$gravity2 IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-g3)    # gravity3
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY3 SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity3=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity3" in 
+							northwest) ;;
+							north) ;;
+							northeast) ;;
+							west) ;;
+							center) ;;
+							east) ;;
+							southwest) ;;
+							south) ;;
+							southeast) ;;
+							*) errMsg "--- GRAVITY3=$gravity3 IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-c1)    # get crop1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CROP1 SPECIFICATION ---"
+					   #checkMinus "$1"
+					   crop1=`expr "$1," : '\([+-][0-9]*[+-][0-9]*\)'`
+					   [ "$crop1" = "" ] && errMsg "--- CROP1=$crop1 MUST BE A PAIR INTEGERS OF THE FORM +-X+-Y ---"
+					   ;;
+				-c2)    # get crop2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CROP2 SPECIFICATION ---"
+					   #checkMinus "$1"
+					   crop2=`expr "$1," : '\([+-][0-9]*[+-][0-9]*\)'`
+					   [ "$crop2" = "" ] && errMsg "--- CROP2=$crop2 MUST BE A PAIR INTEGERS OF THE FORM +-X+-Y ---"
+					   ;;
+				-c3)    # get crop3
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CROP3 SPECIFICATION ---"
+					   #checkMinus "$1"
+					   crop3=`expr "$1," : '\([+-][0-9]*[+-][0-9]*\)'`
+					   [ "$crop3" = "" ] && errMsg "--- CROP3=$crop3 MUST BE A PAIR INTEGERS OF THE FORM +-X+-Y ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile1="$1"
+	infile2="$2"
+	infile3="$3"
+	outfile="$4"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 2 SPECIFIED ---"
+
+# test that infile1 provided
+[ "$infile3" = "" ] && errMsg "--- NO INPUT FILE 3 SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# setup temporary images
+# Setup directory for temporary files
+# On exit remove ALL -- the whole directory of temporary images
+dir="$tmpdir/DIAGCOLLAGE.$$"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+mkdir "$dir" || {
+  echo >&2 "$PROGNAME: Unable to create working dir \"$dir\" -- ABORTING"
+  exit 10
+}
+
+
+# read input image 1
+if [ -f "$infile1" -a -e "$infile1" -a -r "$infile1" -a -s "$infile1" ]; then
+	convert -quiet "$infile1" +repage -alpha off $dir/tmpA1.miff
+else
+	errMSG  "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+# read input image 2
+if [ -f "$infile2" -a -e "$infile2" -a -r "$infile2" -a -s "$infile2" ]; then
+	convert -quiet "$infile2" +repage -alpha off $dir/tmpA2.miff
+else
+	errMSG  "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+# read input image 3
+if [ -f "$infile3" -a -e "$infile3" -a -r "$infile3" -a -s "$infile3" ]; then
+	convert -quiet "$infile3" +repage -alpha off $dir/tmpA3.miff
+else
+	errMSG  "--- FILE $infile3 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+# get modified size and half size to compensate for rotate and crop
+osize=`convert xc: -format "%[fx:$size-2*$thick]" info:`
+size=`convert xc: -format "%[fx:1.1*$size]" info:`
+size2=`convert xc: -format "%[fx:$size/2]" info:`
+#echo "osize=$osize; size=$size; size2=$size2;"
+
+# get half thickness
+thick2=`convert xc: -format "%[fx:$thick/2]" info:`
+
+# get direction
+if [ "$direction" = "p" ]; then
+	sign="+"
+elif [ "$direction" = "n" ]; then
+	sign="-"
+fi
+
+convert \
+\( $dir/tmpA1.miff -gravity $gravity1 -crop $crop1 +repage -resize ${size}x \
+	-crop ${size}x${size2}+0+0 +repage -background $bcolor -gravity south -splice 0x$thick \) \
+\( $dir/tmpA2.miff -gravity $gravity2 -crop $crop2 +repage -resize ${size2}x${size2}^ -gravity center \
+	-crop ${size2}x${size2}+0+0 +repage -gravity east -chop ${thick2}x0 -background white -splice ${thick2}x0 \) \
+\( $dir/tmpA3.miff -gravity $gravity3 -crop $crop3 +repage -resize ${size2}x${size2}^ -gravity center \
+	-crop ${size2}x${size2}+0+0 +repage -gravity west -chop ${thick2}x0 -background white -splice ${thick2}x0 \) \
+\( -clone 1 -clone 2 +append \) \
+-delete 1,2 -append \
+-background $bcolor -rotate ${sign}5 +repage \
+-gravity center -crop ${osize}x${osize}+0+0 +repage \
+-bordercolor $bcolor -border $thick "$outfile"
+
+exit 0

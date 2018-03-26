@@ -1,0 +1,437 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/12/2009 .......... revised 10/13/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: autolabel -s size -t text [-m mode] [-b buffer] [-p pointsize] [-f font] [-r rcolor] [-c color] [-u undercolor] infile outfile
+# USAGE: autolabel [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s      size              size textbox; can be specified as WIDTH, WIDTHx, 
+#                           xHEIGHT or WIDTHxHEIGHT
+# -t      text              text to apply to image; enclose in quotes
+# -m      mode              text mode; mode is either label or caption;
+#                           default=label
+# -b      buffer            buffer or padding around text box; integer>=0; 
+#                           default=0
+# -p      pointsize         text pointsize; integer>0; default will be 
+#                           determined from textbox width
+# -f      font              font name or path to font file; default=Arial
+# -r      rcolor            reference color for determining best textbox 
+#                           location; default=white
+# -c      color             text color; any valid IM color specification;
+#                           default will be either black or white, whichever 
+#                           contrasts better with the reference color
+# -u      undercolor        undercolor for text; any valid IM color 
+#                           specification; default=none for transparent so that 
+#                           image coloration shows behind text
+# 
+###
+# 
+# NAME: AUTOLABEL 
+# 
+# PURPOSE: To place text automatically in a specified size region that best 
+# matches a reference color.
+# 
+# DESCRIPTION: AUTOLABEL places text automatically in the first located user 
+# specified size region that best matches a reference color. The text can be 
+# placed in label or caption mode. In label mode, the text will all be on one 
+# line determined either by the textbox width or height or by the specified 
+# pointsize. In caption mode, the text will be best fit to the textbox width 
+# and height and optionally pointsize. By default the text will be placed on 
+# the image with no undercolor. But an undercolor can be used which will cover 
+# the underlying image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s size ... SIZE of textbox. Also used to find the location in the image that 
+# best matches the reference color. In label mode, the text will be placed all 
+# in one line. The size of the text will be determined either by the textbox 
+# width or height or pointsize. Specifying pointsize and width or height is not 
+# a valid combination. In caption mode, the text will be placed in multiple 
+# rows as determined by the textbox width and height. Pointsize may optionally 
+# be supplied in addition to the textbox width and height.
+#
+# -t text ... TEXT to apply to image. Be sure to enclose in quotes.
+# 
+# -m mode ... MODE for adding text. Options are either label or caption. In 
+# label mode the text will be all in one row as determined by either the 
+# textbox width or height or pointsize. In caption mode, the text will be on 
+# multiple rows to fill the textbox width and height. The pointsize may be 
+# optionally specified along with the textbox width and height.
+# 
+# -b buffer ... BUFFER is the amount of padding around the textbox. Values are 
+# integers greater than zero. The default=0.
+# 
+# -p pointsize ... POINTSIZE is the size of the font. Values are integers 
+# greater than 0. The default is unspecified, so that the pointsize will be 
+# determined from the textbox width, height or widthxheight.
+# 
+# -f font ... FONT is the text font or path to the font file. The default is 
+# Arial.
+# 
+# -r rcolor ... RCOLOR is the reference color to use to locate a textbox sized 
+# region in the image which is closest in color for placing the text. Any valid 
+# IM color specification is allowed. The default=white.
+# 
+# -c color ... COLOR is the text color. Any valid IM color specification is 
+# allowed. The default will be either black or white, whichever contrasts best 
+# with the reference color.
+# 
+# -u undercolor ... UNDERCOLOR is the color to use under the text within the 
+# textbox. Any valid IM color specification is allowed. The default=none, which 
+# means that the text will be placed over the image without any undercolor. If 
+# an undercolor is specified, then it will cover the underlying image.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+size=""					# size of match window; width, widthx, xheight, widthxheight
+buffer=0				# match window pad
+pointsize=""			# pointsize
+rcolor="white"			# reference color for matching
+color=""				# text color; default black or white depending upon grayscale
+ucolor="none"			# text undercolor; default transparent
+font="Arial"			# font name or path to font
+mode="label"			# label or caption
+text=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 20 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size="${1}x"
+					   ww=`echo "$size" | cut -dx -f1`
+					   hh=`echo "$size" | cut -dx -f2`
+					   if [ "$ww" != "" ]; then
+					   		ww1=`expr "$ww" : '\([0-9]*\)'`
+					   		[ "$ww1" = "" -o "$ww1" = "0" ] && errMsg "--- WSIZE=$ww1 MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   fi
+					   if [ "$hh" != "" ]; then 
+					   		hh1=`expr "$hh" : '\([0-9]*\)'`
+					   		[ "$hh1" = "" -o "$hh1" = "0" ] && errMsg "--- HSIZE=$hh1 MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   fi
+					   ;;
+				-t)    # get  text
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   text="$1"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   [ "$mode" != "label" -a "$mode" != "caption" ] && errMsg "--- MODE=$mode MUST BE EITHER LABEL OR CAPTION ---"
+					   ;;
+				-b)    # get  buffer
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BUFFER SPECIFICATION ---"
+					   checkMinus "$1"
+					   buffer=`expr "$1" : '\([0-9]*\)'`
+					   [ "$buffer" = "" ] && errMsg "--- BUFFER=$buffer MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-p)    # get pointsize
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POINTSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   pointsize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pointsize" = "" ] && errMsg "--- POINTSIZE=$pointsize MUST BE A NON-NEGATIVE INTEGER ---"
+					   pointsizetest=`echo "$pointsize <= 0" | bc`
+					   [ $pointsizetest -eq 1 ] && errMsg "--- POINTSIZE=$pointsize MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-f)    # get  font
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   checkMinus "$1"
+					   font="$1"
+					   ;;
+				-r)    # get rcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   rcolor="$1"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-u)    # get ucolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ucolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# test if no test or no size specified
+[ "$text" = "" ] && errMsg "--- SOME TEXT MUST BE SPECIFIED ---"
+[ "$size" = "" -a "$pointsize" = "" ] && errMsg "--- TEXTBOX WIDTH AND/OR HEIGHT MUST BE SPECIFIED ---"
+
+
+# setup temp files
+tmpA1="$dir/autolabel_1_$$.mpc"
+tmpB1="$dir/autolabel_1_$$.cache"
+tmpA2="$dir/autolabel_2_$$.mpc"
+tmpB2="$dir/autolabel_2_$$.cache"
+tmpA3="$dir/autolabel_3_$$.mpc"
+tmpB3="$dir/autolabel_3_$$.cache"
+
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
+
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# test for minimum IM version required
+# IM 6.5.0.10 or higher to conform to new image matching via compare function
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+if [ "$im_version" -lt "06050010" ]; then
+	errMsg "--- REQUIRES IM VERSION 6.5.0-10 OR HIGHER ---"
+fi
+
+# get black or white text color
+	if [ "$color" = "" ]; then
+		if [ "$ucolor" = "none" ]; then
+			gray=`convert -size 1x1 xc:"$rcolor" \
+			-colorspace gray -format "%[fx:round(100*s.r)]" info:`
+		else
+			gray=`convert -size 1x1 xc:"$ucolor" \
+				-colorspace gray -format "%[fx:round(100*s.r)]" info:`
+		fi
+		if [ $gray -lt 50 ]; then
+			color="white"
+		else
+			color="black"
+		fi
+	fi
+
+
+# get width and height of window
+ww=`echo "${size}x" | cut -dx -f1`
+hh=`echo "${size}x" | cut -dx -f2`
+
+# write text into window and get window size
+# label can use either size (width or widthx or xheight or widthxheight) or pointsize but not both
+# caption can use widthxheight without pointsize
+# or width (or widthx) with pointsize
+# note caption: determination of pointsize changed at IM 6.7.7-3 according to the changelog for proper wrapping
+if [ "$mode" = "label" -a "$pointsize" != "" -a "$size" = "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -pointsize $pointsize -gravity center \
+		${mode}:"$text" $tmpA2
+	ww=`convert $tmpA2 -ping -format "%w" info:`
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" = "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -gravity center \
+		-size ${ww}x ${mode}:"$text" $tmpA2
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" = "" -a "$hh" != "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -gravity center \
+		-size x${hh} ${mode}:"$text" $tmpA2
+	ww=`convert $tmpA2 -ping -format "%w" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" != "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -gravity center \
+		-size ${ww}x${hh} ${mode}:"$text" $tmpA2
+elif [ "$mode" = "caption" -a "$pointsize" != "" -a "$ww" != "" -a "$hh" = "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -pointsize $pointsize -gravity center \
+		-size ${ww}x ${mode}:"$text" $tmpA2
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "caption" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" != "" ]; then
+	convert -background "$ucolor" -fill "$color" \
+		-font $font -gravity center \
+		-size ${ww}x${hh} ${mode}:"$text" -write 1tmp1.png $tmpA2
+else
+	echo "--- Invalid Combination Of Pointsize and Size ---"
+fi
+
+
+# get padded width and height
+wwp=`convert xc: -format "%[fx:$ww+2*$buffer]" info:`
+hhp=`convert xc: -format "%[fx:$hh+2*$buffer]" info:`
+
+# get 1/10 width and height of padded window
+ww10=`convert xc: -format "%[fx:ceil($wwp/10)]" info:`
+hh10=`convert xc: -format "%[fx:ceil($hhp/10)]" info:`
+
+# get im version where -subimage-search introduced for compare
+if [ "$im_version" -ge "06060305" ]; then
+	searching="-subimage-search"
+else
+	searching=""
+fi
+
+# process scaled image for match
+convert $tmpA1 -scale 10% $tmpA3
+
+data=`compare -metric rmse $searching $tmpA3 \
+	\( -size ${ww10}x${hh10} xc:"$rcolor" \) null: 2>&1 |\
+	tr -cs ".0-9\n" " "`
+
+# get scaled window score and location
+score10=`echo "$data" | cut -d\  -f2`
+xxm10=`echo "$data" | cut -d\  -f3`
+yym10=`echo "$data" | cut -d\  -f4`
+
+# compute full res subsection to process
+wws=`convert xc: -format "%[fx:$ww+4*$ww10]" info:`
+hhs=`convert xc: -format "%[fx:$hh+4*$hh10]" info:`
+xxs=`convert xc: -format "%[fx:max(0,10*$xxm10-2*$ww10)]" info:`
+yys=`convert xc: -format "%[fx:max(0,10*$yym10-2*$hh10)]" info:`
+
+# process full res subsection for match with padded window
+datasub=`compare -metric rmse $searching $tmpA1[${wws}x${hhs}+${xxs}+${yys}] \
+	\( -size ${wwp}x${hhp} xc:"$rcolor" \) null: 2>&1 |\
+	tr -cs ".0-9\n" " "`
+
+# get subsection score and location
+scores=`echo "$datasub" | cut -d\  -f2`
+xxsm=`echo "$datasub" | cut -d\  -f3`
+yysm=`echo "$datasub" | cut -d\  -f4`
+
+# compute final full image match location
+xxm=`convert xc: -format "%[fx:$xxs+$xxsm]" info:`
+yym=`convert xc: -format "%[fx:$yys+$yysm]" info:`
+
+# compute text area offset including pad correction
+xxmp=`convert xc: -format "%[fx:$xxm+$buffer]" info:`
+yymp=`convert xc: -format "%[fx:$yym+$buffer]" info:`
+
+# write text onto image at match location corrected for pad
+convert $tmpA1 $tmpA2 -geometry +${xxmp}+${yymp} \
+-composite "$outfile"
+
+exit
+

@@ -1,0 +1,380 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/27/2010 .......... 12/11/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cone [-s size] [-r radii] [-c center] [-a apex]  [-e ecolors] [-t tcolors] [-b bcolor] [-m mode] [infile] outfile
+# USAGE: cone [-help or -h]
+#
+# OPTIONS:
+#
+# -s      size         size of background image to create if no input image 
+#                      is provided; The size=WIDTHxHEIGHT; Default=300x300
+# -r      radii        x,y radii for the ellipse; comma separated list of 
+#                      positive integers; The default="50,50" (circle of 
+#                      radius=50).
+# -c      center       center coordinates for the ellipse part of the cone; 
+#                      comma separate list of non-negative integers; 
+#                      center="xc,yc"; default="150,100".
+# -a      apex         apex coordinates for the triangle tip of the cone;
+#                      comma separate list of non-negative integers; 
+#                      center="x,y"; default="150,250".
+# -e      ecolors      comma separate list of ellipse fill and stroke colors 
+#                      and strokewidth; default="white,black,1";
+# -t      tcolors      comma separate list of triangle fill and stroke colors 
+#                      and strokewidth; default="tan,black,1".
+# -b      bcolor       background color for image if no input image is provided;
+#                      default="lightblue".
+# -m      mode         mode of drawing order; choices are 1 or 2. A value of 1 
+#                      draws the triangle over the ellipse; A value of 2 draws 
+#                      the ellipse over the triangle; default=1.
+#
+# If infile is provided, then size and bcolor will be ignored.
+# 
+###
+#
+# NAME: CONE 
+# 
+# PURPOSE: To draw a cone-shaped object on an image.
+# 
+# DESCRIPTION: CONE draws a cone-shaped object on an image. The cone is 
+# composed of two parts an ellipse (or circle) and a triangle. One can 
+# specify different colors for each along with stroke colors and strokewidths.
+# 
+# 
+# OPTIONS: 
+# 
+# -s size ... SIZE of background image to create if no input image is provided.
+# The size=WIDTHxHEIGHT; If only one value is provided, the second will be set 
+# equal to the first. Default="300x300".
+#
+# -r radii ... RADII are the x,y radii for the ellipse. Radii are specified as 
+# a comma separated list of two positive integers. If only one value is 
+# provided, the second will be set equal to the first. The default="50,50" 
+# (i.e., circle of radius=50).
+# 
+# -c center ... CENTER coordinates for the ellipse part of the cone. Center is 
+# a comma separate list of two non-negative integers. If only one value is 
+# provided, the second will be set equal to the first. The default="150,100".
+# 
+# -a apex ... APEX coordinates for the triangle tip of the cone. Apex is a 
+# comma separate list of two non-negative integers. If only one value is 
+# provided, the second will be set equal to the first. The default="150,250".
+# 
+# -e ecolors ... ECOLORS is a comma separate list of thre values, namely, the 
+# ellipse fill and stroke colors and strokewidth. All 3 values must be provided. 
+# The default="white,black,1";
+# 
+# -t tcolors ... TCOLORS is a comma separate list of thre values, namely, the 
+# triangle fill and stroke colors and strokewidth. All 3 values must be provided. 
+# The default="tan,black,1";
+# 
+# -b bcolor ... BCOLOR is the background color for image if no input image is 
+# provided. The default="lightblue".
+# 
+# -m mode ... MODE of drawing order. The choices are 1 or 2. A value of 1 
+# draws the triangle over the ellipse. A value of 2 draws the ellipse over 
+# the triangle. The default=1.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+size="300x300"				# size if no input image
+radii="50,50"				# x and y radii
+center=150,100				# x,y center of ellipse
+apex=150,250				# x,y apex of ellipse
+tcolors="tan,black,1"		# fill and outline color of triangle and strokewidth
+ecolors="white,black,1"		# fill and outline color of ellipse and strokewidth
+bcolor="lightblue"			# background color if no input image
+mode=1						# 1=triangle over ellipse, 2=ellipse over triangle
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		   -help|h)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([x0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE TWO X DELIMITED NON-NEGATIVE INTEGERS ---"
+ 					   ;;
+				-r)    # get radii
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADII SPECIFICATION ---"
+					   checkMinus "$1"
+					   radii=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$radii" = "" ] && errMsg "--- RADII=$radii MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-c)    # get center
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   center=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$center" = "" ] && errMsg "--- CENTER=$center MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-a)    # get apex
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID APEX SPECIFICATION ---"
+					   checkMinus "$1"
+					   apex=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$apex" = "" ] && errMsg "--- APEX=$apex MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-e)    # get ecolors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ECOLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   ecolors=`expr "$1" : '\([,a-zA-Z0-9]*\)'`
+					   [ "$ecolors" = "" ] && errMsg "--- ECOLORS=$ecolors MUST BE THREE COMMA DELIMITED ALPHABETIC OR NUMERIC ITEMS ---"
+					   ;;
+				-t)    # get tcolors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TCOLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   tcolors=`expr "$1" : '\([,a-zA-Z0-9]*\)'`
+					   [ "$tcolors" = "" ] && errMsg "--- TCOLORS=$tcolors MUST BE THREE COMMA DELIMITED ALPHABETIC OR NUMERIC ITEMS ---"
+					   ;;
+				-b)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   [ "$mode" != "1" -a "$mode" != "2" ] && errMsg "--- MODE=$mode MUST BE EITHER 1 OR 2 ---"
+					   ;;
+			 	 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	if [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	elif [ $# -eq 1 ]; then
+		outfile="$1"
+		infile=""
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+if [ "$infile" != "" ]; then
+	# set up temp files
+	tmpA1="$dir/cone_A_$$.mpc"
+	tmpA2="$dir/cone_A_$$.cache"
+	trap "rm -f $tmpA1 $tmpA2;" 0
+	trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+	trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+	# read the input image and filter image into the temp files and test validity.
+	convert -quiet "$infile" +repage "$tmpA1" ||
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+
+# extract and test individual argument
+
+apex=`echo "$apex" | sed 's/ //g'`
+x1=`echo "$apex" | cut -d, -f 1`
+y1=`echo "$apex" | cut -d, -f 2`
+
+center=`echo "$center" | sed 's/ //g'`
+xc=`echo "$center" | cut -d, -f 1`
+yc=`echo "$center" | cut -d, -f 2`
+
+radii=`echo "$radii" | sed 's/ //g'`
+a=`echo "$radii" | cut -d, -f 1`
+b=`echo "$radii" | cut -d, -f 2`
+
+tcolors=`echo "$tcolors" | sed 's/ //g'`
+tnum=`echo "$tcolors" | tr "," " " | wc -w`
+[ $tnum -ne 3 ] && errMsg "--- TCOLORS MUST CONTAIN ONLY 3 VALUES ---"
+tcolor=`echo "$tcolors" | cut -d, -f 1`
+tstroke=`echo "$tcolors" | cut -d, -f 2`
+twidth=`echo "$tcolors" | cut -d, -f 3`
+test=`expr "$twidth" : '\([0-9]*\)'`
+[ $test -ne 1 ] && errMsg "--- TWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
+
+ecolors=`echo "$ecolors" | sed 's/ //g'`
+enum=`echo "$ecolors" | tr "," " " | wc -w`
+[ $enum -ne 3 ] && errMsg "--- ECOLORS MUST CONTAIN ONLY 3 VALUES ---"
+ecolor=`echo "$ecolors" | cut -d, -f 1`
+estroke=`echo "$ecolors" | cut -d, -f 2`
+ewidth=`echo "$ecolors" | cut -d, -f 3`
+test=`expr "$ewidth" : '\([0-9]*\)'`
+[ $test -ne 1 ] && errMsg "--- EWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
+
+
+# do calculations
+
+# calc horizontal ellipse points relative to center
+x2=`convert xc: -format "%[fx:$xc-$a]" info:`
+y2=$yc
+x3=`convert xc: -format "%[fx:$xc+$a]" info:`
+y3=$yc
+
+# calc distance from apex (x1,y1) to center
+len=`convert xc: -format "%[fx:hypot(($y1-$yc),($x1-$xc))]" info:`
+
+# calc angle from apex to center
+angle=`convert xc: -format "%[fx:(180/pi)*atan2(($x1-$xc),($yc-$y1))]" info:`
+
+# compute tangent points as if ellipse at origin and apex vertically above
+# ellipse (x/a)^2 + (y/b)^2 = 1, where a and b are semi-major and semi-minor radii
+# differentiate: dy/dx = slope at tangent = -(x*b^2)/(y*a^2)
+# tangent line to apex (x1,y1): y-y1=-(x-x1)*(x*b^2)/(y*a^2)
+# solve for y and substitute into equation of ellipse to find x from quadratic equation
+
+# compute ellipse points and apex point when ellipse at center and apex directly above
+x4=0
+y4=-$len
+x5=$x2
+y5=0
+x6=$x3
+y6=0
+
+A=`convert xc: -format "%[fx:$a*$a*$y4*$y4 + $b*$b*$x4*$x4]" info:`
+B=`convert xc: -format "%[fx:-2*$a*$a*$b*$b*$x4]" info:`
+C=`convert xc: -format "%[fx:$a*$a*$a*$a*($b*$b-$y4*$y4)]" info:`
+x7=`convert xc: -format "%[fx:(-$B-sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
+x8=`convert xc: -format "%[fx:(-$B+sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
+y7=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$x4*$x7)/($a*$a*$y4)]" info:`
+y8=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$x4*$x8)/($a*$a*$y4)]" info:`
+
+# rotate and translate tangent points relative to apex and true ellipse center
+x9=`convert xc: -format "%[fx:($x7)cos(pi*$angle/180)-($y7+$len)sin(pi*$angle/180)+$x1]" info:`
+y9=`convert xc: -format "%[fx:($x7)sin(pi*$angle/180)+($y7+$len)cos(pi*$angle/180)+$y1]" info:`
+x10=`convert xc: -format "%[fx:($x8)cos(pi*$angle/180)-($y8+$len)sin(pi*$angle/180)+$x1]" info:`
+y10=`convert xc: -format "%[fx:($x8)sin(pi*$angle/180)+($y8+$len)cos(pi*$angle/180)+$y1]" info:`
+
+if [ "$infile" != "" ]; then
+	input="$tmpA1"
+else
+	input="-size $size xc:$bcolor"
+fi
+
+# draw circle and tangent lines
+if [ $mode -eq 1 ]; then
+	convert $input \
+		-fill $ecolor -stroke $estroke -strokewidth $ewidth -draw "translate $xc,$yc rotate $angle ellipse 0,0 $a,$b 0,360" \
+		-fill $tcolor -stroke $tstroke -strokewidth $twidth -draw "polygon $x1,$y1 $x9,$y9 $x10,$y10" \
+		"$outfile"
+elif [ $mode -eq 2 ]; then
+	convert $input \
+		-fill $tcolor -stroke $tstroke -strokewidth $twidth -draw "polygon $x1,$y1 $x9,$y9 $x10,$y10" \
+		-fill $ecolor -stroke $estroke -strokewidth $ewidth -draw "translate $xc,$yc rotate $angle ellipse 0,0 $a,$b 0,360" \
+		"$outfile"
+fi
+
+exit 0
+
+
+

@@ -1,0 +1,378 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/14/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+#
+# USAGE: scatterchannels [-c channels] [-f format] [-s scale] [-l] [-t] [-m] infile
+# USAGE: scatterchannels [-h or -help]
+#
+# OPTIONS:
+# 
+# -c      channels       channel pair to process; RG, GB, BR; default=all 3 pairs
+# -f      format         output format when channels=default (all); format=1 or 3 images; 
+#                        default=1; output name(s) will be created from the infile 
+#                        and the channels. The output image will be GIF format
+# -s      scale          subsampling scale size for input images in both dimensions;
+#                        default=50 (pixels)
+# -l                     label each axis with a color stripe of the relevant color 
+#                        when channels is not default (all) or format=3
+# -t                     transpose the resulting scatter diagram 
+# -m                     mirror the resulting scatter diagram vertically 
+#
+###
+#
+# NAME: SCATTERCHANNELS 
+# 
+# PURPOSE: To generate a scatter diagram between channels of an image. 
+# 
+# DESCRIPTION: SCATTERCHANNELS generates a scatter diagram between channels of 
+# an images. The 8-bit graylevel values at each corresponding pixel in the two 
+# channels are used as the x and y coordinates to plot white points on a 
+# 256x256 black background image. By default all 3 pairs of channels will 
+# be processed: red vs green, green vs blue and blue vs red. The process is 
+# slow and is proportional to the size of the input image. Therefore the image 
+# will be scaled down to the desired size in order to keep the processing to a 
+# reasonable time, but have an adequate uniform sampling of the data. The 
+# resulting graph image may be mirrored vertically so that the x,y origin 
+# is at the bottom left, if desired, rather than the default top left.
+# 
+# 
+# OPTIONS: 
+# 
+# -c channels ... CHANNELS are the pair(s) of channels to be made into a 
+# a scatter diagram. The choices are: red-green or RG, green-blue or GB, 
+# blue-red or BR. The default is all 3 pairs in one image. If the image is 
+# CMYK, then RG is equivalent to CM, GB is equivalent to MY and BR is 
+# equivalent to YC. By default the first color will be along the x axis 
+# and the second color along the y axis.
+# 
+# -f format ... OUTPUT FORMAT when channels=default (all).  The format can 
+# be either 1 or 3 images. The default is 1. Output name(s) will be created 
+# from the infile and the channels. The output image will be GIF format.
+# 
+# -s scale ... SCALE is the resulting subsampled scale size of the input 
+# image. The image will be scaled to the desired size in pixels maximum on  
+# each side, if the image is larger than this size. The default is 50. Thus  
+# for a square image equal to or larger than 50, 50x50=2500 points will be 
+# plotted.
+# 
+# -l ... Indicates to label each axis with a color stripe of the relevant 
+# color when channels is not default (all) or when format=3. In other words,
+# when separate channel-to-channel scatter images are created.
+# 
+# -t ... Indicates to transpose the resulting scatter diagram, interchanging 
+# the x and y axes (colors/channels).
+#
+# -m ... Indicates to mirror the resulting scatter diagram vertically, 
+# so that the x,y origin is at the bottom left rather than the top left.
+#
+# NOTE: This process is slow and takes about 2 minutes to generate with the 
+# default sample size of 50 on my Mac Mini 1.4 GHz G4.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values
+channels="all"
+format=1
+scale=50
+label="no"
+transpose="no"
+mirror="no"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 	 -l|-L)    # color label stripe
+					   label="yes"
+					   ;;
+		 	 -m|-M)    # mirror vertically
+					   mirror="yes"
+					   ;;
+		 	 -t|-T)    # transpose
+					   transpose="yes"
+					   ;;
+		 		-c)    # channels
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNELS SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test mode values
+					   channels=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$channels" in 
+					   		red-green) channels=rg ;;
+					   		rg) channels=rg ;;
+					   		green-blue) channels=gb ;;
+					   		gb) channels=gb ;;
+					   		blue-red) channels=br ;;
+					   		br) channels=br ;;
+					   		all) channels=all ;;
+					   		*) errMsg "--- CHANNELS=$channels IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-f)    # number of output images
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   format=`expr "$1" : '\([0-9]*\)'`
+					   [ $format -ne 1 -a $format -ne 3 ] && errMsg "--- FORMAT=$format MUST BE EITHER 1 OR 3 ---"
+					   ;;
+				-s)    # scale size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SCALE SPECIFICATION ---"
+					   checkMinus "$1"
+					   scale=`expr "$1" : '\([0-9]*\)'`
+					   [ "$scale" = "" -o $scale -eq 0 ] && errMsg "--- SCALE=$scale MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infiles and outfile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# create output file name(s)
+inname=`convert $infile -ping -format "%t" info:`
+outfile_rg="${inname}_scatter_red_green.gif"
+outfile_gb="${inname}_scatter_green_blue.gif"
+outfile_br="${inname}_scatter_blue_red.gif"
+outfile="${inname}_scatter_red_green_blue.gif"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA1="$dir/scatterchannels_A_$$.mpc"
+tmpA2="$dir/scatterchannels_A_$$.cache"
+tmpRed="$dir/scatterchannels_Red_$$.png"
+tmpGreen="$dir/scatterchannels_Green_$$.png"
+tmpBlue="$dir/scatterchannels_Blue_$$.png"
+trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using scatterchannels.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# test if infile exists
+if convert -quiet "$infile" -scale "${scale}x${scale}>" +repage "$tmpA1"
+	then
+	: 'do nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+
+# test if two images are the same size
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+
+# set up processing list
+[ "$channels" = "rg" ] && colorlist="Red"
+[ "$channels" = "gb" ] && colorlist="Green"
+[ "$channels" = "br" ] && colorlist="Blue"
+[ "$channels" = "all" ] && colorlist="Red Green Blue"
+
+#process the image channel by channel
+for color in $colorlist; do
+	if [ "$color" = "Red" ]; then
+		echo "Processing Red-Green"
+		color1="Red"
+		color1a="Red"
+		color2="Green"
+		color2a="Green1"
+	elif [ "$color" = "Green" ]; then
+		echo "Processing Green-Blue"
+		color1="Green"
+		color1a="Green1"
+		color2="Blue"
+		color2a="Blue"
+	elif [ "$color" = "Blue" ]; then
+		echo "Processing Blue-Red"
+		color1="Blue"
+		color1a="Blue"
+		color2="Red"
+		color2a="Red"
+	fi
+		
+	xArray=(`convert  $tmpA1 -depth 8 $setcspace -channel $color1 -separate txt:- |\
+	tail -n +2 |\
+	tr -cs '0-9\n'  ' ' |\
+	cut -d' ' -f3`)
+		
+	yArray=(`convert  $tmpA1 -depth 8 $setcspace -channel $color2 -separate txt:- |\
+	tail -n +2 |\
+	tr -cs '0-9\n'  ' ' |\
+	cut -d' ' -f3`)
+		
+	# Generate a MVG file for IM to draw all components
+	( echo "viewbox 0 0 256 256   fill black  rectangle 0,0 256 256"
+	echo "fill white"
+	if [ "$label" = "yes" -a "$channels" != "all" -o $format -eq 3 ]; then
+		echo "stroke $color1a stroke-width 3 line 0,0 255,0"
+		echo "stroke $color2a stroke-width 3 line 0,0 0,255"
+	fi
+	i=0
+	while [ $i -lt $hh ]; do
+		j=0
+		while [ $j -lt $ww ]; do
+			k=`expr $ww \* $i + $j`
+			echo " point ${xArray[$k]},${yArray[$k]}"
+			j=`expr $j + 1`
+		done
+		i=`expr $i + 1`
+	done
+	) | eval convert mvg:- \$tmp$color
+done
+
+# set up transpose
+if [ "$transpose" = "yes" ]; then
+	trans="-transpose"
+else
+	trans=""
+fi
+
+# set up mirror
+if [ "$mirror" = "yes" ]; then
+	flip="-flip"
+else
+	flip=""
+fi
+
+# convert output
+if [ "$channels" = "rg" ]; then
+	convert $tmpRed $trans $flip "$outfile_rg"
+elif [ "$channels" = "gb" ]; then
+	convert $tmpGreen $trans $flip "$outfile_gb"
+elif [ "$channels" = "br" ]; then
+	convert $tmpBlue $trans $flip "$outfile_br"
+elif [ "$channels" = "all" -a $format -eq 1 ]; then
+	convert $tmpRed $tmpGreen $tmpBlue -combine -colorspace $cspace $trans $flip "$outfile"
+elif [ "$channels" = "all" -a $format -eq 3 ]; then
+	convert $tmpRed $trans $flip "$outfile_rg"
+	convert $tmpGreen $trans $flip "$outfile_gb"
+	convert $tmpBlue $trans $flip "$outfile_br"
+fi
+exit 0

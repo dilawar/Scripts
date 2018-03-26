@@ -1,0 +1,402 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/13/2010 .......... 2/17/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: interleave [-t type] [-a alpha] [-c colorize] infile1 ... infileN outfile
+# USAGE: interleave [-h or -help]
+#
+# OPTIONS:
+#
+# -t      type           type of interleave; choices are: a) row, line, bil or
+#                        b) col, pixel, bip; default=row
+# -a      alpha          include alpha channel; yes or no; default=no
+# -c      colorize       colorize the channels; yes or no; default=no
+#
+###
+#
+# NAME: INTERLEAVE
+# 
+# PURPOSE: To interleave the channels of a single image or each image of a 
+# set of multiple images.
+# 
+# DESCRIPTION: INTERLEAVE interleaves the channels of a single image or 
+# each image of a set of multiple images. If a single input image is provided, 
+# then each channel will be separated and interleaved either row-by-row or 
+# column-by-column. The channels may be recolorized optionally. Images with 
+# colorspace RGB or CMYK (with or without alpha channel) are supported. If 
+# more than one image is proveded, then each image will be interleaved in 
+# succession either row-by-row or column-by-column.
+# 
+# 
+# OPTIONS: 
+# 
+#
+# -t type ... TYPE is the type of interleave to use. The choices are either: 
+# row (or line or bil) or col (or pixel or bip). BIL and BIP mean band 
+# interleaved by line or band interleaved by pixel. The default=row
+#
+# -a alpha ... ALPHA is a flag to include the alpha channel or not. The 
+# choices are: yes or no. The default=no
+# 
+# -c colorize ... COLORIZE is a flag to re-color the channels. It is valid 
+# only when one input image is provided. The choices are: yes or no. The 
+# default=no.
+# 
+# WARNING: It is not recommended to use JPG for output as the JPG compression 
+# will badly distort the output when colorized.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+type="row"			# (row, line or bil) or (col, pixel or bip)
+alpha="no"			# include alpha channel
+colorize="no"		# colorize the channels
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -lt 2 ]
+	then
+	errMsg "--- TOO FEW ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 		-t)    # type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test mode values
+					   type="$1"
+					   type=`echo "$type" | tr "[:upper:]" "[:lower:]"`
+					   case "$type" in 
+					   		row|line|bil) type="row" ;;
+					   		col|pixel|bip) type="col" ;;
+					   		*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+		 		-a)    # alpha
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ALPHA FLAG SPECIFICATION ---"
+					   checkMinus "$1"
+					   alpha="$1"
+					   alpha=`echo "$alpha" | tr "[:upper:]" "[:lower:]"`
+					   [ "$alpha" != "yes" -a "$alpha" != "no" ] && errMsg "--- ALPHA=$alpha IS AN INVALID VALUE ---" 
+					   ;;
+		 		-c)    # colorize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORIZE FLAG SPECIFICATION ---"
+					   checkMinus "$1"
+					   colorize="$1"
+					   colorize=`echo "$colorize" | tr "[:upper:]" "[:lower:]"`
+					   [ "$colorize" != "yes" -a "$colorize" != "no" ] && errMsg "--- COLORIZE=$colorize IS AN INVALID VALUE ---" 
+					   ;;
+				 -)    # STDIN, end of arguments
+  				 	   break
+  				 	   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;					   
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+fi
+
+
+# get infiles and outfile
+fileArray=($@)
+nfiles=$#
+[ $nfiles -lt 2 ] && errMsg "--- TOO FEW IMAGES WERE PROVIDED ---"
+lastfile=`expr $nfiles - 1`
+outfile="${fileArray[$lastfile]}"
+
+# get number of input images
+numfiles=$(($nfiles-1))
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+dir="$tmpdir/$PROGNAME.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cartoon.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+# need setcspace for grayscale to color for IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace="-set colorspace sRGB"
+fi
+
+# test that each infile is valid and read into tmp mpc format
+for ((i=1; i<=$numfiles; i++)); do
+	j=$(($i-1))
+	convert -quiet "${fileArray[$j]}" +repage $dir/tmp$i.mpc ||
+	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+done
+
+if [ $numfiles -eq 1 ]; then
+	ww=`convert $dir/tmp1.mpc -ping -format "%w" info:`
+	hh=`convert $dir/tmp1.mpc -ping -format "%h" info:`
+	# remove leading s from srgb after IM 6.7.6.6
+	channels=`convert $dir/tmp1.mpc -ping -format "%[channels]" info: | sed 's/s//g'`
+	numchannels=`echo "$channels" | wc -m`	
+	numchannels=$(($numchannels-1))
+	isAlpha=`convert $dir/tmp1.mpc -ping -format "%A" info:`
+	isRGB=`echo "$channels" | grep -c "rgb"`
+	isCMYK=`echo "$channels" | grep -c "cmyk"`
+#	echo "channels=$channels; numchannels=$numchannels; isAlpha=$isAlpha; isRGB=$isRGB; isCMYK=$isCMYK;"
+
+	# set up deletion
+	if [ "$isAlpha" = "True" -a "$alpha" = "no" ]; then
+		numchannels=$(($numchannels-1))
+		transparency="-alpha off"
+	elif [ "$isAlpha" = "True" -a "$alpha" = "yes" ]; then
+		transparency="-channel $channels -alpha on"
+	else
+		transparency=""
+	fi
+#	echo "transparency=$transparency; numchannels=$numchannels;"
+	
+	# setup expanded width and height and scale
+	www=`convert xc: -format "%[fx:$numchannels*$ww]" info:`
+	hhh=`convert xc: -format "%[fx:$numchannels*$hh]" info:`
+	scale=`convert xc: -format "%[fx:$numchannels*100]" info:`
+	
+	#set up colorize
+	if [ "$colorize" = "yes" ]; then
+		if [ $isRGB -eq 1 -a "$isAlpha" = "False" ]; then
+			colorize0="-channel GB -evaluate set 0 +channel"
+			colorize1="-channel RB -evaluate set 0 +channel"
+			colorize2="-channel RG -evaluate set 0 +channel"
+		elif [ $isCMYK -eq 1 -a "$isAlpha" = "False" ]; then
+			colorize0="-channel MYK -evaluate set 0 +channel"
+			colorize1="-channel CYK -evaluate set 0 +channel"
+			colorize2="-channel CMK -evaluate set 0 +channel"
+			colorize3=""
+		elif [ $isRGB -eq 1 -a "$isAlpha" = "True" ]; then
+			colorize0="-channel GBA -evaluate set 0 +channel"
+			colorize1="-channel RBA -evaluate set 0 +channel"
+			colorize2="-channel RGA -evaluate set 0 +channel"
+			colorize3=""
+		elif [ $isCMYK -eq 1 -a "$isAlpha" = "True" ]; then
+			colorize0="-channel MYKA -evaluate set 0 +channel"
+			colorize1="-channel CYKA -evaluate set 0 +channel"
+			colorize2="-channel CMKA -evaluate set 0 +channel"
+			colorize3=""
+			colorize4=""
+		else
+			colorize0=""
+			colorize1=""
+			colorize2=""
+			colorize3=""
+			colorize4=""
+		fi
+	else
+			colorize0=""
+			colorize1=""
+			colorize2=""
+			colorize3=""
+			colorize4=""
+	fi
+
+	#set up white/black stripes for number of files
+		squares="xc:white"
+		for ((i=2;i<=$numchannels;i++)); do
+			squares="$squares xc:black"
+		done
+		
+
+	# process image	
+	if [ "$type" = "row" ]; then
+		convert -size 1x1 $squares -append -write mpr:stripes \
+			+delete -size ${ww}x${hhh}! tile:mpr:stripes $dir/tmpM.mpc
+		convert $dir/tmp1.mpc $transparency -scale 100x${scale}% $setcspace -separate \
+			+channel $dir/tmpI_%d.mpc
+ 
+		convert -size ${ww}x${hhh}! xc:none $dir/tmp0.mpc
+		for ((i=0;i<$numchannels;i++)); do
+			eval colorize=\$colorize$i
+			convert $dir/tmpM.mpc -roll +0+$i \( $dir/tmpI_$i.mpc $setcspace $colorize \) \
+				+swap -alpha off -compose copy_opacity -composite -compose over \
+				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
+		done
+		convert $dir/tmp0.mpc -alpha off "$outfile"
+	elif [ "$type" = "col" ]; then
+		convert -size 1x1 $squares +append -write mpr:stripes \
+			+delete -size ${www}x${hh}! tile:mpr:stripes $dir/tmpM.mpc
+		convert $dir/tmp1.mpc $transparency -scale ${scale}x100% $setcspace -separate \
+			+channel $dir/tmpI_%d.mpc
+		convert -size ${www}x${hh}! xc:none $dir/tmp0.mpc
+		for ((i=0;i<$numchannels;i++)); do
+			eval colorize=\$colorize$i
+			convert $dir/tmpM.mpc -roll +$i+0 \( $dir/tmpI_$i.mpc $colorize \) \
+				+swap -alpha off -compose copy_opacity -composite -compose over \
+				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
+		done
+		convert $dir/tmp0.mpc -alpha off "$outfile"
+	fi
+
+elif [ $numfiles -gt 1 ]; then
+	# get image sizes and test that same size
+	for ((i=1; i<=$numfiles; i++)); do
+		eval thefile=\$infile$i
+		eval \ww$i=`convert $dir/tmp$i.mpc -ping -format "%w" info:`
+		eval \hh$i=`convert $dir/tmp$i.mpc -ping -format "%h" info:`
+	done
+	for ((i=2; i<=$numfiles; i++)); do
+		eval ww=\$ww$i
+		eval hh=\$hh$i
+		[ $ww -ne $ww1 -o $hh -ne $hh1 ] && errMsg "--- INPUT IMAGES MUST ALL BE THE SAME SIZE ---"
+	done
+
+	# set image sizes
+	ww=$ww1
+	hh=$hh1
+
+	# setup expanded width and height and scale
+	www=`convert xc: -format "%[fx:$numfiles*$ww]" info:`
+	hhh=`convert xc: -format "%[fx:$numfiles*$hh]" info:`
+	scale=`convert xc: -format "%[fx:$numfiles*100]" info:`
+	
+	#set up white/black stripes for number of files
+		squares="xc:white"
+		for ((i=2;i<=$numfiles;i++)); do
+			squares="$squares xc:black"
+		done
+
+	if [ "$type" = "row" ]; then
+		convert -size 1x1 $squares -append -write mpr:stripes \
+			+delete -size ${ww}x${hhh}! tile:mpr:stripes $dir/tmpM.mpc
+		convert -size ${ww}x${hhh}! xc:none $dir/tmp0.mpc
+		for ((i=1;i<=$numfiles;i++)); do
+			convert $dir/tmpM.mpc -roll +0+$i \( $dir/tmp$i.mpc -scale 100x${scale}% \) \
+				+swap -alpha off -compose copy_opacity -composite -compose over \
+				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
+		done
+		convert $dir/tmp0.mpc -alpha off "$outfile"
+	elif [ "$type" = "col" ]; then
+		convert -size 1x1 $squares +append -write mpr:stripes \
+			+delete -size ${www}x${hh}! tile:mpr:stripes $dir/tmpM.mpc
+		convert -size ${www}x${hh}! xc:none $dir/tmp0.mpc
+		for ((i=1;i<=$numfiles;i++)); do
+			convert $dir/tmpM.mpc -roll +$i+0 \( $dir/tmp$i.mpc -scale ${scale}x100% \) \
+				+swap -alpha off -compose copy_opacity -composite -compose over \
+				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
+		done
+		convert $dir/tmp0.mpc -alpha off "$outfile"
+	fi
+else
+	errMsg "--- TOO FEW INPUT IMAGES PROVIDED ---"
+fi
+
+exit 0

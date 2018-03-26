@@ -1,0 +1,354 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/8/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: mosaictiles [-t tsize] [-w width ] [-b bright] [-c color] [-A] 
+# [-r ripples] [-g granular] [-n newseed] infile outfile
+#
+# USAGE: mosaictiles [-h or -help]
+#
+# OPTIONS:
+#
+# -t      tsize            size of tiles; integer>0; default=30
+# -w      width            width of grout; integer>0; default=3
+# -b      bright           brightness of grout; 0<=integer<=100; default=0
+# -c      color            grout color; any valid opaque IM color is allowed
+# -A                       antialias grout edges
+# -r      ripples          extent of ripples of grout; integer>=0; default=15 
+# -g      granular         granularity of noise image used to make rippled 
+#                          grout; integer>=0; default=5
+# -n      newseed		   seed value of noise image; integer>=0; default is 
+#                          random seed
+# 
+###
+#
+# NAME: MOSAICTILES 
+# 
+# PURPOSE: To apply a mosaic tiles effect to image.
+# 
+# DESCRIPTION: MOSAICTILES applies a mosaic tiles effect to image. The user may 
+# control the tile size, grout thickness, grout brightness and grout ripples.
+# This script is similar to the Photoshop Mosiac Tiles filter.
+# 
+# OPTIONS: 
+#
+# -t tsize ... TSIZE is the size of the tiles in the x and y direction. Values 
+# are integers greater than 0. The default=30.
+# 
+# -w width ... WIDTh of the grout. Values are integers greater than 0. The 
+# default=3.
+# 
+# -b bright ... BRIGHT is the brightness of the grout. Values are between 0 and
+# 100. The default=0.
+# 
+# -c color ... COLOR is the grout color. Any valid opaque IM color is allowed.
+# The default=black
+#
+# -A ... ANTIALIAS grout.
+# 
+# -r ripples ... RIPPLES are the extent of the ripples (wiggles) in the grout. 
+# Values are integers greater than or equal to 0. The default=15.
+# 
+# -g granular ... GRANULAR is the granularity of the noise image used to make 
+# the rippled grout. Smaller values gives small curls, while larger values are 
+# broader curves. Values are integers greater than or equal to 0. The 
+# default=5.
+# 
+# -n newseed ... NEWSEED is the seed value for the random noise image. Values 
+# are integers greater than or equal to 0. The default is random seed values.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+tsize=15				# tile size
+width=3					# grout width
+bright=0				# grout brightness
+color="black"			# grout color
+antialias="off"			# grout line antialias
+ripple=15				# ripple amount for the grout
+newseed="100"			# seed value
+granular=5				# granularity of displacement of grout lines
+rough=1					# coarseness value
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 17 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get  tsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   tsize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$tsize" = "" ] && errMsg "--- TSIZE=$tsize MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+		   			   test=`echo "$tsize < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- TSIZE=$tsize MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-w)    # get  width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+		   			   test=`echo "$width < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-b)    # get bright
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   bright=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bright" = "" ] && errMsg "BRIGHT=$bright MUST BE A NON-NEGATIVE INTEGER"
+		   			   testA=`echo "$bright < 0" | bc`
+		   			   testB=`echo "$bright > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHT=$bright MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-A)    # set antialias
+					   antialias="on"
+					   ;;
+				-r)    # get  ripples
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RIPPLES SPECIFICATION ---"
+					   checkMinus "$1"
+					   ripples=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ripples" = "" ] && errMsg "--- RIPPLES=$ripples MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-g)    # get  granular
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRANULAR SPECIFICATION ---"
+					   checkMinus "$1"
+					   granular=`expr "$1" : '\([0-9]*\)'`
+					   [ "$granular" = "" ] && errMsg "--- GRANULAR=$granular MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-n)    # get  newseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$newseed" = "" ] && errMsg "--- NEWSEED=$newseed MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/mosaictiles_1_$$.mpc"
+tmpB1="$dir/mosaictiles_1_$$.cache"
+tmpA2="$dir/mosaictiles_2_$$.mpc"
+tmpB2="$dir/mosaictiles_2_$$.cache"
+tmpA3="$dir/mosaictiles_3_$$.mpc"
+tmpB3="$dir/mosaictiles_3_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using mosaictiles.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.0.8
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get image size
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+#echo "ww=$ww; hh=$hh"
+
+# expand size of grid to allow for dispersion
+ww2=$((ww+tsize))
+hh2=$((hh+tsize))
+
+# compute tile size including grout width
+tsize=$((tsize+width))
+
+
+# set seeding
+if [ "$newseed" != "" ]; then
+	seeding="-seed $newseed"
+else
+	seeding=""
+fi
+
+# disable threshold if coarse=0
+if [ "$antialias" = "on" ]; then
+	thresholding=""
+else
+	thresholding="-threshold $rough%"
+fi
+ 
+# create single grid cell
+# tile
+# chop off black at right and bottom of image
+# append last row and column to fill out image
+convert \( -size ${tsize}x${tsize} xc:black \
+	-size ${width}x${tsize} xc:white +append \
+	-size ${tsize}x${width} xc:white -append \) \
+	-write mpr:tile +delete -size ${ww2}x${hh2} tile:mpr:tile $tmpA2
+
+# add ripples to the grid
+# first create blurred noise image
+convert -size ${ww2}x${hh2} xc: $seeding +noise random $setcspace -colorspace gray \
+	-blur 0x${granular} -contrast-stretch 0 $tmpA3
+
+# use disperse to add ripples
+if [ "$im_version" -lt "06050304" ]; then
+	composite $tmpA3 $tmpA2 -virtual-pixel black -displace ${ripple}x${ripple} miff:- |\
+	-gravity center -crop ${ww}x${hh}+0+0 +repage $thresholding $tmpA2
+else
+	convert $tmpA2 $tmpA3 $setcspace -virtual-pixel black \
+		-define compose:args=${ripple}x${ripple} -compose displace -composite \
+		-gravity center -crop ${ww}x${hh}+0+0 +repage $thresholding $tmpA2
+fi
+
+# apply to image
+# pre-color ( also need to add -negate after thresholding above)
+#convert $tmpA1 \( $tmpA2 -fill white -colorize $bright \) \
+#	-compose multiply -composite "$outfile"
+convert $tmpA1 \
+	\( -clone 0 -fill $color -colorize 100 \) \
+	\( $tmpA2 -fill black -colorize $bright \) \
+	-compose multiply -composite "$outfile"
+
+
+exit 0
+

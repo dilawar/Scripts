@@ -1,0 +1,282 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 8/14/2014 .......... revised9/20/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cylinderwarp rotation displacementfile infile [backgroundfile] outfile
+# 
+# REQUIRED ARGUMENT:
+# 
+# rotation is the rotation angle in degrees about cylinder axis; mandatory;  
+# float; -360<=angle<=360;
+# 
+# backgroundfile is an optional background file onto which the cylinderized 
+# infile is to be composited at the offset coordinated relative to the 
+# center of the backgroundfile
+# 
+# 
+###
+# 
+# NAME: CYLINDERWARP 
+# 
+# PURPOSE: To apply a cylinder distortion to an image using a displacement 
+# map and arguments provided by the script cylinderize.
+# 
+# DESCRIPTION: CYLINDERIZE applies a cylinder distortion to an image using 
+# a displacement map and arguments provided by the script cylinderize. The 
+# arguments must be copied from cylinderize output at the terminal and pasted 
+# in the arguments section of this script.
+# 
+# 
+# EXTERNAL ARGUMENTS: 
+# 
+# rotation ... ROTATION is the rotation of the cylinder about its axis. It is   
+# a required argument. The values are floats with -360<=angle<=360. 
+# 
+# REQUIREMENTS: IM 6.5.3.4 due to the use of -compose displace -composite. 
+# Also requires the preprocessing of cylinderize in export mode (-E) to get  
+# the displacement image (displace.png) and to get the needed internal   
+# arguments that must be pasted in this script below.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+#### set internal arguments here (pasted from the output of cylinderize)
+
+
+
+
+#### end internal arguments
+
+# get external arguments
+outfile=""								# initialize in case no background image
+angle=`expr "$1" : '\([-.0-9]*\)'`		# get rotation angle
+dfile="$2"								# dispacement image
+infile="$3"								# input image
+bgfile="$4"								# optional background image or if no background image then output image
+outfile="$5"							# output image
+
+
+# test angle for valid values
+if [ "$angle" = "" ]; then 
+	echo "--- ANGLE=$angle MUST BE A NON-NEGATIVE FLOAT ---"
+	exit 1
+fi
+
+# set outfile depending upon whether background exists
+if [ "$outfile" = "" ]; then 
+	outfile="$bgfile"
+	bgfile=""
+fi
+
+#echo "angle=$angle"
+#echo "dfile=$dfile"
+#echo "infile=$infile"
+#echo "bgfile=$bgfile"
+#echo "outfile=$outfile"
+
+
+# test displacement file
+if ! [ -f "$dfile" -a -e "$dfile" -a -r "$dfile" -a -s "$dfile" ]; then
+	echo  "--- FILE $dfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	exit 1
+fi
+
+# test infile
+if ! [ -f "$infile" -a -e "$infile" -a -r "$infile" -a -s "$infile" ]; then
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	exit 1
+fi
+
+
+if [ "$bgfile" != "" ]; then 
+	# test backgroundfile
+	if ! [ -f "$bgfile" -a -e "$bgfile" -a -r "$bgfile" -a -s "$bgfile" ]; then
+		echo  "--- FILE $bgfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+		exit 1
+	fi
+fi
+
+
+# set up resize
+if [ "$scale" != "100" -a "$mode" = "vertical" ]; then 
+	resizing="-resize 100x${scale}%"
+elif [ "$scale" != "100" -a "$mode" = "horizontal" ]; then 
+	resizing="-resize ${scale}x100%"
+else
+	resizing=""
+fi
+#echo "resizing=$resizing"
+
+
+# set up for rolling
+if [ "$roll" != "" ]; then
+	rolling="-roll ${roll}"
+else
+	rolling=""
+fi
+#echo "roll=$roll"
+#echo "rolling=$rolling"
+
+
+# set up for transparency
+if [ "$vpmethod" = "transparent" -o "$bgcolor" = "none" ]; then
+	channels="-channel rgba -alpha on"
+else
+	channels="-alpha off"
+fi
+#echo "channels=$channels"
+
+
+# set up for background color
+if [ "$vpmethod" = "background" ]; then
+	backgroundcolor="-background $bgcolor"
+elif [ "$vpmethod" = "black" ]; then
+	backgroundcolor="-background black"
+elif [ "$vpmethod" = "white" ]; then
+	backgroundcolor="-background white"
+elif [ "$vpmethod" = "gray" ]; then
+	backgroundcolor="-background gray"
+elif [ "$vpmethod" = "transparent" -o "$vpmethod" = "none" ]; then
+	backgroundcolor="-background none"
+else
+	backgroundcolor=""
+fi
+#echo "backgroundcolor=$backgroundcolor"
+
+
+# set up trimming
+if [ "$trim" = "yes" ]; then
+	trimming="-fill $bgcolor -trim +repage"
+elif [ "$trim" != "yes" -a "$mode" = "vertical" ]; then
+	trimming="-gravity center -crop ${width}x${height12}+0+0 +repage"
+elif [ "$trim" != "yes" -a "$mode" = "horizontal" ]; then
+	trimming="-gravity center -crop ${width12}x${height}+0+0 +repage"
+else 
+	trimming=""
+fi
+#echo "trimming=$trimming"
+
+
+# set up perspective warp
+if [ "$coords" != "" ]; then
+	pwarp='-gravity northwest -virtual-pixel $vpmethod $backgroundcolor -distort perspective "$coords"'
+else
+	pwarp=""
+fi
+#echo "pwarp=$pwarp"
+#echo "coords=$coords"
+
+
+# set up for flipping input when direction of pitch is negative
+if [ "$direction" = "negative" -a "$mode" = "vertical" ]; then
+	flipping="-flip"
+elif [ "$direction" = "negative" -a "$mode" = "horizontal" ]; then
+	flipping="-flop"
+else
+	flipping=""
+fi
+#echo "flipping=$flipping"
+
+
+# set up for bgfile
+if [ "$bgfile" != "" ]; then
+	bgproc1="$flipping -gravity center -background $bgcolor -extent ${wbg}x${hbg} +repage -gravity center -geometry $offsets"
+	bgproc2="+swap -compose $compose -composite"
+else
+	bgproc1="$flipping"
+	bgproc2=""
+fi
+#echo "bgproc1=$bgproc1"
+#echo "bgproc2=$bgproc2"
+
+
+# set up for rotating
+if [ "$rotation" != "0" ]; then
+	rotating="-background $bgcolor -rotate $rotation"
+else
+	rotating=""
+fi
+#echo "rotating=$rotating"
+
+
+# set up gravity for displacement
+if [ "$mode" = "vertical" ]; then
+	if [ "$direction" = "both" ]; then
+		gravityval="center"
+	else
+		gravityval="north"
+	fi
+elif [ "$mode" = "horizontal" ]; then
+	if [ "$direction" = "both" ]; then
+		gravityval="center"
+	else
+		gravityval="west"
+	fi
+fi
+#echo "gravityval=$gravityval"
+
+
+# set up borderize with pad used for direction=both
+if [ "$pad" != "0" -a "$mode" = "vertical" ]; then
+	borderize="-bordercolor none -border 0x${pad}"
+elif [ "$pad" != "0" -a "$mode" = "horizontal" ]; then
+	borderize="-bordercolor none -border ${pad}x0"
+else
+	borderize=""
+fi
+#echo "borderize=$borderize"
+
+
+
+# process image
+
+if [ "$mode" = "vertical" ]; then
+#echo "vertical"
+	eval 'convert -respect-parenthesis \
+	\( "$infile" +repage $rproc $resizing -gravity center -background ${fcolor} -extent ${pwidth}x${pheight} \
+		$rolling $flipping -resize 100x${length2}% $backgroundcolor -gravity $gravityval -extent ${pwidth}x${height1} $borderize \) \
+	"$dfile" $channels -virtual-pixel $vpmethod $backgroundcolor -gravity northwest \
+		-define compose:args=${xc}x${radius2} -compose displace -composite -compose over +channel \
+	$trimming '"$pwarp"' $bgproc1 $rotating $bgfile $bgproc2 "$outfile"'
+
+
+elif [ "$mode" = "horizontal" ]; then
+#echo "horizontal"
+	eval 'convert -respect-parenthesis \
+	\( "$infile" +repage $rproc $resizing -gravity center -background ${fcolor} -extent ${pwidth}x${pheight} \
+		$rolling $flipping -resize ${length2}x100% $backgroundcolor -gravity $gravityval -extent ${width1}x${pheight} $borderize \) \
+	"$dfile" $channels -virtual-pixel $vpmethod $backgroundcolor -gravity northwest \
+		-define compose:args=${radius2}x${yc} -compose displace -composite -compose over +channel \
+	$trimming '"$pwarp"' $bgproc1 $rotating $bgfile $bgproc2 "$outfile"'
+
+fi
+
+exit 0

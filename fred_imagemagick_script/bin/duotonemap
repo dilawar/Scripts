@@ -1,0 +1,430 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/15/2010 .......... 1/10/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: duotonemap [-m mode] [-b bias] [-t thresh] [-s sgamma] [-h hgamma] [-r ramp] [-l lower] [-u upper] infile outfile
+# USAGE: duotonemap [-help]
+#
+# OPTIONS:
+#
+# -m      mode        mode of operation; choices are: shadows, highlights or
+#                     both; default=both
+# -b      bias        percent shift in mean value used as threshold between
+#                     shadows and highlights; positive or negative floats; 
+#                     default is no change from mean of image.
+# -t      thresh      threshold value between shadows and highlights; 
+#                     0<=float<=100; overrides automatic mode of mean of 
+#                     image if provided
+# -s      sgamma      gamma value to use in shadows; float>0; sgamma=1 is 
+#                     no change; values larger/smaller than 1 produce 
+#                     brighter/darker results; default is computed 
+#                     automatically from shadow area mean and "lower" 
+#                     graylevel parameter.
+# -h      hgamma      gamma value to use in highlights; float>0; sgamma=1 is 
+#                     no change; values larger/smaller than 1 produce 
+#                     brighter/darker results; default is computed 
+#                     automatically from shadow area mean and "upper" 
+#                     graylevel parameter.
+# -r      ramp        ramp of transition between shadows and highlights in 
+#                     pixels; integer>=0; default=20
+# -l      lower       lower graylevel value used in automatic sgamma 
+#                     computation; smaller/larger values produce 
+#                     darker/larger results; 0<=float<=1; default=0.5
+# -u      upper       upper graylevel value used in automatic hgamma 
+#                     computation; smaller/larger values produce 
+#                     darker/larger results; 0<=float<=1; default=0.7
+#
+###
+#
+# NAME: DUOTONEMAP 
+# 
+# PURPOSE: Enhances the shadows and/or highlight regions in an image.
+# 
+# DESCRIPTION: DUOTONEMAP enhances the shadows and/or highlight regions 
+# in an image. This is done by adjusting the gamma in each region as 
+# defined by a threshold of the image used as a mask. Processing is 
+# nominally automatic, but can be overridden with manual settings.
+# This is similar to Photoshop's Shadows/Highlights function.
+# 
+# 
+# OPTIONS: 
+# 
+# -m mode ... MODE of operation that specifies to adjust shadows or highlights 
+# or both. Choices are shadows (or s), highlights (or h) or both (or b). The
+# default=both
+#
+# -b bias ... BIAS is the percent shift of the mean value of the input that is 
+# is used as the nominal threshold value between shadows and highlights. 
+# Values are positive or negative floats. The default=0 indicates no change 
+# from the global mean value of all channels of the input image.
+# 
+# -t thresh ... THRESH is the user specified threshold value. When used, it 
+# overrides the automatic value from the (mean + bias) value. Values are 
+# floats between 0 and 100. The default is to use automatic value from the 
+# (mean + bias).
+# 
+# -s sgamma ... SGAMMA is the gamma value to use in the shadow region. When 
+# provided it overrides the automatic value determined from the mean value in 
+# the shadows and the "lower" graylevel parameter. Values are floats>0. 
+# A value of sgamma=1 produces no change. Smaller/larger values produce darker
+# or brighter results in the shadows. The default is to use the automatically 
+# computed value.
+# 
+# -h hgamma ... HGAMMA is the gamma value to use in the highlight region. When 
+# provided it overrides the automatic value determined from the mean value in 
+# the highlights and the "upper" graylevel parameter. Values are floats>0. 
+# A value of hgamma=1 produces no change. Smaller/larger values produce darker
+# or brighter results in the highlights. The default is to use the automatically 
+# computed value.
+# 
+# -r ramp ... RAMP is the transition distance in pixels between the shadows and 
+# highlights. Values are integers>=0. The default=20.
+# 
+# -l lower ... LOWER is the graylevel value used with the mean value of the 
+# shadows to compute the shadow gamma. Values are in the range 0<=float<=1. 
+# Smaller/larger values produces darker/brighter results. The default=0.5
+# 
+# -u upper ... UPPER is the graylevel value used with the mean value of the 
+# highlights to compute the highlight gamma. Values are in the range 0<=float<=1. 
+# Smaller/larger values produces darker/brighter results. The default=0.7
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+mode="both"			# shadows, highlights, both
+bias=0				# bias percent shift of mean value for thresholding shadows and highlights
+thresh=""			# threshold percent; if provided skip mean and bias
+sgamma=""			# gamma value to use in shadows; default is automatic
+hgamma=""			# gamma value to use in highlights; default is automatic
+ramp=20				# ramp the transition in mask between shadows and highligths
+upper=0.7			# mid gray value desired for auto gamma adjustment in highlights
+lower=0.5			# mid gray value desired for auto gamma adjustment in shadows
+fact=255			# log factor to use in secondary auto gamma adjustment
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		shadows|s) mode=shadows;;
+					   		highlights|h) mode=highlights;;
+					   		both|b) mode=both;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-b)    # get bias
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BIAS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   bias=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$bias" = "" ] && errMsg "--- BIAS=$bias MUST BE A POSITIVE OR NEGATIVE FLOAT ---"
+ 					   ;;
+				-t)    # get thresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   thresh=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   test1=`echo "$thresh < 0" | bc`
+					   test2=`echo "$thresh > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-s)    # get sgamma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SGAMMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   sgamma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$sgamma" = "" ] && errMsg "--- SGAMMA=$sgamma MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$sgamma <= 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SGAMMA=$sgamma MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-h)    # get hgamma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HGAMMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   hgamma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$hgamma" = "" ] && errMsg "--- HGAMMA=$hgamma MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$hgamma <= 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- HGAMMA=$hgamma MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-r)    # get ramp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAMP SPECIFICATION ---"
+					   checkMinus "$1"
+					   ramp=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ramp" = "" ] && errMsg "--- RAMP=$ramp MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-l)    # get lower
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOWER SPECIFICATION ---"
+					   checkMinus "$1"
+					   lower=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$lower" = "" ] && errMsg "--- LOWER=$lower MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   test1=`echo "$lower < 0" | bc`
+					   test2=`echo "$lower > 1" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- LOWER=$lower MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-u)    # get upper
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UPPER SPECIFICATION ---"
+					   checkMinus "$1"
+					   upper=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$upper" = "" ] && errMsg "--- UPPER=$lower MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   test1=`echo "$upper < 0" | bc`
+					   test2=`echo "$upper > 1" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- UPPER=$upper MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# create temp files
+tmpA1="$dir/duotonemap_1_$$.mpc"
+tmpB1="$dir/duotonemap_1_$$.cache"
+tmpA2="$dir/duotonemap_2_$$.mpc"
+tmpB2="$dir/duotonemap_2_$$.cache"
+tmpA3="$dir/duotonemap_3_$$.mpc"
+tmpB3="$dir/duotonemap_3_$$.cache"
+tmpA4="$dir/duotonemap_4_$$.mpc"
+tmpB4="$dir/duotonemap_4_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using dualtonemap.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+# Note: added $setcspace when reading input
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+computeMean()
+	{
+	img="$1"
+	if [ "$im_version" -ge "06040011" ]
+		then 
+		mean=`convert $img -format "%[fx:mean]" info:`
+	else
+		data=`convert $img -verbose info:`
+		mean=`echo "$data" | sed -n 's/^.*[Mm]ean:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	fi
+	meanpct=`convert xc: -format "%[fx:100*$mean]" info:`
+	}
+
+# test input image
+convert -quiet "$infile" +repage $setcspace "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# find threshold
+if [ "$thresh" = "" ]; then
+	computeMean $tmpA1
+	thresh=`convert $tmpA1 -format "%[fx:100*($mean+$bias/100)]" info:`
+	echo ""
+	echo "mean=$meanpct%"
+	echo "threshold=$thresh%"
+fi
+
+# set up for blurring transition
+if [ "$ramp" = "0" ]; then
+	blurring=""
+else
+	blurring="-blur ${ramp}x65000"
+fi
+
+# create mask to separate image at midpoint
+convert $tmpA1 -threshold ${thresh}% $blurring $tmpA2
+
+# get gamma values
+if [ "$sgamma" = "" -o "$hgamma" = "" ]; then
+	# get mean of mask
+	computeMean $tmpA2
+	meanm=$mean
+	
+	# get mean of shadows
+	if [ "$sgamma" = "" -a "mode" != "highlights" ]; then	
+		convert $tmpA1 \( $tmpA2 -negate \) -compose multiply -composite $tmpA3
+		computeMean $tmpA3
+		means=`convert xc: -format "%[fx:$mean/(1-$meanm)]" info:`
+	fi
+
+	# get mean of highlights
+	if [ "$hgamma" = "" -a "$mode" != "shadows" ]; then		
+		convert $tmpA1 $tmpA2 -compose multiply -composite $tmpA4
+		computeMean $tmpA4
+		meanh=`convert xc: -format "%[fx:$mean/$meanm]" info:`
+	fi
+	
+	# get gamma of shadows and hightlights
+	if [ "$sgamma" = "" -a "$mode" != "highlights" ]; then
+		sgamma=`convert xc: -format "%[fx:log($means)/log($lower)]" info:`
+		tests=`convert xc: -format "%[fx:$sgamma<=0?1:0]" info:`
+		[ $tests -eq 1 ] && sgamma=`convert xc: -format "%[fx:log($fact*$means)/log($fact*$lower)]" info:`
+	fi
+	
+	if [ "$hgamma" = "" -a "$mode" != "shadows" ]; then	
+		hgamma=`convert xc: -format "%[fx:log($meanh)/log($upper)]" info:`
+		testh=`convert xc: -format "%[fx:$hgamma<=0?1:0]" info:`
+		[ $testh -eq 1 ] && hgamma=`convert xc: -format "%[fx:log($fact*$meanh)/log($fact*$upper)]" info:`
+	fi
+fi
+
+echo ""
+# process image
+if [ "$mode" = "both" ]; then
+	echo "sgamma = $sgamma"
+	echo "hgamma = $hgamma"
+	convert $tmpA1 -auto-level -gamma $sgamma $tmpA3
+	convert $tmpA1 -auto-level -gamma $hgamma $tmpA4
+	convert $tmpA3 $tmpA4 $tmpA2 -compose over -composite "$outfile"
+elif [ "$mode" = "shadows" ]; then
+	echo "sgamma = $sgamma"
+	convert $tmpA1 -auto-level -gamma $sgamma $tmpA3
+	convert $tmpA3 $tmpA1 $tmpA2 -compose over -composite "$outfile"
+elif [ "$mode" = "highlights" ]; then
+	echo "hgamma = $hgamma"
+	convert $tmpA1 -auto-level -gamma $hgamma $tmpA4
+	convert $tmpA1 $tmpA4 $tmpA2 -compose over -composite "$outfile"
+fi
+echo ""
+
+exit 0
+
+
+

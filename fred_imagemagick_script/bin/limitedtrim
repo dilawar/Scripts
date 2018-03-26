@@ -1,0 +1,223 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/5/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: limitedtrim [-t trimlimit] [-f fuzzval] infile outfile
+# USAGE: limitedtrim [-h or -help]
+#
+# OPTIONS:
+#
+# -t     trimlimit     limit on amount of trim in pixels; integer>=0; 
+#                      default will limit the trim to smallest trim amount 
+#                      from all the sides
+# -f     fuzzval       fuzz value (color tolerance) percent for trimming;
+#                      float>=0; default=0
+#
+###
+#
+# NAME: LIMITEDTRIM
+# 
+# PURPOSE: To trim an image on all sides by a maximum amount specified by the 
+# user.
+# 
+# DESCRIPTION: LIMITEDTRIM trims an image on all sides by a maximum amount  
+# specified by the user.
+# 
+# OPTIONS: 
+# 
+# -t trimlimit ... TRIMLIMIT is maximum amount of trim in pixels. Values are 
+# integesr>=0. The default will limit the trim to smallest trim amount from all 
+# the sides.
+# 
+# -f fuzzval ... FUZZVAL is fuzz value (color tolerance) percent associated  
+# with trimming. Values are floats greater than or equal to zero. The default=0
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+trimlimit=""
+fuzzval=0
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # trimlimit
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TRIMLIMIT SPECIFICATION ---"
+					   checkMinus "$1"
+					   trimlimit=`expr "$1" : '\([0-9]*\)'`
+					   [ "$trimlimit" = "" ] && errMsg "--- TRIMLIMIT=$trimlimit MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-f)    # fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+					   test=`echo "$fuzzval < 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/limitedtrim_1_$$.mpc"
+tmpB1="$dir/limitedtrim_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+
+# read the input image and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image dimensions
+ww=`convert -ping "$infile" -format "%w" info:`
+hh=`convert -ping "$infile" -format "%h" info:`
+
+
+# get trim information
+triminfo=`convert "$infile" -fuzz $fuzzval% -format "%@" info:`
+#echo "triminfo=$triminfo"
+wt=`echo "$triminfo" | cut -d+ -f1 | cut -dx -f1`
+ht=`echo "$triminfo" | cut -d+ -f1 | cut -dx -f2`
+xoff=`echo "$triminfo" | cut -d+ -f2`
+yoff=`echo "$triminfo" | cut -d+ -f3`
+#echo "ww=$ww; hh=$hh; cx=$cx; cy=$cy; wt=$wt; ht=$ht; xoff=$xoff; yoff=$yoff"
+
+
+# compute crop parameters
+if [ "$trimlimit" = "" ]; then
+	dx2=$(($ww-$wt-$xoff))
+	dy2=$(($hh-$ht-$yoff))
+	min=`convert xc: -format "%[fx:min(min(min($xoff,$yoff),$dx2),$dy2)]" info:`
+	dx1=$min
+	dy1=$min
+	nw=$((ww-2*$min))
+	nh=$((hh-2*$min))
+else
+	[ $xoff > $trimlimit ] && dx1=$trimlimit || dx1=$xoff
+	[ $yoff > $trimlimit ] && dy1=$trimlimit || dy1=$yoff
+	dx2=$(($ww-$wt-$xoff))
+	dy2=$(($hh-$ht-$yoff))
+	[ $dx2 > $trimlimit ] && nw=$((ww-$dx1-$trimlimit)) || nw=$((ww-$dx1-$trimlimit))
+	[ $dy2 > $trimlimit ] && nh=$((hh-$dy1-$trimlimit)) || nh=$((hh-$dy1-$dy2))
+fi
+
+
+# crop for output
+convert $tmpA1 -crop ${nw}x${nh}+${dx1}+${dy1} +repage "$outfile"
+
+
+exit 0

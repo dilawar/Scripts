@@ -1,0 +1,304 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/6/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: midtonebalance [-rc red-cyan] [-gm green-magenta] [-by blue-yellow ] 
+# [-p] infile outfile
+# USAGE: midtonebalance [-h or -help]
+# 
+# OPTIONS:
+# 
+# -rc     red-cyan          controls the red-cyan color balance; nominal values 
+#                           are -100<=integer<=100; positive values apply
+#                           more red; negative values apply more cyan; 
+#                           default=0 (no change)
+# -gm     green-magenta     controls the green-magenta color balance; nominal  
+#                           values are -100<=integer<=100; positive values 
+#                           apply more green; negative values apply more 
+#                           magenta; default=0 (no change)
+# -by     blue-yellow       controls the blue-yellow color balance; nominal  
+#                           values are -100<=integer<=100; positive values 
+#                           apply more blue; negative values apply more 
+#                           yellow; default=0 (no change)
+# -p                        preserves luminosity
+# 
+###
+# 
+# NAME: MIDTONEBALANCE 
+# 
+# PURPOSE: To color balance an image in the midtones.
+# 
+# DESCRIPTION: MIDTONEBALANCE color balances an image in the midtones in a 
+# manner similar to Photoshop. 
+# 
+# 
+# ARGUMENTS: 
+# 
+# -rc (or -r) red-cyan ... RED-CYAN controls the red-cyan color balance. 
+# Nominal values are -100<=integer<=100. Positive values apply more red.  
+# Negative values apply more cyan. The default=0 (no change)
+#
+# -gm (or -g) green-magenta ... GREEN-MAGENTA controls the green-magenta color   
+# balance. Nominal values are -100<=integer<=100. Positive values apply more 
+# green. Negative values apply more magenta. The default=0 (no change)
+# 
+# -by (or -b) blue-yellow ... BLUE-YELLOW controls the blue-yellow color   
+# balance. Nominal values are -100<=integer<=100. Positive values apply more   
+# blue. Negative values apply more yellow. The default=0 (no change)
+#
+# -p ... preserves luminosity
+# 
+# LIMITATIONS: Preserve luminosity works best (matches better to Photoshop) 
+# for IM 6.8.5.5 or higher with the introduction of colorspace HCLp.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+red=0						# nominal -100<=integer<=100; red-cyan
+green=0						# nominal -100<=integer<=100; green-magenta
+blue=0						# nominal -100<=integer<=100; blue-yellow
+preserveluminosity="no"		# yes or no
+shape=100					# fixed
+gain=20						# fixed
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-rc|r)    # get red-cyan
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID RED-CYAN SPECIFICATION ---"
+					   #checkMinus "$1"
+					   red=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$red" = "" ] && errMsg "--- RED-CYAN=$red MUST BE A INTEGER VALUE ---"
+					   ;;
+				-gm|g)    # get green-magenta
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID GREEN-MAGENTA SPECIFICATION ---"
+					   #checkMinus "$1"
+					   green=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$green" = "" ] && errMsg "--- GREEN-MAGENTA=$green MUST BE A INTEGER VALUE ---"
+					   ;;
+				-by|b)    # get blue-yellow
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BLUE-YELLOW SPECIFICATION ---"
+					   #checkMinus "$1"
+					   blue=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$blue" = "" ] && errMsg "--- BLUE-YELLOW=$blue MUST BE A INTEGER VALUE ---"
+					   ;;
+				 -p)    # STDIN and end of arguments
+					   preserveluminosity="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+
+# setup temporary images
+tmpA1="$dir/midtonebalance_1_$$.mpc"
+tmpB1="$dir/midtonebalance_1_$$.cache"
+tmpA2="$dir/midtonebalance_2_$$.mpc"
+tmpB2="$dir/midtonebalance_2_$$.cache"
+tmpL="$dir/midtonebalance_L_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpL;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpL; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpL; exit 1" ERR
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autolevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+if [ "$im_version" -gt "07000000" ]; then
+# needed to upscale grayscale image to color
+	setcspace="-set colorspace sRGB"
+fi
+
+
+
+# create LUT
+
+# convert shape and gain to fraction
+shape=`convert xc: -format "%[fx:$shape/100]" info:`
+gain=`convert xc: -format "%[fx:$gain/100]" info:`
+echo "shape=$shape; gain=$gain;"
+
+# generate gradient:
+convert -size 1x1024 gradient: -rotate 90 $setcspace $tmpL
+
+# process red
+if [ $red -gt 0 ]; then
+	convert $tmpL -channel r -fx "u+0.15*(1/(${shape}*u+$gain))*($red/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+elif [ $red -lt 0 ]; then
+	convert $tmpL -channel r -fx "u+0.25*($red/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+fi
+
+
+# process green
+if [ $green -gt 0 ]; then
+	convert $tmpL -channel g -fx "u+0.15*(1/(${shape}*u+$gain))*($green/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+elif [ $green -lt 0 ]; then
+	convert $tmpL -channel g -fx "u+0.25*($green/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+fi
+
+# process blue
+if [ $blue -gt 0 ]; then
+	convert $tmpL -channel b -fx "u+0.15*(1/(${shape}*u+$gain))*($blue/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+elif [ $blue -lt 0 ]; then
+	convert $tmpL -channel b -fx "u+0.25*($blue/100)*(1-(4.0*((u-0.5)*(u-0.5))))" +channel $tmpL
+fi
+
+
+# apply LUT
+if [ "$preserveluminosity" = "no" ]; then
+	convert $tmpA1 $tmpL -clut "$outfile"
+else
+	convert $tmpA1 $tmpL -clut $tmpA2
+	convert $tmpA2 \
+		\( $tmpA1 $setcspace -colorspace HCLp -channel b -separate +channel \) \
+		-compose Luminize -composite "$outfile"
+fi
+
+exit 0
+
+
+
+
+
+

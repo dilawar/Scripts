@@ -1,0 +1,310 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/22/2007 .......... revised 11/29/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: radialgrid [-c center] [-m maxradius] [-n numcircles] [-s spacing] [-C color] 
+# [-t thickness] [-o opacity] infile outfile
+# USAGE: radialgrid [-h or -help]
+#
+# OPTIONS:
+#
+# -c     center         x,y coordinate for center of circles; pair of comma separated 
+#                       floats>=0; default is the image center
+# -m     maxradius      radius of largest circle; float>0 or min, max, diag; 
+#                       default=half the maximum dimension of the image
+# -n     numcircles     number of circles equally spaced from the center to the 
+#                       maxradius; integer>0; default=10
+# -s     spacing        spacing of the circles; float>0; if not specified, the spacing 
+#                       will be determined from maxradius and numcircles; if specified, 
+#                       numcircles will be ignored
+# -C     color          color of grid lines; any valid opaque IM color allowed; 
+#                       default="black"
+# -t     thickness      thickness of grid lines; integer>0; default=1 
+# -o     opacity        opacity of grid lines opacity between 0.0 and 1.0;
+#                       opacity=0 is transparent; opacity=1 is opaque;
+#                       default=1
+#
+###
+#
+# NAME: RADIALGRID 
+# 
+# PURPOSE: To superimpose a set of circulare grid lines on an image.
+# 
+# DESCRIPTION: GRID superimposes a set of circular grid lines on an image. Parameters 
+# are available to select the grid line color, maximum radius, number of circles, 
+# spacing, thickness and opacity.
+# 
+# 
+# OPTIONS: 
+# 
+# -c center ... CENTER is the x,y coordinate for center of circles. Values are a pair 
+# of comma separated floats>=0. The default is the image center.
+# 
+# -m maxradius ... MAXRADIUS is the radius of largest circle. Values are either floats>0 
+# or min (minimum), max (maximum), diag (diagonal) half dimension of the image. The  
+# default=half the maximum dimension of the image.
+# 
+# -n numcircles ... NUMCIRCLES is the number of equally spaced circles from the center 
+# to the maxradius. Values are integers>0. The default=10.
+# 
+# -s spacing ... SPACING of the circles. Values are floats>0. If spacing is not 
+# specified, then the spacing will be determined from maxradius and numcircles. If 
+# spacing is specified, then numcircles will be ignored.
+# 
+# -C color ... COLOR of the grid lines. Any IM color is allowed, including alpha 
+# values. The default=black.
+# 
+# -t thickness ... THICKNESS of the circular grid lines. Values are integers>0.
+# The default=1
+# 
+# -o opacity ... OPACITY is the grid line opacity. Values are non-negative 
+# floats between 0.0 and 1.0. The default=1
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+center=""
+maxradius="max"
+numcircles=10
+spacing=""
+color="black"
+thickness=1
+opacity=1
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get center
+					   shift  # to get the next parameter - spacing
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   center=`expr "$1" : '\([.0-9]*,*[.0-9]*\)'`
+					   [ "$center" = "" ] && errMsg "--- CENTER=$center MUST BE A COMMA SEPARATED PAIR OF FLOATS ---"
+					   ;;
+				-m)    # get maxradius
+					   shift  # to get the next parameter - spacing
+					   # test if parameter starts with minus sign 
+					   checkMinus "$1"
+					   maxradius=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   ;;
+				-n)    # get numcircles
+					   shift  # to get the next parameter - thickness
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMCIRCLES SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   numcircles=`expr "$1" : '\([0-9]*\)'`
+					   [ "$numcircles" = "" ] && errMsg "--- NUMCIRCLES=$numcircles MUST BE AN INTEGER ---"
+					   test=`echo "$numcircles == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- NUMCIRCLES=$numcircles MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-s)    # get spacing
+					   shift  # to get the next parameter - spacing
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SPACING SPECIFICATION ---"
+					   checkMinus "$1"
+					   center=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$spacing" = "" ] && errMsg "--- SPACING=$spacing MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$spacing == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- SPACING=$spacing MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-C)    # get color
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test lineval values
+					   color="$1"
+					   ;;
+				-t)    # get thickness
+					   shift  # to get the next parameter - thickness
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$thickness == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-o)    # get opacity
+					   shift  # to get the next parameter - opacity
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   opacity=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "OPACITY=$opacity IS NOT A NON-NEGATIVE FLOATING POINT NUMBER"
+					   test=`echo "$opacity > 1" | bc`
+					   [ $test -eq 1 ] && errMsg "OPACITY=$opacity MUST BE BETWEEN 0.0 AND 1.0"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/profile_$$.mpc"
+tmpB="$dir/profile_$$.cache"
+trap "rm -f $tmpA $tmpB;" 0
+trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
+
+convert -quiet "$infile" +repage $tmpA ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get image dimensions
+width=`convert -ping $tmpA -format "%w" info:`
+height=`convert -ping $tmpA -format "%h" info:`
+#echo "width=$width; height=$height;"
+
+# get center
+if [ "$center" = "" ]; then
+	centx=`convert xc: -format "%[fx:($width-1)/2]" info:`
+	centy=`convert xc: -format "%[fx:($height-1)/2]" info:`
+fi
+#echo "centx=$centx; centy=$centy;"
+
+# get maxradius
+if [ "$maxradius" = "maximum" -o "$maxradius" = "max" ]; then
+	maxradius=`convert xc: -format "%[fx:(max($width,$height)-1)/2]" info:`
+elif [ "$maxradius" = "minimum" -o "$maxradius" = "min" ]; then
+	maxradius=`convert xc: -format "%[fx:(min($width,$height)-1)/2]" info:`
+elif [ "$maxradius" = "diagonal" -o "$maxradius" = "diag" ]; then
+	maxradius=`convert xc: -format "%[fx:(hypot($width,$height)-1)/2 ]" info:`
+else
+	test=`expr "$maxradius" : '\([.0-9]*\)'`
+	[ $test -eq 1 ] && errMsg "--- MAXRADIUS=$maxradius IS AN INVALID VALUE ---"
+fi
+#echo "maxradius=$maxradius;"
+
+# get spacing values
+if [ "$spacing" = "" ]; then
+	spacing=`convert xc: -format "%[fx:$maxradius/$numcircles]" info:`
+else
+	numcircles=`convert xc: -format "%[fx:floor($maxradius/$spacing)]" info:`
+fi
+#echo "numcircles=$numcircles; spacing=$spacing;"
+
+# get string for drawing circles
+graphic="translate $centx,$centy stroke-opacity $opacity"
+for ((i=0; i<=numcircles; i++)); do
+	radius=`convert xc: -format "%[fx:$i*$spacing]" info:`
+	graphic="$graphic circle 0,0 0,$radius"
+done
+#echo "$graphic"
+
+# process image
+convert $tmpA -fill none -stroke $color -strokewidth $thickness -draw "$graphic" "$outfile"
+
+exit 0
+

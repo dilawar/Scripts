@@ -1,0 +1,195 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/28/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: ortoneffect [-b blur] [-o opacity] infile outfile
+# USAGE: ortoneffect [-h or -help]
+# 
+# OPTIONS:
+# 
+# -b     blur         blur amount; float>=0; default=10
+# -o     opacity      opacity; 0<=integer<=100; default=100
+# 
+###
+# 
+# NAME: ORTONEFFECT 
+# 
+# PURPOSE: To apply an Orton effect to an image.
+# 
+# DESCRIPTION: ORTONEFFECT applies an Orton (sandwich) effect to an image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -b blur ... BLUR is the amount of blur. Values are floats>=0. The default=10.
+# 
+# -o opacity ... OPACITY percent. Values are integers betwee 0 and 100. 
+# The default=100.
+# 
+# REFERENCES:
+# http://www.bernskiold.com/2011/06/06/applying-orton-effect-photos/
+# http://peterh111.wordpress.com/2010/12/11/the-easy-guide-to-creating-the-orton-effect/
+# http://pcin.net/update/2006/11/01/the-orton-effect-digital-photography-tip-of-the-week/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+blur=10			# blur amount
+opacity=100		# opacity
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE FLOAT VALUE (with no sign) ---"
+					   ;;
+				-o)    # get opacity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "--- OPACITY=$opacity MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$opacity < 0" | bc`
+					   test2=`echo "$opacity > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- OPACITY=$opacity MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temp files
+tmpA1="$dir/ortoneffect_1_$$.mpc"
+tmpB1="$dir/ortoneffect_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read and test image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+#Process Image
+# screen composite the image with itself
+# blur a copy of the screen composite image and adjust its opacity
+# delete the original and multiply composite the screen and blurred screen composite images
+convert $tmpA1 \
+\( -clone 0 -clone 0 -compose screen -composite -alpha set \) \
+\( -clone 1 -blur 0x$blur -alpha set -channel a -evaluate set $opacity% +channel \) \
+-delete 0 -compose multiply -composite \
+"$outfile"
+
+exit 0
+
+
+
