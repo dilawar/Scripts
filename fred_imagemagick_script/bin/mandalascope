@@ -1,0 +1,255 @@
+#!/bin/bash
+#
+# Developed by Greg McNeil 12/1/2017 ..... revised by Fred Weinhaus 12/7/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: mandalascope [-n number] [-s scale] [-r rotation] [ -t translation] [-z zoom] 
+# [-b bgcolor] infile outfile
+#
+# USAGE: mandalascope [-h or -help]
+#
+# OPTIONS:
+#
+# -n     number         number of repetitions; integer>=3; default=12
+# -s     scale          scale factor; float>0; default=1
+# -r     rotation       rotation angle in degrees; 0<=integer<=360; default=0
+# -t     translation    translation; 0<=integer<=200; default=0
+# -z     zoom           zoom factor; float>0; default=1.4
+# -b     bgcolor        background color; any valid IM color is allowed; default=black
+#
+###
+#
+# NAME: MANDALASCOPE
+# 
+# PURPOSE: To convert an image into a mandala-like kaleidoscope image.
+# 
+# DESCRIPTION: MANDALASCOPE converts an image into a mandala-like kaleidoscope image.
+# 
+# OPTIONS: 
+# 
+# -n number ... NUMBER of repetitions. Values are integers>=3. The default=12.
+# 
+# -s scale ... SCALE factor. Values are floats>0. The default=1.
+# 
+# -r rotation ... ROTATION angle in degrees. Values are 0<=integer<=360. The default=0.
+# 
+# -t translation ... TRANSLATION. Values are 0<=integer<=200. The default=0.
+# 
+# -z zoom ... ZOOM factor. Values are floats>0. The default=1.4.
+# 
+# -b bgcolor ... BGCOLOR is the background color. Any valid IM color is allowed. 
+# The default=black.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# defaults
+number=12            # number of segments; integer>=3
+scale=1              # scale factor; float>0
+rotate=0             # rotation in degrees; integer
+translate=0          # translation percent of width: integer 0 to 200 (percent)
+zoom=1.4             # zoom factor; float>0
+bgcolor="black"      # background color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		      help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-n)    # get number
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMBER SPECIFICATION ---"
+					   checkMinus "$1"
+					   number=`expr "$1" : '\([0-9]*\)'`
+					   [ "$number" = "" ] && errMsg "--- NUMBER=$number MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$number < 3" | bc`
+					   [ $test1 -eq 1 ] && errMsg "--- NUMBER=$number MUST BE AN INTEGER GREATER THAN 2 ---"
+					   ;;
+			    -s)    # get scale
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SCALE SPECIFICATION ---"
+					   checkMinus "$1"
+					   scale=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$scale" = "" ] && errMsg "--- SCALE=$scale MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$scale == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- SCALE=$scale MUST BE A FLOAT GREATER THAN 0 ---"
+					   ;;
+				-r)    # get rotation
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROTATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   rotation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rotation" = "" ] && errMsg "--- ROTATION=$rotation MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$rotation > 360" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- ROTATION=$rotation MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-t)    # get translation
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TRANSLATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   translation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$translation" = "" ] && errMsg "--- TRANSLATION=$translation MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$translation > 200" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- TRANSLATION=$translation MUST BE AN INTEGER BETWEEN 0 AND 200 ---"
+					   ;;
+			    -z)    # get zoom
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ZOOM SPECIFICATION ---"
+					   checkMinus "$1"
+					   zoom=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$zoom" = "" ] && errMsg "--- ZOOM=$zoom MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$zoom == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- ZOOM=$zoom MUST BE A FLOAT GREATER THAN 0 ---"
+					   ;;
+				-b)    # get  bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temp files
+tmpA="$dir/mandalascope_1_$$.miff"
+trap "rm -f $tmpA; exit 0" 0
+trap "rm -f $tmpA; exit 1" 1 2 3 15
+
+# read and test image
+convert -quiet "$infile" +repage "$tmpA" ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# first distort shift to center and crops to right to viewport
+# second distort rotate, scale and translate with mirror virtual pixel
+# third distort does shear to triangle and fill transparent
+# fourth distort does crop half and horizontal mirror to double width
+convert \
+$tmpA \
+-virtual-pixel mirror \
+-set option:distort:viewport "%[fx:ceil(h*tan(pi/$number))]x%[h]" \
+-distort affine "%[fx:w/2],0 0,0" \
+-distort SRT "0,0 "%[fx:1/$scale]" $rotate %[fx:$translate*w/100],0" \
+-virtual-pixel none \
+-distort affine "0,%[fx:h-1] %[fx:w-1],%[fx:h-1]  0,0 0,0  %[fx:w-1],0 %[fx:w-1],0" \
+-virtual-pixel mirror \
+-set option:distort:viewport %[fx:w*2]x%[h] \
+-distort SRT 0 \
+-duplicate $((number-1)) \
+-virtual-pixel none \
+-set option:distort:viewport %[h]x%[h] \
+-distort SRT "%[fx:w/2],%[h]  "%[fx:1/$zoom]"  %[fx:t*360/n]  %[fx:h/2],%[fx:h/2]" \
+-background "$bgcolor" \
+-layers merge \
++repage \
+"$outfile"
+
+exit 0

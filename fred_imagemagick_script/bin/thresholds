@@ -1,0 +1,487 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/25/2015 .......... revised 11/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: thresholds [-l lowthresh] [-h highthresh] [-u units] [-t type] 
+# [-M midvalue] [-L lowvalue] [-H highvalue] [-P profile] infile outfile
+# USAGE: thresholds [-help]
+# 
+# OPTIONS:
+#
+# -l     lowthresh     low threshold in range of units; default=0 (percent)
+# -h     highthresh    high threshold in range of units; default=100 (percent)
+# -u     units         units to use; choices are: percent (p) for range of 
+#                      0 to 100 percent, 8bit (8) for range of 0 to 255 and 
+#                      16bit (16) for range 0 to 65535; default is 100 (percent)                   
+# -t     type          type of thresholds; choices are: hard (h), soft (s) or 
+#                      clipped (c); default=hard
+# -M     midvalue      mid graylevel value in units for type=clipped; 
+#                      default is no value 
+# -L     lowvalue      low graylevel value in units; used only for type=clipped 
+#                      and when midvalue supplied; default=0 (percent) 
+# -H     highvalue     high graylevel value in units; used only for 
+#                      type=clipped and when midvalue supplied; 
+#                      default=100 (percent)
+# -P     profile       view (v) or save (s) the profile graph; default is 
+#                      neither 
+# 
+###
+# 
+# NAME: THRESHOLDS
+# 
+# PURPOSE: To apply one or two thresholds to an image.
+# 
+# DESCRIPTION: ENDPOINTS applies one or two thresholds to an image. The types 
+# of thresholds allowed are: hard, soft and clipped. Units for the thresholds 
+# may be any of: percent, 8-bit values or 16-bit values.
+# 
+# Arguments: 
+# 
+# -l lowthresh ... LOWTHRESH is the low threshold in the range of the  
+# specified units. The default=0 (percent).
+# 
+# -h highthresh ... HIGHTHRESH is the high threshold in the range of the 
+# specified units. The default=100 (percent).
+# 
+# -u  units ... UNITS to use for lowpt and highpt values. The choices are: 
+# percent (p) for the range 0 to 100, 8bit (8) for the range of 0 to 255 or 
+# 16bit (16) for the range 0 to 65535. The default=percent.
+#                      
+# -t type ... TYPE of thresholds. The choices are: hard (h), soft (s) or 
+# clipped (c). The default=hard.
+# 
+# -M midvalue ... MIDVALUE is the mid (output) graylevel value in the   
+# specified units for type=clipped. The default is no value.
+# 
+# -L lowvalue ... LOWVALUE is the low (output) graylevel value in the  
+# specified units. It is used only for type=clipped and when the midvalue is 
+# supplied. The default=0 (percent).
+# 
+# -H highvalue ... HIGHVALUE is the high (output) graylevel value in the 
+# specified units. It is used only for type=clipped and when the midvalue is 
+# supplied. The default=100 (percent).
+# 
+# -P profile ... PROFILE allows the option to view (v) or save (s) the 
+# profile graph. The profile will be named from the input file with 
+# _profile.gif appended. The default is neither. Requires my script, plot. 
+# 
+# REQUIREMENTS: my script, plot, is needed to use the -P option.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+lowthresh=0		# low threshold graylevel
+highthresh=100		# high threshold graylevel
+type="hard" 		# hard or soft or clipped
+lowvalue=0			# low output graylevel for clipped type and midvalue != ""
+highvalue=100		# high output graylevel for clipped type and midvalue != ""
+midvalue=""			# mid output graylevel for clipped type;
+units="percent"		# units as percent or 8bit or 16bit
+profile=""			# view or save profile
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	     -help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-l)    # lowthresh
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID LOWTHRESH SPECIFICATION ---"
+				   checkMinus "$1"
+				   lowthresh=`expr "$1" : '\([.0-9]*\)'`
+				   ;;
+			-h)    # highthresh
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID HIGHTHRESH SPECIFICATION ---"
+				   checkMinus "$1"
+				   highthresh=`expr "$1" : '\([.0-9]*\)'`
+				   ;;
+		 	-u)    # units
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID UNITS SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test type values
+				   units="$1"
+				   units=`echo "$units" | tr "[:upper:]" "[:lower:]"`
+				   case "$units" in 
+						percent|p) units="percent" ;;
+						8bit|8) units="8bit" ;;
+						16bit|16) units="16bit" ;;
+						*) errMsg "--- UNITS=$units IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+		 	-t)    # type
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test type values
+				   type="$1"
+				   type=`echo "$type" | tr "[:upper:]" "[:lower:]"`
+				   case "$type" in 
+						hard|h) type="hard" ;;
+						soft|s) type="soft" ;;
+						clipped|c) type="clipped" ;;
+						*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			-M)    # midvalue
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID MIDVALUE SPECIFICATION ---"
+				   checkMinus "$1"
+				   midvalue=`expr "$1" : '\([.0-9]*\)'`
+				   ;;
+			-L)    # lowvalue
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID LOWVALUE SPECIFICATION ---"
+				   checkMinus "$1"
+				   lowvalue=`expr "$1" : '\([.0-9]*\)'`
+				   ;;
+			-H)    # highvalue
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID HIGHVALUE SPECIFICATION ---"
+				   checkMinus "$1"
+				   highvalue=`expr "$1" : '\([.0-9]*\)'`
+				   ;;
+		 	-P)    # profile
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PROFILE SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test type values
+				   profile="$1"
+				   profile=`echo "$profile" | tr "[:upper:]" "[:lower:]"`
+				   case "$profile" in 
+						view|v) profile="view" ;;
+						save|s) profile="save" ;;
+						*) errMsg "--- PROFILE=$profile IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+ 
+
+# set up temp file
+tmpA1="$dir/thresholds_1_$$.mpc"
+tmpB1="$dir/thresholds_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpL; exit 1" ERR
+
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+
+# set up range and test values
+if [ "$units" = "percent" ]; then
+	
+	test=`convert xc: -format "%[fx:$lowthresh<0||$lowthresh>100?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWTHRESH MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+	
+	test=`convert xc: -format "%[fx:$highthresh<0||$highthresh>100?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHTHRESH MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+
+	test=`convert xc: -format "%[fx:$lowvalue<0||$lowvalue>100?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWVALUE MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+
+	test=`convert xc: -format "%[fx:$highvalue<0||$highvalue>100?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHVALUE MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+
+	if [ "$midvalue" != "" ]; then
+		test=`convert xc: -format "%[fx:$midvalue<0||$midvalue>100?0:1]" info:`
+		[ $test -eq 0 ] && errMsg "--- MIDVALUE MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+	fi
+
+	xval=100
+	yval=100
+	
+elif [ "$units" = "8bit" ]; then
+
+	lowthresh=`expr "$lowthresh" : '\([0-9]*\)'`
+	[ "$lowthresh" = "" ] && errMsg "--- LOWTHRESH=$lowthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$lowthresh<0||$lowthresh>255?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWTHRESH MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+	
+	highthresh=`expr "$highthresh" : '\([0-9]*\)'`
+	[ "$highthresh" = "" ] && errMsg "--- HIGHTHRESH=$highthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$highthresh<0||$highthresh>255?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHTHRESH MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+
+	lowvalue=`expr "$lowvalue" : '\([0-9]*\)'`
+	[ "$lowvalue" = "" ] && errMsg "--- LOWVALUE=$lowvalue MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$lowvalue<0||$lowvalue>255?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWVALUE MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+
+	highvalue=`expr "$highvalue" : '\([0-9]*\)'`
+	[ "$highvalue" = "" ] && errMsg "--- HIGHVALUE=$highvalue MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$highvalue<0||$highvalue>255?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHVALUE MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+
+	if [ "$midvalue" != "" ]; then
+		midvalue=`expr "$midvalue" : '\([0-9]*\)'`
+		[ "$midvalue" = "" ] && errMsg "--- MIDVALUE=$lowthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+		test=`convert xc: -format "%[fx:$midvalue<0||$midvalue>255?0:1]" info:`
+		[ $test -eq 0 ] && errMsg "--- MIDVALUE MUST BE AN INTEGER BETWEEN 0 AND 255 ---"
+	fi
+
+	xval=255
+	yval=255
+	
+elif [ "$units" = "16bit" ]; then
+
+	lowthresh=`expr "$lowthresh" : '\([0-9]*\)'`
+	[ "$lowthresh" = "" ] && errMsg "--- LOWTHRESH=$lowthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$lowthresh<0||$lowthresh>65535?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWTHRESH MUST BE AN INTEGER BETWEEN 0 AND 65535 ---"
+	
+	highthresh=`expr "$highthresh" : '\([0-9]*\)'`
+	[ "$highthresh" = "" ] && errMsg "--- HIGHTHRESH=$highthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$highthresh<0||$highthresh>65535?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHTHRESH MUST BE AN INTEGER BETWEEN 0 AND 65535 ---"
+
+	lowvalue=`expr "$lowvalue" : '\([0-9]*\)'`
+	[ "$lowvalue" = "" ] && errMsg "--- LOWVALUE=$lowvalue MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$lowvalue<0||$lowvalue>65535?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- LOWVALUE MUST BE AN INTEGER BETWEEN 0 AND 65535 ---"
+
+	highvalue=`expr "$highvalue" : '\([0-9]*\)'`
+	[ "$highvalue" = "" ] && errMsg "--- HIGHVALUE=$highvalue MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+	test=`convert xc: -format "%[fx:$highvalue<0||$highvalue>65535?0:1]" info:`
+	[ $test -eq 0 ] && errMsg "--- HIGHVALUE MUST BE AN INTEGER BETWEEN 0 AND 65535 ---"
+
+	if [ "$midvalue" != "" ]; then
+		midvalue=`expr "$midvalue" : '\([0-9]*\)'`
+		[ "$midvalue" = "" ] && errMsg "--- MIDVALUE=$lowthresh MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+		test=`convert xc: -format "%[fx:$midvalue<0||$midvalue>65535?0:1]" info:`
+		[ $test -eq 0 ] && errMsg "--- MIDVALUE MUST BE AN INTEGER BETWEEN 0 AND 65535 ---"
+	fi
+
+	xval=65535
+	yval=65535
+	
+fi
+
+# convert thresholds and values to percent
+[ "$units" = "percent" ] && denom=100
+[ "$units" = "8bit" ] && denom=255
+[ "$units" = "16bit" ] && denom=65535
+lowthresh=`convert xc: -precision 10 -format "%[fx:100*$lowthresh/$denom]" info:`
+lowvalue=`convert xc: -precision 10 -format "%[fx:100*$lowvalue/$denom]" info:`
+highthresh=`convert xc: -precision 10 -format "%[fx:100*$highthresh/$denom]" info:`
+highvalue=`convert xc: -precision 10 -format "%[fx:100*$highvalue/$denom]" info:`
+[ "$midvalue" != "" ] && midvalue=`convert xc: -precision 10 -format "%[fx:100*$midvalue/$denom]" info:`
+#echo "type=$type; units=$units; lowthresh=$lowthresh; lowvalue=$lowvalue; highthresh=$highthresh; highvalue=$highvalue; midvalue=$midvalue;"
+
+
+# process image
+if [ "$type" = "hard" ]; then
+	if [ "$lowthresh" != "0" ]; then
+		lowproc="-black-threshold ${lowthresh}%"
+	else
+		lowproc=""
+	fi
+	if [ "$highthresh" != "100" ]; then
+		highproc="-white-threshold ${highthresh}%"
+	else
+		highproc=""
+	fi
+	convert $tmpA1 $lowproc $highproc $tmpA1
+fi
+
+if [ "$type" = "soft" ]; then
+	if [ "$lowthresh" != "0" ]; then
+		lowproc="-black-threshold ${lowthresh}%"
+	else
+		lowproc=""
+	fi
+	if [ "$highthresh" != "100" ]; then
+		highproc="-white-threshold ${highthresh}%"
+	else
+		highproc=""
+	fi
+	lowhighproc="-level ${lowthresh}x${highthresh}%"
+	convert $tmpA1 $lowproc $highproc $lowhighproc $tmpA1
+fi
+
+	
+if [ "$type" = "clipped" -a "$midvalue" = "" ]; then
+	if [ "$lowthresh" != "0" ]; then
+		lowproc1="-black-threshold ${lowthresh}%"
+		lowproc2="-fill 'gray($lowthresh%)' -opaque black"
+	else
+		lowproc1=""
+		lowproc2=""
+	fi
+	if [ "$highthresh" != "100" ]; then
+		highproc1="-white-threshold ${highthresh}%"
+		highproc2="-fill 'gray($highthresh%)' -opaque white"
+	else
+		highproc1=""
+		highproc2=""
+	fi
+	eval convert $tmpA1 $lowproc1 $lowproc2 $highproc1 $highproc2 $tmpA1
+fi
+	
+
+if [ "$type" = "clipped" -a "$midvalue" != "" -a $lowvalue -eq $highvalue ]; then
+	if [ "$lowthresh" != "0" ]; then
+		lowproc1="-black-threshold ${lowthresh}%"
+		lowproc2="-fill 'gray($lowvalue%)' -opaque black"
+	else
+		lowproc1=""
+		lowproc2=""
+	fi
+	if [ "$highthresh" != "100" ]; then
+		highproc1="-white-threshold ${highthresh}%"
+		highproc2="-fill 'gray($highvalue%)' -opaque white"
+	else
+		highproc1=""
+		highproc2=""
+	fi
+	midproc="-fill 'gray($midvalue%)' +opaque 'gray($lowvalue%)'"
+	eval convert $tmpA1 $lowproc1 $lowproc2 $highproc1 $highproc2 $midproc $tmpA1
+fi
+
+
+if [ "$type" = "clipped" -a "$midvalue" != "" -a $lowvalue -ne $highvalue ]; then
+	if [ "$lowthresh" != "0" ]; then
+		lowproc1="-black-threshold ${lowthresh}%"
+		lowproc2="-fill 'gray($lowvalue%)' -opaque black"
+	else
+		lowproc1=""
+		lowproc2=""
+	fi
+	if [ "$highthresh" != "100" ]; then
+		highproc1="-white-threshold ${highthresh}%"
+		highproc2="-fill 'gray($highvalue%)' -opaque white"
+	else
+		highproc1=""
+		highproc2=""
+	fi
+	convert $tmpA1 $lowproc1 $highproc1 \
+		\( -clone 0 -fill "gray($lowvalue%)" -opaque black -fill "gray($highvalue%)" -opaque white \) \
+		\( -clone 0 -fill "gray($midvalue%)" -colorize 100% \) \
+		\( -clone 0 -fill black -opaque white -fill white +opaque black \) \
+		-delete 0 -compose over -composite $tmpA1
+fi
+
+# process profile
+if [ "$profile" = "save" ]; then
+	inname=`convert -ping "$infile" -format "%t" info:`
+	plot -r 128 -w 278 -h 256 -x $xval -y $yval -d 2 $tmpA1 ${inname}_profile.png
+elif [ "$profile" = "view" ]; then
+	plot -r 128 -w 278 -h 256 -x $xval -y $yval -d 2 $tmpA1 show:
+fi
+
+convert $tmpA1 "$outfile"
+
+exit 0

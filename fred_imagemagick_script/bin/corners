@@ -1,0 +1,486 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/26/2017 .......... revised 1/26/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: corners [-m method] [-t threshold] [-s smooth] [-r region] [-c color]
+# [-d dilate] [-p print] infile outfile1 [outfile2]
+#
+# USAGE: corners [-h|-help]
+#
+# OPTIONS:
+#
+# -m     method         method of corner detection; choices are: morphology (m), 
+#                       harris (h) or shi-tomasi (s); default=morphology
+# -t     threshold      threshold level (in percent) for choosing the strongest 
+#                       corners; 0<=integer<=100; default=50
+# -s     smooth         smoothing to apply noise suppression; 0<=integer<=5; 
+#                       number of applications of -enhance; default=0
+# -r     region         region is either the morphology structure element size 
+#                       for morphology method or the sigma for the gaussian
+#                       weighting of the neighborhood derivatives in the 
+#                       harris and shi-tomasi methods; float>=0; default=1
+# -c     color          color of color points to be drawn on the first output 
+#                       image; any valid opaque IM color is allowed; default=red
+# -d     dilate         dilation amount for enlarging the corner point drawn 
+#                       on the output image(s); integer>=0; default=1
+# -p     print          print a list of the corner points to the terminal; 
+#                       yes or no; default=no
+# 
+# The first output image will show the corner points overlaid on the input 
+# image. The second output will show the corner points as white on a black 
+# background.
+# 
+###
+#
+# NAME: CORNERS 
+# 
+# PURPOSE: To detect corner structures in an image.
+# 
+# DESCRIPTION: CORNERS detects corner structures in an image. Any of three 
+# methods may be used. The first is a morphology-based corner detector. The  
+# second is the Harris corner detector. The third is the Shi-Tomasi corner 
+# detector. The latter two require Imagemagick compiled in HDRI mode. The  
+# morphology corner detector uses two sets of morphology close operations using  
+# asymmetric structuring elements. The Harris and Shi-Tomasi corner detectors  
+# use a Gaussian weighted average of the squares and cross products of the 
+# X and Y Sobel directional derivatives. Note that the image is first converted 
+# to grayscale for the corner detection process.
+# 
+# OPTIONS: 
+# 
+# -m method ... METHOD of corner detection. The choices are: morphology (m), 
+# harris (h) or shi-tomasi (s). The default=morphology.  The harris and 
+# shi-tomasi methods require Imagemagick compile in HDRI mode.
+# 
+# -t threshold ... THRESHOLD level (in percent) for choosing the strongest 
+# corners. Values are 0<=integers<=100. The default=50. Different values 
+# are needed for each method. The optimal threshold will also depend upon 
+# and smoothing applied and upon the region size. More smoothing or larger 
+# regions permit lower thresholds.
+# 
+# -s smooth ... SMOOTH is the amount of smoothing to apply to the image 
+# as a preprocessing step to suppress noise. Values are 0<=integers<=5. The 
+# value represents the number of applications of -enhance to apply. The 
+# default=0.
+# 
+# -r region ... REGION is either the morphology structure element size for 
+# the morphology method or the sigma value for the gaussian weighting of the 
+# neighborhood of derivatives in the harris and shi-tomasi methods. Values 
+# are floats>=0. The default=1. Values for method=morphology are typically 
+# integers.
+# 
+# -c color ... COLOR of the corner points to be drawn on the first output 
+# image. Any valid opaque IM color is allowed. The default=red.
+# 
+# -d dilate ... DILATE is the amount of dilation for enlarging the corner 
+# points drawn on the output image(s). Values are integer>=0. The default=1.
+# 
+# -p print ... PRINT a list of the x,y corner points to the terminal. The 
+# choices are: yes (y) or no (n). The default=no.
+# 
+# REQUIREMENTS: The Harris and the Shi-Tomasi methods require that Imagemagick 
+# be compile in HDRI mode. All methods require IM 6.8.9.10 or higher due to 
+# the use of -connected-components.
+# 
+# REFERENCES Morphology:
+# http://www.site.uottawa.ca/~laganier/publications/coin.pdf
+# 
+# REFERENCES Harris:
+# http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html
+# http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/
+# 
+# REFERENCES Shi-Tomasi:
+# http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_shi_tomasi/py_shi_tomasi.html
+# http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+method="morphology"		# morphology, harris, shi-tomasi
+threshold="50"			# threshold corner image (95 for checkerboard; 45 for bookends; 25/15 for desktop)
+smooth=0				# smoothing using repeated -enhance
+region=1				# morphology structuring element size (morphology) or sigma gaussian weighting (harris and shi-tomasi)
+color="red"				# color for drawing the corner points
+dilate="1"				# integer>=0, but 0.5 will be added for disk
+print="no"				# print locations to terminal
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 17 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get  method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   #checkMinus "$1"
+					   method=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$method" in 
+					   		morphology|m) method="morphology";;
+					   		harris|h) method="harris";;
+					   		shi-tomasi|s) method="shi-tomasi";;
+					   		*) errMsg "--- METHOD=$method IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-t)    # get threshold
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   threshold=`expr "$1" : '\([0-9]*\)'`
+					   [ "$threshold" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE AN INTEGER ---"
+					   testA=`echo "$threshold < 0" | bc`
+					   testB=`echo "$threshold > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-r)    # get region
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REGION SPECIFICATION ---"
+					   checkMinus "$1"
+					   region=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$region" = "" ] && errMsg "--- REGION=$region MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-s)    # get smooth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   smooth=`expr "$1" : '\([0-5]\)'`
+					   [ "$smooth" = "" ] && errMsg "--- SMOOTH=$smooth MUST BE AN INTEGER BETWEEN 0 AND 5 ---"
+					   ;;
+			    -c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-d)    # get dilate
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DILATE SPECIFICATION ---"
+					   checkMinus "$1"
+					   dilate=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dilate" = "" ] && errMsg "--- DILATE=$dilate MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-p)    # get  print
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PRINT SPECIFICATION ---"
+					   checkMinus "$1"
+					   print=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$print" in 
+					   		yes|y) print="yes";;
+					   		no|n) print="no";;
+					   		*) errMsg "--- PRINT=$print IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, outfile1 and outfile2
+	numfiles=$#
+	if [ $numfiles -eq 3 ]; then
+		infile="$1"
+		outfile1="$2"
+		outfile2="$3"
+	elif [ $numfiles -eq 2 ]; then
+		infile="$1"
+		outfile1="$2"
+	else
+	errMsg "--- WRONG NUMBER OF OUTPUT FILES SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile1" = "" ] && errMsg "NO OUTPUT FILE 1 SPECIFIED"
+
+if [ $numfiles -eq 3 ]; then
+	# test that outfile provided
+	[ "$outfile2" = "" ] && errMsg "NO OUTPUT FILE 2 SPECIFIED"
+fi
+
+dir="$tmpdir/CORNERS.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+# test for hdri enabled
+hdri_on=`convert -list configure | grep "enable-hdri"`
+[ "$method" != "morphology" -a "$hdri_on" = "" ] && echo "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+# set up smoothing
+if [ "$smooth" = "5" ]; then
+	smoothing="-enhance -enhance -enhance -enhance -enhance"
+elif [ "$smooth" = "4" ]; then
+	smoothing="-enhance -enhance -enhance -enhance"
+elif [ "$smooth" = "3" ]; then
+	smoothing="-enhance -enhance -enhance"
+elif [ "$smooth" = "2" ]; then
+	smoothing="-enhance -enhance"
+elif [ "$smooth" = "1" ]; then
+	smoothing="-enhance"
+else
+	smoothing=""
+fi
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +write $dir/tmpI.mpc -alpha off -colorspace gray $smoothing +repage $dir/tmpG.mpc ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# Morphology:
+# asymmetric closing using 2 different structure element 
+# corner metric = abs( I(dilate(plus)-erode(diamond)) - I(dilate(ex)-erode(square)) )
+
+# Harris and Shi-Tomasi:
+# consider eigen values of 2x2 matrix M of derivatives for each of the 4 elements averaged over 3x3 image region
+# M = |Dx*Dx Dx*Dy| = |a b|
+#     |Dx*Dy Dy*Dy|   |c d|
+# the harris corner value metric = det(M) - k*trace(M)*trace(M)
+# where D = det(M) = L1*L2 = a*d-b*c
+# where T = trace(M) = L1 + L2 = a+d
+# where L1 and L2 are eigenvalues
+# where k=0.04
+# L1 =  T/2 + sqrt(T*T/4-D)
+# L2 =  T/2 - sqrt(T*T/4-D)
+# For Harris, we just need use the corner metric = D - k*T*T
+# For Shi-Tomasi, we just use the corner metric = min(L1,L2)
+
+
+# set up thresholding
+if [ "$threshold" != "" ]; then
+	thresholding="-threshold $threshold%"
+else
+	thresholding=""
+fi
+
+# setup dilate
+if [ "$dilate" != "0" ]; then
+	dilate=`convert xc: -format "%[fx:$dilate + 0.5]" info:`
+	dilating="-morphology dilate disk:$dilate"
+else
+	dilating=""
+fi
+
+
+if [ "$method" = "morphology" ]; then
+
+	# compute morphology corner metric
+	# compute the first type asymmetric closing
+	# compute the second type asymmetric closing
+	# get abs difference
+	convert \
+		\( $dir/tmpG.mpc -morphology dilate plus:$region -morphology erode diamond:$region \) \
+		\( $dir/tmpG.mpc -morphology dilate cross:$region -morphology erode square:$region \) \
+		-compose difference -composite -auto-level $thresholding $dilating \
+		$dir/tmpC.miff
+
+elif [ "$method" = "harris" ]; then
+
+	#line 2 - create X derivative
+	#line 3 - create Y derivative
+	#line 4 - create square of X derivative and apply gaussian average as term a
+	#line 5 - create square of Y derivative and apply gaussian average as term d
+	#line 6 - create product of X and Y derivatives and apply gaussian average as term b=c
+	#line 7 - remove original derivatives
+	#line 8 - compute product ad (XX*YY)
+	#line 9 - compute product bc (XY*XY)
+	#line 10 - compute product D (ad-bc)
+	#line 11,12,13 - compute T*T (a+d)*(a+d) and add -0.04 = k (note need +duplicate rather than +clone)
+	#line 14 - remove temps
+	#line 15 - compute corner metric = D - k*T*T and auto-level and threshold
+	#line 16 - write tmpC.miff as image of white points on black background
+	convert \
+		\( $dir/tmpG.mpc -define convolve:scale=\! -morphology convolve Sobel:0 \) \
+		\( $dir/tmpG.mpc -define convolve:scale=\! -morphology convolve Sobel:90 \) \
+		\( -clone 0 -clone 0 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		\( -clone 1 -clone 1 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		-delete 0,1 \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose multiply -composite \) \
+		\( -clone 2 -clone 2 -define compose:clamp=off -compose multiply -composite \) \
+		\( -clone 3 -clone 4 -define compose:clamp=off +swap -compose minus -composite \) \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose plus -composite \
+			\( +clone \) -define compose:clamp=off -compose multiply -composite \
+			-evaluate multiply -0.04 \) \
+		-delete 0-4 \
+		-define compose:clamp=off -compose plus -composite -auto-level $thresholding \
+		$dir/tmpC.miff
+
+elif [ "$method" = "shi-tomasi" ]; then
+
+	#line 2 - create X derivative
+	#line 3 - create Y derivative
+	#line 4 - create square of X derivative and apply gaussian average as term a
+	#line 5 - create square of Y derivative and apply gaussian average as term d
+	#line 6 - create product of X and Y derivatives and apply gaussian average as term b=c
+	#line 7 - remove original derivatives
+	#line 8 - compute product ad (XX*YY)
+	#line 9 - compute product bc (XY*XY)
+	#line 10 - compute product D (ad-bc)
+	#line 11 - compute T (a+d)
+	#line 12 - compute T*T (a+d)*(a+d)
+	#line 13 - remove temps
+	#line 14,15 - compute sqrt of discriminant (T*T/4-D) and clip at 0 (to remove negatives)
+	#line 16 - compute L1 =  T/2 + sqrt(T*T/4-D)
+	#line 17 - compute L2 =  T/2 - sqrt(T*T/4-D)
+	#line 18 - remove temps
+	#line 19 - get min of L1 and L2 and auto-level and threshold
+	#line 20 - write tmpC.miff as image of white points on black background
+	convert \
+		\( $dir/tmpG.mpc -define convolve:scale=\! -morphology convolve Sobel:0 \) \
+		\( $dir/tmpG.mpc -define convolve:scale=\! -morphology convolve Sobel:90 \) \
+		\( -clone 0 -clone 0 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		\( -clone 1 -clone 1 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose multiply -composite -blur 0x$region \) \
+		-delete 0,1 \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose multiply -composite \) \
+		\( -clone 2 -clone 2 -define compose:clamp=off -compose multiply -composite \) \
+		\( -clone 3 -clone 4 -define compose:clamp=off +swap -compose minus -composite \) \
+		\( -clone 0 -clone 1 -define compose:clamp=off -compose plus -composite \) \
+		\( -clone 6 -clone 6 -define compose:clamp=off -compose multiply -composite \) \
+		-delete 0-4 \
+		\( -clone 2 -evaluate multiply 0.25 -clone 0 +swap \
+			-define compose:clamp=off -compose minus -composite -evaluate max 0 -evaluate pow 0.5 \) \
+		\( -clone 1 -evaluate multiply 0.5 -clone 3 -define compose:clamp=off -compose plus -composite \) \
+		\( -clone 1 -evaluate multiply 0.5 -clone 3 -define compose:clamp=off +swap -compose minus -composite \) \
+		-delete 0-3 \
+		-evaluate-sequence min -auto-level $thresholding \
+		$dir/tmpC.miff
+
+fi
+
+# do ccl to get centroids and color with underscore between them
+data=`convert $dir/tmpC.miff \
+	-define connected-components:verbose=true \
+	-connected-components 8 null: | tail -n +2 | \
+	sed -n 's/^.*[:][ ]*[^ ]*[ ]*\([^ ]*\)[ ]*[^ ]*[ ]*\([^ ]*\)[ ]*$/\1_\2/p'`
+
+# print points to terminal
+i=1
+points=""
+for item in $data; do
+	coords=`echo "$item" | cut -d_ -f1`
+	colour=`echo "$item" | cut -d_ -f2`
+	if [ "$colour" != "srgb(0,0,0)" -a "$colour" != "gray(0)" -a "$colour" != "black" ]; then
+		[ "$print" = "yes" ] && echo "pt=$i coords=$coords"
+		points="$points point $coords"
+		i=$((i+1))
+	fi
+done
+
+
+if [ $numfiles -eq 3 ]; then
+	saving="+write $outfile2"
+else
+	saving=""
+fi
+
+# overlay new corners in $color on input image as outfile1
+# if specified, write white corners on black as outfile2
+convert $dir/tmpI.mpc \
+\( -clone 0 -fill "$color" -colorize 100 \) \
+\( -clone 0 -evaluate set 0 -fill white \
+	-draw "$points" -alpha off $dilating $saving \) \
+-compose over -composite "$outfile1"
+
+exit 0

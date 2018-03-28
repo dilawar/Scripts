@@ -1,0 +1,546 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/5/2011 .......... 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: toycamera [-g] [-i inner] [-o outer] [-d dark] [-f feather] 
+# [-b bri] [-s sat] [-h hue] [-c contr] [-t tint] [-a amount] 
+# [-S sharp] [-I iblur] [-O oblur] [-B barrel] [-D double] 
+# infile outfile
+#
+# USAGE: toycamera [-help]
+#
+# OPTIONS:
+#
+# -g                 convert image to grayscale
+# -i     inner       inner radius of vignette where not darkened;
+#                    integer percent of image dimension; default=0
+# -o     outer       outer radius of vignette where darkest;
+#                    integer percent of image dimension; default=150
+# -d     dark        graylevel of darkest part of vignette in integer 
+#                    range 0 to 100; default=0
+# -f     feather     feathering amount for inner radius; float>=0;
+#                    default=0
+# -b     bri         modulation brightness change percent; integer; 
+#                    default=0
+# -s     sat         modulation saturation change percent; integer; 
+#                    default=0
+# -h     hue         modulation hue change percent; integer; default=0
+# -c     contr       contrast change percent; integer; default=0
+# -t     tint        tint color; any IM opaque color; default=no tint
+# -a     amount      tint amount; integer>=0; default=0
+# -S     sharp       sharpening amount; float>=0; default=0
+# -I     iblur       inner blurring amount; float>=0; default=0
+# -O     oblur       outer blurring amount; float>=0; default=0
+# -B     barrel      barrel distortion; float>=0; default=0
+# -D     double      doubling distortion spacing; integer>=0; default=0
+#  
+#
+###
+#
+# NAME: TOYCAMERA 
+# 
+# PURPOSE: Simulates pictures taken by lomographic or holga type toy cameras.
+# 
+# DESCRIPTION: TOYCAMERA simulates pictures taken by lomographic or 
+# holga type toy cameras. These cameras have numerous distortions due to 
+# the cheap plastic lenses. Some of these distortions include: vignetting, 
+# high saturation, blurring, barrel distortion and image doubling. Typically 
+# these cameras shoot square images, but I have left that more flexible here 
+# and up to the user to crop the image first.
+# 
+# 
+# OPTIONS: 
+# 
+# -g ... First convert image to grayscale.
+# 
+# -i inner ... INNER vignette radius as percent of image dimension. The 
+# default=0 means the vignette starts near the image center.
+# 
+# -o outer ... OUTER vignette radius as percent of image dimension. The 
+# default=150, which is about the image corners.
+# 
+# -d dark ... DARK the graylevel of the darkest part of the vignette in 
+# the range 0 to 100, where 0 is black and 100 is white. The default=0
+# 
+# -f feather ... FEATHER is the amount of feathering or smoothing of the 
+# transition around the inner radius. Values are floats>0. The default=0
+# 
+# -b bri ... BRI is the percent change in brightness. Values are integers. 
+# The default=0 or no change.
+#
+# -s sat ... Sat is the percent change in saturation. Values are integers. 
+# The default=0 or no change.
+#
+# -h hue ... HUE is the percent change in brightness. Values are integers. 
+# The default=0 or no change.
+#
+# -c contr ... CONTR is the percent change in contrast. Values are integers. 
+# The default=0 or no change.
+# 
+# -t tint ... TINT is the overal tinting color. Any valid opaque IM color 
+# is allowed. The default=no tinting.
+# 
+# -a amount ... AMOUNT is the overal tinting amount. Values are integers in 
+# the range 0 to 100. The default=0 meaning no tinting.
+#
+# -S sharp ... SHARP is the amount of sharpening to apply in the inner region. 
+# Values are floats>0. The default=0
+#
+# -I iblur ... IBLUR is the amount of blurring to apply in the inner region. 
+# Values are floats>0. The default=0
+#
+# -O oblur ... IBLUR is the amount of blurring to apply in the outer region. 
+# Values are floats>0. The default=0
+#
+# -B barrel ... Barrel is the amount of barrel/pincussion distortion to apply.
+# Values are floats. Positive values produce barrel distortion. Negative values 
+# produce pincussion distortion. Typical values are in the range -5 to +5. 
+# The default=0 meaning no distortion.
+# 
+# -D double ... DOUBLE is the doubling distortion spacing in the X and Y 
+# directions. Values are comma separate integer pairs with + or - signs. 
+# There must be no spaces and the signs are required. The default=+0,+0 
+# means no doubling. Nominal values are about 3. The values are used by 
+# the -roll function to simulate chromatic abberation for grayscale images.
+# 
+# Requirements: IM 6.5.9-0 to support the -brightness-contrast function.
+#
+# References: 
+# http://photoshoptutorials.ws/photoshop-tutorials/photo-effects/lomography.html
+# http://photoshopgirl.com/01/29/holga-medium-format-effect/
+# http://flareapp.tumblr.com/post/3875359029/simulating-the-holga-120-toy-camera
+# http://en.wikipedia.org/wiki/Holga
+# http://en.wikipedia.org/wiki/Lomography
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+gray="no"		# convert to grayscale
+inner=0			# inner radius of vignette where not darkened as percent of image dimension
+outer=150		# outer radius of vignette where darkest
+dark=0			# graylevel of darkest part of vignette in range 0 to 100
+feather=0       # feathering of inner radius transition
+bri=0			# modulation brightness change percent 
+sat=0			# modulation saturation change percent
+hue=0			# modulation hue change percent
+contr=0			# contrast change percent
+tint=""			# tint color
+amount=0		# tint amount
+sharp=0			# sharpening sigma
+iblur=0			# inner blurring sigma
+oblur=0			# outer blurring sigma
+barrel=0		# barrel distortion percent
+double=+0,+0	# dubbling distortion
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 33 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-g)    # set  gray
+					   gray="yes"
+					   ;;
+				-i)    # get inner
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INNER SPECIFICATION ---"
+					   checkMinus "$1"
+					   inner=`expr "$1" : '\([0-9]*\)'`
+					   [ "$inner" = "" ] && errMsg "--- INNER=$inner MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-o)    # get outer
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OUTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   outer=`expr "$1" : '\([0-9]*\)'`
+					   [ "$outer" = "" ] && errMsg "--- OUTER=$outer MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-d)    # get dark
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DARK SPECIFICATION ---"
+					   checkMinus "$1"
+					   dark=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dark" = "" ] && errMsg "--- DARK=$dark MUST BE AN INTEGER ---"
+					   test1=`echo "$dark < 0" | bc`
+					   test2=`echo "$dark > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- DARK=$dark MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-f)    # get feather
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FEATHER SPECIFICATION ---"
+					   checkMinus "$1"
+					   feather=`expr "$1" : '\([0-9]*\)'`
+					   [ "$feather" = "" ] && errMsg "--- FEATHER=$feather MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-b)    # get bri
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRI SPECIFICATION ---"
+					   #checkMinus "$1"
+					   bri=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$bri" = "" ] && errMsg "--- BRI=$bri MUST BE AN INTEGER ---"
+					   test1=`echo "$bri < -100" | bc`
+					   test2=`echo "$bri > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BRI=$bri MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-s)    # get sat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   sat=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SAT=$sat MUST BE AN INTEGER ---"
+					   test1=`echo "$sat < -100" | bc`
+					   test2=`echo "$sat > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- SAT=$sat MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-h)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   hue=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE AN INTEGER ---"
+					   test1=`echo "$hue < -100" | bc`
+					   test2=`echo "$hue > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- HUE=$hue MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-c)    # get contr
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTR SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contr=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$contr" = "" ] && errMsg "--- CONTR=$contr MUST BE AN INTEGER ---"
+					   test1=`echo "$contr < -100" | bc`
+					   test2=`echo "$contr > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- CONTR=$contr MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-t)    # get  tint
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TINT SPECIFICATION ---"
+					   checkMinus "$1"
+					   tint=`echo "$1"`
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+					   ;;
+				-S)    # get sharp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHARP SPECIFICATION ---"
+					   checkMinus "$1"
+					   sharp=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$sharp" = "" ] && errMsg "--- SHARP=$sharp MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   ;;
+				-I)    # get iblur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID IBLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   iblur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$iblur" = "" ] && errMsg "--- IBLUR=$iblur MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   ;;
+				-O)    # get oblur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OBLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   oblur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$oblur" = "" ] && errMsg "--- OBLUR=$oblur MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+					   ;;
+				-B)    # get barrel
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BARREL SPECIFICATION ---"
+					   #checkMinus "$1"
+					   barrel=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$barrel" = "" ] && errMsg "--- BARREL=$barrel MUST BE A FLOAT ---"
+					   ;;
+				-D)    # get double
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DOUBLE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   double=`expr "$1" : '\([-+][0-9]*,[-+][0-9]*\)'`
+					   [ "$double" = "" ] && errMsg "--- DOUBLE=$double MUST BE A COMMA SEPARATE PAIR OF INTEGERS WITH SIGN ---"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temp files
+tmpA1="$dir/toycamera_1_$$.mpc"
+tmpB1="$dir/toycamera_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using toycamera
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+if [ "$gray" = "no" ]; then
+	grayish=""
+else
+	grayish="$setcspace -colorspace gray"
+fi
+#echo "grayish=$grayish"
+
+# test input image
+convert -quiet "$infile" $grayish +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# setup vignette
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+wwo=`convert xc: -format "%[fx:$outer*$ww/100]" info:`
+hho=`convert xc: -format "%[fx:$outer*$hh/100]" info:`
+mwh=`convert xc: -format "%[fx:$outer*min($ww,$hh)/100]" info:`
+if [ "$inner" = "0" ]; then
+	mlevel=""
+else
+	inner=$((100-inner))
+	mlevel="-level 0x$inner%"
+fi
+if [ "$dark" = "0" ]; then
+	plevel=""
+else
+	plevel="+level ${dark}x100%"
+fi
+#echo "ww=$ww; hh=$hh; wwo=$wwo; hho=$hho; mwh=$mwh; mlevel=$mlevel; plevel=$plevel"
+
+
+# setup blur
+if [ "$iblur" = "0" ]; then
+	iblurring=""
+
+else
+	iblurring="-blur 0x$iblur"
+fi
+if [ "$oblur" = "0" ]; then
+	oblurring=""
+
+else
+	oblurring="-blur 0x$oblur"
+fi
+#echo "iblurring=$iblurring; oblurring=$oblurring"
+
+# setup feathering
+if [ "$feather" = "0" ]; then
+	feathering=""
+else
+	feathering="-blur ${feather}x65000"
+fi
+#echo "feathering=$feathering"
+
+# setup sharpen
+if [ "$sharp" = "0" ]; then
+	sharpening=""
+else
+	sharpening="-sharpen 0x$sharp"
+fi
+#echo "sharpening=$sharpening"
+
+# setup contrast
+if [ "$contr" = "0" ]; then
+	contrasting=""
+else
+	contrasting="-brightness-contrast 0,$contr"
+fi
+#echo "contrasting=$contrasting"
+
+
+# setup modulate
+if [ "$bri" = "0" -a "$sat" = "0" -a "$hue" = "0" ]; then
+	modulation=""
+else
+	bri=$((100+bri))
+	sat=$((100+sat))
+	hue=$((100+hue))
+	modulation="-modulate $bri,$sat,$hue"
+fi
+#echo "modulation=$modulation"
+
+# setup barrel
+if [ "$barrel" = "0" ]; then 
+	distorting=""
+else
+	distort=`convert xc: -format "%[fx:$barrel/100]" info:`
+	test=`convert xc: -format "%[fx:sign($distort)<0?1:0]" info:`
+	if [ $test -eq 1 ]; then
+		distort1=`convert xc: -format "%[fx:1+2*$distort]" info:`
+	else
+		distort1=`convert xc: -format "%[fx:1-2*$distort]" info:`
+	fi
+	distorting="-distort barrel $distort,0,0,$distort1"
+fi
+#echo "distorting=$distorting"
+
+if [ "$tint" = "" -o "$amount" = "0" ]; then
+	tinting=""
+else
+	tinting="$setcspace -fill $tint -colorize $amount%"
+fi
+#echo "tinting=$tinting"
+
+if [ "$double" = "+0,+0" -o "$double" = "-0,-0"  ]; then
+	rolling1=""
+	rolling2=""
+	rolling3=""
+else
+	xroll=`echo $double | cut -d, -f1` 
+	yroll=`echo $double | cut -d, -f2` 
+	rolling1="+clone -roll ${xroll}${yroll}"
+	rolling2="$setcspace -compose blend -define compose:args=50,50 -composite -compose over"
+	axroll=`convert xc: -format "%[fx:abs($xroll)]" info:`
+	ayroll=`convert xc: -format "%[fx:abs($yroll)]" info:`
+	rolling3="-shave ${axroll}x${ayroll}"
+fi
+#echo "rolling1=$rolling1; rolling2=$rolling2; rolling3=$rolling3"
+
+
+convert \( $tmpA1 \( $rolling1 \) $rolling2 $contrasting $iblurring $sharpening $distorting \) \
+	\( +clone $oblurring \) \
+	\( -size ${mwh}x${mwh} radial-gradient: -resize ${wwo}x${hho}! \
+		-gravity center -crop ${ww}x${hh}+0+0 +repage \) \
+	\( +clone $mlevel $plevel $feathering $tinting \) \
+	\( -clone 1 -clone 0 -clone 2 $setcspace -compose over -composite $modulation \) \
+	-delete 0-2 +swap -clamp -compose multiply -composite $rolling3 "$outfile"
+
+
+exit 0

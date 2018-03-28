@@ -1,0 +1,369 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/18/2009 .......... revised 7/28/2015
+#
+# USAGE: fftdeconvol [-n noise] infile filtfile outfile
+# USAGE: fftdeconvol [-h or -help]
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# OPTIONS:
+#
+# -n      noise      estimate of the noise to signal power ratio; float>=0; 
+#                    default=0
+#
+###
+#
+# NAME: FFTDECONVOL 
+# 
+# PURPOSE: To perform deconvolution on an image in the frequency domain.
+# 
+# DESCRIPTION: FFTDECONVOL perform deconvolution on an image in the frequency
+# domain using a filter image and an estimate of the noise to signal power
+# ratio. Two inputs are required. The convolved image and a grayscale spatial
+# domain convolution filter. Both the convolved image and the grayscale
+# spatial domain convolution filter are transformed to the frequency domain
+# using +fft. Then the fft of the image is divided by the fft of the filter
+# and the product is then returned to the spatial domain using +ift. Since the
+# filter may have noise, which will get amplified by the division when the
+# signal is near zero, a small constant, representing the noise to signal
+# power ratio is added to the denominator prior to the division in order to
+# avoid a division by zero. Any alpha channel on the filter will be removed
+# automatically before processing. If the image has an alpha channel it will
+# not be processed, but simply copied from the input to the output. This is 
+# useful only for deconvolving an image that has been blurred by the same 
+# convolution.
+# 
+# OPTIONS: 
+# 
+# -n noise ... NOISE is the estimate of the small constant added to the
+# denominator in the division process and represents the noise to signal power
+# ratio. Values are floats>=0. Usually, one simply uses trial an error with an
+# arbitrary small value for the noise, typically, in the range of about 0.001 
+# to 0.0001. However, it can be estimated from the variance of a nearly  
+# constant section of the image (to get the noise variance) divided by an 
+# estimate of the variance of the whole image (to get the signal variance). 
+# Values are floats>=0. The default=0
+# 
+# The filter image must be appropriately centered and padded with black to 
+# the same size as the input image.
+# 
+# REQUIREMENTS: IM version 6.5.4-7 or higher, but compiled with HDRI enabled 
+# in any quantum level of Q8, Q16 or Q32. Also requires the FFTW delegate 
+# library.
+# 
+# LIMITATIONS: This script works well only with even, square images. Otherwise,   
+# the FFT will pad them with black to conform. However, there will be excessive 
+# ringing due to the color discontinuity associated with the padding. This 
+# even, square limitation is a ramification of the current IM implementation 
+# that needs addressing at some future time. It is not a limitation of FFTW.
+# 
+# See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
+# for more details about the Fourier Transform with ImageMagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+noise=0		# noise to signal variance estimate
+vp="mirror"	# mirror works best vs edge and black for non-square images
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 5 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-n)    # get noise
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
+					   checkMinus "$1"
+					   noise=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$noise" = "" ] && errMsg "--- NOISE=$noise MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, filtfile and outfile
+	infile="$1"
+	filtfile="$2"
+	outfile="$3"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that filtfile provided
+[ "$filtfile" = "" ] && errMsg "NO FILTER FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/fftdeconvol_1_$$.mpc"
+tmpB1="$dir/fftdeconvol_1_$$.cache"
+tmpA2="$dir/fftdeconvol_2_$$.mpc"
+tmpB2="$dir/fftdeconvol_2_$$.cache"
+tmpA="$dir/fftdeconvol_A_$$.pfm"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" ERR
+
+# LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.7.9.4 all HDRI (10/25/2012)
+
+# test for valid version of IM
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
+
+# test for hdri enabled
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+[ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# read the filter image
+# Some diagonal striping seen in result when a color filter is use - e.g. different radii for each channel
+# Unknown why 10/25/2012?
+convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
+	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image dimensions for later cropping as inputs are padded to square, even dimensions
+width=`identify -ping -format "%w" $tmpA1`
+height=`identify -ping -format "%h" $tmpA1`
+
+# get center point adjusted for padding an odd dimension to even
+cx=`convert xc: -format "%[fx:floor(($width+1)/2)]" info:`
+cy=`convert xc: -format "%[fx:floor(($height+1)/2)]" info:`
+
+# compute linear scaling parameter for filter image from its grayscale mean, 
+# which will be the DC value in the FFT image and thus generally the largest value.
+if [ "$im_version" -ge "06050410" ]; then
+	#HDRI was auto scaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:1/mean]" info:`
+else
+	#HDRI was unscaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:quantumrange/mean]" info:`
+fi
+#echo "gain=$gain;"
+
+# scale the noise value by quantumrange
+# Note after IM 6.7.7.5 (starting at 6.7.7.6), magickepsilon was changed from 1.0e-10 to 1.0e-16.
+# At 1.0e-16 (but not 1.0e-15) the script fails due to a divide by too small a value
+# if the filter image is 16-bits, though it works fine if the filter image is 8-bits.
+# At IM 6.8.0.3 it was changed to 1.0e-15
+# So add a small amount to noise for appropriate versions
+if [ "$im_version" -ge "06070706" -a "$im_version" -le "06080002" ]; then
+	qnoise=`convert xc: -format "%[fx:quantumrange*($noise+0.000000001)]" info:`
+else
+	qnoise=`convert xc: -format "%[fx:quantumrange*$noise)]" info:`
+fi
+
+
+# test if image has alpha and set up copy to output
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpA1 -alpha extract $tmpA 
+	addalpha="$tmpA -compose copy_opacity -composite"
+else
+	addalpha=""
+fi
+
+: '
+For deblurring, we use the Wiener filter formulation of a divide of two complex numbers
+P/F => F*xP/F*xF => F*xP/|F|^2 => F*xP/(|F|^2 + n) 
+where n is a small constant, F* is complex conjugate and |F| is magnitude
+P/F => (A-iB)x(C+iD)/(A^2+B^2+n) = (AxC+BxD)/(A^2+B^2+n) + i(AxD-BxC)/(A^2+B^2+n)
+'
+
+# If image and filter are not even and square, then need to pad filter to size of expected fft
+# because the IM FFT will not tranform the filter correctly due to the IM FFT padding.
+# This can be demonstrated by doing -fft -ift on filter image and see that it is no longer centered
+
+# get padded to even square size
+dim=`convert xc: -format "%[fx:floor((2*max($width,$height)+1)/2)]" info:`
+#echo "dim=$dim"
+
+# pad filter if needed to right and bottom
+if [ $dim -ne $width -o $dim -ne $height ]; then
+	convert $tmpA2 -gravity northwest -background black -extent ${dim}x${dim} $tmpA2
+
+# Note: image padding here does not help with mirror or edge or black
+#	convert $tmpA1 -set option:distort:viewport ${dim}x${dim}+0+0 \
+#		-filter point -virtual-pixel mirror -distort SRT "0" $tmpA1
+fi
+
+# compute gain
+if [ "$im_version" -ge "06050410" ]; then
+	#HDRI was auto scaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:1/mean]" info:`
+else
+	#HDRI was unscaled by quantumrange
+	gain=`convert $tmpA2 -format "%[fx:1/mean]" info:`
+fi
+#echo "gain=$gain"
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cameradeblur.
+# Tested with 6.7.4.10, 6.7.6.6, 6.7.6.10, 6.7.7.7, 6.7.7.10, 6.7.8.6 (hdri)
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+	setcspace2=""
+else
+	setcspace="-set colorspace RGB"
+	setcspace2="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	setcspace2=""
+fi
+
+
+# transform the image to real and imaginary components,
+# perform complex multiplication between the 4 images
+# transform back
+#
+# first line rolls the filter, performs +fft, separates the frames and applies gain
+# second line performs +fft on image
+# third line performs AxA
+# fourth line performs BxB
+# fifth line performs (AxA + BxB + k)
+# sixth line performs AxC
+# seventh line performs BxD
+# eighth line performs (AxB + BxD)
+# nineth line performs (AxB + BxD) / (AxA + BxB + k)
+# tenth line performs AxD
+# eleventh line performs BxC
+# twelveth line performs (AxD - BxC)
+# thirteenth line performs (AxD - BxC) / (AxA + BxB + k)
+# fourteenth line deletes intermediate images and 
+# does the +ift on the real and imaginary product components
+# fifteenth line crops the result in case the original dimensions were odd
+
+convert \( $tmpA2 $setcspace -roll -${cx}-${cy} -virtual-pixel $vp +fft -evaluate multiply $gain \) \
+	\( $tmpA1 $setcspace -alpha off -strip -virtual-pixel $vp +fft \) \
+	\( -clone 0 -clone 0 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 1 -clone 1 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 4 -clone 5 -define compose:clamp=false -compose plus -composite -evaluate add $qnoise \) \
+	\( -clone 0 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 1 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 7 -clone 8 -define compose:clamp=false -compose plus -composite \) \
+	\( -clone 6 -clone 9 -define compose:clamp=false -compose divide -composite \) \
+	\( -clone 0 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 1 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 11 -clone 12 +swap -define compose:clamp=false -compose minus -composite \) \
+	\( -clone 6 -clone 13 -define compose:clamp=false -compose divide -composite \) \
+	-delete 0-9,11,12,13 -virtual-pixel $vp +ift \
+	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 "$outfile"
+
+exit 0
+
+
+

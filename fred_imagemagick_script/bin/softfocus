@@ -1,0 +1,362 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/28/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: softfocus [-m mix] [-b bluramt1] [-B bluramt2] [-o opacity1] [-O opacity2] [-c coords] [-r radius] infile outfile
+# USAGE: softfocus [-h or -help]
+#
+# OPTIONS:
+#
+# -m     mix           mix percent between compose softlight and compose over 
+#                      approaches; mix=0 is softlight, mix=100 is over; 
+#                      0<=integer<=100; default=50 (equal blend of the two)
+# -b     bluramt1      blur amount when using the compose softlight method;
+#                      float>=0;default=4
+# -B     bluramt2      blur amount when using the compose over method; float>=0;
+#                      default is automatically computed from the image size
+# -o     opacity1      opacity amount when using the compose softlight method;
+#                      0<=integer<=100; default=50
+# -O     opacity2      opacity amount when using the compose over method;
+#                      0<=integer<=100; default=50                  
+# -c     coords        x,y center coordinates for the no blur region when 
+#                      using compose over approach; integers>=0; 
+#                      default=image center
+# -r     radius        percent of minimum distance between coords and edges of 
+#                      image for the no blur center region when method is over; 
+#                      0<=integer<=100; default=25
+#
+###
+#
+# NAME: SOFTFOCUS 
+# 
+# PURPOSE: To apply a softfocus effect to an image.
+# 
+# DESCRIPTION: SOFTFOCUS appliesa softfocus effect to an image. This will be 
+# a blend of two methods. One used -compose softlight and the other uses 
+# -compose over. The latter applies a ramped blur and allows a center region 
+# with no blur.
+# 
+# OPTIONS: 
+# 
+# -m mix ... MIX is the mix percent between compose softlight and compose over 
+# methods. Mix=0 is -compose softlight and mix=100 is -compose over. Values are 
+# integers between 0 and 100. The default=50 (equal blend of the two methods).
+# 
+# -b  bluramt1 ... BLURAMT1 is the blur amount when using the compose softlight 
+# method. Values are floats>=0. The default=4.
+# 
+# -B  bluramt2 ... BLURAMT2 is the blur amount when using the compose over 
+# method. Values are floats>=0. The default is automatically computed from the 
+# image size.
+# 
+# -o opacity1 ... OPACITY1 is the opacity amount when using the compose 
+# softlight method. Values are integers between 0 and 100. The default=50.
+# 
+# -O opacity2 ... OPACITY2 is the opacity amount when using the compose 
+# over method. Values are integers between 0 and 100. The default=50.
+# 
+# -c coords ... COORDS are the x,y center coordinates for the no blur region 
+# when using the compose over method. Values are integers>=0. The default is 
+# the image center.
+# 
+# -r radius ... RADIUS is the percent of the minimum distance between the 
+# specified coords and the edges of image. This radius computes the size of 
+# the no blur center region when the method is over. Values are integers 
+# between 0 and 100. The default=25. When no coords are specified the ramped 
+# blur will have an elliptical shape if the image is not square; otherwise, 
+# it will be a circle. It will always be a circle, if coords are specified.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+mix=50				# mixing percent of softlight and over compose methods; 0=softlight 100=over
+bluramt1=4			# blur amount for softlight method
+bluramt2=""			# blur amount for over method
+opacity1=50			# opacity for softlight
+opacity2=50			# opacity for over method
+coords=""			# center coords for no blur region	
+radius=25			# percent of image size for no blur center region for method over
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get mix
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   mix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mix" = "" ] && errMsg "--- MIX=$mix MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$mix < 0" | bc`
+					   testB=`echo "$mix > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- MIX=$mix MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-b)    # get bluramt1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLURAMT1 SPECIFICATION ---"
+					   checkMinus "$1"
+					   bluramt1=`expr "$1" : '\(.[0-9]*\)'`
+					   [ "$bluramt1" = "" ] && errMsg "--- BLURAMT1=$bluramt1 MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-B)    # get bluramt2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLURAMT2 SPECIFICATION ---"
+					   checkMinus "$1"
+					   bluramt2=`expr "$1" : '\(.[0-9]*\)'`
+					   [ "$bluramt2" = "" ] && errMsg "--- BLURAMT2=$bluramt2 MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-o)    # get opacity1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY1 SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity1=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity1" = "" ] && errMsg "--- OPACITY1=$opacity1 MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$opacity1 < 0" | bc`
+					   testB=`echo "$opacity1 > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- OPACITY1=$opacity1 MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-O)    # get opacity2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY2 SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity2=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity2" = "" ] && errMsg "--- OPACITY2=$opacity2 MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$opacity2 < 0" | bc`
+					   testB=`echo "$opacity2 > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- OPACITY2=$opacity2 MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get coords
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -eq 1 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF COORDINATES SUPPLIED ---"
+					   coords="$1,"
+		   			   xc=`echo "$coords" | cut -d, -f1`
+		   			   yc=`echo "$coords" | cut -d, -f2`
+					   ;;
+				-r)    # get radius
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+					   checkMinus "$1"
+					   radius=`expr "$1" : '\([0-9]*\)'`
+					   [ "$radius" = "" ] && errMsg "--- RADIUS=$radius MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$radius < 0" | bc`
+					   testB=`echo "$radius > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- RADIUS=$radius MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set directory for temporary files
+tmpdir="$dir"
+
+dir="$tmpdir/SOFTFOCUS.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+# read input image into temporary memory mapped (mpc) format image
+convert -quiet "$infile" +repage $dir/tmpI.mpc ||
+	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image dimensions
+ww=`identify -ping -format "%w" $dir/tmpI.mpc`
+hh=`identify -ping -format "%h" $dir/tmpI.mpc`
+min=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+max=`convert xc: -format "%[fx:max($ww,$hh)]" info:`
+
+if [ "$coords" != "" ]; then
+	xc=`echo "$coords" | cut -d, -f 1`
+	yc=`echo "$coords" | cut -d, -f 2`
+	dleft=$xc
+	dright=`convert xc: -format "%[fx:$ww-$xc]" info:`
+	dbottom=`convert xc: -format "%[fx:$hh-$yc]" info:`
+	dtop=$yc 
+	dbot=`convert xc: -format "%[fx:$hh-$yc]" info:`
+	min=`convert xc: -format "%[fx:hypot( min($dleft,$dright), min($dtop,$dbottom) )]" info:`
+	min2=`convert xc: -format "%[fx:2*$min]" info:`
+	xoff=`convert xc: -format "%[fx:$xc-$min]" info:`
+	yoff=`convert xc: -format "%[fx:$yc-$min]" info:`
+	
+fi
+#echo "xc=$xc; yc=$yc; dleft=$dleft; dright=$dright; dbottom=$dbottom; dtop=$dtop; min=$min; xoff=$xoff; yoff=$yoff;"
+
+# set blur amount for over method
+if [ "$bluramt2" = "" ]; then
+	bluramt2=`convert xc: -format "%[fx:max(1.5,1.5*($max/250))]" info:`
+fi	
+#echo "bluramt2=$bluramt2"
+
+
+if [ "$radius" != "0" ]; then
+	blackthresh="-black-threshold $radius% -level $radius%,100%"
+else
+	blackthresh=""
+fi
+
+if [ "$opacity1" != "100" ]; then
+	setopacity1="-alpha set -channel A -evaluate set ${opacity1}% +channel"
+else
+	setopacity1=""
+fi
+
+if [ "$opacity2" != "100" ]; then
+	setopacity2="-alpha set -channel A -evaluate set ${opacity2}% +channel"
+else
+	setopacity2=""
+fi
+#echo "$setopacity2"
+
+if [ "$mix" != "100" ]; then
+# process softlight method
+convert $dir/tmpI.mpc \
+\( -clone 0 -blur 0x$bluramt1 $setopacity1 \) \
+-compose softlight -composite $dir/tmpSL.mpc
+fi
+
+if [ "$mix" != "0" ]; then
+	# make radial gradient for over method
+	if [ "$coords" = "" ]; then
+		convert -size ${min}x${min} radial-gradient: -negate \
+			-resize ${ww}x${hh}\! $blackthresh \
+			$dir/tmpG.mpc
+	else
+		convert \( $dir/tmpI.mpc -fill white -colorize 100% \) \
+			\( -size ${min2}x${min2} radial-gradient: -negate \) \
+			-gravity northwest -geometry +$xoff+$yoff -compose over -composite $blackthresh \
+			$dir/tmpG.mpc
+	fi
+
+	# process over method
+	convert $dir/tmpI.mpc \
+		\( -clone 0 -blur 0x$bluramt2 $setopacity2 \) \
+		$dir/tmpG.mpc -compose over -composite $dir/tmpO.mpc
+fi
+
+if [ "$mix" = "0" ]; then
+	convert $dir/tmpSL.mpc "$outfile"
+elif [ "$mix" = "100" ]; then
+	convert $dir/tmpO.mpc "$outfile"
+elif [ "$mix" != "100" -a "$mix" != "0" ]; then
+# mix softlight and over methods
+convert $dir/tmpSL.mpc $dir/tmpO.mpc -define compose:args=$mix% \
+	-compose blend -composite "$outfile"
+fi
+exit 0

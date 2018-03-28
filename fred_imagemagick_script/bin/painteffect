@@ -1,0 +1,319 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/20/2017 .......... revised 4/20/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: painteffect [-g gammaval] [-b blur] [-p paintval] [-e edgegain] 
+# [-t texturize] [-r reseed] [-s soften] [-m mix] infile outfile
+# USAGE: painteffect [-h or -help]
+#
+# OPTIONS:
+#
+# -g     gammaval      preprocessing gamma adjustment to the midtone 
+#                      brightness; float>=0; default=1 (no change)
+# -b     blur          selective blur (sigma) amount to lessen detail;  
+#                      float>=0; default=2
+# -p     paintval      oil paint effect amount; integer>=0; default=0
+# -e     edgegain      edge effect gain; float>=0; default=8
+# -t     texturize     apply random textures to the image; yes or no; 
+#                      default=yes
+# -r     reseed        random texture seeds for two types of texture; 
+#                      comma separate integer>0 pair; default is random seeds
+# -s     soften        texture softening; float>0; default=2
+# -m     mix           mix/blend two types of texture; 0<=integer<=100; 
+#                      default=80
+# 
+###
+#
+# NAME: PAINTEFFECT 
+# 
+# PURPOSE: To apply a paint type effect to an image.
+# 
+# DESCRIPTION: PAINTEFFECT applies a paint type effect to an image. An oil 
+# paint like effect is optional. A texturizing effect is optional. An edge 
+# effect is optional.
+# 
+# OPTIONS: 
+# 
+# -g gammaval ... GAMMAVAL is a preprocessing gamma adjustment to the midtone 
+# brightness. Best results occur when the image is not overly white. Values 
+# are floats>=0. The default=1 (no change).
+# 
+# -b blur ... BLUR is the selective blur (sigma) amount to lessen detail. 
+# Larger values smooth out image detail. Values are floats>=0. The default=2.
+# 
+# -p paintval ... PAINTVAL controls the amount of a paint effect. Value are 
+# integers>=0. The default=0.
+# 
+# -e edgegain ... EDGEGAIN is edge effect gain amount. Values are float>=0. 
+# The default=8.
+# 
+# -t texturize ... TEXTURIZE is a flag to apply random textures to the image.
+# Choices are: yes (y) or no (n). The default=yes.
+# 
+# -r reseed ... RESEED is a pair of random texture seeds for two types of 
+# texture. Values are comma separate non-negative integer pairs. The default  
+# is completely random seed values.
+# 
+# -s soften ... SOFTEN controls the texture softening/smoothing. Values are 
+# floats>=0. The default=2.
+# 
+# -m mix ... MIX is the percent mix/blend of the two types of texture. Values  
+# are 0<=integers<=100. The default=80.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+gammaval=1				# gamma adjustment of the midtone brightness; float>=0
+blur=2					# selective blur amount to lessen detail; float>=0
+paintval=0				# paint amount; integer>==0
+edgegain=8				# edge gain; float>=0
+texturize="yes"			# apply random texture; yes or no
+reseed="100,200"		# random texture seeds for two types of texture; integers; default=random seeds
+soften=3				# texture softening; float>=0
+mix=80					# percent mix/blend two types of texture
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-g)    # get gammaval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAMMAVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   gammaval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gammaval" = "" ] && errMsg "GAMMAVAL=$gammaval MUST BE A NON-NEGATIVE FLOAT"
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "BLUR=$blur MUST BE A NON-NEGATIVE FLOAT"
+					   ;;
+				-p)    # get paintval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAINTVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   paintval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$paintval" = "" ] && errMsg "PAINTVAL=$paintval MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-e)    # get edgegain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EDGEGAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   edgegain=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$edgegain" = "" ] && errMsg "EDGEGAIN=$edgegain MUST BE A NON-NEGATIVE FLOAT"
+					   ;;
+				-t)    # get  texturize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TEXTURIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   texturize=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$texturize" in 
+					   		yes|y) texturize="ues" ;;
+					   		no|n) texturize="no" ;;
+					   		*) errMsg "--- TEXTURIZE=$texturize IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get reseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RESEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   reseed=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$reseed" = "" ] && errMsg "RESEED=$reseed MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE INTEGERS"
+					   ;;
+				-s)    # get soften
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SOFTEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   soften=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$soften" = "" ] && errMsg "SOFTEN=$soften MUST BE A NON-NEGATIVE FLOAT"
+					   ;;
+				-m)    # get mix
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   mix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mix" = "" ] && errMsg "MIX=$size MUST BE A NON-NEGATIVE INTEGER"
+		   			   test=`echo "$mix > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- MIX=$mix MUST BE AN INTEGER BETWEEEN 0 AND 100 --- "
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/painteffect_1_$$.mpc"
+tmpB1="$dir/painteffect_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# set up paint
+if [ $paintval -eq 0 ]; then
+	painting=""
+else
+	painting="-paint $paintval"
+fi
+
+# get seed values
+if [ "$reseed" = "" ]; then
+	seeding1=""
+	seeding2=""
+else
+	seed1=`echo "$reseed" | cut -d, -f1`
+	seed2=`echo "$reseed" | cut -d, -f2`
+	seeding1="-seed $seed1"
+	seeding2="-seed $seed2"
+fi
+
+# set up gamma
+if [ "$gammaval" = "1" ]; then
+	gammaproc=""
+else
+	gammaproc="-gamma $gammaval"
+fi
+
+if [ "$texturize" = "no" ]; then
+convert $tmpA1 $gammaproc -selective-blur 0x${blur}+20% $painting \
+	\( +clone -sharpen 0x2 -morphology edgein diamond:1 \
+		-evaluate multiply $edgegain -colorspace gray -negate \) \
+	-compose multiply -composite \
+	"$outfile"
+else
+convert $tmpA1 $gammaproc -selective-blur 0x${blur}+20% $painting +write mpr:img +delete \
+	\( mpr:img -sharpen 0x2 -morphology edgein diamond:1 -evaluate multiply $edgegain \
+		-colorspace gray -negate +write mpr:edge +delete \) \
+	\( mpr:img -fill black -colorize 100 $seeding1 -attenuate 2 +noise gaussian \
+		-negate -blur 0x$soften -colorspace gray -write mpr:noise1 +delete \) \
+	\( mpr:img \( mpr:noise1 \) \( mpr:noise1 -auto-level \) \
+		-compose color-dodge -composite -write mpr:txtr1 +delete \) \
+	\( mpr:img -attenuate 0.25 $seeding2 +noise random \
+		-colorspace gray -blur 0x$soften -write mpr:noise2 +delete \) \
+	\( mpr:img \( mpr:noise2 \) \( mpr:noise2 -auto-level \) \
+		-compose color-dodge -composite -write mpr:txtr2 +delete \) \
+	\( mpr:txtr1 mpr:txtr2 -define compose:args=$mix -compose blend -composite \
+		mpr:edge -compose multiply -composite \) \
+	"$outfile"
+fi
+
+exit 0

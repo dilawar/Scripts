@@ -1,0 +1,361 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/19/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: nightvision [-b brightness] [-d diameter] [-r rolloff] [-n noise] 
+# [-s seed] [-B blooming] [-T threshold] infile outfile
+# 
+# USAGE: nightvision [-help]
+#
+# OPTIONS:
+#
+# -b     brightness     brightness of night view; 0<=integer<=200; default=100
+# -d     diameter       vignette diameter expressed as a percent of the image
+#                       dimensions; 0<=integer<=100; default=60
+# -r     rolloff        vignette ramp rolloff; -100<=integer<=100; 
+#                       larger values lengthen the ramp and shorter values 
+#                       shorten the ramp; default=0 is linear ramp to most 
+#                       distant image point.
+# -n     noise          noise amount; float>=0; default=2
+# -s     seed           seed value for noise; integer>=0; default=100
+# -B     blooming       include blooming effect; choices are yes or no; 
+#                       default=no
+# -T     threshold      blooming threshold; 0<=float<=100; default=5
+#
+###
+#
+# NAME: NIGHTVISION 
+# 
+# PURPOSE: To simulate a picture as viewed through night vision goggles.
+# 
+# DESCRIPTION: NIGHTVISION simulates a picture as viewed through night vision 
+# goggles. The brightness and noise in the view may be adjusted as well as 
+# the vignetting and blooming.
+# 
+# OPTIONS: 
+# 
+# -b brightness ... BRIGHTNESS of the night view. Values are integers between 
+# 0 and 200. The default=100.
+# 
+# -d diameter ... DIAMETER of the vignetting. It is a relative size expressed 
+# as a percent of the image dimensions. Values are integers between 0 and 100.
+# The default=60.
+# 
+# -r rolloff ... ROLLOFF of the vignette ramping. Values are integers between
+# 0 and 100. Larger values lengthen the ramp and shorter values shorten the 
+# ramp. The default=0 is a linear ramp to the most distant image point.
+# 
+# -n noise ... NOISE amount added to the image. Values are floats>=0. The 
+# default=2.
+# 
+# -s seed ... SEED value for the random noise. Values are integers>=0. The 
+# default=100.
+# 
+# -B blooming ... BLOOMING is a flag to include/exclude a blooming effect at 
+# very bright locations. The choices are yes or no. The default=no.
+# 
+# -T threshold ... THRESHOLD locates some pixels that are the brightest for 
+# for use with the blooming effect. Value are floats between 0 and 100. 
+# The default=5.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+brightness=100		# brightness; 0<=integer<=200
+diameter=60			# vignette diameter as percent of image dimensions
+rolloff=0			# vignette rolloff; -100<=integer<=100; change from nominal
+noise=2				# noise amount; float>=0
+seed=100			# random seed for noise; integer>=0
+blooming="no"       # blooming effect flag; yes or no
+threshold=5         # percent brightest pixels for blooming
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-b)    # get brightness
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   brightness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$brightness < 0" | bc`
+					   testB=`echo "$brightness > 200" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER BETWEEN 0 AND 200 ---"
+					   ;;
+				-d)    # get diameter
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETER SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameter=`expr "$1" : '\([0-9]*\)'`
+					   [ "$diameter" = "" ] && errMsg "--- DIAMETER=$diameter MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$diameter < 0" | bc`
+					   testB=`echo "$diameter > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- DIAMETER=$diameter MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-r)    # get rolloff
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLLOFF SPECIFICATION ---"
+					   #checkMinus "$1"
+					   rolloff=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$rolloff" = "" ] && errMsg "--- ROLLOFF=$rolloff MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$rolloff < -100" | bc`
+					   testB=`echo "$rolloff > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- ROLLOFF=$rolloff MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-n)    # get noise
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
+					   checkMinus "$1"
+					   noise=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$noise" = "" ] && errMsg "--- NOISE=$noise MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-s)    # get seed
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   seed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$seed" = "" ] && errMsg "--- SEED=$seed MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-B)    # get blooming
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLOOMING SPECIFICATION ---"
+					   checkMinus "$1"
+					   blooming="$1"
+					   [ "$blooming" != "yes" -a "$blooming" != "no" ] && errMsg "--- BLOOMING=$blooming MUST BE EITHER YES OR NO ---"
+					   ;;
+				-T)    # get threshold
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   threshold=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$threshold < 0" | bc`
+					   testB=`echo "$threshold > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+# setup temporary images
+tmpA1="$dir/nightvision_1_$$.mpc"
+tmpB1="$dir/nightvision_1_$$.cache"
+tmpA2="$dir/nightvision_2_$$.mpc"
+tmpB2="$dir/nightvision_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using nightvision.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.3.2
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+
+# compute half width
+ww2=`convert xc: -format "%[fx:$ww/2]" info:`
+hh2=`convert xc: -format "%[fx:$hh/2]" info:`
+
+# get center
+xc=$ww2
+yc=$hh2
+
+
+# get size of ellipse to draw
+ww2=`convert xc: -format "%[fx:$ww2*$diameter/100]" info:`
+hh2=`convert xc: -format "%[fx:$hh2*$diameter/100]" info:`
+
+# set ellipse args (center at 0,0 because will use translate to xc,yc)
+args="0,0 $ww2,$hh2 0,360"
+
+
+# set up outer ramp leveling
+rampval=`convert xc: -format "%[fx:100-abs($rolloff)]" info:`
+test=`convert xc: -format "%[fx:sign($rolloff)<0?0:1]" info:`
+if [ $test -eq 0 ]; then 
+	leveling="-level 0x$rampval%"
+else
+	leveling="+level 0x$rampval%"
+fi
+
+
+#echo "brightness=$brightness; args=$args; inramping=$inramping; leveling=$leveling;"
+
+#convert brightness from percent to fraction
+test=`convert xc: -format "%[fx:$brightness>100?1:0]" info:`
+if [ $test -eq 1 ]; then
+	gain=`convert xc: -format "%[fx:$brightness/100]" info:`
+	lighten="-evaluate multiply $gain"
+	brightness=100
+else
+	lighten=""
+fi
+#echo "lighten=$lighten;"
+
+convert \( $tmpA1 $lighten -attenuate $noise -seed $seed +noise gaussian $setcspace -colorspace gray \) \
+	\( -clone 0 -fill green1 -colorize $brightness% \) \
+	-compose multiply -composite \
+	\( -clone 0 -fill white -colorize 100% -fill black \
+		-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
+		-auto-level $leveling \) \
+	\( -clone 0 -fill black -colorize 100% \) \
+	+swap -compose over -composite \
+	$tmpA2
+
+if [ "$blooming" = "yes" ]; then
+	# get mask of top percent brightness
+	# blur mask
+	# apply as mask to overlay white
+	convert $tmpA1 $tmpA2 \
+		\( -clone 0 -fill white -colorize 100% \) \
+		\( -clone 0 -colorspace HSB -channel B -separate +channel \
+			-contrast-stretch 0,${threshold}% \
+			-fill black +opaque white -blur 0x2 \) \
+		-delete 0 -compose over -composite "$outfile"
+else	
+	convert $tmpA2 "$outfile"
+fi
+	
+
+exit 0
+
+	

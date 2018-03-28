@@ -1,0 +1,375 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/22/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bump [-t type] [-a amplitude] [-r radius] [-c center] [-m] [-b bgcolor] infile outfile
+# USAGE: bump [-h or -help]
+#
+# OPTIONS:
+#
+# -t      type               type of bump shaping; choices are: 
+#                            1=sinusoid, 2=triangle; 3=circular; default=1
+# -a      amplitude          amplitude or elevation of the bump; float; 
+#                            positive raises the bump; negative lowers 
+#                            the depression; default=10
+# -r      radius             radius from center point determines the extent of the bump; 
+#                            integer>=0; default is half the minimum image dimension
+# -c      center             center point for the bump; center=cx,cy; 
+#                            integer>=0; default is center of image
+# -m                         mask the outside of the radius with background color
+# -b      bgcolor            background color for the masked area outside the radius
+#
+###
+#
+# NAME: BUMP 
+# 
+# PURPOSE: To apply a hemispherical-like bump distortion to an image.
+# 
+# DESCRIPTION: BUMP applies a hemispherical-like bump distortion to an image. 
+# The user can control the amplitude or height of the bump, the radius of 
+# the bump, the center point of the bump and the type of displacement profile 
+# used to control the shape of the bump. This is a simpler approximation of 
+# my bubblewarp script that is much faster due to the use of -distort 
+# polar/depolar and a displacement map.
+# 
+# OPTIONS: 
+#
+# -t type ... TYPE of displacement profile used to control the shape of the bump. 
+# Choices are: 1=sinusoid, 2=triangle; 3=circular; default=1
+# 
+# -a amplitude ... AMPLITUDE or elevation of the bump. Values are floats. 
+# Postive values raise the bump and negative values lower the elevation. 
+# A value of zero produces essentially no change. The default=10.
+# 
+# -r radius ... RADIUS is the radial distance from the center point which
+# determines the extent of the bump. Values are integers>=0. The default is 
+# half the minimum dimension of the image.
+# 
+# -c center ... CENTER=cx,cy are the comma separated coordinates in the image 
+# determining the center of the bump. Values are integers>=0. The default 
+# is the center of the image.
+# 
+# -m ... Enables a mask around the bump that is set to the desired background 
+# color. This gives the result a spherical or bubble effect.
+# 
+# -b bgcolor ... BGOLOR is the color of the masked area outside the bump. 
+# Any valid IM color is allowed. See http://imagemagick.org/script/color.php
+# The default=black.
+# 
+# NOTE: Requires IM 6.4.2-8 or higher due to the use of -distort polar/depolar.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+type=1				#1=sinusoid, 2=triangle, 3=circular
+amp=10
+rad=""				# defaults to half min of width or height
+center=""			# defaults to middle of image
+mask="no"
+bgcolor="black"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 13 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type=`expr "$1" : '\([0-9]*\)'`
+					   [ "$type" = "" ] && errMsg "--- TYPE=$type MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ $type -ne 1 -a $type -ne 2 -a $type -ne 3 ] && errMsg "--- TYPE=$type MUST BE EITHER 1, 2 OR 3 ---"
+					   ;;
+				-a)    # get amp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID AMPLITUDE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   amp=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$amp" = "" ] && errMsg "--- AMPLITUDE=$amp MUST BE A FLOAT ---"
+					   ;;
+				-r)    # get rad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+					   checkMinus "$1"
+					   rad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rad" = "" ] && errMsg "--- RADIUS=$rad MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-c)    # get center
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -eq 1 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF COORDINATES SUPPLIED ---"
+					   center=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$center" = "" ] && errMsg "--- CENTER=$coords MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
+					   center="$1,"
+		   			   cx=`echo "$center" | cut -d, -f1`
+		   			   cy=`echo "$center" | cut -d, -f2`
+					   ;;
+				-m)    # get mask flag
+					   mask="yes"
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images
+tmpA1="$dir/bump_$$.mpc"
+tmpB1="$dir/bump_$$.cache"
+tmp1="$dir/bump_1_$$.miff"
+tmp2="$dir/bump_2_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using bump.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7, 6.7.9.1
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
+	then
+	: ' Do Nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get center if not provided
+if [ "$center" = "" ]; then
+	cx=`convert $tmpA1 -format "%[fx:(w-1)/2]" info:`
+	cy=`convert $tmpA1 -format "%[fx:(h-1)/2]" info:`
+fi
+
+# get radius if not profided
+if [ "$rad" = "" ]; then
+rad=`convert $tmpA1 -format "%[fx:floor(min(w,h)/2))]" info:`
+fi
+
+# correct radius to account for polar transformation scaling
+rad1=`convert $tmpA1 -format "%[fx:floor(2*$rad*h/sqrt(w*w+h*h))]" info:`
+rad2=`convert $tmpA1 -format "%[fx:floor($rad*h/sqrt(w*w+h*h))]" info:`
+
+# get image width and height and distance outside radius
+ww=`convert $tmpA1 -format %w info:`
+hh=`convert $tmpA1 -format %h info:`
+hmr=`convert xc: -format "%[fx:max(1,$hh-$rad1)]" info:`
+hhh=`convert xc: -format "%[fx:$rad1+$hmr]" info:`
+
+# set up for -separate --- not needed for grayscale in IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	separating=""
+else
+	separating="-channel g -separate"
+fi
+
+# convert image to polar coords
+convert $tmpA1 -distort depolar -1,0,$cx,$cy $tmpA1
+
+if [ $type -eq 1 ]; then
+#echo "sinusoid"
+	# create bump map equal to negative half sine wave
+	if [ "$im_version" -ge "06040805" ]; then
+		convert -size 1x${rad1} gradient:"gray(255)-gray(0)" \
+			$separating +channel \
+			-evaluate sine 0.5 -negate \
+			$tmp1
+	else
+		convert -size 1x${rad1} gradient:"gray(255)-gray(0)" \
+			-fx "0.5*sin(pi*u)+0.5" -negate \
+			$tmp1
+	fi
+elif [ $type -eq 2 ]; then
+#echo "conic"
+	# create bump map as triangle peak downward
+	# need to use just slightly less than 50% in +level to avoid a black dot in the center
+	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
+		\( +clone -negate \) -append \
+		$separating +channel \
+		+level 0%,49.999999% \
+		$tmp1
+elif [ $type -eq 3 ]; then
+#echo "hemisphere"
+	# create bump map as lower half circle
+	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
+		\( +clone -negate \) -append -negate \
+		$separating +channel \
+		-fx "sqrt(1-(u-1)*(u-1))" -negate \
+		+level 0%,49.999999% \
+		$tmp1
+: '
+	# alternate hemisphere
+	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
+		\( +clone -negate \) -append -negate \
+		$separating +channel \
+		-negate +clone -compose multiply -composite \
+		-negate -evaluate pow 0.5 -negate \
+		+level 0%,49.999999% \
+		$tmp1
+'
+fi
+
+# pad to fill out to full height and width
+convert $tmp1 \( -size 1x${hmr} xc:"gray(50%)" \) -append \
+	-scale ${ww}x${hhh}! -crop ${ww}x${hh}+0+0 +repage $tmp1
+
+# debugging analysis - get profile of displacement
+debug="false"
+if $debug; then
+profile -f 1 -c 0 $tmp1 bump_${type}_profile.png
+fi
+
+# displace image using gradient
+if [ "$im_version" -lt "06050304" ]; then
+	composite $tmp1 $tmpA1 -displace 0x${amp} $tmpA1
+else
+	convert $tmpA1 $tmp1 -define compose:args=0x${amp} \
+		-compose displace -composite $tmpA1
+fi
+
+# convert back to rectangular coords
+convert $tmpA1 -distort polar -1,0,$cx,$cy $tmpA1
+
+if [ "$mask" = "yes" ]; then
+# create and convert mask to rectangular coords and composite with image
+	convert $tmp1 -threshold 50% -distort polar -1,0,$cx,$cy $tmp1
+	convert $tmpA1 \( -size ${ww}x${hh} xc:$bgcolor \) $tmp1 \
+		-compose over -composite "$outfile"
+else
+	convert $tmpA1 $outfile
+fi
+
+exit 0

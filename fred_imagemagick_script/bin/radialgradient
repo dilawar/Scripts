@@ -1,0 +1,247 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/23/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: radialgradient WidthxHeight [-d diameters] [-c center] [-C colors] outfile
+# USAGE: radialgradient [-h or -help]
+# 
+# OPTIONS:
+# 
+#         WidthxHeight      width and height of desired output image
+# -d      diameters         x and y diameters of radial gradient; 
+#                           pair of comma separated floats>=0; 
+#                           default=Width,Height
+# -c      center            x and y center coordinates for radial gradient; 
+#                           pair of comma separated floats>=0; 
+#                           default=Width/2,Height/2
+# -C      colors            inner and outer colors for radial gradient;
+#                           hyphen separate pair of IM colors; 
+#                           default="black-white"; be sure to enclose them 
+#                           in quotes.
+# 
+###
+# 
+# NAME: RADIALGRADIENT 
+# 
+# PURPOSE: To create a radial gradient image.
+# 
+# DESCRIPTION: RADIALGRADIENT create a radial gradient image. The user can 
+# specify the x and y diameters and the x and y center coordinates. Nominally, 
+# the center will be black and increase in brightness to white at the radii 
+# (half diameters) from the center.
+# 
+# 
+# ARGUMENTS: 
+# 
+# WidthxHeight ... WIDTHxHEIGHT is the desired sized of the output image.
+# 
+# -d diameters ... DIAMETERS are the x and y diameters for the radial gradient. 
+# Values are floats>=0. The default=Width,Height.
+# 
+# -c center ... CENTER is the x and y center coordinates for the radial gradient. 
+# Values are floats>=0. The default=Width/2,Height/2.
+# 
+# -C colors ... COLORS are the inner and outer limit colors of the radial 
+# gradient. They are specified as a hyphen separate pair of valid IM colors. 
+# The default="black-white". Be sure to enclose them in quotes.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+#size=""				#WxH
+diameters=""			#default=WxH
+center=""				#default=(W/2)x(H/2)
+colors="black-white" 	#any valid IM hyphen separated colors
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get  diameters
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETERS SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameters=`expr "$1" : '\([.0-9]*,[.0-9]*\)'`
+					   [ "$diameters" = "" ] && errMsg "--- DIAMETERS=$diameters MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE FLOATS ---"
+					   ;;
+				-c)    # get  center
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   center=`expr "$1" : '\([.0-9]*,[.0-9]*\)'`
+					   [ "$center" = "" ] && errMsg "--- CENTER=$center MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE FLOATS ---"
+					   ;;
+				-C)    # get  colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   [ "$colors" = "" ] && errMsg "--- COLORS=$colors MUST BE A HYPHEN SEPARATED PAIR OF IM VALID COLORS ---"
+					   ;;
+	 [0-9]*x[0-9]*)    # get  width x height
+					   size="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get outfile
+	outfile="$1"
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# test that size specified
+[ "$size" = "" ] && errMsg "--- NO OUTPUT SIZE SPECIFIED ---"
+
+# set temporary file
+tmpA1="$dir/radialgradient_A_$$.mpc"
+tmpA2="$dir/radialgradient_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# extract individual arguments
+ww=`echo "$size" | cut -dx -f 1`
+hh=`echo "$size" | cut -dx -f 2`
+if [ "$diameters" = "" ]; then
+	dx=$ww
+	dy=$hh
+else
+	dx=`echo $diameters | cut -d, -f 1`
+	dy=`echo $diameters | cut -d, -f 2`
+fi
+if [ "$center" = "" ]; then
+	cx=`convert xc: -format "%[fx:$ww/2]" info:`
+	cy=`convert xc: -format "%[fx:$hh/2]" info:`
+else
+	cx=`echo $offsets | cut -d, -f 1`
+	cy=`echo $offsets | cut -d, -f 2`
+fi
+
+# create black-white radial-gradient
+convert \
+	\( -size ${ww}x1 xc: -fx "xx=(i-$cx)/($dx/2); xx^2" -scale ${ww}x${hh}! \) \
+	\( -size 1x${hh} xc: -fx "yy=(j-$cy)/($dy/2); yy^2" -scale ${ww}x${hh}! \) \
+	-compose plus -composite -evaluate pow 0.5 \
+	$tmpA1
+
+# colorize as needed
+if [ "$colors" != "black-white" ]; then
+	colors=`echo "$colors" | tr "-" ","`
+	color1=`echo "$colors" | cut -d, -f 1`
+	color2=`echo "$colors" | cut -d, -f 2`
+	is_opaque1=`convert xc:"$color1" -format "%[fx:u.a]" info:` 
+	is_opaque2=`convert xc:"$color2" -format "%[fx:u.a]" info:` 
+	if [ $is_opaque1 -eq 1 -a $is_opaque2 -eq 1 ]; then
+		#fully opaque colors
+		convert $tmpA1 +level-colors "$colors" "$outfile"
+	else
+		#some transparency in colors
+		convert $tmpA1 \( -clone 0 -negate \) \( -clone 0 +level-colors $colors \) \
+			-delete 0 +swap -alpha off -compose copy_opacity -composite \
+			$outfile
+	fi		
+else
+	convert $tmpA1 "$outfile"
+fi
+
+exit 0

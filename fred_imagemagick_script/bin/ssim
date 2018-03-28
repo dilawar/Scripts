@@ -1,0 +1,471 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/14/2016 .......... revised 9/12/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: ssim [-r radius] [-s sigma] [-f format] [-m method] [-p precision] [-v vp] 
+# infile1 infile2 [outfile]
+# USAGE: ssim [-h or -help]
+# 
+# OPTIONS:
+# 
+# -r     radius        RADIUS of window used to do local gaussian blurring
+#                      integer>0; default=5
+# -s     sigma         SIGMA of gaussian blurring; float>0; default=1.5  
+# -f     format        FORMAT is the output image format, if the outfile is 
+#                      specified; choices are: ssim or dssim; default=ssim
+# -m     method        METHOD of computing the variance and covariance; choices are: 
+#                      1 or 2; default=1
+# -p     precision     PRECISION is the number of decimal figures in the 
+#                      metric to show; default=3
+# -v     vp            VP is the virtual pixel method; choices are edge, mirror or off; 
+#                      default=edge
+# 
+###
+# 
+# NAME: SSIM 
+# 
+# PURPOSE: To compute the structural similarity metric between two equal sized 
+# images.
+# 
+# DESCRIPTION: SSIM computes the structural similarity metric between two
+# equal sized images and its complement structural dissimilarity metric
+# (DSSIM). The DSSIM=(1-SSIM). An optional output image may be specified which
+# can show the SSIM or DSSIM image. The latter is just the -negate of the
+# former. The SSIM process first converts the images to Luma space and then
+# computes the ssim metric within 11x11 local regions at every pixel with
+# Gaussian weighting. Then it computes the average ssim value across the
+# resulting ssim image and reports that value.
+# 
+# Arguments: 
+# 
+# -r radius ... RADIUS of window used to do local gaussian blurring. Values are 
+# integers>0. The default=5. The square dimensions of the window will be 2*radius+1.
+# 
+# -s sigma ... SIGMA of gaussian blurring. Values are floats>0. The default=1.5.
+#        
+# -f format ... FORMAT is the output image format, if the outfile is specified.
+# The choices are: ssim (s) or dssim (d). The default=ssim
+# 
+# -m method ... METHOD of computing the variance and covariance. choices are: 
+# 1 or 2. Method 1 is var=ave(X^2)-ave(X)*ave(X). Method 2 is var=ave((X-ave(X))^2). 
+# Method 1 is used by all SSIM code that I can find, but may suffer from catastrophic 
+# cancellation. See https://en.wikipedia.org/wiki/Variance 
+
+# -p precision ... PRECISION is the number of decimal figures in the metric 
+# to show. The default=3
+# 
+# -v vp ... VP is the virtual pixel method. Choices are edge, mirror or off. 
+# The default=edge. If off is used, the resulting image will be cropped smaller by  
+# 2*floor((window-1)/2) in each width and height.
+#
+# REFERENCES: 
+# http://en.m.wikipedia.org/wiki/SSIM
+# https://en.wikipedia.org/wiki/Variance
+# https://en.wikipedia.org/wiki/Covariance
+# http://www.cns.nyu.edu/pub/eero/wang03-reprint.pdf
+# http://www.cns.nyu.edu/~lcv/ssim/
+# 
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+# 
+# NOTE: Without HDRI enabled, the script will be slow due to the use of -fx.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+format="ssim"
+method=1
+precision=3
+radius=5
+sigma=1.5
+k1=0.01
+k2=0.03
+L=1			# fx is in range 0 to 1; so 2^1-1 = 1
+vp=edge		# virtual pixel method (edge or mirror)
+
+# set directory for temporary files
+tmpdir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 15 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0
+				   ;;
+			-r)    # get radius
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+				   checkMinus "$1"
+				   radius=`expr "$1" : '\([0-9]*\)'`
+				   [ "$radius" = "" ] && errMsg "--- RADIUS=$radius MUST BE A NON-NEGATIVE INTEGER ---"
+				   test1=`echo "$radius == 0" | bc`
+				   [ $test1 -eq 1 ] && errMsg "--- RADIUS=$radius MUST BE AN INTEGER GREATER THAN 0 ---"
+				   ;;
+			-s)    # get sigma
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID SIGMA SPECIFICATION ---"
+				   checkMinus "$1"
+				   sigma=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$sigma" = "" ] && errMsg "--- SIGMA=$sigma MUST BE A NON-NEGATIVE FLOAT ---"
+				   test1=`echo "$sigma == 0" | bc`
+				   [ $test1 -eq 1 ] && errMsg "--- SIGMA=$sigma MUST BE A FLOAT GREATER THAN 0 ---"
+				   ;;
+			-f)    # get format
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+				   checkMinus "$1"
+				   format=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$format" in
+						ssim|s) format="ssim";;
+						dssim|d) format="dssim";;
+						*) errMsg "--- FORMAT=$format IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-m)    # get method
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+				   checkMinus "$1"
+				   method=`expr "$1" : '\([1-2]\)'`
+				   [ "$method" = "" ] && errMsg "--- METHOD=$method MUST BE EITHER 1 OR 2 ---"
+				   ;;
+			-p)    # get precision
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PRECISION SPECIFICATION ---"
+				   checkMinus "$1"
+				   precision=`expr "$1" : '\([0-9]*\)'`
+				   [ "$precision" = "" ] && errMsg "--- PRECISION=$precision MUST BE A NON-NEGATIVE INTEGER ---"
+				   ;;
+			-v)    # get vp
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID VP SPECIFICATION ---"
+				   checkMinus "$1"
+				   vp=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$vp" in
+						edge) ;;
+						mirror) ;;
+						off) ;;
+						*) errMsg "--- VP=$vp IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			 *)    # end of arguments
+				   break
+				   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+
+dir="$tmpdir/SSIM.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+if [ "$outfile" != "" -a "$format" = "ssim" ]; then
+	out="+write $outfile"
+elif [ "$outfile" != "" -a "$format" = "dssim" ]; then
+	out="-negate +write $outfile -negate"
+else
+	out=""
+fi
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile1" -alpha off +repage $dir/tmpI1.mpc ||
+	echo  "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+convert -quiet -regard-warnings "$infile2" -alpha off +repage $dir/tmpI2.mpc ||
+	echo  "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test for HDRI
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+
+
+# validate that the two images are the same size
+size1=`convert -ping $dir/tmpI1.mpc -format "%wx$h" info:`
+size2=`convert -ping $dir/tmpI2.mpc -format "%wx$h" info:`
+w1=`echo "$size1" | cut -dx -f1`
+h1=`echo "$size1" | cut -dx -f2`
+w2=`echo "$size2" | cut -dx -f1`
+h2=`echo "$size2" | cut -dx -f2`
+[ $w1 != $w2 ] && errMsg="--- INPUT IMAGE WIDTHS ARE NOT THE SAME SIZE ---"
+[ $h1 != $h2 ] && errMsg="--- INPUT IMAGES HEIGHTS ARE NOT THE SAME SIZE ---"
+
+
+# compute c from k
+c1=`convert xc: -format "%[fx:($L*$k1)*($L*$k1)]" info:`
+c2=`convert xc: -format "%[fx:($L*$k2)*($L*$k2)]" info:`
+
+# set up for cropping
+if [ "$vp" = "off" ]; then
+	amt=$((radius-1))
+	shaving="-shave $amt"
+	echo "shaving=$shaving;"
+	vp=edge
+else
+	shaving=""
+fi
+
+
+if [ $method -eq 1 ]; then
+	if [ "$hdri_on" != "" ]; then
+		# hdri is on
+
+		# get mean images
+		convert $dir/tmpI1.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM1.mpc
+
+		convert $dir/tmpI2.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM2.mpc
+
+		# get variance = ( mean(x^2) - mean_x*mean_x )
+		convert \
+		\( $dir/tmpI1.mpc $dir/tmpI1.mpc -define compose:clamp=off -compose multiply -composite -gaussian-blur  ${radius}x${sigma} \) \
+		\( $dir/tmpM1.mpc $dir/tmpM1.mpc -define compose:clamp=off -compose multiply -composite \) \
+		+swap -define compose:clamp=off -compose minus -composite $dir/tmpV1.mpc
+
+		convert \
+		\( $dir/tmpI2.mpc $dir/tmpI2.mpc -define compose:clamp=off -compose multiply -composite -gaussian-blur  ${radius}x${sigma} \) \
+		\( $dir/tmpM2.mpc $dir/tmpM2.mpc -define compose:clamp=off -compose multiply -composite \) \
+		+swap -define compose:clamp=off -compose minus -composite $dir/tmpV2.mpc
+
+		# get covariance = ( mean(x*y) - mean_x*mean_y )
+		convert \
+		\( $dir/tmpI1.mpc $dir/tmpI2.mpc -define compose:clamp=off -compose multiply -composite -gaussian-blur  ${radius}x${sigma} \) \
+		\( $dir/tmpM1.mpc $dir/tmpM2.mpc -define compose:clamp=off -compose multiply -composite \) \
+		+swap -define compose:clamp=off -compose minus -composite $dir/tmpC12.mpc
+
+		# get ssim and dsim
+		ssim=`convert $dir/tmpM1.mpc $dir/tmpM2.mpc $dir/tmpV1.mpc $dir/tmpV2.mpc $dir/tmpC12.mpc \
+			\( -clone 0,1 -define compose:clamp=off -define compose:args="2,0,0,$c1" -compose mathematics -composite \) \
+			\( -clone 4 -function polynomial "2,$c2" \) \
+			\( -clone 0 -function polynomial "1,0,0" \) \
+			\( -clone 1 -function polynomial "1,0,$c1" \) \
+			\( -clone 7,8 -define compose:clamp=off -compose plus -composite \) \
+			-delete 7,8 \
+			\( -clone 2,3 -define compose:clamp=off -define compose:args="0,1,1,$c2" -compose mathematics -composite \) \
+			-delete 0-4 \
+			\( -clone 0,1 -define compose:clamp=off -compose multiply -composite \) \
+			\( -clone 2,3 -define compose:clamp=off -compose multiply -composite \) \
+			-delete 0-3 \
+			+swap -define compose:clamp=off -compose divide -composite $shaving $out \
+			-precision $precision -format "%[fx:mean]" info:`
+
+	else
+		# hdri is off
+	
+		# get mean images
+		convert $dir/tmpI1.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM1.mpc
+
+		convert $dir/tmpI2.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM2.mpc
+
+		# get variance = ( mean(x^2) - mean_x*mean_x )
+		convert $dir/tmpI1.mpc -monitor -fx "u[0]*u[0]" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} \
+			$dir/tmpM1.mpc -monitor -fx "u[0]-u[1]*u[1]" +monitor $dir/tmpV1.mpc
+
+		convert $dir/tmpI2.mpc -monitor -fx "u[0]*u[0]" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} \
+			$dir/tmpM2.mpc -monitor -fx "u[0]-u[1]*u[1]" +monitor $dir/tmpV2.mpc
+
+		# get covariance = ( mean(x*y) - mean_x*mean_y )
+		convert $dir/tmpI1.mpc $dir/tmpI2.mpc -monitor -fx "u[0]*u[1]" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} \
+			$dir/tmpM1.mpc $dir/tmpM2.mpc -monitor -fx "u[0]-u[1]*u[2]" +monitor $dir/tmpC12.mpc
+
+		# get ssim image and average value
+		ssim=`convert $dir/tmpM1.mpc $dir/tmpM2.mpc $dir/tmpV1.mpc $dir/tmpV2.mpc $dir/tmpC12.mpc \
+			-monitor -fx \
+			"(2*u[0]*u[1]+$c1)*(2*u[4]+$c2)/((u[0]*u[0]+u[1]*u[1]+$c1)*(u[2]+u[3]+$c2))" \
+			+monitor $shaving $out -precision $precision -format "%[fx:mean]" info:`
+	fi
+
+
+elif [ $method -eq 2 ]; then
+	if [ "$hdri_on" != "" ]; then
+		# hdri is on
+
+		# get mean images
+		convert $dir/tmpI1.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM1.mpc
+
+		convert $dir/tmpI2.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM2.mpc
+
+		# get variance = ( mean ( (x-mean_x )* (x-mean_x ) )
+		convert \
+		\( $dir/tmpI1.mpc $dir/tmpM1.mpc +swap -define compose:clamp=off -compose minus -composite \) \
+		\( +clone \) -define compose:clamp=off -compose multiply -composite \
+		-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpV1.mpc
+
+		convert \
+		\( $dir/tmpI2.mpc $dir/tmpM2.mpc +swap -define compose:clamp=off -compose minus -composite \) \
+		\( +clone \) -define compose:clamp=off -compose multiply -composite \
+		-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpV2.mpc
+
+		# get covariance = ( mean ( (x-mean_x )* (y-mean_y ) )
+		convert \
+		\( $dir/tmpI1.mpc $dir/tmpM1.mpc +swap -define compose:clamp=off -compose minus -composite \) \
+		\( $dir/tmpI2.mpc $dir/tmpM2.mpc +swap -define compose:clamp=off -compose minus -composite \) \
+		-define compose:clamp=off -compose multiply -composite \
+		-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpC12.mpc
+
+		# get ssim and dsim
+		ssim=`convert $dir/tmpM1.mpc $dir/tmpM2.mpc $dir/tmpV1.mpc $dir/tmpV2.mpc $dir/tmpC12.mpc \
+			\( -clone 0,1 -define compose:clamp=off -define compose:args="2,0,0,$c1" -compose mathematics -composite \) \
+			\( -clone 4 -function polynomial "2,$c2" \) \
+			\( -clone 0 -function polynomial "1,0,0" \) \
+			\( -clone 1 -function polynomial "1,0,$c1" \) \
+			\( -clone 7,8 -define compose:clamp=off -compose plus -composite \) \
+			-delete 7,8 \
+			\( -clone 2,3 -define compose:clamp=off -define compose:args="0,1,1,$c2" -compose mathematics -composite \) \
+			-delete 0-4 \
+			\( -clone 0,1 -define compose:clamp=off -compose multiply -composite \) \
+			\( -clone 2,3 -define compose:clamp=off -compose multiply -composite \) \
+			-delete 0-3 \
+			+swap -define compose:clamp=off -compose divide -composite $shaving $out \
+			-precision $precision -format "%[fx:mean]" info:`
+
+	else
+		# hdri is off
+	
+		# get mean images
+		convert $dir/tmpI1.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM1.mpc
+
+		convert $dir/tmpI2.mpc -virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpM2.mpc
+
+		# get variance = ( mean ( (x-mean_x )*(x-mean_x ) )
+		convert $dir/tmpI1.mpc $dir/tmpM1.mpc -monitor -fx "(u[0]-u[1])*(u[0]-u[1])" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpV1.mpc
+
+		convert $dir/tmpI2.mpc $dir/tmpM2.mpc -monitor -fx "(u[0]-u[1])*(u[0]-u[1])" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpV2.mpc
+
+		# get covariance = ( mean ( (x-mean_x )*(y-mean_y ) )
+		convert $dir/tmpI1.mpc $dir/tmpM1.mpc $dir/tmpI2.mpc $dir/tmpM2.mpc -monitor -fx "(u[0]-u[1])*(u[2]-u[3])" +monitor \
+			-virtual-pixel $vp -gaussian-blur ${radius}x${sigma} $dir/tmpC12.mpc
+
+
+		# get ssim image and average value
+		ssim=`convert $dir/tmpM1.mpc $dir/tmpM2.mpc $dir/tmpV1.mpc $dir/tmpV2.mpc $dir/tmpC12.mpc \
+			-monitor -fx \
+			"(2*u[0]*u[1]+$c1)*(2*u[4]+$c2)/((u[0]*u[0]+u[1]*u[1]+$c1)*(u[2]+u[3]+$c2))" \
+			+monitor $shaving $out -precision $precision -format "%[fx:mean]" info:`
+	fi
+fi
+
+# get dssim
+dssim=`convert xc: -precision $precision -format "%[fx:(1-$ssim)]" info:`
+
+echo "ssim=$ssim dssim=$dssim"
+
+
+exit 0

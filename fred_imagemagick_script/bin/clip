@@ -1,0 +1,500 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/16/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: clip [-c colormode] [-l cliplow] [-h cliphigh] infile outfile
+# USAGE: clip [-help]
+#
+# OPTIONS:
+#
+# -c      colormode       	colorspace/channels in which to stretch/clip
+#                           choices are: i, rgb, sb and sl; default=i
+# -l      cliplow           clip amount on low end of histogram;
+#                           count or percent; default is 0.1%
+#                           if percent then float; 0<=cliplow<=100
+#                           if count then integer; 0<=cliplow<=quantumrange
+# -l      cliphigh          clip amount on high end of histogram;
+#                           count or percent; default is 0.1%
+#                           if percent then float; 0<=cliphigh<=100
+#                           if count then integer; 0<=cliphigh<=quantumrange
+#
+###
+#
+# NAME: CLIP 
+# 
+# PURPOSE: To stretch the channels of an image to full black and white 
+# according to a clip amount on each end of the histogram.
+# 
+# DESCRIPTION: CLIP stretches the channels of an image to full black   
+# and white according to a clip amount on each end of the histogram. 
+# The clip amount can be expressed in histogram counts or percent counts. 
+# Then the corresponding graylevels are used for the stretch. 
+# If the clip amount on both ends is zero, then the stretch will   
+# be performed from the channel minimum and maximum graylevel. The  
+# clip/stretch operation can be performed on various channel combinations. 
+# The choices are: intensity, red/green/blue, saturation/brightness and 
+# saturation/lightness.
+# 
+# OPTIONS: 
+# 
+# -c colormode ... COLORMODE is the colorspace/channels in which to 
+# perform the clip/stretch. The choices are: i (for intensity), 
+# rgb, sb (for saturation/brightness) and sl (for saturation/lightness). 
+# The stretch will be performed on each channel independently. 
+# The default=i.
+# 
+# -l cliplow ... CLIPLOW is the count or percent at the low end of the 
+# histogram whose corresponding graylevel will be stretch to full black. 
+# Values for percent are floats between 0% and 100%. Values for count are 
+# integers between 0 and quantumrange for your Q level (e.g. 255 for Q8 
+# and 65535 for Q16). NOTE: counts may only be used for IM 6.4.4-9 or 
+# higher. If cliplow=cliphigh=0 or 0%, then the stretch will locate the
+# minimum value in the channel histogram. The default=0.1%
+# 
+# -l cliphigh ... CLIPHIGH is the count or percent at the high end of the 
+# histogram whose corresponding graylevel will be stretch to full white. 
+# Values for percent are floats between 0% and 100%. Values for count are 
+# integers between 0 and quantumrange for your Q level (e.g. 255 for Q8 
+# and 65535 for Q16). NOTE: counts may only be used for IM 6.4.4-9 or 
+# higher. If cliplow=cliphigh=0 or 0%, then the stretch will locate the
+# minimum value in the channel histogram. The default=0.1%
+# 
+# NOTE: The use of counts is limiting. For example, a 400x250 pixel 
+# image contains 100,000 pixels. The maximum clip on a Q8 system would 
+# be 255 counts. In percent, this is equivalent to 0.255%. Similarly 
+# the maximum clip on a Q16 system would be 65535 counts. In percent, 
+# this is equivalent to 65.535% which is much more reasonable. However, 
+# for a 1000x1000 image containing 1,000,000 pixels, the maximum clip 
+# in percent becomes only 6.5535%.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+colormode="i"			#i, rgb, sb or sl
+cliplow=0.1%			#0 for min/max; 0.1% for nominal clip
+cliphigh=""				#same as cliplow
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  colormode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colormode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colormode" in 
+					   		i) ;;
+					   		rgb) ;;
+					   		sb) ;;
+					   		sl) ;;
+					   		*) errMsg "--- COLORMODE=$colormode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-l)    # get cliplow
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPLOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliplow=`expr "$1" : '\([.0-9%]*\)'`
+					   [ "$cliplow" = "" ] && errMsg "--- CLIPLOW=$cliplow MUST BE A NON-NEGATIVE VALUE WITH OR WITHOUT THE % SYMBOL ---"
+					   ;;
+				-h)    # get cliphigh
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLIPHIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   cliphigh=`expr "$1" : '\([.0-9%]*\)'`
+					   [ "$cliphigh" = "" ] && errMsg "--- CLIPHIGH=$cliphigh MUST BE A NON-NEGATIVE VALUE WITH OR WITHOUT THE % SYMBOL ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/clip_1_$$.mpc"
+tmpA2="$dir/clip_1_$$.cache"
+tmpI1="$dir/clip_2_$$.mpc"
+tmpI2="$dir/clip_2_$$.cache"
+tmpR1="$dir/clip_R_$$.mpc"
+tmpR2="$dir/clip_R_$$.cache"
+tmpG1="$dir/clip_G_$$.mpc"
+tmpG2="$dir/clip_G_$$.cache"
+tmpB1="$dir/clip_B_$$.mpc"
+tmpB2="$dir/clip_B_$$.cache"
+tmpH1="$dir/clip_H_$$.mpc"
+tmpH2="$dir/clip_H_$$.cache"
+tmpS1="$dir/clip_S_$$.mpc"
+tmpS2="$dir/clip_S_$$.cache"
+tmpL1="$dir/clip_L_$$.mpc"
+tmpL2="$dir/clip_L_$$.cache"
+
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# Note: -contrast-stretch works on linear grayscale image so needs -set colorspace RGB to reproduce old results.
+# The following was determined from various version tests using clip.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+# Note IM 6.7.8.7 has bug in combining non-RGB colorspaces
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+# test if infile exists and is valid
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# function to get channel min and max values in range 0 to 100
+getChannelStats()
+	{
+	img="$1"
+	if [ "$im_version" -ge "06030901" ]
+		then 
+		min=`convert $img -format "%[min]" info:`
+		max=`convert $img -format "%[max]" info:`
+		min=`convert xc: -format "%[fx:100*$min/quantumrange]" info:`
+		max=`convert xc: -format "%[fx:100*$max/quantumrange]" info:`
+	else
+		data=`convert $img -verbose info:`
+		min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		min=`convert xc: -format "%[fx:100*$min)]" info:`
+		max=`convert xc: -format "%[fx:100*$max)]" info:`
+	fi
+	}
+
+
+# function to extract clip value and determine if percent from the supplied parameters
+getValuePercent()
+	{
+	str="$1"
+	# test if str ends in %
+	# test returns number of characters including % or zero if no %	
+	numchars=`expr "$str" : '^.*%$'`
+	#echo "numchars=$numchars"
+	if [ $numchars -ne 0 ]; then
+		#case percent
+		is_pct="yes"
+		numdigits=`expr $numchars - 1`
+		#echo "numdigits=$numdigits"
+		clipnum=${str:0:$numdigits}
+	else
+		#case no percent
+		if [ "$im_version" -lt "06040409" ]; then 
+			errMsg "--- IM VERSION MUST BE AT LEAST 6.4.4-9 ---"
+		else
+			is_pct="no"
+			#truncate floats
+			str=`convert xc: -format "%[fx:floor($str)]" info:`
+			#remove leading zeros
+			if [ "$str" != "0" ]; then
+				oldstr=""
+				while [ "$oldstr" != "$str" ]; do
+					oldstr="$str"
+					str=${str#0}
+				done
+			fi
+			clipnum="$str"
+		fi
+	fi
+	}
+
+
+# get actual clip values and determine if in percent from cliplow and cliphigh
+getValuePercent "$cliplow"
+cliplownum=$clipnum
+is_lowpct="$is_pct"
+if [ "$cliphigh" != "" ]; then
+	getValuePercent "$cliphigh"
+	cliphighnum=$clipnum
+	is_highpct="$is_pct"
+else
+	cliphighnum=$cliplownum
+	is_highpct=$is_lowpct
+fi
+
+#echo "cliplownum=$cliplownum; lowpct=$is_lowpct;"
+#echo "cliphighnum=$cliphighnum; highpct=$is_highpct;"
+
+# if either clip value is percent, use percent for both
+use_pct="no"
+[ "$is_lowpct" = "yes" -o "$is_highpct" = "yes" ] && use_pct="yes"
+
+#echo "use_pct=$use_pct"
+
+# ensure clip values equivalent to zero are one digit 
+# for determining whether to use -level or -contrast-stretch
+if [ "$cliplownum" = "0.0" -o "$cliplownum" = ".0" ]; then
+	cliplow=0
+else
+	cliplow=$cliplownum
+fi
+if [ "$cliphighnum" = "0.0" -o "$cliphighnum" = ".0" ]; then
+	cliphigh=0
+else
+	cliphigh=$cliphighnum
+fi
+
+#echo "cliplow=$cliplow; cliphigh=$cliphigh"
+
+# determine whether to use -level or -contrast-stretch
+use_level="no"
+[ "$cliplow" = 0 -a "$cliphigh" = 0 ] && use_level="yes"
+
+#echo "use_level=$use_level"
+
+# convert cliphighnum to complement for IM -contrast-stretch if before version 6.4.4-9
+if [ "$im_version" -lt "06040409" ]; then 
+	if [ "$use_pct" = "yes" ]; then
+		cliphighnum=`convert xc: -format "%[fx:100-$cliphighnum]" info:`
+	else
+		# must convert to percent as total count will overflow Q8 or Q16 max values
+		cliphighnum=`convert xc: -format "%[fx:100*(1-$cliphighnum/(w*h))]" info:`
+	fi
+fi
+
+#convert to percent when specified
+if [ "$use_pct" = "yes" ]; then
+	cliplownum=${cliplownum}%
+	cliphighnum=${cliphighnum}%
+fi
+
+#echo "cliplownum=$cliplownum; cliphighnum=$cliphighnum"
+#echo "colormode=$colormode"
+
+# get colorspace and type
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+# not all formats report grayscale for colorspace (gif, tiff, jpg do not), but type will be grayscale
+colorspace=`identify -ping -verbose $tmpA1 | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+type=`identify -ping -verbose $tmpA1 | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" -a "$colorspace" != "Gray" ]; then
+	errMsg "--- FILE $infile MUST BE RGB, sRGB or GRAY ---"
+fi
+if [ "$colormode" = "sb" -a "$type" = "Grayscale" ]; then
+	errMsg "--- HSB CONVERSION IS NOT ALLOWED WITH GRAYSCALE IMAGERY ---"
+fi
+if [ "$colormode" = "lb" -a "$type" = "Grayscale" ]; then
+	errMsg "--- HSL CONVERSION IS NOT ALLOWED WITH GRAYSCALE IMAGERY ---"
+fi
+
+
+# convert to desired colorspace/channels
+if [ "$colormode" = "i" ]; then
+	convert $tmpA1 $setcspace -colorspace gray $tmpI1
+elif [ "$colormode" = "rgb" ]; then
+	convert $tmpA1 $setcspace -channel R -separate $tmpR1
+	convert $tmpA1 $setcspace -channel G -separate $tmpG1
+	convert $tmpA1 $setcspace -channel B -separate $tmpB1
+elif [ "$colormode" = "sb" ]; then
+	convert $tmpA1 $setcspace -colorspace HSB -channel R -separate $tmpH1
+	convert $tmpA1 $setcspace -colorspace HSB -channel G -separate $tmpS1
+	convert $tmpA1 $setcspace -colorspace HSB -channel B -separate $tmpL1
+elif [ "$colormode" = "sl" ]; then
+	convert $tmpA1 $setcspace -colorspace HSL -channel R -separate -write 1tmp1.jpg $tmpH1
+	convert $tmpA1 $setcspace -colorspace HSL -channel G -separate -write 1tmp2.jpg $tmpS1
+	convert $tmpA1 $setcspace -colorspace HSL -channel B -separate -write 1tmp3.jpg $tmpL1
+fi
+
+
+# process image
+if [ "$colormode" = "i" -a "$use_level" = "yes" ]; then
+	getChannelStats "$tmpI1"
+	#echo "I: min=$min; max=$max;"
+	convert $tmpA1 -level ${min}%,${max}% "$outfile"
+elif [ "$colormode" = "i" ]; then
+	convert $tmpA1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} "$outfile"
+elif [ "$colormode" = "rgb" -a "$use_level" = "yes" ]; then
+	getChannelStats "$tmpR1"
+	#echo "R: min=$min; max=$max;"
+	convert $tmpR1 -level ${min}%,${max}% $tmpR1
+	getChannelStats "$tmpG1"
+	#echo "G: min=$min; max=$max;"
+	convert $tmpG1 -level ${min}%,${max}% $tmpG1
+	getChannelStats "$tmpB1"
+	#echo "R: min=$min; max=$max;"
+	convert $tmpB1 -level ${min}%,${max}% $tmpB1
+	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine "$outfile"
+elif [ "$colormode" = "rgb" ]; then
+	convert $tmpR1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpR1
+	convert $tmpG1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpG1
+	convert $tmpB1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpB1
+	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine "$outfile"
+elif [ "$colormode" = "sb" -a "$use_level" = "yes" ]; then
+	getChannelStats "$tmpS1"
+	#echo "S: min=$min; max=$max;"
+	convert $tmpS1 -level ${min}%,${max}% $tmpS1
+	getChannelStats "$tmpL1"
+	#echo "L: min=$min; max=$max;"
+	convert $tmpL1 -level ${min}%,${max}% $tmpL1
+	convert $tmpH1 -colorspace HSB \
+		$tmpH1 -compose CopyRed   -composite \
+		$tmpS1 -compose CopyGreen -composite \
+		$tmpL1 -compose CopyBlue  -composite \
+		-colorspace $cspace "$outfile"
+elif [ "$colormode" = "sb" ]; then
+	convert $tmpS1 -contrast-stretch ${cliplownum},${cliphighnum} $tmpS1
+	convert $tmpL1 -contrast-stretch ${cliplownum},${cliphighnum} $tmpL1
+	convert $tmpH1 -colorspace HSB \
+		$tmpH1 -compose CopyRed   -composite \
+		$tmpS1 -compose CopyGreen -composite \
+		$tmpL1 -compose CopyBlue  -composite \
+		-colorspace $cspace "$outfile"
+elif [ "$colormode" = "sl" -a "$use_level" = "yes" ]; then
+	getChannelStats "$tmpS1"
+	#echo "S: min=$min; max=$max;"
+	convert $tmpS1 -level ${min}%,${max}% $tmpS1
+	getChannelStats "$tmpL1"
+	#echo "L: min=$min; max=$max;"
+	convert $tmpL1 -level ${min}%,${max}% $tmpL1
+	convert $tmpH1 -colorspace HSL \
+		$tmpH1 -compose CopyRed   -composite \
+		$tmpS1 -compose CopyGreen -composite \
+		$tmpL1 -compose CopyBlue  -composite \
+		-colorspace $cspace "$outfile"
+elif [ "$colormode" = "sl" ]; then
+	convert $tmpS1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} -write 1tmp4.jpg $tmpS1
+	convert $tmpL1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} -write 1tmp5.jpg $tmpL1
+	convert $tmpH1 -colorspace HSL \
+		$tmpH1 -compose CopyRed   -composite \
+		$tmpS1 -compose CopyGreen -composite \
+		$tmpL1 -compose CopyBlue  -composite \
+		-colorspace $cspace "$outfile"
+fi
+exit 0
+

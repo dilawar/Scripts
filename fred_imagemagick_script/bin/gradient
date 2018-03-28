@@ -1,0 +1,431 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 9/18/2007 .......... revised 4/29/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: gradient [-k kind] [-f filter] [t thresh] [-m mix] [-b bias] infile outfile
+# USAGE: gradient [-h or -help]
+# 
+# OPTIONS:
+# 
+# -k        kind       1=approximate and 2=exact; default=1
+# -f        filter     1=Prewitt (equal wts); 2=Sobel (binomial wts); 
+#                      default=1
+# -v        version    1=one-sided gradient and 2=two-sided gradient;
+#                      default=1
+# -t        thresh     threshold percent for binarization; 
+#                      thresh=integer 0 to 100; default="" (none)
+# -m        mix        mixing percent with original image; 
+#                      mix=integer 0 to 100; default=100
+# -b        bias       bias to add to result to brighten only;
+#                      bias=integer 0 to 100; default=0
+# -h                   get help information
+# -help                get help information
+# 
+###
+# 
+# NAME: GRADIENT 
+# 
+# PURPOSE: To apply a gradient filter to an image. 
+# 
+# DESCRIPTION: GRADIENT applies a 3x3 gradient magnitude filter to an image
+# to extract the edges in the image. It is a type of high pass filter. Two
+# kinds of gradients can be applied, approximate or exact. Two different
+# filter forms can be used, Prewitt's, which uses equal weights or Sobel's,
+# which uses binomial coefficient weights.  The gradient can be thresholded
+# into a binary output. The gradient can be blended (mixed) with the input
+# image, which will cause some darkening. Therefore a bias can be added to
+# compensate and brighten the output. Blending is done according to F =
+# (1-m)*I + m*G, where I is the original image, G is the gradient filtered
+# image and m = mix/100. In this case, blending does not cause image
+# sharpening and is therefore not very useful.
+# # 
+# OPTIONS: 
+# 
+# -k kind is the kind of gradient, either approximate (quicker) or exact 
+# (slower). A value of kind=1 is approximate and a value o kind=2 is 
+# exact. The default is kind=1. The gradient magnitude is formed by computing  
+# both x and y first derivative convolutions on the image. For kind=1, the  
+# absolute value of each component result is computed and then added together   
+# to form the result. For kind=2, each component is squared, added together  
+# and finally the square root is computed to form the result. There is  
+# only marginal differences between the approximate and exact gradients.
+# 
+# -f filter is the form of the filter. Two different filter forms can be used, 
+# Prewitt's, which uses equal weights or Sobel's, which uses binomial 
+# coefficient weights. A value of filter=1 is Prewitt's and a value of 
+# filter=2 is Sobel's. The default is filter=1. There is only 
+# marginal differences between the two filter form gradients.
+# 
+# Prewitt's Derivatives:
+# DX:
+# -1 0 1
+# -1 0 1
+# -1 0 1
+#
+# DY:
+# 1 1 1
+# 0 0 0
+# -1 -1 -1
+# 
+# Sobel's Derivatives:
+# DX:
+# -1 0 1
+# -2 0 2
+# -1 0 1
+#
+# DY:
+# 1 2 1
+# 0 0 0
+# -1 -2 -1
+# 
+# -v version identifies whether to use a one-sided or two-sided gradient. 
+# The one-sided gradient (original development) is limited by IM's clipping 
+# when not in HDRI mode. The two-sided gradient (new addition) gives the 
+# full proper gradient by using a bias to avoid clipping. The default=1 
+# for backward compatibility, but the version 2 is more correct and 
+# recommended.
+# 
+# -t thresh is the thresholding percentage used to create a binary gradient
+# edge image. Values range from 0 to 100. A higher value will result in 
+# fewer edges in the resulting image.
+#
+# -m mix is the percentage mixing factor used to blend the gradient with 
+# the original image. A value of mix=0, results in the original image. A 
+# value of mix=100 results in a pure gradient image. Mixing has an effect 
+# of darkening the image, because the gradient has only positive edges. 
+# Therefore, a bias is provided to compensate for this effect. Consequently, 
+# mixing is not very effective when extracting the gradient edges. It does 
+# not cause sharpening of the image.
+# 
+# -b bias is a percentage to brighten the image to compensate for darkening 
+# due to mixing. Values for bias are integers ranging from 0 to 100 (percent). 
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+# 
+
+# set default params
+kind=1
+filt=1
+mix=100
+thresh=""
+bias=0
+version=1
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# define filters
+# Prewit (equal weight)
+# DX
+# -1 0 1
+# -1 0 1
+# -1 0 1
+dxp="-1,0,1,-1,0,1,-1,0,1"
+# DY
+# 1 1 1
+# 0 0 0
+# -1 -1 -1
+dyp="1,1,1,0,0,0,-1,-1,-1"
+
+# Sobel (binomial weight)
+# DX
+# -1 0 1
+# -2 0 2
+# -1 0 1
+dxs="-1,0,1,-2,0,2,-1,0,1"
+# DY
+# 1 2 1
+# 0 0 0
+# -1 -2 -1
+dys="1,2,1,0,0,0,-1,-2,-1"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -eq 3 -o $# -eq 5 -o $# -eq 7 -o $# -eq 9 -o $# -eq 11 -o $# -eq 13 -o $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-k)    # get kind
+					   shift  # to get the next parameter - kind
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRADIENT KIND SPECIFIED ---"
+					   checkMinus "$1"
+					   kind="$1"
+					   # test kind values
+					   [ $kind -ne 1 -a $kind -ne 2 ] && errMsg "--- KIND=$kind IS NOT A VALID VALUE ---"
+					   ;;
+				-f)    # get filter
+					   shift  # to get the next parameter - filter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRADIENT FILTER SPECIFIED ---"
+					   checkMinus "$1"
+					   filter="$1"
+					   # test filter values
+					   [ $filter -ne 1 -a $filter -ne 2 ] && errMsg "--- FILTER=$filter IS NOT A VALID VALUE ---"
+					   ;;
+				-v)    # get version
+					   shift  # to get the next parameter - version
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRADIENT VERSION SPECIFIED ---"
+					   checkMinus "$1"
+					   version="$1"
+					   # test filter values
+					   [ $version -ne 1 -a $version -ne 2 ] && errMsg "--- VERSION=$version IS NOT A VALID VALUE ---"
+					   ;;
+				-t)    # get thresh
+					   shift  # to get the next parameter - thresh
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test thresh values
+					   thresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE AN INTEGER ---"
+					   threshtestA=`echo "$mix < 0" | bc`
+					   threshtestB=`echo "$mix > 100" | bc`
+					   [ $threshtestA -eq 1 -o $threshtestB -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-m)    # get mix
+					   shift  # to get the next parameter - mix
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test mix values
+					   mix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mix" = "" ] && errMsg "--- MIX=$mix MUST BE AN INTEGER ---"
+					   mixtestA=`echo "$mix < 0" | bc`
+					   mixtestB=`echo "$mix > 100" | bc`
+					   [ $mixtestA -eq 1 -o $mixtestB -eq 1 ] && errMsg "--- MIX=$mix MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-b)    # get bias
+					   shift  # to get the next parameter - mix
+					   # test bias values
+					   bias=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bias" = "" ] && errMsg "--- BIAS=$bias MUST BE AN INTEGER ---"
+					   biastestA=`echo "$bias < 0" | bc`
+					   biastestB=`echo "$bias > 100" | bc`
+					   [ $biastestA -eq 1 -o $biastestB -eq 1 ] && errMsg "--- BIAS=$bias MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/gradient_$$.mpc"
+tmpB="$dir/gradient_$$.cache"
+tmp0A="$dir/gradient_0_$$.mpc"
+tmp0B="$dir/gradient_0_$$.cache"
+trap "rm -f $tmpA $tmpB $tmp0A $tmp0B;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0B; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0B; exit 1" ERR
+
+
+# get filter
+if [ $filt -eq 1 ]
+	then
+	dx="$dxp"
+	dy="$dyp"
+elif [ $filt -eq 2 ]
+	then
+	dx="$dxs"
+	dy="$dys"
+else
+	errMsg "--- INVALID GRADIENT FILTER ---"
+fi
+
+if [ "$thresh" != "" ]
+	then
+	threshoption="-threshold $thresh%"
+else
+	threshoption=""
+fi
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# setup auto-level
+if [ "$im_version" -lt "06050501" ]; then
+	stretch="-contrast-stretch 0"
+else
+	stretch="-auto-level"
+fi
+
+# set up for biasing
+if [ "$im_version" -ge "07000000" ]; then
+	biasing="-define convolve:bias=50%"
+else
+	biasing="-bias 50%"
+fi
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# set up for gamma or evaluate pow
+# don't want gamma to change meta value of gamma from 0.4545, so use -evaluate pow
+if [ "$im_version" -lt "06040109" ]; then
+	sqrt="-gamma 2"
+else
+	sqrt="-evaluate pow 0.5"
+fi
+
+# process gradient
+# need to add -clamp for use with HDRI
+# should not matter for non-HDRI
+
+if [ $version -eq 1 ]; then
+	if [ $kind -eq 1 ]; then
+		# square then sqrt is equivalent to abs
+		convert \( $tmpA -convolve "$dx" -clamp \) \( $tmpA -convolve "$dy" -clamp \) \
+			\( -clone 0 -clone 0 -compose multiply -composite $sqrt \) \
+			\( -clone 1 -clone 1 -compose multiply -composite $sqrt \) \
+			-delete 0,1 -compose plus -composite $threshoption $tmp0A
+
+	elif [ $kind -eq 2 ]
+		then
+		convert \( $tmpA -convolve "$dx" -clamp \) \( $tmpA -convolve "$dy" -clamp \) \
+			\( -clone 0 -clone 0 -compose multiply -composite \) \
+			\( -clone 1 -clone 1 -compose multiply -composite \) \
+			-delete 0,1 -compose plus -composite $sqrt $threshoption $tmp0A			
+	fi
+elif [ $version -eq 2 ]; then
+	if [ $kind -eq 1 ]; then
+		# square then sqrt is equivalent to abs
+		convert \( $tmpA $biasing -convolve "$dx" -clamp -solarize 50% \) \
+			\( $tmpA $biasing -convolve "$dy" -clamp -solarize 50% \) \
+			\( -clone 0 -clone 0 -compose multiply -composite $sqrt \) \
+			\( -clone 1 -clone 1 -compose multiply -composite $sqrt \) \
+			-delete 0,1 -compose plus -composite -negate $threshoption $tmp0A
+
+	elif [ $kind -eq 2 ]
+		then
+		convert \( $tmpA $biasing -convolve "$dx" -clamp -solarize 50% \) \
+			\( $tmpA $biasing -convolve "$dy" -clamp -solarize 50% \) \
+			\( -clone 0 -clone 0 -compose multiply -composite \) \
+			\( -clone 1 -clone 1 -compose multiply -composite \) \
+			-delete 0,1 -compose plus -composite $sqrt -negate \
+			$stretch $threshoption $tmp0A
+	fi
+fi
+
+
+if [ "$im_version" -lt "06050304" ]; then
+	[ $mix -lt 100 -a $bias -eq 0 ] && composite -blend $mix $tmp0A $tmpA $tmp0A
+	[ $mix -lt 100 ] && composite -blend $mix $tmp0A $tmpA miff:- | \
+		convert - -evaluate add $bias% $tmp0A
+else
+	[ $mix -lt 100 -a $bias -eq 0 ] && \
+		convert $tmpA $tmp0A -define compose:args=$mix -compose blend -composite $tmp0A
+	[ $mix -lt 100 ] && \
+		convert $tmpA $tmp0A -define compose:args=$mix -compose blend -composite -evaluate add $bias% $tmp0A
+	
+fi
+convert $tmp0A "$outfile"
+
+exit 0
+

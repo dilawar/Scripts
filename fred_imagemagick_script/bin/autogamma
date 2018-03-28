@@ -1,0 +1,332 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/7/2008 .......... revised 11/6/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: autogamma [-c colormode] [-m midrange] infile outfile
+# USAGE: autogamma [-h or -help]
+#
+# OPTIONS:
+#
+# -c      colormode       colorspace/channel to use to compute 
+#                         min, max, gamma statistics; choices are: 
+#                         gray, intensity, luminance, lightness, brightness, 
+#                         average, magnitude, rgb; default=luminance
+# -m      midrange        midrange value from which to compute gamma;
+#                         0<float<1; default=0.5
+#
+###
+#
+# NAME: AUTOGAMMA 
+# 
+# PURPOSE: To modify an image to automatically apply a gamma correction.
+# 
+# DESCRIPTION: AUTOGAMMA modifies an image to automatically apply a gamma
+# correction. The gamma value may be computed from various graylevel
+# representations of the image or individually channel-by-channel. The
+# script then passes the gamma value to the IM function -gamma. If the
+# minimum and maximum image statistics are not pure black and white, then
+# you may want to use the autolevel script, so that you get the full
+# benefit of the dynamic range stretch as well.
+# 
+# OPTIONS: 
+# 
+# -c colormode ... COLORMODE is the colorspace/channel to use to compute
+# the gamma value from the mean. The choices are: gray, intensity, 
+# luminance, lightness, brightness, average, magnitude and rgb. Values  
+# of gray and intensity are equivalent. The default is luminance.
+# 
+# -m midrange ... MIDRANGE value from which to compute gamma. Values are
+# 0<floats<1. Default=0.5.
+# 
+# Gray or Intensity uses statistics from -colorspace Gray.
+# Luminance uses statistics from -colorspace Rec709Luma.
+# Lightness uses statistics from the lightness channel of -colorspace HSL.
+# Brightness uses statistics from the brightness channel of -colorspace HSB.
+# Average uses statistics from the first channel of -colorspace OHTA.
+# Magnitude uses aggregate statistics from all the channels.
+# RGB uses statistics independently from each channel of -colorspace sRGB/RGB.
+# See definitions at: 
+# http://www.imagemagick.org/script/command-line-options.php#colorspace
+# 
+# Note: generally there are only slight differences between the various 
+# non-rgb colormode results. Colormode=rgb can cause color balance shifts.
+# 
+# Gamma = log(mean)/log(mid-dynamic-range)
+# 
+# Note: there is one internal parameter, midrange, that can be adjusted 
+# if you want to bias the gamma slightly. See the default values below.
+# You can also change the default colormode in the default values.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+colormode="luminance"
+midrange=0.5			# mid dynamic range (between 0 and 1)
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  colormode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   colormode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$colormode" in 
+					   		gray) ;;
+					   		intensity) ;;
+					   		luminance) ;;
+					   		lightness) ;;
+					   		brightness) ;;
+					   		average) ;;
+					   		magnitude) ;;
+					   		rgb) ;;
+					   		*) errMsg "--- COLORMODE=$colormode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-m)    # get midrange
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIDRANGE SPECIFICATION ---"
+					   checkMinus "$1"
+					   midrange=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$midrange" = "" ] && errMsg "--- MIDRANGE=$midrange MUST BE A NON-NEGATIVE FLOAT ---"
+					   midrangetestA=`echo "$midrange <= 0" | bc`
+					   midrangetestB=`echo "$midrange >= 1" | bc`
+					   [ $midrangetestA -eq 1 -o $midrangetestB -eq 1 ] && errMsg "--- MIDRANGE=$midrange MUST BE AN FLOAT GREATER THAN 0 AND SMALLER THAN 1 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/autogamma_1_$$.mpc"
+tmpA2="$dir/autogamma_1_$$.cache"
+tmpI1="$dir/autogamma_2_$$.mpc"
+tmpI2="$dir/autogamma_2_$$.cache"
+tmpR1="$dir/autogamma_R_$$.mpc"
+tmpR2="$dir/autogamma_R_$$.cache"
+tmpG1="$dir/autogamma_G_$$.mpc"
+tmpG2="$dir/autogamma_G_$$.cache"
+tmpB1="$dir/autogamma_B_$$.mpc"
+tmpB2="$dir/autogamma_B_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" ERR
+
+
+# read input and convert to appropriate colorspace/channel
+if convert -quiet "$infile" +repage "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autolevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+#convert image to RGB and separate channels according to colormode
+if [ "$colormode" = "intensity" -o "$colormode" = "gray" ]; then
+	convert $tmpA1 $setcspace -colorspace Gray $tmpI1
+elif [ "$colormode" = "luminance" -a "$im_version" -ge "07000000" ]; then
+	convert $tmpA1 $setcspace -grayscale Rec709Luma $tmpI1
+elif [ "$colormode" = "luminance" -a "$im_version" -lt "07000000" ]; then
+	convert $tmpA1 $setcspace -colorspace Rec709Luma $tmpI1
+elif [ "$colormode" = "lightness" ]; then
+	convert $tmpA1 $setcspace -colorspace HSL -channel B -separate $tmpI1
+elif [ "$colormode" = "brightness" ]; then
+	convert $tmpA1 $setcspace -colorspace HSB -channel B -separate $tmpI1
+elif [ "$colormode" = "average" ]; then
+	convert $tmpA1 $setcspace -colorspace OHTA -channel R -separate $tmpI1
+elif [ "$colormode" = "magnitude" ]; then
+	convert $tmpA1 $tmpI1
+elif [ "$colormode" = "rgb" ]; then
+	convert $tmpA1 $setcspace -channel R -separate $tmpR1
+	convert $tmpA1 $setcspace -channel G -separate $tmpG1
+	convert $tmpA1 $setcspace -channel B -separate $tmpB1
+fi
+
+
+getChannelStats()
+	{
+	img="$1"
+	# statistics computed as percent (of dynamic range) values
+	if [ "$im_version" -ge "06030901" ]
+		then 
+		mean=`convert $img -format "%[mean]" info:`
+		mean=`convert xc: -format "%[fx:100*$mean/quantumrange]" info:`
+	else
+		data=`convert $img -verbose info:`
+		mean=`echo "$data" | sed -n 's/^.*[Mm]ean:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+		mean=`convert xc: -format "%[fx:100*$mean]" info:`
+	fi
+	# gamma is the ratio of logs of the mean and midvalue of the dynamic range
+	# where we normalize both to the range between 0 and 1
+	# ref: http://rsb.info.nih.gov/ij/plugins/auto-gamma.html
+	# However, I have inverted his formula for use with values 
+	# in range 0 to 1, which works much better my way
+	gammaval=`convert xc: -format "%[fx:log($mean/100)/log($midrange)]" info:`
+	}
+
+
+# process image
+echo ""
+if [ "$colormode" != "rgb" ]; then
+	getChannelStats "$tmpI1"
+	echo "gamma=$gammaval"
+	convert $tmpA1 -gamma $gammaval "$outfile"
+else
+	getChannelStats "$tmpR1"
+	echo "RED: gamma=$gammaval"
+	convert $tmpR1 -gamma $gammaval $tmpR1
+	getChannelStats "$tmpG1"
+	echo "GREEN: gamma=$gammaval"
+	convert $tmpG1 -gamma $gammaval $tmpG1
+	getChannelStats "$tmpB1"
+	echo "BLUE: gamma=$gammaval"
+	convert $tmpB1 -gamma $gammaval $tmpB1
+	convert $tmpR1 $tmpG1 $tmpB1 -combine -colorspace $cspace "$outfile"
+fi
+echo ""
+exit 0
+
+	
+
+
+

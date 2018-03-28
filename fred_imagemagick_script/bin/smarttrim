@@ -1,0 +1,482 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/14/2017 .......... revised 7/15/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: smarttrim [-m metric] [-f fuzzval] [-b blur] [-s size] [-l lowerthresh] 
+# [-u upperthresh] [-g graymode] [-r restrict] [-a area] [-p pad] infile outfile
+# USAGE: smarttrim [-h|-help]
+#
+# OPTIONS:
+#
+# -m     metric         metric to use to process the image for detail; choices are 
+#                       std (for standard_deviation), sobel (for sobel type grayscale 
+#                       edges), canny (for canny type binary edges) and corners 
+#                       (for morphologic corner detection); default=sobel
+# -f     fuzzval        fuzz value for trim expressed as percent; 0<=float<=100; 
+#                       default=10
+# -b     blur			blur the detail image before normalizing; integer>=0; zero 
+#                       means no blur; default=20
+# -s     size           optional size for output; trimming will be performed, then the 
+#                       centroid located and the image cropped by the size about the 
+#                       centroid; default is no cropping, only trimming
+# -l     lowerthresh    lower threshold for canny edges (percent); smaller is more edges;
+#                       0<=integer<=100; default=10 
+# -u     upperthresh    upper threshold for canny edges (percent); smaller is more edges;
+#                       0<=integer<=100; default=30 
+# -g     graymode       mode of converting to grayscale; grayscale or maximum; 
+#                       default=grayscale
+# -r     restrict		restrict to only largest thresholded region using connected 
+#                       components labeling (ccl); yes or no; default=no
+# -a     area           area threshold for connected components labeling (ccl) filtering; 
+#                       integer>=0; only used when keep=yes; default automatically
+#                       computed
+# -p     pad            pad crop area; allows up to 4 comma separate values to represent 
+#                       top,right,bottom,left amount of increase in crop area; 
+#                       all values are integers>=0; default=no padding
+#
+###
+#
+# NAME: SMARTTRIM
+# 
+# PURPOSE: To automatically trim an image around the region of highest detail in the image.
+# 
+# DESCRIPTION: SMARTTRIM automatically trims an image  around the region of highest 
+# detail in the image. It finds the remaining region left after thresholding of an 
+# image extracted using fundamental type details in the image. The detail metric can 
+# be: standard deviation or sobel grayscale edges. This is a low to medium intelligent 
+# in that it uses fundamental measures of detail. So perhaps it should really 
+# method be called a semi-intelligent method. It does not try to do face detection. 
+# The script does best with a single region of high detail and the rest of 
+# the image low detail. The threshold used is 100-fuzzval in percent. The user 
+# may optionally supply a size as WxH. In that case, then centroid of the trimmed 
+# region will be located and the image cropped to that size centered around the 
+# centroid. This script can also trim some scanned text documents with moderately 
+# smooth but complex backgrounds. In this case, -m corners seems to work best. 
+# 
+# OPTIONS: 
+# 
+# -m metric ... METRIC to use to process the image for detail. The choices are 
+# std (for standard_deviation), sobel (for sobel type grayscale edges),  
+# canny (for canny type binary edges) and corners  (for morphologic corner detection). 
+# The default=sobel.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz value for trimming expressed as percent. Values 
+# are 0<=float<=100; The default=10.
+#
+# -b blur ... BLUR the detail image before normalizing. Values are integers>=0. 
+# A value of zero means no blur. Typical values between about 20 and 50. The larger 
+# the blur, generally the more square the trim result will be. The default=20. 
+# 
+# -s size ... SIZE is an optional size for output expressed as WxH. If only one is 
+# specified, then it will be used for both. When specified, trimming will be performed. 
+# Then the centroid will be located and the image cropped by the specified size about  
+# the centroid. The default is no cropping, only trimming.
+# 
+# -l lowerthresh LOWERTHRESH is the lower threshold for canny edges (in percent). 
+# Smaller values produce more edges. Values are 0<=integers<=100. The default=10.
+# 
+# -u upper UPPERTHRESH is the upper threshold for canny edges (in percent). 
+# Smaller values produce more edges. Values are 0<=integers<=100. The default=30.
+# 
+# -g graymode ... GRAYMODE is the mode of converting the detail image to grayscale. 
+# The choices are: grayscale (change colorspace to gray) or maximum (separate channels 
+# and take the maximum of the channels at each pixels). The default=grayscale. Usually 
+# grayscale is better than grayscale. But occasionally the opposite is true.
+# 
+# -r restrict ... RESTRICT to only the largest thresholded region using connected  
+# componentslabeling (ccl). Choices are: yes or no. The default=no.
+# 
+# -a area ... AREA is the area threshold for connected components labeling (ccl) 
+# filtering. All regions with area less than this value will be removed. Values are 
+# integers>=0. Too small a value may cause the script to break with too many regions 
+# found. Too large an area will result in no areas found. Used only when keep=yes. 
+# The default is automatically computed from image dimensions.
+#
+# -p pad ... PAD crop area. It allows up to 4 comma separate values to represent 
+# top,right,bottom,left amount of increase in crop area. All values are integers>=0. 
+# The default is no padding. Any unspecified values after the last value specified 
+# will be set to the last specified value. No skips are allowed. Pad cannot be used 
+# in combination with size. The argument -s size takes precedent.
+#
+# REQUIREMENTS: Requires IM 6.6.9.1 or higher for metric=std. Requires IM 6.8.9.0 
+# or higher for metric=canny. But due to a bug in IM 7 for the -canny operator, 
+# results will not be correct until IM 7.0.6.1 or higher, when the bug was fixed. 
+# Requires IM 6.5.9.3 or higher for metric=corners. Requires IM 6.6.1.8 or higher 
+# for metric=sobel.
+# 
+# CREDITS: Many concepts suggested by Alan Gibson were incorporated in this work. 
+# See http://im.snibgo.com/crop2det.htm
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+metric="sobel"			# metric used to define amount of detail: std, sobel, canny
+fuzzval=5				# fuzzval for trim
+blur=20					# blur sigma
+size=""				    # optional crop size WxH;
+lowerthresh=10			# lower threshold for canny edges (percent); smaller is more edges
+upperthresh=30			# upper threshold for canny edges (percent); smaller is more edges
+graymode="grayscale"	# mode of converting detail image to gray; grayscale or maximum
+restrict="no"			# restrict to only largest thresholded region
+area=""					# area threshold for ccl filtering; auto computed
+pad=0					# pad of crop area
+
+
+# set directory for temporary files
+tmpdir="."    # suggestions are tmpdir="." or tmpdir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get  metric
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METRIC SPECIFICATION ---"
+					   checkMinus "$1"
+					   metric=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$metric" in 
+					   		std) ;;
+					   		sobel) ;;
+					   		canny) ;;
+					   		corners) ;;
+					   		*) errMsg "--- MODE=$metric IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$fuzzval > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*x[0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A PAIR OF POSITIVE INTEGERS SEPARATED BY AN x SYMBOL ---"
+					   ;;
+				-l)    # get lowerthresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOWERTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   lowerthresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lowerthresh" = "" ] && errMsg "--- LOWERTHRESH=$lowerthresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$lowerthresh > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- LOWERTHRESH=$lowerthresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-u)    # get upperthresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UPPERTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   upperthresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$upperthresh" = "" ] && errMsg "--- UPPERTHRESH=$upperthresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$upperthresh > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- UPPERTHRESH=$upperthresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-g)    # get  graymode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAYMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   graymode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$graymode" in 
+					   		grayscale) ;;
+					   		maximum) ;;
+					   		*) errMsg "--- GRAYMODE=$graymode IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-r)    # get  restrict
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RESTRICT SPECIFICATION ---"
+					   checkMinus "$1"
+					   restrict=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$restrict" in 
+					   		yes) ;;
+					   		no) ;;
+					   		*) errMsg "--- RESTRICT=$restrict IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-a)    # get area
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AREA SPECIFICATION ---"
+					   checkMinus "$1"
+					   area=`expr "$1" : '\([0-9]*\)'`
+					   [ "$area" = "" ] && errMsg "--- AREA=$area MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-p)    # get pad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   pad=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$pad" = "" ] && errMsg "--- PAD=$pad MUST BE A SET OF UP TO 4 Comma Separated Non-Negative INTEGERS ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# Setup directory for temporary files
+# On exit remove ALL -- the whole directory of temporary images
+dir="$tmpdir/$PROGNAME.$$"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+mkdir "$dir" || {
+  echo >&2 "$PROGNAME: Unable to create working dir \"$dir\" -- ABORTING"
+  exit 10
+}
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $dir/tmpI1.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# set up width and height
+if [ "$size" != "" ]; then
+	width=`echo "$size" | cut -dx -f1`
+	height=`echo "$size" | cut -dx -f2`
+else
+	width=""
+	height=""
+fi
+
+# test for pad values
+if [ "$pad" != "0" ]; then
+	count=`echo "$pad" | tr "," " " | wc -w | sed 's/^[ ]*//'`
+	#echo "pad=$pad; count=$count"
+	[ $count -gt 4 ] && errMsg "--- TOO MANY PAD VALUES SPECIFIED ---"
+	top=`echo "$pad" | cut -d, -f1`
+	right=`echo "$pad" | cut -d, -f2`
+	btm=`echo "$pad" | cut -d, -f3`
+	left=`echo "$pad" | cut -d, -f4`
+	#echo "top=$top; right=$right; btm=$btm; left=$left;"
+fi
+ 
+# setup for thresholding
+thresh=`convert xc: -format "%[fx:100-$fuzzval]" info:`
+
+# setup for metric processing
+if [ "$metric" = "std" ]; then
+	dproc="-statistic standard_deviation 3x3 -colorspace gray"
+elif [ "$metric" = "sobel" ]; then 
+	dproc="-define convolve:scale=50%! -bias 50% -write mpr:img +delete mpr:img -morphology Convolve Sobel:0 +write mpr:dx +delete mpr:img -morphology Convolve Sobel:90 +write mpr:dy +delete mpr:dx mpr:dy -solarize 50% -level 50,0% -evaluate Pow 2 -compose plus -composite -evaluate Pow 0.5"
+elif [ "$metric" = "canny" ]; then 
+	dproc="-canny 0x1+${lowerthresh}%+${upperthresh}%"
+elif [ "$metric" = "corners" ]; then 
+	dproc="-write mpr:img +delete mpr:img -morphology dilate plus:1 -morphology erode diamond:1 -write mpr:plus +delete mpr:img -morphology dilate cross:1 -morphology erode square:1 -write mpr:cross +delete mpr:plus mpr:cross -compose difference -composite"
+fi
+
+# set up for graymode
+if [ "$graymode" = "grayscale" ]; then
+	gproc="-colorspace gray"
+elif [ "$graymode" = "maximum" ]; then
+	gproc="-separate -evaluate-sequence max"
+fi
+
+# set up for blur processing
+if [ "$blur" != "0" ]; then
+	bproc="-blur 0x$blur"
+else
+	bproc=""
+fi
+
+
+# set up area default
+if [ "$area" = "" ]; then
+	ww=`convert -ping $dir/tmpI1.mpc -format "%w" info:`
+	hh=`convert -ping $dir/tmpI1.mpc -format "%h" info:`
+	# get normalized max dimension relative to 512 px
+	maxd=`convert xc: -format "%[fx:round(max($ww,$hh)/512)]" info:`
+	areavalue=$((2*maxd*maxd+1))
+else
+	areavalue=$area
+fi
+#echo "areavalue=$areavalue"
+
+
+# trim image
+if [ "$restrict" = "no" ]; then
+	cropvals=`convert $dir/tmpI1.mpc -alpha off \
+		$dproc $gproc $bproc -equalize -threshold $thresh% \
+		-format "%@" info:`
+
+elif [ "$restrict" = "yes" ]; then
+	Arr=(`convert $dir/tmpI1.mpc -alpha off \
+		$dproc $gproc $bproc -equalize -threshold $thresh% \
+		-depth 16 -type bilevel \
+		-define connected-components:verbose=true \
+		-define connected-components:area-threshold=$areavalue \
+		-define connected-components:mean-color=true \
+		-connected-components 8 null: |\
+		tail -n +2 | sed -n 's/^.*[:] \([0-9]*x[0-9]*+[0-9]*+[0-9]*\).*\(gray.*\)$/\1_\2/p'`)
+	num=${#Arr[*]}
+	if [ $num -gt 0 ]; then
+		found=0
+		for ((i=0; i<num; i++)); do
+			bbox=`echo ${Arr[$i]} | cut -d\_ -f1`
+			color=`echo ${Arr[$i]} | cut -d\_ -f2`
+			#echo "bbox=$bbox; color=$color;"
+			if [ "$color" = "gray(255)" ]; then
+				cropvals="$bbox" 
+				found=1
+				break
+			fi
+		done
+		[ $found -eq 0 ] && errMsg "--- NO WHITE REGIONS FOUND  ---"
+	else
+		errMsg "--- NO REGIONS FOUND  ---"
+	fi
+fi
+
+# crop image
+wd=`echo "$cropvals" | cut -d+ -f1 | cut -dx -f1`
+ht=`echo "$cropvals" | cut -d+ -f1 | cut -dx -f2`
+#echo "wd=$wd; ht=$ht;"
+
+if [ "$wd" != "0" -a "$ht" != "0" ]; then
+	if [ "$size" != "" ]; then
+		xoff=`echo "$cropvals" | cut -d+ -f2`
+		yoff=`echo "$cropvals" | cut -d+ -f3`
+		#echo "wd=$wd; ht=$ht; xoff=$xoff; yoff=$yoff;"
+		xcent=`convert xc: -format "%[fx:round($xoff+$wd/2)]" info:`
+		ycent=`convert xc: -format "%[fx:round($yoff+$ht/2)]" info:`
+		xoff=`convert xc: -format "%[fx:round($xcent-$width/2)]" info:`
+		yoff=`convert xc: -format "%[fx:round($ycent-$height/2)]" info:`
+		#echo "width=$width; height=$height; xoff=$xoff; yoff=$yoff;"
+		cropvals="${width}x${height}+${xoff}+${yoff}"
+	elif [ "$pad" != "0" ]; then
+		xoff=`echo "$cropvals" | cut -d+ -f2`
+		yoff=`echo "$cropvals" | cut -d+ -f3`
+		xoff=$((xoff-left))
+		yoff=$((yoff-top))
+		wd=$((wd+left+right))
+		ht=$((ht+top+btm))
+		cropvals="${wd}x${ht}+${xoff}+${yoff}"
+	fi
+	convert $dir/tmpI1.mpc -crop $cropvals +repage "$outfile"
+else
+	echo "--- ZERO SIZE TRIM REGION ---"
+fi
+
+echo "$cropvals"
+
+exit 0

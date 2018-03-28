@@ -1,0 +1,778 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/26/2013 .......... revised 6/25/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+# USAGE: popart [-r rows] [-c cols] [-c1 colors1] ... [-c16 colors16] 
+# [-i interp] [-g gain] infile outfile
+# 
+# USAGE: popart [-help]
+# 
+# OPTIONS:
+# 
+# -r       rows         number of rows of tiles; integer>0; maximum of 16 
+#                       total tiles in rows and columns; default=2
+# -c       cols         number of columns of tiles; integer>0; maximum of 16 
+#                       total tiles in rows and columns; default=2
+# -c1      colors1      space delimited set of colors for the first tile;
+#                       Any set of opaque IM colors are allowed; Number of 
+#                       colors must be at least 2; default=2
+# etc up to
+# -c16     colors16     space delimited set of colors for the last tile;
+#                       Any set of opaque IM colors are allowed; Number of 
+#                       colors must be at least 2; default=2
+# -i       interp       interpolation method for colorizing; Any valid IM 
+#                       interpolation method allowed; default=nearestneighbor 
+# -g       gain         gain amount for colorizing; float>=0; default=3
+#                                 
+# 
+###
+# 
+# NAME: POPART 
+# 
+# PURPOSE: To create a pop art effect image.
+# 
+# DESCRIPTION: POPART creates an pop art style image. This image is a 
+# montage of images, each colored with different sets of colors from the input 
+# image. The default is a 2x2 montage with 2 colors each.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -r rows ... number of ROWS of tiles. Values are integers>0. A maximum of 16 
+# total tiles in rows and columns combined. The default=2.
+# 
+# -c cols ... number of COLS of tiles. Values are integers>0. A maximum of 16 
+# total tiles in rows and columns combined. The default=2
+# 
+# -c1 colors1 ... COLORS1 are a space delimited set of colors for the first 
+# tile. Any set of opaque IM colors are allowed. The number of colors must be 
+# at least 2. If not specified, random colors will be created. The default=2. 
+# Note: do not add spaces in rgb(...) color triplets.
+#
+# etc up to 
+#
+# -c16 colors16 ... COLORS16 are a space delimited set of colors for the last  
+# tile. Any set of opaque IM colors are allowed. The number of colors must be 
+# at least 2. If not specified, random colors will be created. The default=2. 
+# Note: do not add spaces in rgb(...) color triplets.
+#
+# -i interp ... INTERP is the interpolation method for colorizing; Any valid 
+# IM interpolation method is allowed. The default=nearestneighbor.
+# 
+# -g gain ... GAIN amount for colorization. Values are floats>=0. 
+# The default=3.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set default values
+rows=2
+cols=2
+interp="bilinear"
+gain=3
+colors1="red yellow"
+colors2="green3 cyan3"
+colors3="blue magenta3"
+colors4="yellow green1"
+#colors1=""
+#colors2=""
+#colors3=""
+#colors4=""
+colors5=""
+colors6=""
+colors7=""
+colors8=""
+colors9=""
+colors10=""
+colors11=""
+colors12=""
+colors13=""
+colors14=""
+colors15=""
+colors16=""
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 42 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get rows
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROWS SPECIFICATION ---"
+					   checkMinus "$1"
+					   rows=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rows" = "" ] && errMsg "--- ROWS=$rows MUST BE A POSITIVE INTEGER ---"
+					   rowstestA=`echo "$rows < 1" | bc`
+					   rowstestB=`echo "$cols > 255" | bc`
+					   [ $rowstestA -eq 1 -o $rowstestB -eq 1 ] && errMsg "--- COLS=$cols MUST BE AN INTEGER BETWEEN 1 AND 255 ---"
+					   ;;
+				-c)    # get cols
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLS SPECIFICATION ---"
+					   checkMinus "$1"
+					   cols=`expr "$1" : '\([0-9]*\)'`
+					   [ "$cols" = "" ] && errMsg "--- COLS=$columns MUST BE A POSITIVE INTEGER ---"
+					   colstestA=`echo "$cols < 1" | bc`
+					   colstestB=`echo "$cols > 255" | bc`
+					   [ $colstestA -eq 1 -o $colstestB -eq 1 ] && errMsg "--- COLS=$cols MUST BE AN INTEGER BETWEEN 1 AND 255 ---"
+					   ;;
+				-c1)   # get colors1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS1 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors1=`expr "$1"`
+					   ;;
+				-c2)   # get colors2
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS2 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors2=`expr "$1"`
+					   ;;
+				-c3)   # get colors3
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS3 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors3=`expr "$1"`
+					   ;;
+				-c4)   # get colors4
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS4 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors4=`expr "$1"`
+					   ;;
+				-c5)   # get colors5
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS5 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors5=`expr "$1"`
+					   ;;
+				-c6)   # get colors6
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS6 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors6=`expr "$1"`
+					   ;;
+				-c7)   # get colors7
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS7 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors7=`expr "$1"`
+					   ;;
+				-c8)   # get colors8
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS8 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors8=`expr "$1"`
+					   ;;
+				-c9)   # get colors9
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS9 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors9=`expr "$1"`
+					   ;;
+				-c10)   # get colors10
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS10 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors10=`expr "$1"`
+					   ;;
+				-c11)   # get colors11
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS11 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors11=`expr "$1"`
+					   ;;
+				-c12)   # get colors12
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS12 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors12=`expr "$1"`
+					   ;;
+				-c13)   # get colors13
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS13 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors13=`expr "$1"`
+					   ;;
+				-c14)   # get colors14
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS14 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors14=`expr "$1"`
+					   ;;
+				-c15)   # get colors15
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS14 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors15=`expr "$1"`
+					   ;;
+				-c16)   # get colors16
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS16 SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors16=`expr "$1"`
+					   ;;
+				-i)    # get  interp
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INTERP SPECIFICATION ---"
+					   checkMinus "$1"
+					   interp="$1"
+					   interp=`echo "$interp" | tr "[:upper:]" "[:lower:]"`
+					   case "$interp" in 
+							average) ;;
+							average4) ;;
+							average9) ;;
+							average16) ;;
+							background) ;;
+							bilinear) ;;
+							blend) ;;
+							integer) ;;
+							mesh) ;;
+							nearest) ;;
+							nearestneighbor) ;;
+							spline) ;;
+					   		*) errMsg "--- INTERP=$interp IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# set up temporary files
+tmpA1="$dir/warholeffect_A_$$.mpc"
+tmpB1="$dir/warholeffect_A_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# read input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# compute number of tiles
+numtiles=$((rows*cols))
+[ $numtiles -gt 16 ] && errMsg  "--- MAXIMUM NUMBER OF TILES IS 16  ---"
+tiles="${cols}x${rows}"
+#echo "numtiles=$numtiles; tiles=$tiles"
+
+valArr=(0 1 2 3 4 5 6 7 8 9 a b c d e f)
+# set up seedval
+for ((i=1; i<=16; i++)); do
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val1=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val2=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val3=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val4=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val5=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val6=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val7=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val8=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val9=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val10=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val11=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val12=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val13=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val14=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val15=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val16=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val17=`echo "scale=0; (16*$rand)/1" | bc`
+
+rand=`echo | awk -v seed=$RANDOM$RANDOM 'BEGIN{srand(seed);}{print rand()}'`
+val18=`echo "scale=0; (16*$rand)/1" | bc`
+
+hexcolors1="#${valArr[$val1]}${valArr[$val2]}${valArr[$val3]}${valArr[$val4]}${valArr[$val5]}${valArr[$val6]}"
+hexcolors2="#${valArr[$val7]}${valArr[$val8]}${valArr[$val9]}${valArr[$val10]}${valArr[$val11]}${valArr[$val12]}"
+rcolors="$hexcolors1 $hexcolors2"
+eval rcolors$i=\$rcolors
+#eval echo "\$rcolors$i"
+done
+
+
+# fill in unspecified colors
+[ "$colors1" = "" ] && colors1="$rcolors1"
+[ "$colors2" = "" ] && colors2="$rcolors2"
+[ "$colors3" = "" ] && colors3="$rcolors3"
+[ "$colors4" = "" ] && colors4="$rcolors4"
+[ "$colors5" = "" ] && colors5="$rcolors5"
+[ "$colors6" = "" ] && colors6="$rcolors6"
+[ "$colors7" = "" ] && colors7="$rcolors7"
+[ "$colors8" = "" ] && colors8="$rcolors8"
+[ "$colors9" = "" ] && colors9="$rcolors9"
+[ "$colors10" = "" ] && colors10="$rcolors10"
+[ "$colors11" = "" ] && colors11="$rcolors11"
+[ "$colors12" = "" ] && colors12="$rcolors12"
+[ "$colors13" = "" ] && colors13="$rcolors13"
+[ "$colors14" = "" ] && colors14="$rcolors14"
+[ "$colors15" = "" ] && colors15="$rcolors15"
+[ "$colors16" = "" ] && colors16="$rcolors16"
+
+# convert to arrays
+cArr1=($colors1)
+cArr2=($colors2)
+cArr3=($colors3)
+cArr4=($colors4)
+cArr5=($colors5)
+cArr6=($colors6)
+cArr7=($colors7)
+cArr8=($colors8)
+cArr9=($colors9)
+cArr10=($colors10)
+cArr11=($colors11)
+cArr12=($colors12)
+cArr13=($colors13)
+cArr14=($colors14)
+cArr15=($colors15)
+cArr16=($colors16)
+
+[ ${#cArr1[*]} -lt 2 ] && errMsg "--- COLORS1 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr2[*]} -lt 2 ] && errMsg "--- COLORS2 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr2[*]} -lt 2 ] && errMsg "--- COLORS2 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr4[*]} -lt 2 ] && errMsg "--- COLORS4 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr5[*]} -lt 2 ] && errMsg "--- COLORS5 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr6[*]} -lt 2 ] && errMsg "--- COLORS6 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr7[*]} -lt 2 ] && errMsg "--- COLORS7 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr8[*]} -lt 2 ] && errMsg "--- COLORS8 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr9[*]} -lt 2 ] && errMsg "--- COLORS9 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr10[*]} -lt 2 ] && errMsg "--- COLORS10 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr11[*]} -lt 2 ] && errMsg "--- COLORS11 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr12[*]} -lt 2 ] && errMsg "--- COLORS12 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr12[*]} -lt 2 ] && errMsg "--- COLORS12 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr14[*]} -lt 2 ] && errMsg "--- COLORS14 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr15[*]} -lt 2 ] && errMsg "--- COLORS15 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+[ ${#cArr16[*]} -lt 2 ] && errMsg "--- COLORS16 DOES NOT CONTAIN AT LEAST 2 COLORS ---"
+
+# set up lookup tables
+lut1=""
+for ((i=0; i<${#cArr1[*]}; i++)); do
+	lut1="$lut1 xc:\"${cArr1[$i]}\""
+done
+lut2=""
+for ((i=0; i<${#cArr2[*]}; i++)); do
+	lut2="$lut2 xc:\"${cArr2[$i]}\""
+done
+lut3=""
+for ((i=0; i<${#cArr3[*]}; i++)); do
+	lut3="$lut3 xc:\"${cArr3[$i]}\""
+done
+lut4=""
+for ((i=0; i<${#cArr4[*]}; i++)); do
+	lut4="$lut4 xc:\"${cArr4[$i]}\""
+done
+lut5=""
+for ((i=0; i<${#cArr5[*]}; i++)); do
+	lut5="$lut5 xc:\"${cArr5[$i]}\""
+done
+lut6=""
+for ((i=0; i<${#cArr6[*]}; i++)); do
+	lut6="$lut6 xc:\"${cArr6[$i]}\""
+done
+lut7=""
+for ((i=0; i<${#cArr7[*]}; i++)); do
+	lut7="$lut7 xc:\"${cArr7[$i]}\""
+done
+lut8=""
+for ((i=0; i<${#cArr8[*]}; i++)); do
+	lut8="$lut8 xc:\"${cArr8[$i]}\""
+done
+lut9=""
+for ((i=0; i<${#cArr9[*]}; i++)); do
+	lut9="$lut9 xc:\"${cArr9[$i]}\""
+done
+lut10=""
+for ((i=0; i<${#cArr10[*]}; i++)); do
+	lut10="$lut10 xc:\"${cArr10[$i]}\""
+done
+lut11=""
+for ((i=0; i<${#cArr11[*]}; i++)); do
+	lut11="$lut11 xc:\"${cArr11[$i]}\""
+done
+lut12=""
+for ((i=0; i<${#cArr12[*]}; i++)); do
+	lut12="$lut12 xc:\"${cArr12[$i]}\""
+done
+lut13=""
+for ((i=0; i<${#cArr13[*]}; i++)); do
+	lut13="$lut13 xc:\"${cArr13[$i]}\""
+done
+lut14=""
+for ((i=0; i<${#cArr14[*]}; i++)); do
+	lut14="$lut14 xc:\"${cArr14[$i]}\""
+done
+lut15=""
+for ((i=0; i<${#cArr15[*]}; i++)); do
+	lut15="$lut15 xc:\"${cArr15[$i]}\""
+done
+lut16=""
+for ((i=0; i<${#cArr16[*]}; i++)); do
+	lut16="$lut16 xc:\"${cArr16[$i]}\""
+done
+
+# add black to luts
+lut1="xc:black $lut1"
+lut2="xc:black $lut2"
+lut3="xc:black $lut3"
+lut4="xc:black $lut4"
+lut5="xc:black $lut5"
+lut6="xc:black $lut6"
+lut7="xc:black $lut7"
+lut8="xc:black $lut8"
+lut9="xc:black $lut9"
+lut10="xc:black $lut10"
+lut11="xc:black $lut11"
+lut12="xc:black $lut12"
+lut13="xc:black $lut13"
+lut14="xc:black $lut14"
+lut15="xc:black $lut15"
+lut15="xc:black $lut15"
+
+# set up gain to actual value
+gain=`convert xc: -format "%[fx:pow(10,$gain)]" info:`
+
+# process image
+if [ $numtiles -eq 1 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( '$lut1' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \
+	miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 2 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 3 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append -resize 256x1! -gamma $gain \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 4 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append -resize 256x1! -evaluate log $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append -resize 256x1! -evaluate log $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append -resize 256x1! -evaluate log $gain \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append -resize 256x1! -evaluate log $gain \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 5 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 6 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 7 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 8 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 9 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 10 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 11 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 12 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut12' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 13 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut12' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut13' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 14 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut12' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut13' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut14' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 15 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut12' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut13' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut14' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut15' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+elif [ $numtiles -eq 16 ]; then
+	eval 'convert $tmpA1 -colorspace gray \
+	\( -clone 0 \( '$lut1' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut2' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut3' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut4' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut5' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut6' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut7' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut8' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut9' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut10' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut11' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut12' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut13' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut14' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut15' +append \) -interpolate $interp -clut \) \
+	\( -clone 0 \( '$lut16' +append \) -interpolate $interp -clut \) \
+	-delete 0 miff:- | montage - -tile $tiles -geometry +0+0 "${outfile}"'
+fi
+
+exit 0

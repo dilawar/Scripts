@@ -1,0 +1,328 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/2/2010 .......... 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: huemap [-h hues] [-t tolers] [-r] infile outfile
+# USAGE: huemap [-help]
+#
+# OPTIONS:
+#
+# -h      hues         hues=srchue,dsthue; source and destination hue values;
+#                      comma separated list; 0<=integer<=360; default=240,120 
+#                      maps blue to green
+# -t      tolers       tolers=stoler,dtoler; source and destination range of
+#                      hues on each side of hue values; 0<=integer<=360; 
+#                      default=10,10
+# -r                   reverse direction of range of destination hues 
+#
+###
+#
+# NAME: HUEMAP 
+# 
+# PURPOSE: To transform the hues in an image from one range to another.
+# 
+# DESCRIPTION: HUEMAP transform the hues in an image from one range to another. 
+# One hue can be mapped to another single hue. One range of hues can be mapped 
+# to a single hue. Or one range of hues can be mapped to another range of hues.
+# This is similar to GIMP's Rotate Hues.
+# 
+# 
+# OPTIONS: 
+# 
+# -h hues ... HUES=SRCHUE,DSTHUE. These are source and destination hue values 
+# in the range of 0<=integer<=360. The source hue (range) will be replaced by 
+# the detination hue (range), depending upon the tolers values below. The 
+# default=240,120 maps blue to green.
+#
+# -t tolers ... TOLERS=STOLER,DTOLER. These are the source and destination 
+# ranges on each side of the specified hues that determine the range of hues 
+# to be mapped. Values are in the range of 0<=integer<=360. The default=10,10.
+# 
+# -r ... REVERSE the direction of the range of destination hues.
+# 
+# REQUIREMENT: IM version 6.3.5-7 or higher due to the use of -clut.
+#
+# NOTE: If the image has an alpha channel, it will be copied unchanged to 
+# the output image.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+hues="240,120"			# src,dst hues
+tolers="10,10"			# src and dst ranges on either side of src,dst hues
+reverse="no"			# reverse direction of start and end dst
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-h)    # get hues
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUES SPECIFICATION ---"
+					   checkMinus "$1"
+					   hues=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$hues" = "" ] && errMsg "--- HUES=$hues MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+ 					   ;;
+				-t)    # get tolers
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TOLERANCES SPECIFICATION ---"
+					   checkMinus "$1"
+					   tolers=`expr "$1" : '\([,0-9]*\)'`
+					   [ "$tolers" = "" ] && errMsg "--- TOLERANCES=$tolers MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   ;;
+				-r)    # get reverse
+					   reverse="yes"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+srchue=`echo $hues | cut -d, -f 1`
+dsthue=`echo $hues | cut -d, -f 2`
+stoler=`echo $tolers | cut -d, -f 1`
+dtoler=`echo $tolers | cut -d, -f 2`
+#echo "srchue=$srchue; dsthue=$dsthue; stoler=$stoler; dtoler=$dtoler"
+
+# set up temp files
+tmpI1="$dir/huemap_I_$$.mpc"
+tmpI2="$dir/huemap_I_$$.cache"
+tmpH1="$dir/huemap_H_$$.mpc"
+tmpH2="$dir/huemap_H_$$.cache"
+tmpS1="$dir/huemap_S_$$.mpc"
+tmpS2="$dir/huemap_S_$$.cache"
+tmpL1="$dir/huemap_L_$$.mpc"
+tmpL2="$dir/huemap_L_$$.cache"
+tmpG1="$dir/huemap_G_$$.mpc"
+tmpG2="$dir/huemap_G_$$.cache"
+tmpT1="$dir/huemap_T_$$.mpc"
+tmpT2="$dir/huemap_T_$$.cache"
+tmpA1="$dir/huemap_A_$$.mpc"
+tmpA2="$dir/huemap_A_$$.cache"
+trap "rm -f $tmpI1 $tmpI2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2 $tmpG1 $tmpG2 $tmpT1 $tmpT2 $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpI1 $tmpI2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2 $tmpG1 $tmpG2 $tmpT1 $tmpT2 $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpI1 $tmpI2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2 $tmpG1 $tmpG2 $tmpT1 $tmpT2 $tmpA1 $tmpA2; exit 1" ERR
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpI1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# separate alpha channel if exists
+is_alpha=`identify -ping -verbose $tmpI1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpI1 -alpha extract $tmpA1
+	convert $tmpI1 -alpha off $tmpI1
+fi
+
+# convert to HSL and separate channels
+convert $tmpI1 -colorspace HSL -channel R -separate $tmpH1
+convert $tmpI1 -colorspace HSL -channel G -separate $tmpS1
+convert $tmpI1 -colorspace HSL -channel B -separate $tmpL1
+
+# create length 360 gradient
+convert -size 1x360 gradient: -rotate 90 $tmpG1
+
+
+# modify gradient as lut to apply to hue channel
+
+# create gradient section of length=2*toler+1 and value=dst1 to dst2 scaled to percent 
+# insert into beginning of transparent row
+# due to bug, make it red, then change to dst later
+dst1=`convert xc: -format "%[fx:($dsthue-$dtoler)]" info:`
+dst2=`convert xc: -format "%[fx:($dsthue+$dtoler)]" info:`
+#echo "dst1=$dst1; dst2=$dst2"
+if [ "$reverse" = "yes" ]; then
+	dst=$dst1
+	dst1=$dst2
+	dst2=$dst
+fi
+#echo "dst1=$dst1; dst2=$dst2"
+
+len=$((2*$stoler+1))
+
+if  [ $stoler -eq 0 -a $dtoler -gt 0 ]; then
+	errMsg "--- DESTINATION TOLERANCE MUST BE 0 IF SOURCE TOLERANCE IS 0 ---"
+elif [ $dtoler -eq 0 ]; then
+	convert -size ${len}x1 xc:red \
+		-background none -gravity west -extent 360x1 $tmpT1
+else
+	# test if range crosses hue=0 red
+	test=`convert xc: -format "%[fx:($dst1<0||$dst2<0)?1:0]" info:`
+	if [ $test -eq 1 ]; then
+		convert -size ${len}x1 xc: \
+			-fx "uu=($dst2-$dst1)*i/(w-1)+$dst1; mod(uu+360,360)/360" \
+			-channel red -evaluate set 0 +channel \
+			-background none -gravity west -extent 360x1 $tmpT1
+	else
+		dst1=`convert xc: -format "%[fx:100*$dst1/360]" info:`
+		dst2=`convert xc: -format "%[fx:100*$dst2/360]" info:`
+		convert -size ${len}x1 gradient:"gray($dst1%)"-"gray($dst2%)" \
+			-channel red -evaluate set 0 +channel \
+			-background none -gravity west -extent 360x1 $tmpT1
+	fi
+fi
+
+# roll the above tmp to the correct start (hue) position
+# and composite with gradient
+# and convert red to dst
+src1=`convert xc: -format "%[fx:$srchue-$stoler]" info:`
+sign=`convert xc: -format "%[fx:sign($src1)<0?0:1]" info:`
+abs_src1=`convert xc: -format "%[fx:abs($src1)]" info:`
+if [ $sign -eq 0 ]; then
+	rollval="-${abs_src1}+0"
+else
+	rollval="+${abs_src1}+0"
+fi
+#echo "rollval=$rollval"
+
+if [ $dtoler -eq 0 ]; then
+	dst1=`convert xc: -format "%[fx:100*$dst1/360]" info:`
+	convert $tmpG1 \( $tmpT1 -roll $rollval \) \
+		-compose over -composite \
+		-fill "gray($dst1%)" -opaque red \
+		$tmpG1
+else
+	convert $tmpG1 \( $tmpT1 -roll $rollval \) \
+		-compose over -composite \
+		-channel G -separate +channel \
+		$tmpG1
+fi
+
+# apply modified gradient as lut to hue channel
+convert $tmpH1 $tmpG1 -interpolate nearest-neighbor -clut $tmpH1
+
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+if [ "$im_version" -ge "06070606" ]; then
+	cspace="sRGB"
+else
+	cspace="RGB"
+fi
+
+
+# recombine channels and convert to RGB
+convert $tmpH1 -colorspace HSL \
+	$tmpH1 -compose CopyRed   -composite \
+	$tmpS1 -compose CopyGreen -composite \
+	$tmpL1 -compose CopyBlue  -composite \
+	-colorspace $cspace $tmpI1
+
+
+# add alpha channel back if needed	
+if [ "$is_alpha" = "True" ]; then
+	convert $tmpI1 $tmpA1 -alpha off -compose copy_opacity -composite "$outfile"
+else
+	convert $tmpI1 "$outfile"
+fi
+
+exit 0
+

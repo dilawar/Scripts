@@ -1,0 +1,312 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/2/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: nearestcolor [-c color] [-m mode] [-f fontname] [-p pointsize] [-l labelcolor] infile [outfile]
+# USAGE: nearestcolor [-h or -help]
+#
+# OPTIONS:
+#
+# -c      color			        reference color; any IM color specification; default=black
+# -m      mode                  mode to report color values; choices are 8bit or percent; 
+#                               default=8bit
+# -f      fontname				fontname or path-to-font-file; default=Arial
+# -p      pointsize				pointsize for font; default=18
+# -l      labelcolor			color for label on output swatches; any IM color specification; 
+#                               default=white
+# 
+# If an outfile is provided, then the image produced will be a side-by-side set of color 
+# swatches labeled with RGB values according to the mode selected.
+# 
+###
+#
+# NAME: NEARESTCOLOR 
+# 
+# PURPOSE: To find the nearest color value in an image to a reference color.
+# 
+# DESCRIPTION: NEARESTCOLOR finds the nearest color value in an image to a 
+# reference color. It will report the reference color and nearest color as an 
+# RGB triplet to the terminal in either 8bit (range 0 to 255) or percent 
+# (range 0 to 100%) according to the mode selected. If an output file is 
+# specified then a pair of side-by-side color swatches will be generated to 
+# compare the colors. The swatches will be labeled according to the fontname, 
+# pointsize and labelcolor specified. The swatch sizes will depend upon the 
+# pointsize and length of the label generated.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -c color ... COLOR is the reference color which will be used to find its nearest
+# color in the image. Any valid IM text color may be used. The default is black. 
+# See http://imagemagick.org/script/color.php
+# 
+# -m mode ... MODE is the mode used to display the RGB color values. The choices 
+# are: 8bit (range 0 to 255) or percent (range 0 to 100%). This will be used for 
+# display in the color swatches as well as to the terminal. The default is 8bit.
+# 
+# -f fontname ... FONTNAME is the desired font or path-to-font-file for the 
+# swatch labels. The default is Arial.
+#
+# -p pointsize ... POINTSIZE is the desired pointsize for the swatch labels. 
+# The default is 18.
+#
+# infile outfile ... If no outfile is provided, then the resulting nearest 
+# color and rmse metric will only be reported to the terminal. If an outfile 
+# is provided, then a pair of color swatches will be created, labeled and appended. 
+# 
+# NOTE: This script requires IM 6.5.0-10 or higher due to the use of the new 
+# image matching feature in the compare function.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+color="black"			
+mode="8bit"				# 8bit or percent
+fontname="Arial"
+point="18"
+labelcolor="white"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID (REFERENCE) COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   #convert mode to lowercase
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+					   		8bit|percent) ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-f)    # get  fontname
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   checkMinus "$1"
+					   fontname="$1"
+					   ;;
+				-p)    # get pointsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POINTSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   point=`expr "$1" : '\([0-9]*\)'`
+					   [ "$point" = "" ] && errMsg "--- POINTSIZE=$point MUST BE A NON-NEGATIVE INTEGER ---"
+					   pointtestA=`echo "$point <= 0" | bc`
+					   [ $pointtestA -eq 1 ] && errMsg "--- POINTSIZE=$point MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-l)    # get  labelcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LABELCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   labelcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	nfiles=$#
+	if [ $nfiles -eq 1 ]; then
+		infile="$1"
+		outfile=""
+	elif [ $nfiles -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF FILES PROVIDED ---"
+	fi
+fi
+
+# set up temporary file
+tmpA="$dir/nearestcolor_$$.mpc"
+tmpB="$dir/nearestcolor_$$.cache"
+trap "rm -f $tmpA $tmpB;" 0
+trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
+	
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# test for minimum IM version required
+# IM 6.5.0.10 or higher to conform to new image matching via compare function
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+if [ "$im_version" -lt "06050010" ]; then
+	errMsg "--- REQUIRES IM VERSION 6.5.0-10 OR HIGHER ---"
+elif [ "$im_version" -ge "06050101" ]; then
+	thresh="-dissimilarity-threshold 100%"
+else
+	thresh="-fuzz 1000000%"
+fi
+
+# get im version where -subimage-search introduced for compare
+if [ "$im_version" -ge "06060305" ]; then
+	searching="-subimage-search"
+else
+	searching=""
+fi
+
+# compare 1x1 pixel reference color image to infile and get returned information
+data=`compare -metric rmse $thresh $searching $tmpA \( -size 1x1 xc:$color \) null: 2>&1`
+#echo "data=$data"
+
+# extract the coordinates of the closest matched pixel
+coords=`echo "$data" | cut -d\  -f4`
+xx=`echo "$coords" | cut -d, -f1`
+yy=`echo "$coords" | cut -d, -f2`
+#echo "coords=$coords; xx=$xx; yy=$yy"
+
+# extract the rmse value from the match
+rmse=`echo "$data" | sed -n 's/^.*[(]\(.*\)[)].*$/\1/p'`
+#echo "rmse=$rmse"
+if [ "$mode" = "8bit" ]; then
+rmse=`convert xc: -format "%[fx:floor(255*$rmse)]" info:`
+elif [ "$mode" = "percent" ]; then
+rmse=`convert xc: -format "%[fx:100*$rmse]" info:`
+fi
+#echo "rmse=$rmse"
+
+# convert the matched color and the reference color to the selected mode
+if [ "$mode" = "8bit" ]; then
+mcolor=`convert $tmpA[1x1+${xx}+${yy}] \
+-format "rgb(%[fx:floor(255*u.r)],%[fx:floor(255*u.g)],%[fx:floor(255*u.b)])" info:`
+rcolor=`convert -size 1x1 xc:$color \
+-format "rgb(%[fx:floor(255*u.r)],%[fx:floor(255*u.g)],%[fx:floor(255*u.b)])" info:`
+elif [ "$mode" = "percent" ]; then
+mcolor=`convert $tmpA[1x1+${xx}+${yy}] \
+-format "rgb(%[fx:100*u.r]%%,%[fx:100*u.g]%%,%[fx:100*u.b]%%)" info:`
+rcolor=`convert -size 1x1 xc:$color \
+-format "rgb(%[fx:100*u.r]%%,%[fx:100*u.g]%%,%[fx:100*u.b]%%)" info:`
+fi
+#echo "mcolor=$mcolor; rcolor=$rcolor"
+
+# report to the terminal the rmse value and the two color values
+echo ""
+echo "RMSE Metric: $rmse"
+echo "Reference Color: $rcolor"
+echo "Nearest Image Color: $mcolor"
+echo ""
+
+# create output swatch image if desired
+if [ "$outfile" != "" ]; then
+	convert \
+		\( -background "$rcolor" \
+		-fill $labelcolor -font $fontname -pointsize $point \
+		-gravity northwest label:"Reference Color:\n\n\n$rcolor" \) \
+		\( -background "$mcolor" \
+		-fill $labelcolor -font $fontname -pointsize $point \
+		-gravity northwest label:"Nearest Color:\n\n\n$mcolor" \) \
+		+append "$outfile"
+fi
+exit 0

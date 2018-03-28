@@ -1,0 +1,516 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/25/2010 .......... 8/16/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: separate [-m mode] [-g grid] [-t] [-v] [-l] [-b bgcolor] [-e exponent] infile outfile
+# USAGE: separate [-h or -help]
+#
+# OPTIONS:
+#
+# -m      mode           output mode: 1=index number; 2=stretch index number;
+#                        3=colored index number; 4=output image for each 
+#                        stretched index number; 5=output image for each 
+#                        binarized index number; 6=output image for each 
+#                        colored index number; default=3
+# -g      grid           grid spacing in both x and y as percent of 
+#                        image width and height; used to locate white areas;
+#                        integer>0; default is not to use grid, but use 
+#                        precise but slower method
+# -t                     trim to bounding box in method=4,5,6
+# -v                     keep virtual canvas when trimming
+# -l                     list image size, offset, area, centroid and morphology 
+#                        distance center when trimming for method=4,5,6
+# -b      bgcolor        color for desired background in the output image(s);
+#                        choices are: black or none; default=black
+# -e      exponent       exponent used in non-linear log transformation to 
+#                        help shift colors away from black for mode=3 or 6;
+#                        integer>0; default=1
+#
+###
+#
+# NAME: SEPARATE 
+# 
+# PURPOSE: To identify each separate isolated white shape in a binary image.
+# 
+# DESCRIPTION: SEPARATE identifies each separate (isolated) white shape in 
+# a binary (white on black) image. Any two-tone image may be used. The image 
+# will be converted to binary black/white. Multiple output formats are 
+# available. The background for the output image(s) can be either black or 
+# transparent (none).
+# 
+# 
+# OPTIONS: 
+# 
+# -m mode ... MODE is the desired output format. It can one image or multiple 
+# images. Mode=1 simply sets the graylevel of each shape to an index from 1 
+# to the number of shapes. The max number of shades is 255. The background will
+# have index 0. For a small number of shapes, this will result in a visually 
+# black result. Mode=2 is the same as mode=1, except the resulting image is 
+# linearly stretched to full dynamic range so that the shapes has visible 
+# graylevels. Mode=3 is the same as mode=2, except the shapes are color coded.
+# Mode=4 is the same as mode=2, but one output image is created for each shape. 
+# Mode=5 is the same as mode=4, except the each output is binarized. Mode=6 is 
+# the same as mode=4, except each output is color coded. The default=3
+#
+# -g grid ... GRID is the grid spacing for testing points in the input image 
+# to see if they are white or black. The grid value is specified as an 
+# integer percent greater than 0 and less than 100 of the width and height 
+# of the input image. The default is not to use the grid, but to use a precise,  
+# but slower method.
+# 
+# -t ... TRIM to bounding box for methods 4, 5 or 6
+# 
+# -v ... Keep virtual canvas information with trimmed outputs. This requires 
+# that the output format be one that keeps a virtual canvas, such as PNG or GIF 
+# or TIFF.
+# 
+# -l ... List image size and offset (WIDTHxHEIGHT+XOFF+YOFF), area, centroid, 
+# and morphology distance center for trimmed outputs for methods 4, 5 or 6.
+# 
+# -b bgcolor ... BGCOLOR is the background color to be used in the output 
+# image(s). The choices are: black or none (i.e. transparency). The default 
+# is black.
+# 
+# -e exponent ... EXPONENT is used in a non-linear transformation of the 
+# graylevel values to map them to colors such that the colors are shifted 
+# away from black. Values are integers>0. The default=1. The more shapes/colors 
+# that are used, the larger the value. Typical value is about 6 for 
+# example, for 26 colors used.
+# 
+# REQUIREMENT: IM version 6.5.5-1 due to the use of auto-level, 6.5.0-9 
+# due to the use of compare with unequal sized images, 6.7.5-7 for 
+# morphology distance for option -l.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+mode=3				# 1 to 6
+grid=""				# grid for faster, but less precise method
+trim="no"			# trim to bounding box for methods 4,5,6; yes or no
+vc="no"             # keep virtual canvas; yes or no
+list="no"           # list virtual canvas; yes or no
+bgcolor="black"		# black or none
+exp=1				# about 6 for 26 shapes seems to work
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 13 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   [ "$bgcolor" != "black" -a "$bgcolor" != "none" ] && errMsg "--- BGCOLOR=$bgcolor MUST BE EITHER BLACK OR NONE ---"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`expr "$1" : '\([0-9]\)'`
+					   [ "$mode" = "" ] && errMsg "--- MODE=$mode MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   [ $mode -lt 0 -o $mode -gt 6 ] && errMsg "--- MODE=$mode MUST BE AN INTEGER BETWEEN 1 AND 6 ---"
+					   ;;
+				-g)    # grid
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRID SPECIFICATION ---"
+					   checkMinus "$1"
+					   grid=`expr "$1" : '\([0-9]*\)'`
+					   [ "$grid" = "" ] && errMsg "--- GRID=$grid MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   gridtestA=`echo "$grid <= 0" | bc`
+					   gridtestB=`echo "$grid >= 100" | bc`
+					   [ $gridtestA -eq 1 -a $gridtestB -eq 1 ] && errMsg "--- GRID=$grid MUST BE A NON-NEGATIVE INTEGER VALUE LARGER THAN 0 AND SMALLER THAN 100 ---"
+					   ;;
+				-e)    # get exponent
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXPONENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   exp=`expr "$1" : '\([0-9]\)'`
+					   [ "$mode" = "" ] && errMsg "--- EXPONENT=$"$mode" MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-t)    # set trim
+					   trim="yes"
+					   ;;
+				-v)    # set virtual canvas
+					   vc="yes"
+					   ;;
+				-l)    # list virtual canvas
+					   list="yes"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up temp file
+tmpA1="$dir/separate_1_$$.mpc"
+tmpB1="$dir/separate_1_$$.cache"
+tmpA2="$dir/separate_2_$$.mpc"
+tmpB2="$dir/separate_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+#note that break in while loop below may be causing some kind of error code and thus no output, so comment out line below.
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using separate.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+# Note for all versions tested, the colors are all not the same as before, esp. red
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" $setcspace -colorspace gray -auto-level +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# copy tmpA1 to tmpA2
+convert $tmpA1 $tmpA2
+
+#test if file is binary 
+uniquecolors=`convert $tmpA1 -format "%k" info:`
+[ $uniquecolors -ne 2 ] && echo "--- IMAGE IS NOT BINARY ---"
+
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get im version where -subimage-search introduced for compare
+if [ "$im_version" -ge "06060305" ]; then
+	searching="-subimage-search"
+else
+	searching=""
+fi
+
+# get im version where -similarity-threshold introduced for compare
+if [ "$im_version" -ge "06080310" ]; then
+	similarity="-similarity-threshold 0"
+else
+	similarity=""
+fi
+
+# process image to get indices for each shape
+
+if [ "$grid" = "" ]; then
+	# process without grid: slow, but precise method
+	val=0
+	graylvl=1
+	while [ $val -eq 0 -a $graylvl -ne 256 ]; do
+		# find white pixel and get its coords
+		result=`compare -metric pae -dissimilarity-threshold 1 $similarity $searching \
+			$tmpA1 -size 1x1 xc:white null: 2>&1`
+		val=`echo "$result" | cut -d\  -f 1`
+		coords=`echo "$result" | cut -d\  -f 4`
+#		echo "graylvl=$graylvl; val=$val; coords=$coords"
+		[ $val -ne 0 ] && break
+	
+		# floodfill $tmpA2 with graylevel index at coords
+		convert $tmpA2 -fill "gray(${graylvl})" -draw "color ${coords} floodfill" $tmpA2
+	
+		# floodfill $tmpA1 with black at coords
+		convert $tmpA1 -fill "black" -draw "color ${coords} floodfill" $tmpA1
+		graylvl=$(($graylvl + 1))
+	done
+else
+	# process with grid: fast, but not precise (may miss some areas)
+	width=`identify -ping -format "%w" $tmpA1`
+	height=`identify -ping -format "%h" $tmpA1`
+	wg=`convert xc: -format "%[fx:round($grid*$width/100)]" info:`
+	hg=`convert xc: -format "%[fx:round($grid*$height/100)]" info:`
+	num=`convert xc: -format "%[fx:round(100/$grid) - 2]" info:`
+	y=0
+	graylvl=1
+	for ((j=0;j<=$num;j++))
+		do
+		x=0
+		y=$(($y + $hg))
+		for ((i=0;i<=$num;i++))
+			do
+			x=$(($x + $wg))
+			# test if found white
+			testcolor=`convert $tmpA1 -format \
+				"%[fx:u.p{$x,$y}=="white"?1:0]" info:` 
+			if [ $testcolor -eq 1 ]; then
+#			echo "$x $y $testcolor $graylvl"
+				coords="$x,$y"
+				# floodfill $tmpA2 with graylevel index at coords
+				convert $tmpA2 -fill "gray(${graylvl})" -draw "color ${coords} floodfill" $tmpA2
+
+				# floodfill $tmpA1 with black at coords
+				convert $tmpA1 -fill "black" -draw "color ${coords} floodfill" $tmpA1
+				graylvl=$(($graylvl + 1))
+			fi
+		done
+	done
+fi
+numgrays=$graylvl
+echo "numimages=$numgrays"
+
+# setup blackthreshold
+#blackthresh=`convert xc: -format "%[fx:ceil(100/($numgrays-1))]" info:`
+blackthresh=`convert xc: -format "%[fx:0.5*100/($numgrays-1)]" info:`
+
+# setup scaling
+scale=`convert xc: -format "%[fx:255/($numgrays-1)]" info:`
+
+# setup background for mode=4-6
+if [ "$bgcolor" = "none" ]; then
+	trans="-transparent black"
+else
+	trans=""
+fi
+
+# setup black-white for mode=5
+if [ $mode -eq 5 ]; then
+	bw="-auto-level"
+else
+	bw=""
+fi
+
+# get outname and suffix
+outname=`echo "$outfile" | sed -n 's/^\(.*\)[.][^.]*$/\1/p'`
+suffix=`echo "$outfile" | sed -n 's/^.*[.]\([^.]*\)$/\1/p'`
+
+# set up for trim and virtual canvas
+if [ $mode -gt 3 -a "$trim" = "yes" -a "$vc" = "yes" ]; then
+	trimming="-bordercolor $bgcolor -border 5 -trim"
+elif [ $mode -gt 3 -a "$trim" = "yes" -a "$vc" = "no" ]; then	
+	trimming="-bordercolor $bgcolor -border 5 -trim +repage"
+else
+	trimming=""
+fi
+
+# process output images
+# NOTE for method 3 and 6, the lut does not stretch to pure black but to gray(11),
+# so add -level-colors "gray(11)",white to force it to pure black
+# 
+# NOTE if the -v is on and the trim is to a solid rectangle of white or some color, 
+# then the display in most viewers will show a solid color (of original size),
+# rather than the rectangle on a black background (of original size).
+# but IM display only shows the cropped size.
+# 
+if [ $mode -eq 1 ]; then
+	convert $tmpA2  $outfile
+elif [ $mode -eq 2 ]; then
+	convert $tmpA2 -auto-level  -black-threshold ${blackthresh}% $outfile
+elif [ $mode -eq 3 ]; then
+	convert \( $tmpA2 -auto-level -evaluate log $exp \) \
+	\( -size 1x1 xc:black xc:red xc:orange xc:yellow xc:green1 xc:cyan \
+	xc:blue xc:blueviolet +append -filter Cubic -resize 256x1! \
+	-level-colors "gray(11)",white \) \
+	-interpolate nearest-neighbor -clut -black-threshold ${blackthresh}% \
+	$outfile
+elif [ $mode -eq 4 -o $mode -eq 5 ]; then
+	for ((i=0; i<$numgrays; i++)); do
+		if [ $i -eq 0 ]; then
+			convert $tmpA2 -threshold 0 -negate $trans "${outname}-0.${suffix}"
+		else
+			convert $tmpA2  -fill black +opaque "gray($i)" \
+			-evaluate multiply $scale \
+			-black-threshold ${blackthresh}% $trans $bw -background $bgcolor $trimming \
+			"${outname}-$i.${suffix}"
+		fi
+	done
+elif [ $mode -eq 6 ]; then
+	for ((i=0; i<$numgrays; i++)); do
+		if [ $i -eq 0 ]; then
+			convert $tmpA2 -threshold 0 -negate $trans \
+			"${outname}-0.${suffix}"
+		else
+			convert \( $tmpA2  -fill black +opaque "gray($i)" \
+			-evaluate multiply $scale -evaluate log $exp \) \
+			\( -size 1x1 xc:black xc:red xc:orange xc:yellow xc:green1 xc:cyan \
+			xc:blue xc:blueviolet +append -filter Cubic -resize 256x1! \
+			-level-colors "gray(11)",white \) \
+			-interpolate nearest-neighbor -clut  \
+			-black-threshold ${blackthresh}% $trans -background $bgcolor $trimming \
+			"${outname}-$i.${suffix}"
+		fi
+	done
+fi
+
+# setup use of -subimage-search
+if [ "$im_version" -ge "06060307" ]; then
+	subsearch="-subimage-search"
+else
+	subsearch=""
+fi
+
+if [ $mode -gt 3 -a "$trim" = "yes" -a "$vc" = "yes" -a "$list" = "yes" ]; then
+	# note subtract 5 from top and left to correct for canvas was relative to padded image and want it relative to original
+	echo ""
+	printf "%-20s %-20s %-10s %-15s %-15s %-15s %-15s\n" "Image" "Virtual-Canvas" "Area" "Rel-Centroid" "Abs-Centroid" "Rel-MCenter" "Abs-MCenter"
+	echo ""
+	for ((i=1; i<$numgrays; i++)); do
+		canvas=`convert "${outname}-$i.${suffix}" -format "%wx%h%O" info:`
+		wh=`echo $canvas | cut -d+ -f1`
+		xy=`echo $canvas | sed -n 's/^[^+]*+\(.*\)$/\1/p'`
+		xx=`echo $xy | cut -d+ -f1`
+		yy=`echo $xy | cut -d+ -f2`
+		xx=$((xx-5))
+		yy=$((yy-5))
+		canvas="${wh}+${xx}+${yy}"
+		area=`convert "${outname}-$i.${suffix}" -alpha off -fill white +opaque black +repage -format "%[fx:round(w*h*mean)]" info:`
+		if [ "$im_version" -ge "06080802" ]; then
+			rel_centroid=`convert "${outname}-$i.${suffix}" -alpha off -fill white +opaque black miff:- |\
+				identify -verbose -moments - 2>&1 |\
+				grep "Centroid" | head -n 1 | sed -n 's/^.*Centroid: \(.*,.*\)$/\1/p' `
+		else
+			rel_centroid=`convert "${outname}-$i.${suffix}" -alpha off -fill white +opaque black txt: |\
+				tail -n +2 | grep -e "white\|gray(255,255,255)" | tr -cs "0-9\n" " " |\
+					awk ' { xtot += $1; ytot += $2; num++; } END { print xtot/num, ytot/num } ' | tr " " ","`
+		fi
+		cx=`echo $rel_centroid | cut -d, -f1`
+		cy=`echo $rel_centroid | cut -d, -f2`
+		# reduce to one decimal
+		cx=`printf "%.1f\n" $cx`
+		cy=`printf "%.1f\n" $cy`
+		abscx=`convert xc: -format "%[fx:$xx+$cx]" info:`
+		abscy=`convert xc: -format "%[fx:$yy+$cy]" info:`
+		if [ "$im_version" -ge "06080806" ]; then
+			rel_morph_center=`convert "${outname}-$i.${suffix}" -alpha off -fill white +opaque black -virtual-pixel black \
+				-morphology Distance Euclidean:4 -auto-level +repage miff:- |\
+					identify -define identify:locate=maximum -define identify:limit=1 - |\
+						tail -n +2 | tr -cs ",0-9\n" " " | cut -d\  -f4`
+		else
+			rel_morph_center=`convert "${outname}-$i.${suffix}" -alpha off -fill white +opaque black -virtual-pixel black \
+				-morphology Distance Euclidean:4 -auto-level +repage miff:- |\
+					compare -metric rmse $subsearch - \( -size 1x1 xc:white \) null: 2>&1 |\
+						tr -cs ",0-9\n" " " | cut -d\  -f3`
+		fi
+		mcx=`echo $rel_morph_center | cut -d, -f1`
+		mcy=`echo $rel_morph_center | cut -d, -f2`
+		absmcx=$((xx+$mcx))
+		absmcy=$((xx+$mcy))
+		printf "%-20s %-20s %-10s %-15s %-15s %-15s %-15s\n" "${outname}-$i.${suffix}" "$canvas" "$area" "$cx,$cy" "$abscx,$abscy"  "$mcx,$mcy" "$absmcx,$absmcy"
+	done
+	echo ""
+fi
+exit 0
