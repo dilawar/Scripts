@@ -1,0 +1,322 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/7/2013 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: isolatecolor [-c fcolor] [-C bcolor] [-t toler ] [-s fsat] [-S bsat ] 
+# infile outfile
+# USAGE: isolatecolor [-h or -help]
+# 
+# OPTIONS:
+# 
+# -c     fcolor           hue value or color from which to extract the hue 
+#                         value for the isolated color (foreground); any IM 
+#                         color value is allowed; hue values are 0<=hue<=360;  
+#                         default=red
+# -C     bcolor           hue value or color from which to extract the hue 
+#                         value for the rest of the image (background); any IM 
+#                         color value is allowed; hue values are 0<=hue<=360;  
+#                         default is background coloring as defined by bsat 
+# -t     toler            hue tolerance (fuzz value) for foreground;  
+#                         0<=float<=50; default=10
+# -s     fsat             saturation of foreground region; integer>=0; 
+#                         default=100 (no change)
+# -S     bsat             saturation of background region; integer>=0; 
+#                         default=0 (grayscale)
+# 
+###
+# 
+# NAME: ISOLATECOLOR 
+# 
+# PURPOSE: To isolate a particular color in an image.
+# 
+# DESCRIPTION: ISOLATECOLOR isolates a particular color in an image by 
+# thresholding on the corresponding hue value. 
+# 
+# 
+# ARGUMENTS: 
+# 
+# -c fcolor ... FCOLOR is the hue value or color from which to extract the hue 
+# value for the isolated color (foreground). Any IM  color value is allowed. 
+# The hue values are 0<=hue<=360. The default=red.
+# 
+# -C bcolor ... BCOLOR is the hue value or color from which to extract the hue 
+# value for the rest of the image (background). Any IM color value is allowed. 
+# The hue values are 0<=hue<=360. The default is the background coloring as 
+# defined by bsat.
+# 
+# -t toler ... TOLER is the hue tolerance (fuzz value) for the foreground.  
+# Values are 0<=float<=50. The default=10.
+# 
+# -s fsat ... FSAT is the saturation of the foreground region. Values are 
+# integer>=0. The default=100 (no change).
+# 
+# -S bsat ... BSAT is the saturation of the background region. Values are 
+# integer>=0. The default=0 (grayscale). When background color is specified, 
+# a nominal value for bsat is about 25.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+fcolor="red"
+bcolor=""
+toler=10
+fsat=100
+bsat=0
+lutlen=3600
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get fcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   fcolor="$1"
+					   ;;
+				-C)    # get bcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bcolor="$1"
+					   ;;
+				-t)    # get toler
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TOLERANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   toler=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$toler" = "" ] && errMsg "--- TOLERANCE=$toler MUST BE A NON-NEGATIVE FLOAT VALUE (with no sign) ---"
+					   testA=`echo "$toler < 0" | bc`
+					   testB=`echo "$toler > 50" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- TOLERANCE=$toler MUST BE A FLOAT BETWEEN 0 AND 50 ---"
+					   ;;
+				-s)    # get fsat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FSAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   fsat=`expr "$1" : '\([0-9]*\)'`
+					   [ "$fsat" = "" ] && errMsg "--- FSAT=$fsat MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-S)    # get bsat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BSAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   bsat=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bsat" = "" ] && errMsg "--- BSAT=$bsat MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/isolatecolor_1_$$.mpc"
+tmpB1="$dir/isolatecolor_1_$$.cache"
+tmpA2="$dir/isolatecolor_2_$$.mpc"
+tmpB2="$dir/isolatecolor_2_$$.cache"
+tmpA3="$dir/isolatecolor_3_$$.mpc"
+tmpB3="$dir/isolatecolor_3_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 tmpA3 $tmpB3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 tmpA3 $tmpB3; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 tmpA3 $tmpB3; exit 1" ERR
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# test fcolor if color or hue 
+testF=`expr "$fcolor" : '\([0-9]*\)'`
+if [ "$testF" != "" ]; then 
+	test1=`echo "$testF < 0" | bc`
+	test2=`echo "$testF > 360" | bc`
+	[ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- FHUEVAL=$fcolor MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+fi
+
+# compute fhue 
+if [ "$testF" = "" ]; then
+	fhue=`convert xc:"$fcolor" -colorspace HSL -format "%[pixel:u.p{0,0}]" info: | tr -cs "0-9." " " | cut -d\  -f2`
+else
+	fhue=`convert xc: -format "%[fx:100*$testF/360]" info:`
+fi
+
+
+# test bcolor if color or hue 
+if [ "$bcolor" != "" ]; then
+	testB=`expr "$bcolor" : '\([0-9]*\)'`
+	if [ "$testB" != "" ]; then 
+		test1=`echo "$testB < 0" | bc`
+		test2=`echo "$testB > 360" | bc`
+		[ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BHUEVAL=$bcolor MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+	fi
+
+
+	# compute bhue 
+	if [ "$testB" = "" ]; then
+		bhue=`convert xc:"$bcolor" -colorspace HSL -format "%[pixel:u.p{0,0}]" info: | tr -cs "0-9." " " | cut -d\  -f2`
+	else
+		bhue=`convert xc: -format "%[fx:100*$testB/360]" info:`
+	fi
+fi
+
+# create 1D lut for mask
+	len=`convert xc: -format "%[fx:2*($toler/100)*$lutlen]" info:`
+	len2=`convert xc: -format "%[fx:$len/2]" info:`
+	offset=`convert xc: -format "%[fx:($fhue/100)*$lutlen-$len2]" info:`
+	convert -size ${lutlen}x1 xc:black -size ${len}x1 xc:white \
+		-compose over -composite -roll +${offset}+0 $tmpA2
+
+#echo "hue=$hue; toler=$toler; len=$len; len2=$len2; offset=$offset; sat=$sat; desat=$desat; setcspace=$setcspace"
+
+
+# create 1D lut for background colorization
+if [ "$bcolor" != "" ]; then
+	convert -size 1x1 xc:black xc:"hsl($bhue%,$bsat%,50%)" xc:white +append \
+		-filter cubic -resize 256x1! $tmpA3
+	bproc="$tmpA3 -clut"
+	desat=0
+else
+	bproc=""
+	desat=$bsat
+fi
+
+# process image
+convert $tmpA1 \
+	\( -clone 0 -modulate 100,$desat,100 $bproc \) \
+	\( -clone 0 -modulate 100,$fsat,100 \) \
+	\( -clone 0 $setcspace -colorspace HSL -channel r -separate +channel $tmpA2 -clut \) \
+	-delete 0 -compose over -composite "$outfile"
+
+
+exit 0

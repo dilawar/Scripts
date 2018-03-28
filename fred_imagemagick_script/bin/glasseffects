@@ -1,0 +1,694 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/24/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: glasseffects [-e effect ] [-a amount] [-d density] [-g granularity] [-k kind] [-t type] [-m mode] [-w weight] [-s spacing] [-r ripple] [-b bluramt] [-c cellsize] [-o ocolor] [-i intermix] [-n newseed] infile outfile
+# USAGE: glasseffects [-h or -help]
+#
+# OPTIONS:
+#
+# -e      effect             type of image effect; displace, disperse or none; 
+#                            default=disperse
+# -a      amount             amount of effect; integer>=0; zero indicates no 
+#                            image effect; default=3
+# -d      density            density (frequency) of dispersion; integer>=0; default=3
+# -g      granularity        granularity (extent) of dispersion or displacement; 
+#                            integer>=0; default=3
+# -k      kind               kind of grid; simple or broken; default=simple
+# -t      type               type of grid; grid; single, double or bipolar
+#                            default=single
+# -m      mode               mode of applying grid; overlay (only for type!=bipolar) or 
+#                            displace (all types) or grid (grid only, no image);
+#                            default=displace
+# -w      weight             grid line weight; integer>=0; zero indicates no grid;
+#                            default=1
+# -s      spacing            spacing between double or bipolar grid lines; 
+#                            integer>=0; default=0
+# -r      ripple             ripple (wiggle) amount for grid lines; integer>=0; 
+#                            default=0
+# -b      bluramt            blur amount for grid lines; float>=0; default=0
+# -c      cellsize           grid cell size; comma separate x,y sizes; if only one 
+#                            value is supplied it will be used for both; 
+#                            integer>(2*weight+spacing); default=30
+# -o      ocolor             grid overlay color; default=white
+# -i      intermix           grid overlay color intermix with image percent; 
+#                            0<=integer<=100; default=100 indicates full grid and 
+#                            no mixing with underlying image
+# -n      newseed            forced seed value; integer>0; default will randomly 
+#                            change seed 
+# 
+###
+#
+# NAME: GLASSEFFECTS 
+# 
+# PURPOSE: To modify an image so that it appears to be viewed through 
+# textured and/or tiled glass.
+# 
+# DESCRIPTION: GLASSEFFECTS modifies an image so that it appears to be 
+# viewed through textured and/or tiled glass. The effect may be created 
+# using either displacement or dispersion. Also a grid may be superimposed, 
+# which can either be colored or used displaced image texture.
+# 
+# OPTIONS: 
+#
+# -e effect ... EFFECT applies either a displacement or dispersion effect 
+# to the image. Choices are: disperse, displace or none. The default is disperse.
+# 
+# -a amount ... AMOUNT of dispersion or displacement in pixels. Values are 
+# integers>=0. A value of zero will be the same as effect=none. The default=3.
+# 
+# -d density ... DENSITY is the density or frequency of the dispersion effect. 
+# Values are integers>=0. The default=3.
+# 
+# -g granularity ... GRANULARITY is the size of the dispersion or displacement 
+# areas. Values are integers>=0. The default=3.
+# 
+# -k kind ... KIND of grid desired. Choices are: simple or broken. Simple means 
+# continuous lines. Broken means the grid lines will be broken so the cells are 
+# somewhat separated and offset slightly. The default is simple.
+# 
+# -t type ... TYPE of grid desired. Choices are: single, double or bipolar. 
+# Single is a white grid on a black or gray background depending upon whether  
+# mode is set to overlay or displace, respectively. Double has the white grid 
+# lines doubled with an optional spacing between. Bipolar has double grid lines 
+# with an optional spacing between but one set is white and the other is black 
+# and they are both on a gray background as bipolar can only be used with 
+# mode=displace. The default is single.
+# 
+# -m mode ... MODE of applying the grid to the image. Choices are: displace 
+# (which can be use for all types), overlay (which is valid only for single 
+# or double grid types) and grid (which indicates to output only the grid and 
+# ignore the image). Using mode=displace will cause the texture of the grid 
+# to come from the image offset by a displacement of 1/4 of the grid cell size.  
+# If the grid is single or double, the offset will come from the right or down 
+# from the grid by 1/4 of the cell size (due to the grid being white). If the 
+# grid is bipolar, then the offset will be 1/4 of the cell size from that edge 
+# of the grid towards the interior of the cell (due to the grid being composed 
+# of both black and white parts). That is, the white grid will get its texture 
+# from the right or down by 1/4 of the cell size and the black grid will get 
+# its texture from the left or up by 1/4 of the cell size. Using mode=overlay 
+# will simply mix the specified color with the image where the grid exists. 
+# The default is displace.
+# 
+# -w weight ... WEIGHT is the line weight for the grid lines. Values are 
+# integers>=0. If zero is selected, then the grid will not be applied. The 
+# default=1.
+# 
+# -s spacing ... SPACING is the spacing between either the double or bipolar 
+# grid lines. Values are integers>=0. If zero is selected, there will be no 
+# space between the double or bipolar grid. Thus a spacing of zero for double 
+# grid lines is equivalent to twice the weight for a single grid lines. The 
+# default=0.
+# 
+# -r ripple ... RIPPLE indicates have the grid lines ripple or wiggle 
+# rather than being straight lines. Values are integers>=0. The default=0 
+# which indicates no ripple.
+# 
+# -b bluramt ... BLURAMT is the amount of blurring to apply to the grid lines. 
+# This is only relevant to mode=overlay. Values are integers>=0. The default=0.
+# 
+# -c cellsize ... CELLSIZE is a comma separate pair of integers that represent 
+# the dimensions of the grid cells. If only one value is supplied, then it will 
+# be used for both dimensions. The cell size values must be larger than 
+# (2*weight+spacing) and cannot be zero. The default=30
+#
+# -o ocolor ... COLOR is the mixing color for the grid with the image when 
+# mode=overlay. Any valid IM color is allowed. The default=white.
+# See http://imagemagick.org/script/color.php
+# 
+# -i intermix ... INTERMIX is the mixing percent of the overlay color of the 
+# grid with the image background. Values are integers between 0 and 100. The 
+# default=100 indicates that the grid will be full overlay color and will not 
+# be mixed with the underlying image.
+# 
+# -n newseed ... NEWSEED is the forced seed value to use for randomization in 
+# the image effect and in the ripple. This permits the pattern to be repeated. 
+# The default is to change the seed value randomly each time the script is run, 
+# thus causing somewhat different patterns each time the script is run.
+# 
+# NOTE: If your IM version is less than 6.4.8.4, then the dispersion effect 
+# will run slowly due to the use of -fx.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+effect="disperse"		# image effect: displace or disperse image or none
+amount=3				# size of image displacement or dispersion (none if set to 0)
+density=3				# density of dispersion features  (frequency)
+granular=3				# granularity of dispersion or displacement features
+kind="simple"			# grid kind: simple or broken
+mode="displace"			# grid mode: overlay (only for type!=bipolar) or displace (all types) or grid
+type="single"			# grid type; single, double or bipolar
+xsize=30				# cell xsize; int>(2*weight+spacing); cannot be zero
+ysize=30				# cell ysize; int>(2*weight+spacing); cannot be zero
+weight=1				# line weight (weight=0 indicates no grid)
+spacing=0				# spacing between double lines; applies only for double or bipolar
+ripple=0				# ripple amount for the grid lines
+bluramt=0				# blur amount for the grid lines to soften
+intermix=100			# intermix percent of overlay percent; default=100
+ocolor="white"			# overlay color
+newseed=""				# seed value (set to -v)
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 32 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-e)	   # get effect
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EFFECT SPECIFICATION ---"
+					   checkMinus "$1"
+					   effect=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$effect" in 
+					   		displace) ;;
+					   		disperse) ;;
+					   		none) ;;
+					   		*) errMsg "--- EFFECT=$effect IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;					   
+				-k)	   # get kind
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID KIND SPECIFICATION ---"
+					   checkMinus "$1"
+					   kind=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$kind" in 
+					   		simple|s) ;;
+					   		broken|b) ;;
+					   		*) errMsg "--- KIND=$kind IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;					   
+				-t)	   # get type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$type" in 
+					   		single|s) ;;
+					   		double|d) ;;
+					   		bipolar|b) ;;
+					   		*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;					   
+				-m)	   # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		displace|d) ;;
+					   		overlay|o) ;;
+					   		grid|g) ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;					   
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "AMOUNT=$spread MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-d)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "DENSITY=$density MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-g)    # get granularity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRANULARITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   granular=`expr "$1" : '\([0-9]*\)'`
+					   [ "$granular" = "" ] && errMsg "GRANULARITY=$granular MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-w)    # get weight
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WEIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   weight=`expr "$1" : '\([0-9]*\)'`
+					   [ "$weight" = "" ] && errMsg "WEIGHT=$weight MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-s)    # get spacing
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SPACING SPECIFICATION ---"
+					   checkMinus "$1"
+					   spacing=`expr "$1" : '\([0-9]*\)'`
+					   [ "$spacing" = "" ] && errMsg "SPACING=$spacing MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-r)    # get ripple
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RIPPLE SPECIFICATION ---"
+					   checkMinus "$1"
+					   ripple=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ripple" = "" ] && errMsg "RIPPLE=$ripple MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-b)    # get bluramt
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLURAMT SPECIFICATION ---"
+					   checkMinus "$1"
+					   bluramt=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bluramt" = "" ] && errMsg "BLURAMT=$bluramt MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-o)    # get ocolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ocolor="$1"
+					   ;;
+				-i)    # get intermix
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INTERMIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   intermix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$intermix" = "" ] && errMsg "INTERMIX=$intermix MUST BE A NON-NEGATIVE INTEGER"
+		   			   intermixtestA=`echo "$intermix < 0" | bc`
+		   			   intermixtestB=`echo "$intermix > 100" | bc`
+					   [ $intermixtestA -eq 1 -o $intermixtestB -eq 1 ] && errMsg "--- INTERMIX=$intermix MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get cellsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CELLSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -eq 0 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF VALUES SUPPLIED ---"
+					   cellsize=`expr "$1," : '\([0-9]*,[0-9]*\)'`
+					   [ "$cellsize" = "" ] && errMsg "--- CELLSIZE=$cellsize MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
+		   			   xsize=`echo "$cellsize" | cut -d, -f1`
+		   			   ysize=`echo "$cellsize" | cut -d, -f2`
+		   			   if [ "$xsize" != "" -a "$ysize" = "" ]; then
+		   			   		ysize=$xsize
+		   			   fi
+					   ;;
+				-n)    # get  newseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$newseed" = "" ] && errMsg "--- NEWSEED=$newseed MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/glasseffects_1_$$.mpc"
+tmpB1="$dir/glasseffects_1_$$.cache"
+tmpA2="$dir/glasseffects_2_$$.mpc"
+tmpB2="$dir/glasseffects_2_$$.cache"
+tmp1="$dir/glasseffects_1_$$.miff"
+tmp2="$dir/glasseffects_2_$$.miff"
+tmp3="$dir/glasseffects_3_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmp1 $tmp2 $tmp3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmp1 $tmp2 $tmp3; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using glasseffects.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+# NOTE: IM 6.7.7.8 and 6.7.7.9 do not seem to work properly
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# NOTE: improper nomalization for -convolve for zero sum (edge) filters 
+# between IM 6.7.6.6 and 6.7.8.7 (fixed 6.7.8.8)
+# which affects -edge
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $setcspace "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image size
+ww=`convert $tmpA1 -format "%w" info:`
+hh=`convert $tmpA1 -format "%h" info:`
+#echo "ww=$ww; hh=$hh"
+
+# if mode=overlay and type=bipolar give error
+[ "$mode" = "overlay" -a "$type" = "bipolar" ] && errMsg "--- MODE=OVERLAY DOES NOT ALLOW TYPE=BIPOLAR ---"
+
+# set amount to zero to disable effect if mode=grid or effect=none
+[ "$mode" = "grid" ] && amount=0
+[ "$effect" = "none" ] && amount=0
+
+# test for proper grid size
+testsize=`convert xc: -format "%[fx:2*$weight + $spacing]" info:`
+#echo "testsize=$testsize; xsize=$xsize; ysize=$ysize"
+[ $xsize -eq 0 -o $ysize -eq 0 ] && errMsg "--- CELL SIZE MUST BE GREATER THAN ZERO ---"
+[ $xsize -le $testsize -o $ysize -le $testsize ] && errMsg "--- CELL SIZE MUST BE GREATER THAN (2*WEIGHT+SPACING) ---"
+
+# set seeding
+if [ "$newseed" != "" ]; then
+	seeding="-seed $newseed"
+else
+	seeding=""
+fi
+
+# displace or disperse image if amount > 0
+if [ $amount -gt 0 ]; then
+	# create noise image with specified blur=granular
+	convert -size ${ww}x${hh} xc: $seeding +noise Random $setcspace -colorspace gray \
+		-blur 0x${granular} -virtual-pixel tile -fx "u" -contrast-stretch 0% \
+		$tmp1
+
+	if [ "$effect" = "displace" ]; then
+		if [ "$im_version" -lt "06050305" ]; then
+			composite $tmp1 $tmpA1 -displace ${amount}x${amount} $tmpA1
+		else
+			convert $tmpA1 $tmp1 $setcspace -define compose:args=${amount}x${amount} -compose displace -composite $tmpA1
+		fi
+	
+	elif [ "$effect" = "disperse" ]; then
+		# process image with noise image as dispersion map
+	
+		# IM 6.4.8.4 or higher to conform to current -evaluate sin and cos
+		if [ "$im_version" -lt "06040808" ]; then
+			# old fx method
+			convert $tmpA1 $tmp1 -monitor \
+				-fx "xx=i+$amount*sin($density*v*2*pi); yy=j+$amount*cos($density*v*2*pi); u.p{xx,yy}" \
+				$tmpA1
+		elif [ "$im_version" -lt "06050305" ]; then
+			convert $tmp1 -evaluate sin "$density" $tmp2
+			convert $tmp1 -evaluate cos "$density" $tmp3		
+			composite $tmp2 $tmpA1 $tmp3 -displace ${amount}x${amount} $tmpA1
+		else
+			# note sin and cosine were swapped prior to 8/3/2012
+			convert $tmpA1 \
+				\( $tmp1 -evaluate sin "$density" \) \
+				\( $tmp1 -evaluate cos "$density" \) \
+				$setcspace -define compose:args=${amount}x${amount} -compose displace -composite $tmpA1
+		fi
+	fi
+fi
+
+
+# create grid if weight>0
+if [ $weight -gt 0 ]; then
+	if [ "$kind" = "simple" ]; then
+		xcell=`convert xc: -format "%[fx:$xsize - $weight]" info:`
+		ycell=`convert xc: -format "%[fx:$ysize - $weight]" info:`
+		ww2=`convert xc: -format "%[fx:$ww - $weight]" info:`
+		hh2=`convert xc: -format "%[fx:$hh - $weight]" info:`
+
+		# create single grid cell white with black at right and bottom
+		# tile
+		# chop off black at right and bottom of image
+		# append last row and column to fill out image
+		convert \( -size ${xcell}x${ycell} xc:black \
+			-size ${weight}x${ycell} xc:white +append \
+			-size ${xcell}x${weight} xc:white -append \) \
+			-write mpr:tile +delete -size ${ww}x${hh} tile:mpr:tile \
+			-gravity southeast -chop ${weight}x${weight}+0+0 \
+			\( +clone -gravity east -crop ${weight}x${hh2}+0+0 +repage \) +append \
+			\( +clone -gravity south -crop ${ww}x${weight}+0+0 +repage \) -append \
+			$tmpA2
+
+		if [ "$type" != "single" ]; then
+			offset=`convert xc: -format "%[fx:$weight + $spacing]" info:`
+
+			if [ "$type" = "bipolar" ]; then
+				# white overlay approach
+				# orig is white lines on black
+				# clone orig, negate, roll by offset, make white 50% with black lines
+				# add together
+				# white lines plus gray bg is clipped to white 
+				# black bg plus gray bg is gray
+				# white lines plus black lines is white
+				# black lines plus black bg is black
+				convert $tmpA2 \
+					\( +clone -negate -roll -${offset}-${offset} +level 0,50% \) \
+					-compose plus -composite \
+					$tmpA2
+
+
+			elif [ "$type" = "double" ]; then
+				# overlay approach
+				# white lines plus white lines is clipped to white
+				# white lines plus black bg is white
+				# black bg plus black bg is black
+				convert $tmpA2 \
+					\( -clone 0 -roll -${offset}-${offset} \) \
+					-compose plus -composite \
+					$tmpA2
+			fi
+		fi
+
+		# change black to gray for displace if monopolar with or without spacing
+		if [  "$type" != "bipolar" -a "$mode" = "displace" ]; then
+			convert $tmpA2 +level 50x100% $tmpA2
+		fi
+			
+	elif [ "$kind" = "broken" ]; then
+		xcell=`convert xc: -format "%[fx:2*$xsize]" info:`
+		ycell=`convert xc: -format "%[fx:2*$ysize]" info:`
+
+		# create checkerboard pattern
+		# contrast stretch
+		# get edges
+		convert -size ${xcell}x${ycell} pattern:checkerboard -scale ${ww}x${hh}! \
+			$setcspace -contrast-stretch 0 -edge ${weight} \
+			$tmpA2
+			
+		if [ "$type" != "single" ]; then
+			offset=`convert xc: -format "%[fx:$weight + $spacing]" info:`
+
+			if [ "$type" = "bipolar" ]; then
+				# white overlay approach
+				# orig is white lines on black
+				# clone orig, negate, roll by offset, make white 50% with black lines
+				# add together
+				# due to asymmetry, chop off right and bottom image edges of weightness=offset
+				# append last rows and columns to fill out image
+				# white lines plus gray bg is clipped to white 
+				# black bg plus gray bg is gray
+				# white lines plus black lines is white
+				# black lines plus black bg is black
+				convert $tmpA2 \
+					\( +clone -negate -roll -${offset}-${offset} +level 0,50% \) \
+					-compose plus -composite \
+					-gravity southeast -chop ${offset}x${offset}+0+0 \
+					\( +clone -gravity east -crop ${offset}x${hh2}+0+0 +repage \) +append \
+					\( +clone -gravity south -crop ${ww}x${offset}+0+0 +repage \) -append \
+					$tmpA2
+
+
+
+			elif [ "$type" = "double" ]; then
+				# overlay approach
+				# due to asymmetry, chop off right and bottom image edges of weightness=offset
+				# append last rows and columns to fill out image
+				# white lines plus white lines is clipped to white
+				# white lines plus black bg is white
+				# black bg plus black bg is black
+				convert $tmpA2 \
+					\( -clone 0 -roll -${offset}-${offset} \) \
+					-compose plus -composite \
+					-gravity southeast -chop ${offset}x${offset}+0+0 \
+					\( +clone -gravity east -crop ${offset}x${hh2}+0+0 +repage \) +append \
+					\( +clone -gravity south -crop ${ww}x${offset}+0+0 +repage \) -append \
+					$tmpA2
+			fi
+		fi
+
+		# change black to gray for displace if not bipolar
+		if [  "$type" != "bipolar" -a "$mode" = "displace" ]; then
+			convert $tmpA2 +level 50x100% $tmpA2
+		fi
+	fi
+
+	# ripple grid lines
+	if [ $ripple -gt 0 ]; then
+		convert -size ${ww}x${hh} xc: $seeding +noise Random $setcspace -colorspace gray \
+			-blur 0x${ripple} -virtual-pixel tile -fx "u" -contrast-stretch 0 \
+			$tmp1
+		if [ "$im_version" -lt "06050304" ]; then
+			composite $tmp1 $tmpA2 -virtual-pixel black -displace ${ripple}x${ripple} $tmpA2
+		else
+			convert $tmpA2 $tmp1 $setcspace -virtual-pixel black -define compose:args=${ripple}x${ripple} -compose displace -composite -clamp $tmpA2
+		fi
+	fi
+
+if [ "$im_version" -ge "07000000" ]; then
+im7 convert $tmpA2 tmp7_1.mpc
+else
+convert $tmpA2 tmp6_1.mpc
+fi
+
+	# soften grid lines
+	if [ $bluramt -gt 0 ]; then
+		convert $tmpA2 -blur 0x${bluramt} $tmpA2
+	fi
+
+	#apply grid to image
+	if [ "$mode" = "grid" ]; then
+		convert $tmpA2 "$outfile"
+
+	elif [ "$mode" = "overlay" -a $intermix -eq 100 ]; then
+		convert $tmpA1 \( -size ${ww}x${hh} xc:"$ocolor" $setcspace \) $tmpA2 \
+			-compose over -composite "$outfile"
+
+	elif [ "$mode" = "overlay" -a $intermix -gt 0 ]; then
+		if [ "$im_version" -lt "06050304" ]; then
+			composite -blend ${intermix}% \( -size ${ww}x${hh} xc:"$ocolor" \) $tmpA1 $tmp1
+		else
+			convert $tmpA1 \( -size ${ww}x${hh} xc:"$ocolor" $setcspace \) -define compose:args=${intermix}% -compose blend -composite $tmp1
+		fi
+		convert $tmpA1 $tmp1 $tmpA2 -compose over -composite "$outfile"
+
+	elif [ "$mode" = "displace" ]; then
+		if [ "$spacing" = "" ]; then
+			dx=`convert xc: -format "%[fx:($xsize-$weight)/4]" info:`
+			dy=`convert xc: -format "%[fx:($ysize-$weight)/4]" info:`	
+		else
+			dx=`convert xc: -format "%[fx:($xsize-$weight-$spacing)/4]" info:`
+			dy=`convert xc: -format "%[fx:($ysize-$weight-$spacing)/4]" info:`		
+		fi
+		if [ "$im_version" -lt "06050304" ]; then
+			composite $tmpA2 $tmpA1 -virtual-pixel edge -displace ${dx}x${dy} "$outfile"
+		else
+			convert $tmpA1 $tmpA2 $setcspace -virtual-pixel edge -define compose:args=${dx}x${dy} -compose displace -composite "$outfile"
+		fi
+	fi
+
+else
+	convert $tmpA1 "$outfile"
+fi
+
+exit 0

@@ -1,0 +1,464 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/7/2010 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bumptext -t text -s size [-p pointsize] [-f font] [-m mode] [-a angles] [-i intensity] [-g gravity] [-o offsets] [-c color] [-b blendval] infile outfile
+# USAGE: bumptext [-h or -help]
+# 
+# OPTIONS:
+# 
+# -t      text              text to apply to image; enclose in quotes
+# -s      size              size of text box; can be specified as WIDTH,  
+#                           WIDTHx, xHEIGHT or WIDTHxHEIGHT
+# -p      pointsize         text pointsize; integer>0; default will be 
+#                           determined from textbox width
+# -f      font              font name or path to font file; default=Arial
+# -m      mode              text mode; mode is either label or caption;
+#                           default=label
+# -a      angles            lighting directions; azimuthxaltitude; azimuth 
+#                           angles are integers between 0 and 360 degrees;
+#                           altitude angles are integers between 0 and 90 
+#                           degrees; default="120x45"
+# -i      intensity         intensity or strength of the bump text; integer>=0;
+#                           default=20
+# -g      gravity           gravity location for placing the text on the image;
+#                           default=northwest
+# -o      offsets           x and y pixel offsets of the text location relative 
+#                           to the gravity settings; default="+0+0"
+# -c      color             colorization color for the image; 
+#                           any valid opaque IM color specification; 
+#                           default=white
+# -b      blendval          colorization blending value; 0<=integer<=100;
+#                           0 is no colorization and 100 is full colorization;
+#                           default=0
+# 
+###
+# 
+# NAME: BUMPTEXT 
+# 
+# PURPOSE: To apply a raised text effect onto an image.
+# 
+# DESCRIPTION: BUMPTEXT applies a raised text effect onto an image. The text 
+# my be applied in either label or caption mode. Optionally, the image may be 
+# colorized.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -t text ... TEXT to apply to image. Be sure to enclose in quotes.
+# 
+# -s size ... SIZE of text box. In label mode, the text will be placed all 
+# in one line. The size of the text will be determined either by the text box 
+# width or height or pointsize. Specifying pointsize and width or height is not 
+# a valid combination. In caption mode, the text will be placed in multiple 
+# rows as determined by the text box width and height. Pointsize may optionally 
+# be supplied in addition to the text box width and height.
+#
+# -p pointsize ... POINTSIZE is the size of the font. Values are integers 
+# greater than 0. The default is unspecified, so that the pointsize will be 
+# determined from the textbox width, height or widthxheight.
+# 
+# -f font ... FONT is the text font or path to the font file. The default is 
+# Arial.
+# 
+# -m mode ... MODE for adding text. Options are either label or caption. In 
+# label mode the text will all be in one row as determined by either the 
+# text box width or height or pointsize. In caption mode, the text will be on 
+# multiple rows to fill the text box width and height. The pointsize may be 
+# optionally specified along with the text box width and height.
+# 
+# -a angles ... Angles are the AZIMUTHxALTITUDE angles used to specify the 
+# direction of lighting to create the bump effect. Azimuth angles are integers 
+# between 0 and 360 degrees. Altitude angles are integers between 0 and 90 
+# degrees. The default="120x45"
+# 
+# -i intensity ... INTENSITY is the intensity or strength of the raised text. 
+# Values are integers>=0. The default=20
+# 
+# -g gravity ... GRAVITY is the standard IM -gravity locations for placing the 
+# text. Choices are: northwest, north, northeast, west, center, east, southwest, 
+# south and southeast. The default=northwest.
+# 
+# -o offsets ... OFFSETS are the x and y pixel offsets of the text location 
+# from the gravity settings. This is implemented via the -geometry setting. 
+# The default="+0+0" or no offset from the specified gravity setting.
+# 
+# -c color ... COLOR is the colorization color to apply to the image. Choices 
+# are any valid opaque IM color specification. The default=white
+# 
+# -b blendval ... BLENDVAL is the colorization blending amount. Values are 
+# integers between 0 and 100. A value of 0 is no colorization (the image is 
+# unchanged). A value of 100 changes the image to a constant color specified 
+# by the color argument. The default=0.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+text=""					# text
+mode="label"			# mode of text; label or caption
+font="Arial"			# font
+size=""					# size of text (Widthx, xHeight) for label; WidthxHeight for caption
+pointsize=""			# pointsize of text
+angles="120x45"			# shade azimuthxelevation angles in degrees
+intensity=20			# intensity of watermark bump
+gravity="northwest"		# gravity location for placing text
+offsets="+0+0"			# x and y offset locations from gravity
+color="white"			# color for colorize; default=white
+blendval=0  			# colorization blending; 0=unchanged, 100=pure color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 24 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size="${1}x"
+					   ww=`echo "$size" | cut -dx -f1`
+					   hh=`echo "$size" | cut -dx -f2`
+					   if [ "$ww" != "" ]; then
+					   		ww1=`expr "$ww" : '\([0-9]*\)'`
+					   		[ "$ww1" = "" -o "$ww1" = "0" ] && errMsg "--- WSIZE=$ww1 MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   fi
+					   if [ "$hh" != "" ]; then 
+					   		hh1=`expr "$hh" : '\([0-9]*\)'`
+					   		[ "$hh1" = "" -o "$hh1" = "0" ] && errMsg "--- HSIZE=$hh1 MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   fi
+					   ;;
+				-t)    # get  text
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID TEXT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   text="$1"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   [ "$mode" != "label" -a "$mode" != "caption" ] && errMsg "--- MODE=$mode MUST BE EITHER LABEL OR CAPTION ---"
+					   ;;
+				-p)    # get pointsize
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POINTSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   pointsize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pointsize" = "" ] && errMsg "--- POINTSIZE=$pointsize MUST BE A NON-NEGATIVE INTEGER ---"
+					   pointsizetest=`echo "$pointsize <= 0" | bc`
+					   [ $pointsizetest -eq 1 ] && errMsg "--- POINTSIZE=$pointsize MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-f)    # get  font
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   checkMinus "$1"
+					   font="$1"
+					   ;;
+				-a)    # get angles
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGLES SPECIFICATION ---"
+					   checkMinus "$1"
+					   angles="${1}x"
+					   azimuth=`echo "$angles" | cut -dx -f1`
+					   altitude=`echo "$angles" | cut -dx -f2`
+					   cc=`echo "$angles" | cut -dx -f3`
+					   [ "$cc" != "" ] && errMsg "--- ANGLES=$angles MUST BE IN THE FORM OF AZIMUTHxALTITUDE ---"
+					   azimuth=`expr "$azimuth" : '\([0-9]*\)'`
+					   [ "$azimuth" = "" ] && errMsg "--- AZIMUTH=$azimuth MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   altitude=`expr "$altitude" : '\([0-9]*\)'`
+					   [ "$altitude" = "" ] && errMsg "--- ALTITUDE=$altitude MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   azimuthtestA=`echo "$azimuth <= 0" | bc`
+					   azimuthtestB=`echo "$azimuth >= 360" | bc`
+					   [ $azimuthtestA -eq 1 -o $azimuthtestB -eq 1 ] && errMsg "--- AZIMUTH=$azimuth MUST BE BETWEEN 0 AND 360 ---"
+					   altitudetestA=`echo "$altitude <= 0" | bc`
+					   altitudetestB=`echo "$altitude >= 90" | bc`
+					   [ $altitudetestA -eq 1 -o $altitudetestB -eq 1 ] && errMsg "--- ALTITUDE=$altitude MUST BE BETWEEN 0 AND 90 ---"
+					   ;;
+				-i)    # get  intensity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INTENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   intensity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$intensity" = "" ] && errMsg "--- INTENSITY=$intensity MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-g)    # get gravity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity="$1"
+					   gravity=`echo "$gravity" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity" in 
+					   		northwest) ;;
+					   		north) ;;
+					   		northeast) ;;
+					   		west) ;;
+					   		center) ;;
+					   		east) ;;
+					   		southwest) ;;
+					   		south) ;;
+					   		southeast) ;;
+					   		*) errMsg "--- GRAVITY=$gravity IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-o)    # get offsets
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSETS SPECIFICATION ---"
+					   checkMinus "$1"
+					   offsets="${1}+"
+					   aa=`echo "$offsets" | cut -d+ -f1`
+					   xx=`echo "$offsets" | cut -d+ -f2`
+					   yy=`echo "$offsets" | cut -d+ -f3`		   
+					   bb=`echo "$offsets" | cut -d+ -f4`
+					   [ "$aa" != "" ] && errMsg "--- OFFSETS=$offsets MUST BE IN THE FORM OF +INTEGER+INTEGER ---"
+					   [ "$bb" != "" ] && errMsg "--- OFFSETS=$offsets MUST BE IN THE FORM OF +INTEGER+INTEGER ---"
+					   xoff=`expr "$xx" : '\([0-9]*\)'`
+					   [ "$xoff" = "" ] && errMsg "--- XOFFSET=$xoff MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   yoff=`expr "$yy" : '\([0-9]*\)'`
+					   [ "$yoff" = "" ] && errMsg "--- YOFFSET=$yoff MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   # remove trailing +
+					   offsets=`echo "$offsets" | sed 's/[+]*$//'`
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-b)    # get  blendval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLENDVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   blendval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blendval" = "" ] && errMsg "--- BLENDVAL=$blendval MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   blendvaltestA=`echo "$blendval < 0" | bc`
+					   blendvaltestB=`echo "$blendval > 100" | bc`
+					   [ $blendvaltestA -eq 1 -o $blendvaltestB -eq 1 ] && errMsg "--- BLENDVAL=$blendval MUST BE BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set up temp file
+tmpA1="$dir/bumptext_1_$$.mpc"
+tmpB1="$dir/bumptext_1_$$.cache"
+tmpA2="$dir/bumptext_2_$$.mpc"
+tmpB2="$dir/bumptext_2_$$.cache"
+
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# set up colorization
+if [ $blendval -eq 0 ]; then
+	colorization=""
+else
+	colorization="-fill $color -colorize ${blendval}%"
+fi
+
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" -alpha off +repage $colorization "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get width and height of window
+ww=`echo "${size}x" | cut -dx -f1`
+hh=`echo "${size}x" | cut -dx -f2`
+
+# write text into window and get window size
+# label can use either size (width or widthx or xheight or widthxheight) or pointsize but not both
+# caption can use widthxheight without pointsize
+# or width (or widthx) with pointsize
+if [ "$mode" = "label" -a "$pointsize" != "" -a "$size" = "" ]; then
+	convert -background black -fill white \
+		-font $font -pointsize $pointsize -gravity center \
+		${mode}:"$text" $tmpA2
+	ww=`convert $tmpA2 -ping -format "%w" info:`
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" = "" ]; then
+	convert -background black -fill white \
+		-font $font -gravity center \
+		-size ${ww}x ${mode}:"$text" -shade "$angles" $tmpA2
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" = "" -a "$hh" != "" ]; then
+	convert -background black -fill white \
+		-font $font -gravity center \
+		-size x${hh} ${mode}:"$text" -shade "$angles" $tmpA2
+	ww=`convert $tmpA2 -ping -format "%w" info:`
+elif [ "$mode" = "label" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" != "" ]; then
+	convert -background black -fill white \
+		-font $font -gravity center \
+		-size ${ww}x${hh} ${mode}:"$text" -shade "$angles" $tmpA2
+elif [ "$mode" = "caption" -a "$pointsize" != "" -a "$ww" != "" -a "$hh" = "" ]; then
+	convert -background black -fill white \
+		-font $font -pointsize $pointsize -gravity center \
+		-size ${ww}x ${mode}:"$text" -shade "$angles" $tmpA2
+	hh=`convert $tmpA2 -ping -format "%h" info:`
+elif [ "$mode" = "caption" -a "$pointsize" = "" -a "$ww" != "" -a "$hh" != "" ]; then
+	convert -background black -fill white \
+		-font $font -gravity center \
+		-size ${ww}x${hh} ${mode}:"$text" -shade "$angles" $tmpA2
+else
+	echo "--- Invalid Combination Of Pointsize and Size ---"
+fi
+
+
+# get background grayscale percent from pixel 0,0 of shaded text
+grayval=`convert -precision 15 $tmpA2[1x1+0+0] -format "%[fx:100*u.r]" info:`
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using bumptext.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# test for IM 6.5.3.4 or higher to conform to new -compose -compose modulate
+# convert shadetext to transparent background
+# overlay text on blended color background image
+if [ "$im_version" -gt "06050304" ]; then
+convert $tmpA1 \( $tmpA2 -trim +repage -transparent "gray($grayval%)" \) \
+	-gravity "$gravity" -geometry "$offsets" $setcspace -compose modulate \
+	-set option:compose:args $intensity -composite "$outfile"
+else
+convert $tmpA2 -trim +repage -transparent "gray($grayval%)" $tmpA2
+composite -watermark $intensity \
+	-gravity "$gravity" -geometry "$offsets" $tmpA2 $tmpA1 "$outfile"
+fi
+
+exit 0

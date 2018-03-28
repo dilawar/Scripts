@@ -1,0 +1,368 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/29/2008 .......... revised 11/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: otsuthresh [-g graph] infile outfile
+# USAGE: otsuthresh [-help]
+#
+# OPTIONS:
+#
+# -g	  graph             graph specifies whether to generate a 
+#                           histogram graph image displaying the 
+#                           location and value of the threshold;
+#                           choices are: view or save; 
+#                           default is no graph
+#
+###
+#
+# NAME: OTSUTHRESH
+# 
+# PURPOSE: To automatically thresholds an image to binary (b/w) format 
+# using Otsu's between class variance technique.
+# 
+# DESCRIPTION: OTSUTHRESH automatically thresholds an image to binary
+# (b/w) format. It assume the histogram is bimodal, i.e. is the composite
+# of two bell-shaped distributions representing the foreground and
+# background classes. The Otsu appoach computes the Between Class Variance 
+# from the foreground (above threshold data) and background (at and below 
+# threshold value) for every possible threshold value. The optimal threshold 
+# is the one that maximizes the Between Class Variance. This is equivalent 
+# to finding the threshold that minimizes the overlap between the two 
+# bell-shaped class curves.
+# 
+# OPTIONS: 
+# 
+# -g graph ... GRAPH specifies whether to generate a graph (image) of 
+# the histogram, displaying the location and value of the threshold. 
+# The choices are: view, save and none. If graph=view is selected, the 
+# graph will be created and displayed automatically, but not saved. 
+# If graph=save is selected, then the graph will be created and saved 
+# to a file using the infile name, with "_histog_otsu.gif" appended,  
+# but the graph will not be displayed automatically. If -g option is 
+# not specified, then no graph will be created.
+# 
+# NOTE: It is highly recommended that the output not be specified 
+# as a JPG image as that will cause compression and potentially a 
+# non-binary (i.e. a graylevel) result. GIF is the recommended 
+# output format.
+# 
+# REFERENCES: see the following:
+# http://www.ph.tn.tudelft.nl/Courses/FIP/noframes/fip-Segmenta.html
+# http://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/MORSE/threshold.pdf
+# http://www.cse.unr.edu/~bebis/CS791E/Notes/Thresholding.pdf
+# http://www.ifi.uio.no/in384/info/threshold.ps
+# http://www.supelec.fr/ecole/radio/JPPS01.pdf
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+graph=""		#none, save or view
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-g)    # get  graph
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAPH SPECIFICATION ---"
+					   checkMinus "$1"
+					   graph="$1"
+					   [ "$graph" != "view" -a "$graph" != "save" ] && errMsg "--- GRAPH=$graph MUST BE EITHER VIEW OR SAVE ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get outname from infile to use for graph
+inname=`convert $infile -format "%t" info:`
+histfile=${inname}_histog_otsu.gif
+
+tmpA1="$dir/otsuthresh_1_$$.mpc"
+tmpA2="$dir/otsuthresh_1_$$.cache"
+trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $histfile; exit 1" 1 2 3 15
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using otsuthresh.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.10
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAG ZERO SIZE ---"
+fi	
+
+# get totpix in image
+width=`convert $tmpA1 -format "%w" info:`
+height=`convert $tmpA1 -format "%h" info:`
+totpix=`echo "scale=0; $width * $height / 1" | bc`
+
+	# get value array from IM histogram
+	valueArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ vbin[$2] += $2;} 
+	END { for (i=0;i<256;i++) {print vbin[i]; } } '`)
+#	echo ${valueArr[*]}
+#	echo ${#valueArr[*]}
+	numvals=${#valueArr[*]}
+	
+	# get count array from IM histogram
+	countArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ cbin[$2] += $1; } 
+	END { for (i=0;i<256;i++) {print cbin[i]; } } '`)
+#	echo ${countArr[*]}
+#	echo ${#countArr[*]}
+	numcounts=${#countArr[*]}
+	
+	[ $numvals -ne $numcounts ] && errMsg "--- NUMBER OF COUNTS IS NOT THE SAME AS NUMBER OF VALUES ---"
+	
+	# compute normalized count array
+	ncountArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${countArr[$i]}"
+	done |\
+	awk -v totpix="$totpix" -v numcounts="$numcounts" '
+	# AWK 
+	{ bin[$1] = $2; }
+	END { for (i=0;i<numcounts;i++) {print bin[i]/totpix; } } ') )
+#	echo ${ncountArr[*]}
+#	echo ${#ncountArr[*]}
+
+	# get global mean from values and normalized counts
+	mean=$( for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${valueArr[$i]} ${ncountArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK 
+	{ vbin[$1] = $2; ncbin[$1] = $3; } 
+	END { for (i=0;i<numcounts;i++) { mean += vbin[i]*ncbin[i]; } print mean } ' )
+#	echo "mean=$mean"
+
+
+#Generate Cumulative Arrays
+# p=c(i)/N (normalized count or probability, p, at bin i)
+# v=v(i) (graylevel at bin i)
+# t=threshold bin
+# n=p0=sum(c(i)/N)zeroth histogram moment => cumulative normalized count (from i=0 to t) = N(t)
+# g=p1=sum(c(i)*v(i))=first histogram momement => cumulative normalized graylevel (from i=0 to t) = G(t)
+
+
+	# compute nlowArr
+	nlowArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ nlowbin[$1] = $2; } 
+	END { for (i=0;i<numcounts;i++) { nlow += nlowbin[i]; print nlow } } ') )
+#	echo ${nlowArr[*]}
+#	echo ${#nlowArr[*]}
+
+	# compute glowArr
+	glowArr=( $( for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${valueArr[$i]} ${ncountArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ vlowbin[$1] = $2; nclowbin[$1] = $3; } 
+	END { for (i=0;i<numcounts;i++) { glow += vlowbin[i]*nclowbin[i]; print glow } } ') )
+#	echo ${glowArr[*]}
+#	echo ${#glowArr[*]}
+
+
+# Compute Threshold
+# loop through histogram using normalized counts and values
+# compute threshold by maximizing between class variance
+# bcv=Nl*(Ml-M)^2 + Nh*(Mh-M)^2 = (M*Nl-Gl)^2/(Nl*(1-Nl))
+
+# m=p1/p0=mean => M(t)=G(t)/N(t) 
+# where Nh and Nl are normalized counts above and below threshold (zeroth moments, p0)
+# Mh and Ml are means of pixels above and below threshold
+# Gh and Gl are normalized cumulative graylevels (first moments, p1)
+# ML=Gl/Nl
+# above derived using
+# Nh=(1-Nl) for normalized histogram
+# Mh=(M-Ml*Nl)/(1-Nl) where M is overall mean of image
+
+
+	# compute threshold
+	#note: must stop at second to last bin so that nlow != 1 exactly or get divide by zero
+	threshbin=$(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${nlowArr[$i]} ${glowArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" -v mean="$mean" -v bcvold=0 -v threshbin=0 '
+	# AWK to compute entropy threshold...
+	{ nlowbin[$1] = $2; glowbin[$1] = $3; } 
+	END { for (i=0;i<(numcounts-1);i++) 
+	{ dmean = (mean*nlowbin[i] - glowbin[i]); bcv = dmean*dmean/(nlowbin[i]*(1-nlowbin[i])); 
+	if (bcv>bcvold) { bcvold=bcv; threshbin=i; } } print threshbin } ')
+#	echo "threshbin=$threshbin"
+	thresh=${valueArr[$threshbin]}
+#	echo "thresh=$thresh"
+	threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
+
+
+
+# compute threshold graph x coord and threshold in percent
+xx=$thresh
+threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
+#echo "xx=$xx; threshpct=$threshpct"
+
+
+echo "Thresholding Image At $threshpct%"
+convert $tmpA1 -threshold $threshpct% "$outfile"
+echo ""
+
+
+if [ "$graph" != "" ]; then
+	convert $tmpA1 -define histogram:unique-colors=false histogram:- | \
+		convert - -negate \
+		-stroke red -strokewidth 1 -draw "line $xx,0 $xx,200" \
+		-background gray -splice 0x30 \
+		-fill white -stroke white -strokewidth 1 \
+		-font ArialB -pointsize 24 \
+		-draw "text 4,22 'threshold=$threshpct%'" -resize 50% \
+		-bordercolor gray50 -border 5 \
+		"$histfile"
+fi
+
+if [ "$graph" = "view" ]; then
+	convert "$histfile" x:
+	rm -f "$histfile"
+fi
+
+exit 0
+
+
+

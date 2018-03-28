@@ -1,0 +1,323 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/18/2017 .......... 5/18/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorcells [-n numcells ] [-c cellsize] [-p percent] [-s seeds] [-d diameters] 
+# infile outfile 
+# USAGE: colorcells [-h|help]
+#
+# OPTIONS:
+#
+# -n     numcells      number of cells in width and height; comma separated pair of 
+#                      integers; default="8x8"; used if no cellsize provided
+# -c     cellsize      dimensions of cells; WxH; "x" separated pair of integers; 
+#                      default is to use numcells; takes precedent over numcells
+# -p     percent       percent coverage of colored cells; 0<=integer<=100; default=50
+# -s     seeds         random seeds; comma separate pair of integers; default="200,300"
+# -d     diameters     diameters of elliptical mask expressed as percent of width and 
+#                      height of image; comma separate pair of integers; default="70,70"
+# 
+###
+# 
+# NAME: COLORCELLS 
+# 
+# PURPOSE: Randomly modifies the color of rectangular cells of an image.
+# 
+# DESCRIPTION: COLORCELLS randomly modifies the color of rectangular cells of an image. 
+# The cells may be masked by an ellipse so that the outside of the affected cells are 
+# white. Only some percentage of the cells will be modified in color.
+# 
+# 
+# OPTIONS: 
+# 
+# -n numcells ... NUMCELLS is the number of cells in width and height. Values are comma 
+# separated pair of positive integers. The default="8x8". This option is used if no 
+# cellsize are provided.
+# 
+# -c cellsize ... CELLSIZE is the dimensions of the cells expressed as an "x" separated 
+# pair of positive integers (WxH). The default is to use numcells. This option takes  
+# precedent over numcells.
+# 
+# -p percent ... PERCENT coverage of colored cells. Values are 0<=integer<=100. The \
+# default=50.
+# 
+# -s seeds ... random number SEEDS. Values are a comma separate pair of positive integers. 
+# The default="200,300".
+# 
+# -d diameters ... DIAMETERS of an elliptical mask expressed as a percent of the width  
+# and height of the image. Values are a comma separate pair of integers. The 
+# default="70,70". If the value is 0 (0,0), then no mask will be used.
+# 
+# NOTE: The script will be slower the more cells that are created.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+numcells="8,8"			# number of cells Nx,Ny
+cellsize=""				# cell size in WxH directions; takes precedent over numcells
+percent=50				# percent coverage of colorizing
+seeds="200,300"			# random number seeds for coverage and color
+diameters="70,70"		# elliptical mask percent diameters
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get seeds
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SEEDS SPECIFICATION ---"
+					   checkMinus "$1"
+					   seeds=`expr "$1" : '\([0-9]*,*[0-9]*\)'`
+					   [ "$seeds" = "" ] && errMsg "--- SEEDS=$seeds MUST BE A PAIR OF POSITIVE INTEGERS (with no sign) SEPARATED BY A COMMA ---"
+					   ;;
+				-n)    # get numcells
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMCELLS SPECIFICATION ---"
+					   checkMinus "$1"
+					   numcells=`expr "$1" : '\([0-9]*,*[0-9]*\)'`
+					   [ "$numcells" = "" ] && errMsg "--- NUMCELLS=$numcells MUST BE A PAIR OF POSITIVE INTEGERS (with no sign) SEPARATED BY A COMMA ---"
+					   ;;
+				-c)    # get cellsize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CELLSIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   cellsize=`expr "$1" : '\([0-9]*x*[0-9]*\)'`
+					   [ "$cellsize" = "" ] && errMsg "--- CELLSIZE=$cellsize MUST BE A PAIR OF POSITIVE INTEGERS (with no sign) SEPARATED BY AN x SYMBOL ---"
+					   ;;
+				-p)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([0-9]*\)'`
+					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$percent > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-d)    # get diameters
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIAMETERS SPECIFICATION ---"
+					   checkMinus "$1"
+					   diameters=`expr "$1" : '\([0-9]*,*[0-9]*\)'`
+					   [ "$diameters" = "" ] && errMsg "--- DIAMETERS=$diameters MUST BE A PAIR OF INTEGERS (with no sign) SEPARATED BY A COMMA ---"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/squares_1_$$.mpc"
+tmpB1="$dir/squares_1_$$.cache"
+tmpI1="$dir/squares_I_$$.mpc"
+tmpI2="$dir/squares_I_$$.cache"
+tmpM1="$dir/squares_M_$$.mpc"
+tmpM2="$dir/squares_M_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpI1 $tmpI2 $tmpM1 $tmpM2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpI1 $tmpI2 $tmpM1 $tmpM2; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage -alpha off "$tmpA1" ||
+	errMsg "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get image width and height
+WxH=`convert -ping $tmpA1 -format "%wx%h" info:`
+ww=`echo $WxH | cut -dx -f1`
+hh=`echo $WxH | cut -dx -f2`
+
+# invert coverage and convert to fraction
+coverage=`convert xc: -format "%[fx:(100-$percent)/100]" info:`
+
+# compute cell size and cropped image size
+if [ "$cellsize" != "" ]; then
+	cellw=`echo "$cellsize" | cut -dx -f1`
+	cellh=`echo "$cellsize" | cut -dx -f2`
+	[ "$cellw" = "0" -o "$cellh" = "0" ] && errMsg "--- INVALID VALUE FOR CELLSIZE  ---"
+
+	numx=`convert xc: -format "%[fx:floor($ww/$cellw)]" info:`
+	numy=`convert xc: -format "%[fx:floor($hh/$cellh)]" info:`
+	num=$((numx*numy))
+	cropw=`convert xc: -format "%[fx:$numx*$cellw]" info:`
+	croph=`convert xc: -format "%[fx:$numy*$cellh]" info:`
+else
+	numx=`echo "$numcells" | cut -d, -f1`
+	numy=`echo "$numcells" | cut -d, -f2`
+	[ "$numx" = "0" -o "$numy" = "0" ] && errMsg "--- INVALID VALUE FOR NUMCELLS  ---"
+	num=$((numx*numy))
+	cellw=`convert xc: -format "%[fx:floor($ww/$numx)]" info:`
+	cellh=`convert xc: -format "%[fx:floor($hh/$numy)]" info:`
+	cropw=`convert xc: -format "%[fx:$numx*floor($ww/$numx)]" info:`
+	croph=`convert xc: -format "%[fx:$numy*floor($hh/$numy)]" info:`
+fi
+#echo "numx=$numx; numy=$numy; num=$num; cellw=$cellw; cellh=$cellh; cropw=$cropw; croph=$croph;"
+
+# crop image to tiles
+convert $tmpA1 -crop ${cropw}x${croph} +repage -crop ${cellw}x${cellh} $tmpI1
+
+# extract x,y diameters
+diameterx=`echo "$diameters" | cut -d, -f1`
+diametery=`echo "$diameters" | cut -d, -f2`
+
+# extract seeds
+seed1=`echo "$seeds" | cut -d, -f1`
+seed2=`echo "$seeds" | cut -d, -f2`
+
+
+if [ "$diameterx" = "0" -o "$diametery" = "0" ]; then
+
+	# no mask is needed
+	(
+	for ((i=0; i<num; i++)); do
+	seed1=$((i+seed1))
+	rr=`convert xc: -seed $seed1 -format "%[fx:random()]" info:`
+	factor=`convert xc: -format "%[fx:$rr>$coverage?$rr:0]" info:`
+	seed2=$((2*i+seed2))
+	hue=`convert xc: -seed $seed2 -format "%[fx:round(100+$factor*random()*200)]" info:`
+	echo >&2 "factor=$factor; hue=$hue;"
+	convert $tmpI1[$i] -modulate 100,100,$hue miff:-
+	done
+	) | convert - -background none -layers merge +repage "$outfile"
+
+else
+
+	# create mask and crop to tiles. Then average to one pixel and threshold.
+	centx=`convert xc: -format "%[fx:$cropw/2]" info:`
+	centy=`convert xc: -format "%[fx:$croph/2]" info:`
+	radx=`convert xc: -format "%[fx:$diameterx*$centx/100]" info:`
+	rady=`convert xc: -format "%[fx:$diametery*$centy/100]" info:`
+	convert -size ${cropw}x${croph} xc:white -fill black \
+		-draw "translate $centx,$centy ellipse 0,0 $radx,$rady 0,360" -alpha off \
+		-crop ${cellw}x${cellh} +repage $tmpM1
+	echo "centx=$centx; centy=$centy; radx=$radx; rady=$rady;"
+
+	(
+	for ((i=0; i<num; i++)); do
+	seed1=$((i+seed1))
+	rr=`convert xc: -seed $seed1 -format "%[fx:random()]" info:`
+	factor=`convert xc: -format "%[fx:$rr>$coverage?$rr:0]" info:`
+	seed2=$((2*i+seed2))
+	hue=`convert xc: -seed $seed2 -format "%[fx:round(100+$factor*random()*200)]" info:`
+	echo >&2 "factor=$factor; hue=$hue;"
+	convert $tmpI1[$i] \
+		\( $tmpM1[$i] -scale 1x1! -negate -threshold 0 -negate -scale ${cellw}x${cellx}! \) \
+		-evaluate-sequence max -modulate 100,100,$hue miff:-
+	done
+	) | convert - -background none -layers merge +repage "$outfile"
+
+fi
+
+exit 0
+
+
+
+
+
+

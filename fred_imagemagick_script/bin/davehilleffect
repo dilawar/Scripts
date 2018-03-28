@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/23/2013 .......... revised 4/29/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: davehilleffect [-b brightness] [-c contrast] [-g gain ] infile outfile
+# USAGE: davehilleffect [-h or -help]
+# 
+# OPTIONS:
+# 
+# -b     brightness     brightness factor; float>=0; default=1 no change
+# -c     contrast       contrast; float; nominally -10 to 10; default=0 
+# -g     gain           effect gain; 0<=integer<=100; default=40
+# 
+###
+# 
+# NAME: DAVEHILLEFFECT 
+# 
+# PURPOSE: To apply a DaveHill-like effect to an image.
+# 
+# DESCRIPTION: DAVEHILLEFFECT applies a DaveHill-like effect to an image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -b brightness ... BRIGHTNESS is a brightness factor. Values are floats>=0. 
+# The default=1 or no change. Increase brightness is larger than 1.
+# Decrease brightness is less than 1.
+# 
+# -c contrast ... CONTRAST is a sigmoidal contrast. Values are floats nominally 
+# in the range of -10 to 10. Positive values increase contrast and negative 
+# values decrease contrast. The default=0 (no change).
+# 
+# -g gain ... GAIN is the effect gain. Values are integers between 0 and 100.
+# The default=40
+# 
+# References:
+# http://www.diyphotography.net/creating-that-dave-hill-look
+# http://logosdesign.blogspot.com/2008/07/dave-hill-effect-photography-tutorial.html
+#
+# REQUIREMENTS: IM 6.6.1.9 due to the use of -morphology DoG
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+brightness=1		# float>=0; 1=no change; >1 is brighter; <1 is darker
+contrast=0			# nominally -10 to 10; 0 is no change
+gain=40				# integer between 0 and 100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-b)    # get  brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   brightness=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE FLOAT VALUE (with no sign) ---"
+					   ;;
+				-c)    # get  contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A FLOAT VALUE ---"
+					   ;;
+				-g)    # get  gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$gain < 0" | bc`
+					   test1=`echo "$gain > 100" | bc`
+					   [ $test1 -eq 1 ] && errMsg "--- GAIN=$gain MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/davehilleffect_1_$$.mpc"
+tmpB1="$dir/davehilleffect_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# set up brightness
+if [ "$brightness" = "1" ]; then 
+	brightening=""
+else
+	brightening="-evaluate multiply $brightness"
+fi
+
+# set up contrast
+if [ "$contrast" = "0" ]; then 
+	contrasting=""
+else
+	test1=`convert xc: -format "%[fx:sign($contrast)]" info:`
+	abscontrast=`convert xc: -format "%[fx:abs($contrast)]" info:`
+	if [ $test1 -eq 1 ]; then
+		contrasting="-sigmoidal-contrast ${abscontrast}x50%"
+	else
+		contrasting="+sigmoidal-contrast ${abscontrast}x50%"
+	fi
+fi
+
+# set up gain
+grayval="gray$gain"
+
+# set up for biasing
+if [ "$im_version" -ge "07000000" ]; then
+	biasing="-define convolve:bias=50%"
+else
+	biasing="-bias 50%"
+fi
+
+# process image
+# first line: read image, enhance brightness, sigmoidal-contrast
+# second line: clone and apply high pass filter using DoG
+# third line: do vividlight composite between the two images
+# fourth line: clone result apply high pass filter
+# fifth line: set up gray image of appropriate value to use as mask (equivalent to changing alpha channel value)
+# sixth line: use hardlight composite of the last three images
+# Note: need to clamp high pass filters, since in HDRI they may exceed the quantumrange even if biased.
+convert $tmpA1 $brightening $contrasting \
+	\( -clone 0 $biasing -define convolve:scale=1 -morphology Convolve DoG:0,0,4 -clamp \) \
+	-compose vividlight -composite -clamp \
+	\( -clone 0 $biasing -define convolve:scale=1 -morphology Convolve DoG:0,0,6.9 -clamp \) \
+	\( -clone 0 -fill $grayval -colorize 100 \) \
+	-compose colorize -composite "$outfile"
+
+exit 0
+

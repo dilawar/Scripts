@@ -1,0 +1,326 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/26/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: graytoning [-r red] [-g green] [-b blue] [-o offset] [-c contrast] [-t tintcolor] [-m mode] [-a amount] infile outfile
+# USAGE: graytoning [-h or -help]
+#
+# OPTIONS:
+#
+# -r     red           red mix percent; float; default=29.9
+# -g     green         green mix percent; float; default=58.7
+# -b     blue          blue mix percent; float; default=11.4
+# -o     offset        gray brightness percent change; -100<=float<=100; 
+#                      default=0
+# -c     contrast      gray contrast percent change; -100<=float<=100; 
+#                      default=0
+# -t     tintcolor     color for tinting; any valid opaque IM color is allowed;
+#                      default is no tinting
+# -m     mode		   mode of tinting: choices are: all, midtones, highlights 
+#                      and shadows; default=midtones
+# -a     amount        amount of tinting; 0<=integer<=100; default=40
+#
+###
+#
+# NAME: GRAYTONING 
+# 
+# PURPOSE: To mix color channels from an image into a grayscale image and 
+# optionally tint it.
+# 
+# DESCRIPTION: GRAYTONING mixes color channels from an image into a grayscale 
+# image and optionally tints it. Tint modes allow selective tinting of: all, 
+# midtones, hightlights or shadows.
+# 
+# 
+# OPTIONS: 
+#
+# -r red ... RED is the red mix percent in forming the grayscale image. 
+# Values are floats. The default=29.9 (equivalent to IM standard grayscale or 
+# Rec609Luma.
+#
+# -g green ... GREEN is the red mix percent in forming the grayscale image. 
+# Valuesare floats. The default=58.7 (equivalent to IM standard grayscale or 
+# Rec609Luma.
+#
+# -b blue ... BLUE is the red mix percent in forming the grayscale image. 
+# Values are floats. The default=11.4 (equivalent to IM standard grayscale or 
+# Rec609Luma.
+#
+# -o offset ... OFFSET is the gray offset or brightness percent change. Values
+# are -100<=float<=100. The default=0.
+# 
+# -c contrast ... CONTRAST is the gray contrast percent change. Values are 
+# -100<=float<=100. The default=0.
+#
+# -t tintcolor ... TINTCOLOR is the color for tinting the grayscale image. 
+# Any valid opaque IM color is allowed. The default is no tinting.
+# 
+# -m mode ... MODE is the mode of tinting. Choices are: all (a), midtones (m), 
+# highlights (h) and shadows (s). The default=midtones.
+# 
+# -a amount ... AMOUNT is the amount of tinting. Values are 0<=integer<=100.
+# The default=40.
+# 
+######
+#
+
+# set default values
+red=29.9			# red mix percent; pos or neg float; default=29.9
+green=58.7			# green mix percent; pos or neg float; default=58.7
+blue=11.4			# blue mix percent; pos or neg float; default=11.4
+offset=0			# gray offset (brightness) percent change; pos or neg float
+contrast=0			# gray contrast percent change;  pos or neg float
+tintcolor="" 		# tint color
+mode="midtones"		# tinting mode; all, midtones, shadows, highlights; default=midtones
+amount="40"			# percent amount of tinting; default=40
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 15 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get red
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID RED SPECIFICATION ---"
+					   #checkMinus "$1"
+					   red=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$red" = "" ] && errMsg "--- RED=$red MUST BE A FLOAT ---"
+					   ;;
+				-g)    # get green
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID GREEN SPECIFICATION ---"
+					   #checkMinus "$1"
+					   green=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$green" = "" ] && errMsg "--- GREEN=$green MUST BE A FLOAT ---"
+					   ;;
+				-b)    # get blue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BLUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   blue=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$blue" = "" ] && errMsg "--- BLUE=$blue MUST BE A FLOAT ---"
+					   ;;
+				-o)    # get offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   #checkMinus "$1"
+					   offset=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE A FLOAT ---"
+		   			   testA=`echo "$offset < -100" | bc`
+		   			   testB=`echo "$offset > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- OFFSET=$offset MUST BE A FLOAT BETWEEN -100 AND 100 ---"
+					   ;;
+				-c)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A FLOAT ---"
+		   			   testA=`echo "$contrast < -100" | bc`
+		   			   testB=`echo "$contrast > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- CONTRAST=$contrast MUST BE A FLOAT BETWEEN -100 AND 100 ---"
+					   ;;
+				-t)    # get tintcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TINTCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   tintcolor="$1"
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		midtones|m) mode="midtones";;
+					   		shadows|s) mode="shadows";;
+					   		highlights|h) mode="highlights";;
+					   		all|a) mode="all";;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE AN INTEGER ---"
+					   testA=`echo "$amount < 0" | bc`
+					   testB=`echo "$amount > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# set up temp files
+tmpA1="$dir/graytoning_A_$$.mpc"
+tmpA2="$dir/graytoning_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# get colorspace
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+colorspace=`identify -ping -verbose $tmpA1 | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" -a "$colorspace" != "Gray" ]; then
+	errMsg "--- FILE $infile MUST BE RGB or sRGB or Gray---"
+fi
+
+# set up brightness-contrast
+if [ $offset -eq 0 -a $contrast -eq 0 ]; then
+	bcproc=""
+else
+	bcproc="-brightness-contrast ${offset},${contrast}"
+fi
+
+
+# convert to grayscale
+rf=`convert xc: -format "%[fx:$red/100]" info:`
+gf=`convert xc: -format "%[fx:$green/100]" info:`
+bf=`convert xc: -format "%[fx:$blue/100]" info:`
+convert $tmpA1 -color-matrix "\
+$rf $gf $bf \
+$rf $gf $bf \
+$rf $gf $bf \
+" \
+$bcproc $tmpA1
+
+
+# tint as desired
+if [ "$tintcolor" = "" -o "$amount" = "0" ]; then
+	convert $tmpA1 "$outfile"
+elif [ "$mode" = "shadows" ]; then
+	convert $tmpA1 \( -clone 0 +level-colors "$tintcolor,white" \) \
+		-compose blend -define compose:args=$amount -composite \
+		"$outfile"
+elif [ "$mode" = "highlights" ]; then
+	convert $tmpA1 \( -clone 0 +level-colors "black,$tintcolor" \) \
+		-compose over -compose blend -define compose:args=$amount -composite \
+		"$outfile"
+elif [ "$mode" = "all" ]; then
+	convert $tmpA1 -fill "$tintcolor" -colorize $amount% \
+		"$outfile"
+elif [ "$mode" = "midtones" ]; then
+	convert $tmpA1 -fill "$tintcolor" -tint $amount% \
+		"$outfile"
+fi
+
+
+exit 0

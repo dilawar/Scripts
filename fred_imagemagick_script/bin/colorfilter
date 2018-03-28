@@ -1,0 +1,352 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/22/2012 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorfilter [-m method] [-c color] [-d density] infile [maskfile] outfile
+# USAGE: colorfilter [-h or -help]
+# 
+# OPTIONS:
+# 
+# -m     method     method of applying color filter; choices are 1 or 2;
+#                   1 is blending; 2 is adding; default=1
+# -c     color      desired filter color; any valid IM opaque color 
+#                   value is valid as well as the following special colors:
+#                   warming85, warming81, cooling80, cooling82, sepia, 
+#                   underwater, t1000, t1850, t3000, t4100, t5000, t8000, 
+#                   t13000, t21000, t40000; default=red
+# -d     density    density of filter; 0<=integer<=100; 0 is no change; 
+#                   100 is most change; default=25 
+# 
+# Maskfile is any grayscale image the same size as the infile
+#  
+###
+# 
+# NAME: COLORFILTER 
+# 
+# PURPOSE: To apply a photographic color filter to an image.
+# 
+# DESCRIPTION: COLORFILTER applies a photographic color filter to an image. 
+# Optionally, a grayscale mask file can be provided to limit the region to 
+# be processed. This script simulates the Photoshop Photo Filter function.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -m method ... METHOD of applying color filter. Choices are 1 or 2.
+# 1 is blending and 2 is adding. The default=1.
+# 
+# -c color ... COLOR of desired filter. Any valid IM opaque color value is 
+# valid as well as the following special colors: warming85, warming81, 
+# cooling80, cooling82, sepia, underwater, t1000, t1850, t3000, t4100, t5000, 
+# t8000, t13000, t21000, t40000. The t-filters correspond to the blackbody 
+# radiation color of the given color temperature. The default=red.
+# 
+# -d density ... DENSITY of filter. Values are integers between 0 and 100. 
+# 0 is no change and 100 is the most change. The default=25 
+# 
+# Maskfile is any grayscale image the same size as the infile. The filter 
+# is applied most where the mask is white.
+# 
+# REQUIREMENTS: IM 6.7.9.0 or higher due to a change in -compose luminize to 
+# use the new HCL colorspace rather than the older HSL colorspace.
+# 
+# REFERENCES:
+# http://en.wikipedia.org/wiki/Color_temperature
+# http://www.vendian.org/mncharity/dir3/blackbody/UnstableURLs/bbr_color.html
+# http://web.archive.org/web/20091028192325/http://www.geocities.com/cokinfiltersystem/color_corection.htm
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+method=1			# 1=blend; 2=add
+color="red"			# filter color
+density=25			# filter density; 0 to 100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`expr "$1" : '\([0-9]*\)'`
+					   [ "$method" = "" ] && errMsg "--- METHOD=$method MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ $method -ne 1 -a $method -ne 2 ] && errMsg "--- METHOD=$method MUST BE EITHER 1 OR 2 ---"
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMCOLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-d)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$density < 0" | bc`
+					   test2=`echo "$density > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- DENSITY=$density MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	# get infile, maskfile and outfile
+	if [ $# -eq 3 ]; then
+		infile="$1"
+		maskfile="$2"
+		outfile="$3"
+	elif [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	else
+	errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+tmpA1="$dir/colorfilter_A_$$.mpc"
+tmpA2="$dir/colorfilter_A_$$.cache"
+tmpB1="$dir/colorfilter_B_$$.mpc"
+tmpB2="$dir/colorfilter_B_$$.cache"
+tmpM1="$dir/colorfilter_M_$$.mpc"
+tmpM2="$dir/colorfilter_M_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2; exit 1" ERR
+
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# test mask image
+if [ "$maskfile" != "" ]; then
+	convert -quiet -regard-warnings "$maskfile" +repage "$tmpM1" ||
+		errMsg "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
+
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using colorfilter.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace1="RGB"
+	cspace2="sRGB"
+else
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+
+# test for special colors
+color=`echo "$color" | tr '[A-Z]' '[a-z]'`
+case "$color" in 
+	warming85) color="#ec8a00" ;;
+	warming81) color="#ebb113" ;;
+	cooling80) color="#006dff" ;;
+	cooling82) color="#00b5ff" ;;
+	sepia) color="#ac7a33" ;;
+	underwater) color="#00C2B1" ;;
+	t1000) color="#ff3300" ;;
+	t1850) color="#ff8000" ;;
+	t3000) color="#ffb969" ;;
+	t4100) color="#ffd7a6" ;;
+	t5000) color="#ffe7cc" ;;
+	t8000) color="#e5e9ff" ;;
+	t13000) color="#beceff" ;;
+	t21000) color="#acc0ff" ;;
+	t40000) color="#a1b7ff" ;;
+esac
+
+
+# test if alpha channel and not opaque
+# test if alpha channel enabled and completely opaque alpha channel
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+alpha_mean=""
+ [ "$is_alpha" != "" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
+opaque_alpha="no"
+[ "$is_alpha" = "" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
+
+# if non-opaque alpha, then copy alpha channel
+if [ "$opaque_alpha" = "no" ]; then
+	convert $tmpA1 -alpha extract $tmpB1
+fi
+
+# set up -recolor or -color-matrix
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
+fi
+
+# process image
+if [ $method -eq 1 ]; then
+
+	# set density to mimic photoshop values
+	density=`convert xc: -format "%[fx:$density/2]" info:`
+	
+	if [ "$maskfile" != "" ]; then
+		convert $tmpA1 \
+			\( -clone 0 -colorspace $cspace1 \) \
+			\( -clone 1 -fill "$color" -colorize $density% \) \
+			\( -clone 1 -clone 2 +swap -compose luminize -composite -colorspace $cspace2 \) \
+			-delete 1,2 $tmpM1 -compose over -composite \
+			$tmpA1
+	else
+		convert $tmpA1 -colorspace $cspace1 \
+			\( -clone 0 -fill "$color" -colorize $density% \) \
+			+swap -compose luminize -composite -colorspace $cspace2 \
+			$tmpA1
+	fi
+
+elif [ $method -eq 2 ]; then
+
+	density=`convert xc: -format "%[fx:$density/100]" info:`
+	coloroffsets=`convert xc:"$color" -format "%[fx:$density*u.r],%[fx:$density*u.g],%[fx:$density*u.b]" info:`
+	ro=`echo $coloroffsets | cut -d, -f 1`
+	go=`echo $coloroffsets | cut -d, -f 2`
+	bo=`echo $coloroffsets | cut -d, -f 3`
+	matrix="1 0 0 0 0 $ro   0 1 0 0 0 $go   0 0 1 0 0 $bo   0 0 0 1 0 0   0 0 0 0 1 0   0 0 0 0 0 1"
+#	echo "coloroffsets=$coloroffsets"
+#	echo "density=$density; ro=$ro; bo=$bo; go=$go;"
+#	echo "matrix=$matrix;"
+
+	if [ "$maskfile" != "" ]; then
+		convert $tmpA1 \
+			\( -clone 0 -colorspace $cspace1 \) \
+			\( -clone 1 $process "$matrix" \) \
+			\( -clone 1 -clone 2 +swap -compose luminize -composite -colorspace $cspace2 \) \
+			-delete 1,2 $tmpM1 -compose over -composite \
+			$tmpA1
+	else
+		convert $tmpA1 -colorspace $cspace1 \
+			\( -clone 0 $process "$matrix" \) \
+			+swap -compose luminize -composite -colorspace $cspace2 \
+			$tmpA1
+	fi
+fi
+# if non-opaque alpha, then add alpha channel back
+if [ "$opaque_alpha" = "no" ]; then
+	convert $tmpA1 $tmpB1 -alpha off -compose copy_opacity -composite $outfile
+else
+	convert $tmpA1 $outfile
+fi
+
+
+exit 0

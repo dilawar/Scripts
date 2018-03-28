@@ -1,0 +1,347 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/10/2015 .......... revised 8/10/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: tileimage [-a arrangement] [-o orientation ] [-r repeats] [-w width ]  
+# [-h height] [-b bgcolor] infile outfile
+#
+# USAGE: tileimage [-help]
+#
+# OPTIONS:
+#
+# -a     arrangement     tiling arrangement; choices are: repeat, halfdrop,  
+#                        brick, verticalmirror, horizontalmirror or rotate; 
+#                        default=repeat
+# -o     orientation     orientation mode for image repeats; choices are: 0, 
+#                        90, 180, 270, flip, flop, transpose, transverse; 
+#                        default=0
+# -r     repeats         number of horizontal repeats; integer>0; default=4
+# -w     width           width of canvas in pixels; integer>0; default=512
+# -h     height          height of canvas in pixels; integer>0; default=512
+# -b     bgcolor         background color for canvas, if image is transparent;
+#                        any valid IM color; default="white"
+#
+###
+#
+# NAME: TILEIMAGE 
+# 
+# PURPOSE: To tile an image to a given size with various tile arrangements.
+# 
+# DESCRIPTION: TILEIMAGE tiles an image to a given size. Several arrangements 
+# are possible as well as several orientations. The user can also specify the 
+# number of repeats across the width of the image. This script is typically 
+# used to tile objects on a constant color background.
+# 
+# OPTIONS: 
+# 
+# -a arrangement ... tiling ARRANGEMENT. The choices are: repeat (r), 
+# halfdrop (h), brick (b), verticalmirror (vm), horizontalmirror (hm), or . 
+# rotate (ro). The default=repeat.
+# 
+# -o orientation ... ORIENTATION mode for the image repeats. The choices are: 
+# 0 (degree rotation), 90 (degree rotation), 180 (degree rotation), 
+# 270 (degree rotation), flip, flop, transpose, transverse. The default=0.
+# 
+# -r repeats ... REPEATS is the number of horizontal repeats across the image. 
+# Values are integers>0. The default=4.
+# 
+# -w width ... WIDTH of output image in pixels. Values are integers>0. The 
+# default=512.
+# 
+# -h height ... HEIGHT of output image in pixels. Values are integers>0. The 
+# default=512.
+# 
+# -b bgcolor ... BGCOLOR is the desired background color for the output image, 
+# if the input image is transparent. Any valid IM color. The default="white".
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+arrangement="repeat"
+orientation="0"
+repeats=4
+width=512
+height=512
+bgcolor="white"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage1
+   exit 0
+elif [ $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage1
+					   exit 0
+					   ;;
+		 		-a)    # arrangement
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ARRANGEMENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test gravity values
+					   arrangement="$1"
+					   arrangement=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$arrangement" in 
+					   		repeat|r) arrangement="repeat" ;;
+					   		halfdrop|h) arrangement="halfdrop" ;;
+					   		brick|b) arrangement="brick" ;;
+					   		verticalmirror|vm) arrangement="verticalmirror" ;;
+					   		horizontalmirror|hm) arrangement="horizontalmirror" ;;
+					   		rotate|ro) arrangement="rotate" ;;
+					   		*) errMsg "--- ARRANGEMENT=$arrangement IS AN INVALID OPTION ---" ;;
+					   	esac
+					   ;;
+		 		-o)    # orientation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ORIENTATION SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test gravity values
+					   orientation="$1"
+					   orientation=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$orientation" in 
+					   		0) orientation="0" ;;
+					   		90) orientation="90" ;;
+					   		180) orientation="180" ;;
+					   		270) orientation="270" ;;
+					   		flip) orientation="flip" ;;
+					   		flop) orientation="flop" ;;
+					   		transpose) orientation="transpose" ;;
+					   		transverse) orientation="transverse" ;;
+					   		*) errMsg "--- ORIENTATION=$orientation IS AN INVALID OPTION ---" ;;
+					   	esac
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$width <= 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-h)    # get height
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HEIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   height=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$height" = "" ] && errMsg "--- HEIGHT=$height MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$height <= 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- HEIGHT=$height MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-r)    # get repeats
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REPEATS SPECIFICATION ---"
+					   checkMinus "$1"
+					   repeats=`expr "$1" : '\([0-9]*\)'`
+					   [ "$repeats" = "" ] && errMsg "--- REPEATS=$repeats MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$repeats == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- REPEATS=$repeats MUST BE A POSITIVE INTEGER ---"
+					   ;;
+			    -b)    # get bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/tileimage_1_$$.mpc"
+tmpB1="$dir/tileimage_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+
+# read the input image into the temporary cached image and test if valid
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get infile dimensions
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+
+# get scaling factor for infile in percent
+factor=`convert xc: -format "%[fx:100*$width/($repeats*$ww)]" info:` 
+
+# scale the infile
+convert $tmpA1 -resize $factor% $tmpA1
+
+# compute resized dimensions
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+
+# get half sizes for offsets
+ww2=`convert xc: -format "%[fx:round($ww/2)]" info:` 
+hh2=`convert xc: -format "%[fx:round($hh/2)]" info:` 
+
+
+# set up orientation
+if [ "$orientation" = "0" ]; then
+	orienting=""
+elif [ "$orientation" = "90" ]; then
+	orienting="-rotate 90"
+elif [ "$orientation" = "180" ]; then
+	orienting="-rotate 180"
+elif [ "$orientation" = "270" ]; then
+	orienting="-rotate 270"
+elif [ "$orientation" = "flip" ]; then
+	orienting="-flip"
+elif [ "$orientation" = "flop" ]; then
+	orienting="-flop"
+elif [ "$orientation" = "transpose" ]; then
+	orienting="-transpose"
+elif [ "$orientation" = "transverse" ]; then
+	orienting="-transverse"
+fi
+
+# process image
+if [ "$arrangement" = "repeat" ]; then
+#echo "repeat; orient=$orienting; width=$width; height=$height; bgcolor=$bgcolor;"
+	convert $tmpA1 $orienting -write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background $bgcolor -flatten "$outfile"
+				
+elif [ "$arrangement" = "halfdrop" ]; then
+	convert $tmpA1 \
+		\( -clone 0 $orienting -roll +0+${hh2} \) +append \
+		-write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background "$bgcolor" -flatten "$outfile"
+
+elif [ "$arrangement" = "brick" ]; then
+	convert $tmpA1 \
+		\( -clone 0 $orienting -roll +${ww2}+0 \) -append \
+		-write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background "$bgcolor" -flatten "$outfile"
+		
+elif [ "$arrangement" = "verticalmirror" ]; then
+	convert $tmpA1 \
+		\( -clone 0 $orienting \) +append \
+		\( -clone 0 -flip \) -append \
+		-write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background "$bgcolor" -flatten "$outfile"
+
+elif [ "$arrangement" = "horizontalmirror" ]; then
+	convert $tmpA1 \
+		\( -clone 0 $orienting \) -append \
+		\( -clone 0 -flop \) +append \
+		-write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background "$bgcolor" -flatten "$outfile"
+
+elif [ "$arrangement" = "rotate" ]; then
+	convert $tmpA1 $orienting \
+		\( -clone 0 -rotate 90 \) +append \
+		\( -clone 0 -rotate 180 \) -append \
+		-write mpr:cell +delete \
+		-size ${width}x${height} tile:mpr:cell \
+		-background "$bgcolor" -flatten "$outfile"
+
+fi
+
+exit 0

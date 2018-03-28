@@ -1,0 +1,302 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/31/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: kneemap [-a amount] [-c channels] [-l lutlength] [-g] infile outfile
+# USAGE: kneemap [-h or -help]
+#
+# OPTIONS:
+# 
+# -a     amount     	 amount of curvature for knee curve mapping 
+#                        transformation; -1<float<1; positive values 
+#                        non-linearly brighten the image and negative values 
+#                        non-linearly darken the image; default=0 for no change
+# -c     channels        any valid IM combination of channels corresponding to 
+#                        the image's colorspace to which to apply the 
+#                        transformation: r,g,b,a, or c,m,y,k,a; 
+#                        default=all non-alpha channels
+# -l     lutlength       length of 1D lut; integer>0; default=1000
+# -g                	 enables the creation of a graph of the knee curve 
+#                        mapping transformation, which is then displayed 
+#                        automatically. There is a default setting below that 
+#                        can be changed to enable this to be save to a file 
+#                        named outfile_kneegraph.gif rather than just viewed.
+#                         
+###
+#
+# NAME: KNEEMAP
+#
+# PURPOSE: To create a symmetric soft knee-shaped curved mapping look up table 
+# and applies it to an image.
+#
+# DESCRIPTION: KNEEMAP creates a symmetric soft knee-shaped curved mapping 
+# transformation similar to -evaluate log or -evaluate pow (-gamma), but which 
+# is symmetric. This transformation is generated as 1D lut and applied 
+# to the image using -clut to affect the intensity/color transformation. The 
+# transformation is sensitive to the desired channels specified.
+# 
+# OPTIONS: 
+# 
+# 
+# -a amount ... AMOUNT is the amount of curvature for knee curve mapping 
+# transformation. Values are in the range 1<float<1. Positive values 
+# non-linearly brighten the image and negative values non-linearly darken the 
+# image. The default=0 for no change.
+# 
+# -c  channels ... CHANNELS are any valid IM combination of channels 
+# corresponding to the image's colorspace to which to apply the transformation. 
+# Combinations include: r,g,b,a, or c,m,y,k,a (with no commas). The 
+# default=all non-alpha channels
+# 
+# -l lutlength ... LUTLENGTH is the length of 1D lut. Values are integer>0. 
+# The default=1000
+# 
+# -g ... enables the creation of a graph of the knee curve mapping 
+# transformation, which is then displayed automatically. There is a default 
+# setting below that can be changed to enable this to be save to a file named 
+# outfile_kneegraph.gif. The graph will be scaled to size 100x100.
+# 
+# My thanks to Max Usatov for bringing the dynamic range compressor or soft  
+# knee compressor to my attention. See
+# http://www.scribd.com/doc/14599153/Fast-Dynamic-Range-Compression-for-Grayscale-Images
+# 
+# REQUIREMENTS: IM 6.3.5-7 is required to support the use of -clut
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, nor that 
+# trapping of inconsistent parameters is complete and foolproof. Use At Your 
+# Own Risk.
+# 
+######
+# 
+
+# set default value for scale and height of lut
+amount=0			# amount of curvature; -1<float<1
+channels=""			# combination of channels: r,g,b,a or c,m,y,k,a
+lutlength=1000		# length of 1D lut
+
+# set flag if graph is permanent (graph=save) or temporary (graph=view)
+graph="save"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages, usage and exit
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0  ;;
+				-g)    # display graph
+					   display_graph="yes" ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   # checkMinus "$1"
+					   # test values
+					   amount=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE A FLOAT ---"
+				   	   testA=`echo "$amount <= -1" | bc`
+				   	   testB=`echo "$amount >= 1" | bc`
+				       [ $testA -eq 1 -a $testB -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE A FLOAT VALUE LARGER THAN -1 AND SMALLER THAN 1 ---"
+					   ;;
+				-l)    # get lutlength
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LUTLENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test values
+					   lutlength=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lutlength" = "" ] && errMsg "--- LUTLENGTH=$lutlength MUST BE AN INTEGER ---"
+				   	   testA=`echo "$amlutlengthount <= 0" | bc`
+				       [ $testA -eq 1 ] && errMsg "--- LUTLENGTH=$lutlength MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-c)    # get channels
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNELS SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test values
+					   channels=`expr "$1" : '\([-rgbcmyka]\)'`
+					   [ "$channels" = "" ] && errMsg "--- CHANNELS=$channels MUST BE A COMBINATION OF R,G,B,A OR C,M,Y,K,A WITH NO COMMAS ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"  ;;
+				*)     # end of arguments
+					   break ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpI1="$dir/kneemap_I_$$.mpc"
+tmpI2="$dir/kneemap_I_$$.cache"
+tmpL1="$dir/kneemap_L_$$.mpc"
+tmpL2="$dir/kneemap_L_$$.cache"
+
+# get outfile name before suffix
+outname=`echo "$outfile" | sed -n 's/^\([^.]*\)[.][^.]*$/\1/ p'`
+gg="_kneegraph"
+graphfile="$dir/$outname$gg.gif"
+
+# delete temporaries
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2;" 0
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" 1 2 3 15
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" ERR
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpI1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# setup channels
+if [ "$channels" != "" ]; then
+	channelize="-channel $channels"
+else
+	channelize=""
+fi
+
+# test im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06030507" ] && errMsg "--- REQUIRES IM 6.3.5-7 OR HIGHER  ---"
+
+# test for sign
+test=`convert xc: -format "%[fx:sign($amount)]" info:`
+if [ "$test" = "-1" ]; then
+	amount=`convert xc: -format "%[fx:$amount/(1+$amount)]" info:`
+fi
+
+# create lut
+convert -size 1x$lutlength gradient:"gray(255)-gray(0)" -rotate 90 -fx "u/($amount*(u-1)+1)" $tmpL1
+
+# apply lut
+convert $tmpI1 $tmpL1 $channelize -clut "$outfile"
+
+
+# convert lut into text format and scale to 101x101
+frac=`convert xc: -format "%[fx:101/255]" info:`
+pixvals=`convert $tmpL1 -scale "101x1!" -depth 8 -evaluate multiply $frac \
+	-compress none pgm:- | sed '1,3d'`
+
+# create point pair list
+plist=""
+x=0
+for y in $pixvals; do
+plist="$plist $x,$y"
+x=$(($x+1))
+done
+numpairs=$(($x-1))
+
+
+# display graph if option -g
+if [ "$display_graph" = "yes" ]
+	then
+	# create and display graph
+    # echo "Points = $plist"
+	convert -size 150x150 xc: -fill white -stroke black \
+		-draw "rectangle 40,10 141,112" $tmpI1
+	convert $tmpI1 \
+	\( -size 100x101 xc: -stroke red -fill white -draw "polyline $plist" -flip \) \
+	-compose over -geometry 100x101+41+11 -composite $tmpI1
+	convert $tmpI1 -font Arial -pointsize 10 \
+		-draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' \
+		text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'i n p u t'" $tmpI1
+	convert -respect-parenthesis $tmpI1 \
+		\( -background white -fill black -font Arial -pointsize 10 \
+		-gravity center label:'o \nu \nt \np \nu \nt ' -trim \) \
+		-geometry +10+20 -compose over -composite $tmpI1
+	if [ "$graph" = "view" ]; then
+		convert $tmpI1 show:
+	elif [ "$graph" = "save" ]; then
+		convert $tmpI1 "$graphfile"
+	fi
+fi
+exit 0

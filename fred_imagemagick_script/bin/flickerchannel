@@ -1,0 +1,397 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/20/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: flickerchannel [-c channellist] [-d delay] [ -r resize] [-m colormodel] [-i] [-l] [-f] infile
+# USAGE: flickerchannel [-h or -help]
+#
+# OPTIONS:
+#
+# -c     channellist      doubled quoted list of channels; 0, 1, 2 (or 3);
+#                         any two or three may be specified;
+#                         default "0 1 2 3" for CMYK; otherwise "0 1 2"
+# -d     delay            time delay per frame (ms); delay >= 0; default=50
+# -r     resize           image resize percentage; resize > 0; 
+#                         default=100 (unchanged)
+# -m     colormodel       desired color space to convert (RGB/sRGB) image;
+#                         default is infile colorspace: RGB/sRGB or CMYK
+# -i                      includes the full color image in the animation
+# -l                      disables the labeling of the images
+# -f                      saves the animation to file animation.gif
+#
+###
+#
+# NAME: FLICKERCHANNEL
+# 
+# PURPOSE: To display and optionally save an animation of the channels in 
+# an image.
+# 
+# DESCRIPTION: FLICKERCHANNEL automatically displays an animation from the
+# channels of the supplied input image and optionally saves the animation 
+# to a file. At least two channels must be supplied. The main purpose of the 
+# script is to make a visual inspection of two (or more) channels of an image
+# by alternating the display of each channel. The input image must be sRGB/RGB 
+# or CMYK. It may optionally be converted to any other valid colorspace by the 
+# script before the channels are labeled and displayed.
+# 
+# 
+# OPTIONS: 
+# 
+# 
+# -c channellist ... CHANNELLIST is a double quoted list of the channels to 
+# be included in the animation. For CMYK, this defaults to "0 1 2 3", but can 
+# be any pair. For RGB or any other colorspace, this defaults to "0 1 2", but 
+# can be any pair.
+#
+# -d delay ... DELAY is the time delay in msec between frames in the animation. 
+# Values are integers greater than or equal to zero. The default=50. Note that 
+# the animation will be created to loop forever.
+# 
+# -r resize ... RESIZE allows the animation to made larger or smaller than 
+# the input image size. The values are integers greater than 0 representing the 
+# resize percentage. The default=100 which leaves the animation the same size as 
+# the input image.
+# 
+# -m  COLORMODEL is the desired color model in which to present the animation. 
+# Any valid IM colorspace is permitted, but if used, the infile must be in  
+# RGB/sRGB or CMYK colorspace. The default is the input colorspace.
+# 
+# -i ... Includes the full color infile in the animation.
+# 
+# -l ... Disables the labeling of the images.
+# 
+# -f ... Specifies that the animation is to be saved to a file called animation.gif
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+clist=""			# list of channels (-c)
+delay=50    		# time delay for animation (-d)
+resize=""   		# resize (-r)
+colormodel=""		# colormodel desired (-m)
+fullimage="no"		# include full color image (-i)
+labelflag="yes" 	# labeling of the images (-l)
+save="no"   		# save animation to file animation.gif (-f)
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+#function to create animation from specified channels
+animateChannel()
+	{
+	if [ "$labelflag" = "no" ]
+		then
+		label=""
+	else
+		idn=`echo "$1" | sed -n 's/^.*flickerchannel_\([0-3]\)_.*$/\1/ p'`
+		label="-label $infile--${modelspace}$idn"
+	fi
+	convert $label "$1" $resize miff:- |\
+		montage - -geometry +0+0 -tile 1x1 -colorspace $cspace $tmpC
+	shift
+	while [ $# -gt 0 ]
+		do
+		if [ "$labelflag" = "no" ]
+			then
+			label=""
+		else
+			idn=`echo "$1" | sed -n 's/^.*flickerchannel_\([0-3]\)_.*$/\1/ p'`
+			label="-label $infile--${modelspace}$idn"
+		fi
+		convert $label "$1" $resize miff:- |\
+	  		montage - -geometry +0+0 -tile 1x1 miff:- |\
+			convert -delay $delay $tmpC -page +0+0 - -page +0+0 -colorspace $cspace $tmpC
+		shift
+	done
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # list of channels
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNEL LIST SPECIFICATION ---"
+					   checkMinus "$1"
+					   clist="$1"
+					   clisttest=`expr "$clist" : '^[0-9 ][0-9 ]*$'`
+		   			   [ $clisttest -eq 0 ] && errMsg "--- CHANNEL LIST=$clist MUST CONTAIN THE DIGITS 0, 1, 2 or 3 ---"
+					   ;;
+				-d)    # delay
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DELAY SPECIFICATION ---"
+					   checkMinus "$1"
+					   delay="$1"
+					   delaytest=`expr "$delay" : '^[0-9][0-9]*$'`
+		   			   delaytestA=`echo "$delay < 1" | bc`
+		   			   [ $delaytest -eq 0 ] && errMsg "--- DELAY=$delay MUST BE AN INTEGER ---"
+					   [ $delaytestA -eq 1 ] && errMsg "--- DELAY=$delay MUST BE GREATER THAN 0 ---"
+					   ;;
+				-r)    # resize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RESIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   resize="$1"
+					   resizetest=`expr "$resize" : '^[0-9][0-9]*$'`
+		   			   resizetestA=`echo "$resize < 1" | bc`
+		   			   [ $resizetest -eq 0 ] && errMsg "--- RESIZE=$resize MUST BE AN INTEGER ---"
+					   [ $resizetestA -eq 1 ] && errMsg "--- RESIZE=$resize MUST BE GREATER THAN 0 ---"
+					   resize="-resize $1%"
+					   ;;
+		 		-m)    # colormodel
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INCORRECT COLORMODEL PARAMETER SPECIFICATION ---"
+					   checkMinus "$1"
+					   colormodel=$1
+					   ;;
+				-i)    # include full color image
+					   fullimage="yes"
+					   ;;
+				-l)    # labelflag
+					   labelflag="no"
+					   ;;
+				-f)    # save to file
+					   save="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	# get infile
+	infile="$1"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# setup temporary images and auto delete upon exit
+tmpA="$dir/flickerchannel_$$.mpc"
+tmpB="$dir/flickerchannel_$$.cache"
+tmpC="$dir/flickerchannel_C_$$.miff"
+tmp0="$dir/flickerchannel_0_$$.png"
+tmp1="$dir/flickerchannel_1_$$.png"
+tmp2="$dir/flickerchannel_2_$$.png"
+tmp3="$dir/flickerchannel_3_$$.png"
+trap "rm -f $tmpA $tmpB $tmpC $tmp0 $tmp1 $tmp2 $tmp3; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpC $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autolevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+#if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070800" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	# get colorspace
+	data=`identify -verbose $tmpA`
+	colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+echo "colorspace=$colorspace; colormodel=$colormodel"
+	if [ "$colormodel" = "CMYK" ]
+		then
+			modelspace="CMYK"
+			convert $tmpA $setcspace -colorspace CMYK -channel C -separate $tmp0
+			convert $tmpA $setcspace -colorspace CMYK -channel M -separate $tmp1
+			convert $tmpA $setcspace -colorspace CMYK -channel Y -separate $tmp2
+			convert $tmpA $setcspace -colorspace CMYK -channel K -separate $tmp3
+			tmplist="$tmp0 $tmp1 $tmp2 $tmp3"
+	elif [ "$colorspace" = "CMYK" -a "$colormodel" = "" ]
+		then
+			modelspace="CMYK"
+			convert $tmpA $setcspace -channel C -separate $tmp0
+			convert $tmpA $setcspace -channel M -separate $tmp1
+			convert $tmpA $setcspace -channel Y -separate $tmp2
+			convert $tmpA $setcspace -channel K -separate $tmp3
+			tmplist="$tmp0 $tmp1 $tmp2 $tmp3"
+	elif [ "$colorspace" = "RGB" -a "$colormodel" = "" ]
+		then
+			modelspace="RGB"
+			convert $tmpA $setcspace -channel R -separate $tmp0
+			convert $tmpA $setcspace -channel G -separate $tmp1
+			convert $tmpA $setcspace -channel B -separate $tmp2
+			tmplist="$tmp0 $tmp1 $tmp2"
+	elif [ "$colorspace" = "RGB" -a "$colormodel" != "" ]
+		then
+			modelspace=$colormodel
+			convert $tmpA $setcspace -colorspace $colormodel -channel R -separate $tmp0
+			convert $tmpA $setcspace -colorspace $colormodel -channel G -separate $tmp1
+			convert $tmpA $setcspace -colorspace $colormodel -channel B -separate $tmp2
+			tmplist="$tmp0 $tmp1 $tmp2"
+	elif [ "$colorspace" = "sRGB" -a "$colormodel" = "" ]
+		then
+			modelspace="sRGB"
+			convert $tmpA $setcspace -channel R -separate $tmp0
+			convert $tmpA $setcspace -channel G -separate $tmp1
+			convert $tmpA $setcspace -channel B -separate $tmp2
+			tmplist="$tmp0 $tmp1 $tmp2"
+	elif [ "$colorspace" = "sRGB" -a "$colormodel" != "" ]
+		then
+			modelspace=$colormodel
+			convert $tmpA $setcspace -colorspace $colormodel -channel R -separate $tmp0
+			convert $tmpA $setcspace -colorspace $colormodel -channel G -separate $tmp1
+			convert $tmpA $setcspace -colorspace $colormodel -channel B -separate $tmp2
+			tmplist="$tmp0 $tmp1 $tmp2"
+	else
+		errMsg "--- COLORSPACE $colorspace IS NOT ALLOWED ---"
+	fi
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	usage
+	exit 1
+fi
+
+# get list of channels and convert to array
+[ "$clist" = "" ] && clist=$tmplist
+cArr=($clist)
+cnum=${#cArr[*]}
+if [ "$modelspace" = "CMYK" -a $cnum -gt 4 ]
+	then
+	errMsg "--- TOO MANY CHANNELS SPECIFIED---"
+elif [ "$modelspace" != "CMYK" -a $cnum -gt 3 ]
+	then
+	errMsg "--- TOO MANY CHANNELS SPECIFIED---"
+fi
+[ "$fullimage" = "yes" ] && cArr=(${cArr[*]} $tmpA)
+cnum=${#cArr[*]}
+if [ $cnum -lt 2 ]
+	then
+	errMsg "--- TOO FEW CHANNELS SPECIFIED ---"
+fi
+i=0
+imglist=""
+while [ $i -lt $cnum ]
+	do
+	id=${cArr[$i]}
+	eval tmpid=\$tmp$id
+	imglist="$imglist $tmpid"
+	i=`expr $i + 1`
+done
+
+# do animation
+animateChannel $imglist
+
+
+# optional save animation to file
+if [ "$save" = "yes" ]
+	then
+	convert $tmpC -loop 0 animation.gif
+fi
+	animate $tmpC
+exit 0

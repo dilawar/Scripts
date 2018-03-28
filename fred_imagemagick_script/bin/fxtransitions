@@ -1,0 +1,454 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/3/2008 .......... revised 8/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: fxtransitions [-e effect] [-f frames] [-d delay] [-p pause] [-b bgcolor] [-r] infile1 infile2 [outfile]
+# USAGE: fxtransitions [-h or -help]
+#
+# OPTIONS:
+#
+# -e      effect         transition effect type: blur, explode, implode, pixelize, 
+#                        recursion, spin, spread, swirl, zoomin, zoomout;
+#                        default=blur
+# -f      frames         number of frames in animation; frames>1; default=10
+# -d      delay          delay between frames; delay>0; default=20
+# -p      pause          pause delay for two undistorted input images;
+#                        pause>0; default=50
+# -b      bgcolor        background color for use only with effect=zoomout
+# -r                     reverse the animation sequence and append it to the end
+# 
+# The two input files must be the same size.
+# 
+# The output file must be of type that supports multi-frames, such as gif.
+# 
+# If no output file is specified, the animation will be displayed automatically 
+# but not saved to a file
+#
+###
+#
+# NAME: FXTRANSITIONS 
+# 
+# PURPOSE: To create an animated transition between two images using a special effect distortion.
+# 
+# DESCRIPTION: FXTRANSITIONS creates an animated transition between two images using a  
+# special effect distortion. The special effects distortions include: blur, explode,  
+# implode, pixelize, recursion, spin, spread, swirl, zoomin and zoomout.
+# 
+# OPTIONS: 
+# 
+# -e effect ... EFFECT is the type of distortion to use as the means for creating 
+# the animated transition between the two input images. The choices are: blur, explode, 
+# implode, pixelize, recursion, spin, spread, swirl, zoomin and zoomout. The default=blur.
+#
+# -f frames ... FRAMES is the number of frames in the animation of each of the 
+# two input images. Values are integers > 1. The default is 10. Thus the total 
+# number of frames will be 2*frames. If the animation is reversed, then the 
+# total number of frames will be 4*frames-2.
+#
+# -d delay ... DELAY between frames. Values are integers>0. The default=20
+#
+# -p pause ... PAUSE is the delay to use for the first and last frame of the 
+# animation, i.e. the delay for each of the input images. The default=50
+#
+# -b bgcolor ... BGCOLOR is the background color to use for fill when the 
+# effect is zoomout. Any valid IM color specification. The default=black.
+# 
+# -r ... If supplied, then reverse the animation sequence, remove the first and 
+# last frames of the reversed sequence and append these reversed frames to  
+# the end of the animation.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+effect="blur"
+frames=10
+delay=20
+pause=50
+reverse="no"
+bgcolor="black"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-e)    # get effect
+					   shift  # to get the next parameter - effect
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EFFECT SPECIFICATION ---"
+					   checkMinus "$1"
+					   effect="$1"
+					   case "$effect" in
+					   		blur) ;;
+					   		explode) ;;
+					   		implode) ;;
+					   		pixelize) ;;
+					   		recursion) ;;
+					   		spin) ;;
+					   		spread) ;;
+					   		swirl) ;;
+					   		zoomin) ;;
+					   		zoomout) ;;
+					   		*) errMsg "--- INVALID EFFECT ---" ;;
+					   esac
+					   ;;
+				-f)    # get frames
+					   shift  # to get the next parameter - frames
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FRAMES SPECIFICATION ---"
+					   checkMinus "$1"
+					   frames=`expr "$1" : '\([0-9]*\)'`
+					   [ "$frames" = "" ] && errMsg "FRAMES=$frames MUST BE AN INTEGER"
+		   			   framestest=`echo "$frames <= 1" | bc`
+					   [ $framestest -eq 1 ] && errMsg "--- FRAMES=$frames MUST BE AN INTEGER GREATER THAN 1 ---"
+					   ;;
+				-d)    # get delay
+					   shift  # to get the next parameter - delay
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DELAY SPECIFICATION ---"
+					   checkMinus "$1"
+					   delay=`expr "$1" : '\([0-9]*\)'`
+					   [ "$delay" = "" ] && errMsg "DELAY=$delay MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-p)    # get pause
+					   shift  # to get the next parameter - pause
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAUSE SPECIFICATION ---"
+					   checkMinus "$1"
+					   pause=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pause" = "" ] && errMsg "PAUSE=$pause MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter - bgcolor
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				-r)    # set frame reversal append
+					   reverse="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "NO INPUT FILE 1 SPECIFIED"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "NO INPUT FILE 2 SPECIFIED"
+
+
+# set temporary files
+tmpA="$dir/fxtransitions_1_$$.mpc"
+tmpB="$dir/fxtransitions_1_$$.cache"
+tmpC="$dir/fxtransitions_2_$$.mpc"
+tmpD="$dir/fxtransitions_2_$$.cache"
+tmp0="$dir/fxtransitions_0_$$.miff"
+tmp1="$dir/fxtransitions_1_$$.miff"
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1;" 0
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1; exit 1" ERR
+
+if convert -quiet "$infile1" +repage "$tmpA"
+	then
+	: ' Do Nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+if convert -quiet "$infile2" +repage "$tmpC"
+	then
+	: ' Do Nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+w1=`convert $tmpA -format "%w" info:`
+h1=`convert $tmpA -format "%h" info:`
+w2=`convert $tmpC -format "%w" info:`
+h2=`convert $tmpC -format "%h" info:`
+[ $w1 -ne $w2 -a $h1 -ne $h2 ] && errMsg "--- IMAGE SIZES DO NOT MATCH ---"
+
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+count=`expr $frames - 1`
+case "$effect" in
+	 blur)
+				dim=`convert xc: -format "%[fx:min($w1,$h1)]" info:`
+				# solve for x^(count)=1/dim
+				factor=`convert xc: -format "%[fx:10^(log(1/$dim)/$count)]" info:`
+				expression="100*$factor^\$k"
+				func1="-resize"
+				op="%"
+				parm=""
+				func2="-resize ${w1}x${h1}!"
+				;;
+	explode)	
+				factor=`convert xc: -format "%[fx:100/$count]" info:`
+				expression="-100*\(\(1000^\(\$k*$factor/100\)-1\)/999\)"
+				func1="-implode"
+				op=""
+				parm=""
+				func2=""
+				;;
+	implode)	
+				factor=`convert xc: -format "%[fx:2/$count]" info:`
+				expression="2*\(\(1000^\(\$k*$factor/2\)-1\)/999\)"
+				func1="-implode"
+				op=""
+				parm=""
+				func2=""
+				;;
+   pixelize)
+				dim=`convert xc: -format "%[fx:min($w1,$h1)]" info:`
+				# solve for x^(count)=1/dim
+				factor=`convert xc: -format "%[fx:10^(log(1/$dim)/$count)]" info:`
+				expression="100*$factor^\$k"
+				func1="-filter box -resize"
+				op="%"
+				parm=""
+				func2="-resize ${w1}x${h1}!"
+				;;
+  recursion)
+				dim=`convert xc: -format "%[fx:min($w1,$h1)]" info:`
+				# solve for x^(count)=1/dim
+				factor=`convert xc: -format "%[fx:10^(log(1/$dim)/$count)]" info:`
+				expression="100*$factor^\$k"
+				func1="-resize"
+				op="%"
+				parm=""
+				;;
+	   spin)		
+				factor=`convert xc: -format "%[fx:359.9/$count]" info:`
+				expression="359.9*\(\(1000^\(\$k*$factor/359.9\)-1\)/999\)\)"
+				if [ "$im_version" -ge "07000000" ]; then
+					func1="-rotational-blur"
+				else
+					func1="-radial-blur"
+				fi
+				op=""
+				parm=""
+				func2=""
+				;;
+    spread)
+				dim=`convert xc: -format "%[fx:min($w1,$h1)]" info:`
+				# solve for x^(count)=1/dim
+				factor=`convert xc: -format "%[fx:1/$count)]" info:`
+				expression="100*\(10^\($factor*\$k\)-1\)/9"
+				func1="-interpolate bilinear -spread"
+				op="%"
+				parm=""
+				func2=""
+				;;
+	  swirl)		
+	 			factor=`convert xc: -format "%[fx:360/$count]" info:`
+				expression="3*360*\(\(1000^\(\$k*$factor/360\)-1\)/999\)"
+				func1="-swirl"
+				op=""
+				parm=""
+				func2=""
+				;;
+     zoomin)
+     			factor=`convert xc: -format "%[fx:1/$count]" info:`
+				f1=`convert xc: -format "%[fx:20*(20^($factor)-1)/19]" info:`
+				min=`convert xc: -format "%[fx:$f1<1?1-0.9*$f1:0]" info:`
+				expression="$min+20*\(20^\(\$k*$factor\)-1\)/19\)"
+				func1="-distort SRT"
+				op=""
+				parm="0"
+				func2=""
+				;;
+    zoomout)
+				dim=`convert xc: -format "%[fx:min($w1,$h1)]" info:`
+				# solve for x^(count)=1/dim
+				factor=`convert xc: -format "%[fx:10^(log(1/$dim)/$count)]" info:`
+				expression="100*$factor^\$k"
+				func1="-resize"
+				op="%"
+				parm=""
+				func2="-background $bgcolor -gravity center -extent ${w1}x${h1}"
+				;;
+esac
+
+#function to make frame transitions
+transitionFrames()
+	{
+	echo ""
+	echo "Generating $frames Frames For Image 1:"
+	echo ""
+	i=0
+	echo "0"
+	convert $tmpA $tmp0
+	while [ $i -lt $count ]
+		do
+		k=`expr $i + 1`
+		echo $k
+		eval ee=$expression
+		ff=`convert xc: -format "%[fx:$ee]" info:`
+#		echo "k=$k; ff=$ff func1=$func1;"
+		convert $tmpA $func1 "$ff${op} $parm" $func2 miff:- |\
+			convert -delay $delay $tmp0 - $tmp0
+		i=`expr $i + 1`
+	done
+	
+	echo ""
+	echo "Generating $frames Frames For Image 2:"
+	echo ""
+	i=1
+	k=$count
+	while [ $k -gt 0 ]
+		do
+		j=`expr $i - 1`
+		echo $j
+		eval ee=$expression
+		ff=`convert xc: -format "%[fx:$ee]" info:`
+#		echo "j=$j; k=$k; ff=$ff; func1=$func1;"
+		convert $tmpC $func1 "$ff${op} $parm" $func2 miff:- |\
+			convert -delay $delay $tmp0 - $tmp0
+		i=`expr $i + 1`
+		k=`expr $k - 1`
+	done
+	echo "$count"
+		convert $tmpC miff:- |\
+			convert -delay $delay $tmp0 - $tmp0
+	}
+
+# function to change the delay on two specified frames
+changeDelay()
+	{
+	if [ $pause -ne $delay ]
+		then
+		fa=$1
+		fb=$2
+		fam=`convert xc: -format "%[fx:$fa-1]" info:`
+		fbm=`convert xc: -format "%[fx:$fb-1]" info:`
+		convert $tmp0 -coalesce \
+			\( -clone 0 -set delay $pause \) -swap ${fa},${fam} +delete \
+			\( +clone  -set delay $pause \) -swap ${fb},${fbm} +delete \
+			-quiet -layers Optimize $tmp0
+	fi
+	}
+	
+# make transitions for image 1 and image 2
+transitionFrames
+
+# change delay first and last frames
+changeDelay 0 -1
+
+
+if [ "$reverse" = "yes" -a "$effect" = "recursion" ]
+	then
+	echo ""
+	echo "Reversing Animation By Swapping Images And Regenerating Sequence"
+	convert $tmp0 $tmp1
+	convert $infile1 $tmpC
+	convert $infile2 $tmpA
+	transitionFrames
+	echo ""
+	echo "Merging Both Sequences"
+	convert \( $tmp1 -coalesce \) \( $tmp0 -coalesce -delete 0,-1 \) \
+		-quiet -layers Optimize $tmp0
+elif [ "$reverse" = "yes" -a "$effect" != "recursion" ]
+	then
+	echo ""
+	echo "Reversing Animation - Please Wait"
+	convert $tmp0 -coalesce \( -clone -2-1 \) \
+		-quiet -layers Optimize $tmp0
+fi
+
+if [ "$outfile" != "" ]
+	then
+	convert $tmp0 -loop 0 "$outfile"
+else
+	animate $tmp0
+fi
+exit 0

@@ -1,0 +1,264 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/27/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: kaleidoscope [-s sides] [-c xc,yc] [-i irot] [-o orot] [-v vp] infile outfile
+# USAGE: kaleidoscope [-h or -help]
+#
+# OPTIONS:
+#
+# -s      sides           sides; integer; sides>1; default=3
+# -c      xc,yc           x,y center coordinates for the effect;
+#                         integers>=0; default=image center
+# -i      irot            input rotation; integer; 0<=irot<=360; default=0
+# -o      orot            output rotation; integer; 0<=orot<=360; default=0
+# -v      vp              virtual-pixel method; 
+#                         any non-background method
+#
+###
+#
+# NAME: KALEIDOSCOPE 
+# 
+# PURPOSE: To apply a kaleidoscope effect to an image.
+# 
+# DESCRIPTION: KALEIDOSCOPE applies a kaleidoscope effect to an image. 
+# 
+# OPTIONS: 
+# 
+# -s sides ... SIDES is the number of kaleidoscope sides. Values are 
+# integers greater than 1. The default=3
+#
+# -c xc,yc ...  XC,YC are the center coordinates for the kaleidoscope 
+# effect in the image. Values are integers. The default is the image center.
+#
+# -i irot ... IROT is the input rotation of the image. Values are integers 
+# between 0 and 360 degrees. The default is 0.
+#
+# -o orot ... OROT is the output rotation of the image. Values are integers 
+# between 0 and 360 degrees. The default is 0.
+#
+# -v vp ... VP is the virtual-pixel method. Any non-background method. 
+# Recommended values are either mirror or edge. The default is edge.
+# 
+# NOTE: The script is very slow due to the use of a complicated formula 
+# evaluated using -fx.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+sides=3
+xc=""
+yc=""
+irot=0
+orot=0
+vp="edge"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get sides
+					   shift  # to get the next parameter - soft
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIDES SPECIFICATION ---"
+					   checkMinus "$1"
+					   sides=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sides" = "" ] && errMsg "SIDES=$sides MUST BE AN INTEGER"
+		   			   sidestest=`echo "$sides < 2" | bc`
+					   [ $sidestest -eq 1 ] && errMsg "--- SIDES=$sides MUST BE AN INTEGER GREATER THAN ONE ---"
+					   ;;
+				-c)    # get coords
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | tr "," " " | wc -w`
+					   [ $test -eq 1 -o $test -gt 2 ] && errMsg "--- INCORRECT NUMBER OF COORDINATES SUPPLIED ---"
+					   coords="$1,"
+		   			   xc=`echo "$coords" | cut -d, -f1`
+		   			   yc=`echo "$coords" | cut -d, -f2`
+					   ;;
+				-i)    # get irot
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID IROT SPECIFICATION ---"
+					   checkMinus "$1"
+					   irot=`expr "$1" : '\([0-9]*\)'`
+					   [ "$irot" = "" ] && errMsg "--- IROT=$irot MUST BE A NON-NEGATIVE INTEGER ---"
+					   irottestA=`echo "$irot < 0" | bc`
+					   irottestB=`echo "$irot > 360" | bc`
+					   [ $irottestA -eq 1 -o $irottestB -eq 1 ] && errMsg "--- IROT=$irot MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-o)    # get orot
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OROT SPECIFICATION ---"
+					   checkMinus "$1"
+					   orot=`expr "$1" : '\([0-9]*\)'`
+					   [ "$orot" = "" ] && errMsg "--- OROT=$orot MUST BE A NON-NEGATIVE INTEGER ---"
+					   orottestA=`echo "$orot < 0" | bc`
+					   orottestB=`echo "$orot > 360" | bc`
+					   [ $orottestA -eq 1 -o $orottestB -eq 1 ] && errMsg "--- OROT=$orot MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-v)    # get  virtual-pixel method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIRTUAL-PIXEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   vp="$1"
+					   vp=`echo "$vp" | tr "[:upper:]" "[:lower:]"`
+					   case "$vp" in 
+					   		black) ;;
+					   		dither) ;;
+					   		edge) ;;
+					   		gray) ;;
+					   		mirror) ;;
+					   		random) ;;
+					   		tile) ;;
+					   		transparent) ;;
+					   		white) ;;
+					   		*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# test if image an ordinary, readable and non-zero size
+if [ -f $infile -a -r $infile -a -s $infile ]
+	then
+	: 'Do Nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get center coords of image if not supplied by user
+if [ "$xc" = "" -a "$yc" = "" ]
+	then
+	xc=`convert $infile -format "%[fx:w/2]" info:`
+	yc=`convert $infile -format "%[fx:h/2]" info:`
+fi
+
+# compute -fx terms
+orot=`convert xc: -format "%[fx:pi*$orot/180]" info:`
+pi2=`convert xc: -format "%[fx:2*pi]" info:`
+dx="dx=i-$xc;"
+dy="dy=j-$yc;"
+rad="rad=hypot(dx,dy);"
+#need to shift by 2*pi to avoid negative values from modulo
+#shift by only pi produces 180 rotation
+tt="tt=mod((atan2(dy,dx)+$pi2+$orot)*$sides/($pi2),1.0);"
+#tt="tt=mod((abs(atan2(dy,dx)))*$sides/($pi2),1.0);"	#this also works
+mid=`convert xc: -format "%[fx:mod($irot+180,360)/360]" info:`
+mid=`convert xc: -format "%[fx:$irot>180?(360-$irot)/360:($irot+180)/360]" info:`
+ang="ang=2*(tt<$mid?tt:1-tt);"
+
+#process image
+convert "$infile" -virtual-pixel $vp -monitor \
+	-fx "$dx $dy $rad $tt $ang u.p{$xc+rad*cos(ang),$yc+rad*sin(ang)}" "$outfile"
+exit 0

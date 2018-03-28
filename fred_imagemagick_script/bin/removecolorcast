@@ -1,0 +1,331 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/30/2017 .......... revised 1/30/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: removecolorcast [-m mixing] [-a autolevel] [-c cspace] 
+# [-B brightness] [-C contrast] [-S saturation] [infile] [outfile]
+# 
+# USAGE: removecolorcast [-h|-help]
+# 
+# OPTIONS:
+# 
+# -m     mixing         mixing amount between input image and color filter;
+#                       0<=integer<=100; default=50
+# -c     cpsace         colorspace for processing; choices are: sRGB or RGB;
+#                       default=sRGB
+# -a     autolevel      stretch the result to full dynamic range; yes or no; 
+#                       the default=yes
+# -B     brightness     brightness change postprocessing; -100<=integer<=100; 
+#                       default=0
+# -C     contrast       contrast change postprocessing; -100<=integer<=100; 
+#                       default=0
+# -S     saturation     saturation change postprocessing; -100<=integer<=100; 
+#                       default=0
+#
+###
+# 
+# NAME: REMOVECOLORCAST 
+# 
+# PURPOSE: To remove an color cast in an image.
+# 
+# DESCRIPTION: REMOVECOLORCAST removes a color cast in an image by blending 
+# the image and a color filter generated from the 180 deg hue shifted average 
+# color of the image. The method of filtering use -compose colorize. 
+# 
+# 
+# ARGUMENTS: 
+# 
+# -m mixing ... MIXING amount between the input image and a self generating 
+# color filter. The values are 0<=integers<=100. The default=50.
+# 
+# -c cpsace ... CSPACE is the colorspace for processing. The choices are: 
+# sRGB or RGB. The default=sRGB. Using sRGB results in a slightly warmer 
+# result. Using RGB results in a slightly cooler result.
+# 
+# -a autolevel ... AUTOLEVEL applies a dynamic range stretch of the result. 
+# The choices are: yes or no. The default=yes.
+# 
+# -B brightness ... BRIGHTNESS change as a postprocessing step. Value are 
+# -100<=integer<=100. The default=0.
+# 
+# -C contrast ... CONTRAST change as a postprocessing step. Value are 
+# -100<=integer<=100. The default=0.
+# 
+# -S saturation ... SATURATION change as a postprocessing step. Value are 
+# -100<=integer<=100. The default=0.
+# 
+# RECOMMEND: IM 6.8.5.4 or higher due to fluctuating changes to IM sRGB and 
+# RGB color spaces prior to that version. Otherwise, results may or may not  
+# reproduce the effect properly, depending upon IM version. 
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+# set default values
+mixing=50			# mixing (blend) amount; 0<=integer<=100
+autolevel="yes"		# autolevel postprocess
+cspace="SRGB"		# process in sRGB or RGB
+brightness=0        # brightness change postprocess; -100<=integer<=100
+contrast=0			# contrast change postprocess; -100<=integer<=100
+saturation=0        # saturation change postprocess; -100<=integer<=100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 14 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		 -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get mixing
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIXING SPECIFICATION ---"
+					   #checkMinus "$1"
+					   mixing=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$mixing" = "" ] && errMsg "--- MIXING=$mixing MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$mixing < -100" | bc`
+					   testB=`echo "$mixing > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- MIXING=$mixing MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-c)    # get cspace
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CSPACE SPECIFICATION ---"
+					   checkMinus "$1"
+					   cspace=`echo "$1" | tr "[:lower:]" "[:upper:]"`
+					   [ "$cspace" != "SRGB" -a "$cspace" != "RGB" ] && errMsg "--- CSPACE=$cspace MUST BE EITHER sRGB OR RGB ---"
+					   ;;
+				-a)    # get autolevel
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AUTOLEVEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   autolevel=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   [ "$autolevel" != "yes" -a "$autolevel" != "no" ] && errMsg "--- AUTOLEVEL=$autolevel MUST BE EITHER YES OR NO ---"
+					   ;;
+				-B)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   brightness=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$brightness < -100" | bc`
+					   testB=`echo "$brightness > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$contrast < -100" | bc`
+					   testB=`echo "$contrast > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- CONTRAST=$contrast MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-S)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   #checkMinus "$1"
+					   saturation=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$saturation < -100" | bc`
+					   testB=`echo "$saturation > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpI="$dir/REMOVECOLORCAST_$$.miff"
+trap "rm -f $tmpI; exit 0" 0
+trap "rm -f $tmpI; exit 1" 1 2 3 15
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage "$tmpI" ||
+	echo "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# set up auto-level
+if [ "$autolevel" = "yes" ]; then
+	stretch="-auto-level"
+else
+	stretch=""
+fi
+#echo "stretch=$stretch"
+
+# set up brightness
+bsign=`convert xc: -format "%[fx:sign($brightness)]" info:`
+absbri=`convert xc: -format "%[fx:abs($brightness)]" info:`
+bval=$((100-$absbri))
+if [ $brightness -eq 0 ]; then
+	brightening=""
+elif [ $bsign -eq 1 ]; then
+	# increase brightness
+	brightening="-channel r -level 0x$bval% +channel"
+else
+	# decrease brightness
+	brightening="-channel r +level 0x$bval% +channel"
+fi
+#echo "bri=$brightening"
+
+# set up saturation
+ssign=`convert xc: -format "%[fx:sign($saturation)]" info:`
+abssat=`convert xc: -format "%[fx:abs($saturation)]" info:`
+sval1=$abssat
+sval2=$((100-$abssat))
+if [ $saturation -eq 0 ]; then
+	saturating=""
+elif [ $ssign -eq 1 ]; then
+	# increase saturation
+	saturating="-channel gb -level ${sval1}x${sval2}% +channel"
+else
+	# decrease saturation
+	saturating="-channel gb +level ${sval1}x${sval2}% +channel"
+fi
+#echo "sat=$saturating"
+
+# set up post processing colorspace change
+if [ $brightness -eq 0 -a $saturation -eq 0 ]; then
+	proc1=""
+	proc2=""
+else
+	proc1="-colorspace LAB"
+	proc2="-set colorspace LAB -colorspace sRGB"
+fi
+#echo "proc1=$proc1"
+#echo "proc2=$proc2"
+
+# setup contrast
+if [ $contrast != 0 ]; then
+	contrasting="-brightness-contrast 0,$contrast"
+else
+	contrasting=""
+fi
+
+# get image dimensions
+WxH=`convert $tmpI -format "%wx%h" info:`
+
+# do processing
+# get average color and negate via 180 hue change and make constant color the size of input
+# then blend with original image via -compose colorize
+
+convert $tmpI \
+	\( -clone 0 -colorspace $cspace -resize 1x1! -resize $WxH\! -modulate 100,100,0 \) \
+	\( -clone 0 -fill "gray($mixing%)" -colorize 100 \) \
+	-compose colorize -composite -colorspace sRGB \
+	$stretch $contrasting $proc1 $brightening $saturating $proc2 \
+	"$outfile"
+
+
+exit 0
+
+
+
+
+

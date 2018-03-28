@@ -1,0 +1,222 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/21/2013 .......... revised 5/7/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: xposure [-s stops] [-o offset] [-g gamma] infile outfile
+# USAGE: xposure [-h or -help]
+#
+# OPTIONS:
+#
+# -s     stops      exposure gain in photographic stops; float; default=0
+# -o     offset     exposure offset in fractions; floats; default=0
+# -g     gamma      exposure gamma value; float>0; default=1
+#
+###
+#
+# NAME: XPOSURE 
+# 
+# PURPOSE: To change the exposure level of an image by photographic stops.
+# 
+# DESCRIPTION: XPOSURE changes the exposure level of an image by photographic 
+# stops to make it either brighter or darker. Linear changes are made according  
+# to output=input*gain+offset. Nonlinear changes are made with gamma. One stop 
+# increase/decrease changes the gain by a factor of 2.
+# 
+# OPTIONS: 
+#
+# -s stops ... STOPS controls the exposure gain. Values are floats. One stop 
+# increase/decrease means a doubling/halving of the gain. The default=0 
+# (no change).
+# 
+# -o offset ... OFFSET controls the exposure offset in fractions. Values are 
+# floats typically between -1 and 1. The default=0. (no change)
+# 
+# -g gamma ... GAMMA a non-linear change. Values are floats greater than 0. 
+# The default=1 (no change)
+#
+# REQUIREMENT: IM 6.4.8-9 due to the use of -function polynomial.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+stops=0
+offset=0
+gamma=1
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get stops
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID STOPS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   stops=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$stops" = "" ] && errMsg "--- STOPS=$stops MUST BE A FLOAT ---"
+					   ;;
+				-o)    # get offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   #checkMinus "$1"
+					   offset=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE A FLOAT ---"
+					   ;;
+				-g)    # get gamma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAMMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   gamma=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$gamma" = "" ] && errMsg "--- GAMMA=$gamma MUST BE A FLOAT ---"
+					   testA=`echo "$gamma <= 0" | bc`
+					   testB=`echo "$gamma > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- GAMMA=$gamma MUST BE A FLOAT GREATER THAN 0 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INFILE FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+tmpA1="$dir/exposure2_A_$$.mpc"
+tmpA2="$dir/exposure2_A_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+# read the input image into the TMP cached image.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test if IM version compatible with -function polynomial
+[ "$im_version" -lt "06040809" ] && errMsg "--- IM VERSION IS NOT COMPATIBLE WITH -FUNCTION POLYNOMIAL ---"
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+if [ "$im_version" -lt "06070606" ]; then
+	cspace1="RGB"
+	cspace2="sRGB"
+else
+	cspace1="sRGB"
+	cspace2="RGB"
+fi
+
+# compute gain from stop
+gain=`convert xc: -format "%[fx:pow(2,$stops)]" info:`
+#echo "gain=$gain; offset=$offset; gamma=$gamma; cspace1=$cspace1; cspace2=$cspace2;"
+
+# process image in linear color
+convert $tmpA1 -colorspace $cspace2 \
+	-function polynomial "$gain,$offset" -gamma $gamma \
+	-colorspace $cspace1 "$outfile"
+
+
+exit 0

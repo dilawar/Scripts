@@ -1,0 +1,272 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/27/2010 .......... 5/7/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: wavemap [-c cycles] [-p phase] infile outfile
+# USAGE: wavemap [-h or -help]
+#
+# OPTIONS:
+#
+# -c      cycles       number of cycles in sinusiodal wave transform;
+#                      float>=0; default=0.5
+# -p      phase        phase shift from cosine function; 0<=float<=360;
+#                      default=0
+#
+###
+#
+# NAME: WAVEMAP 
+# 
+# PURPOSE: To transform the graylevels in each RGB channel according to a 
+# sinusoidal wave function.
+# 
+# DESCRIPTION: WAVEMAP transform the graylevels in each RGB channel according 
+# to a sinusoidal wave function. This is similar to GIMP's Alien Map.
+# 
+# 
+# OPTIONS: 
+# 
+# -c cycle ... CYCLES is the number of cycles in the sinusoidal wave transform. 
+# Values are floats>=0. One or three comma delimited values may be provided, 
+# one for each of the RGB channels. If only the one value is provided, the other 
+# two will be set to the same value. The default=0.5 (which is the same as 
+# 0.5,0.5,0.5). With phase=0, this produces a nearly linear transform. 
+#
+# -p phase ... PHASE is the phase shift in degrees from a cosine wave. Values 
+# are in the range 0<=float<=360. One or three comma delimited values may be 
+# provided, one for each of the RGB channels. If only the one value is provided, 
+# the other two will be set to the same value. The default=0 (or 0,0,0) will 
+# produce a cosine wave. See 
+# http://www.imagemagick.org/Usage/transform/#function_sinusoid.
+# In wavemap, we will add 90 degrees to the phase value so that the sinusoid 
+# will be shifted from a sine to a cosine wave as the default. With cycles=0.5, 
+# this produces a nearly linear transform.
+# 
+# REQUIREMENT: IM version 6.4.8-9 or higher due to the use of -function sinusoid.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+cycles="0.5"
+phase="0"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get cycles
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CYCLES SPECIFICATION ---"
+					   checkMinus "$1"
+					   cycles=`expr "$1" : '\([,.0-9]*\)'`
+					   [ "$cycles" = "" ] && errMsg "--- CYCLES=$cycles MUST BE FROM ONE TO THREE COMMA DELIMITED NON-NEGATIVE FLOATS ---"
+ 					   ;;
+				-p)    # get phase
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PHASE SPECIFICATION ---"
+					   checkMinus "$1"
+					   phase=`expr "$1" : '\([,.0-9]*\)'`
+					   [ "$phase" = "" ] && errMsg "--- PHASE=$phase MUST BE FROM ONE TO THREE COMMA DELIMITED NON-NEGATIVE FLOATS ---"
+					   ;;
+			 	-)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using wavemap
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.1
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# extract channel cycles
+cr=`echo "$cycles" | cut -d, -f 1`
+cg=`echo "$cycles" | cut -d, -f 2`
+cb=`echo "$cycles" | cut -d, -f 3`
+[ "$cr" = "" -o "$cg" = "" -o "$cb" = "" ] && errMsg "--- CYCLES=$cycles MUST BE THREE COMMA DELIMITED NON-EMPTY VALUES ---"
+testr=`echo "$cr < 0" | bc`
+testg=`echo "$cr < 0" | bc`
+testb=`echo "$cr < 0" | bc`
+[ $testr -eq 1 -o $testg -eq 1 -o $testr -eq 1 ] && errMsg "--- CYCLES=$cycles MUST BE FROM ONE OR THREE COMMA DELIMITED NON-NEGATIVE FLOATS ---"
+
+# extract channel phases
+pr=`echo "$phase" | cut -d, -f 1`
+pg=`echo "$phase" | cut -d, -f 2`
+pb=`echo "$phase" | cut -d, -f 3`
+[ "$pr" = "" -o "$pg" = "" -o "$pb" = "" ] && errMsg "--- PHASE=$phase MUST BE THREE COMMA DELIMITED NON-EMPTY VALUES ---"
+phasetestR1=`echo "$pr < 0" | bc`
+phasetestR2=`echo "$pr > 360" | bc`
+[ $phasetestR1 -eq 1 -a $phasetestR2 -eq 1 ] && errMsg "--- RED PHASE=$pr MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+phasetestG1=`echo "$pg < 0" | bc`
+phasetestG2=`echo "$pg > 360" | bc`
+[ $phasetestG1 -eq 1 -a $phasetestG2 -eq 1 ] && errMsg "--- GREEN PHASE=$pg MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+phasetestB1=`echo "$pb < 0" | bc`
+phasetestB2=`echo "$pb > 360" | bc`
+[ $phasetestB1 -eq 1 -a $phasetestB2 -eq 1 ] && errMsg "--- BLUE PHASE=$pb MUST BE A FLOAT BETWEEN 0 AND 360 ---"
+
+# shift the phases by 90 for use with -function sinusoid to make cosine function
+pr=`convert xc: -format "%[fx:$pr-90]" info:`
+pg=`convert xc: -format "%[fx:$pg-90]" info:`
+pb=`convert xc: -format "%[fx:$pb-90]" info:`
+
+
+# set up temp files
+tmpR1="$dir/wavemap_R_$$.mpc"
+tmpR2="$dir/wavemap_R_$$.cache"
+tmpG1="$dir/wavemap_G_$$.mpc"
+tmpG2="$dir/wavemap_G_$$.cache"
+tmpB1="$dir/wavemap_B_$$.mpc"
+tmpB2="$dir/wavemap_B_$$.cache"
+trap "rm -f $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2;" 0
+trap "rm -f $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" ERR
+
+# assumes image is sRGB/RGB
+
+# test input image
+convert -quiet "$infile" $setcspace -channel red -separate +channel +repage "$tmpR1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+convert -quiet "$infile" $setcspace -channel green -separate +channel +repage "$tmpG1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+convert -quiet "$infile" $setcspace -channel blue -separate +channel +repage "$tmpB1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# process channels
+convert $tmpR1 -function sinusoid "$cr,$pr" $tmpR1
+convert $tmpG1 -function sinusoid "$cg,$pb" $tmpG1
+convert $tmpB1 -function sinusoid "$cb,$pb" $tmpB1
+
+# recombine
+convert $tmpR1 $tmpG1 $tmpB1 -set colorspace $cspace -combine -colorspace $cspace "$outfile"
+
+exit 0

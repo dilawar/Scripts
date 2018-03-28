@@ -1,0 +1,179 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/8/2008 .......... revised 4/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: tunnelize [-m mode] infile outfile
+# USAGE: tunnelize [-h or -help]
+#
+# OPTIONS:
+#
+# -m      mode        mode of transform; mode=1 or 2; default=1
+#
+###
+#
+# NAME: TUNNELIZE 
+# 
+# PURPOSE: To create a tunnel-like effect on an image.
+# 
+# DESCRIPTION: TUNNELIZE creates a tunnel-like effect on an image 
+# by swapping polar for cartesian coordinates.
+# 
+# OPTIONS: 
+# 
+# -m mode ... MODE is either 1 or 2. Mode=1 swaps angle for x and 
+# radius for y. Mode=2 swaps radius for x and angle for y.
+#
+# NOTE: This script may run rather slowly as it uses -fx. A similar 
+# effect to mode=1 can be achieved using -distort arc "360 90 size 0",
+# where size is in the range of half one or the other dimensions of the 
+# image or as large as the half diagonal of the image.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+mode=1
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter - scale
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   [ $mode -ne 1 -a $mode -ne 2 ] && errMsg "--- MODE=$mode MUST BE EITHER 1 OR 2 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# NOTE: testing with IM 6.6.0.10, 6.7.4.10, 6.7.6.10, 6.7.9.0, the results are not as sharp as the examples.
+
+# test if image an ordinary, readable and non-zero size
+if [ -f $infile -a -r $infile -a -s $infile ]
+	then
+	: 'Do Nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get parameters
+w2=`convert $infile -format "%[fx:w/2]" info:`
+h2=`convert $infile -format "%[fx:h/2]" info:`
+r2=`convert $infile -format "%[fx:hypot(w/2,h/2)]" info:`
+pi2=`convert xc: -format "%[fx:2*pi]" info:`
+
+# process image
+if [ $mode -eq 1 ]
+	then
+	convert "$infile" -monitor -fx "xx=(i-$w2); yy=(j-$h2); rr=hypot(xx,yy); aa=atan2(yy,xx); u.p{(aa+pi)*w/$pi2,rr*h/$r2}" "$outfile"
+else
+	convert "$infile" -monitor -fx "xx=(i-$w2); yy=(j-$h2); rr=hypot(xx,yy); aa=atan2(yy,xx); u.p{rr*w/$r2,(aa+pi)*h/$pi2}" "$outfile"
+fi
+exit 0

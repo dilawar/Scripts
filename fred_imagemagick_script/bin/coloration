@@ -1,0 +1,444 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/9/2012 .......... revised 11/29/16
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: coloration [-h hue] [-s sat] [-l light] [-r red] [-g green] [-b blue] 
+# [-B bright] [-C contrast] infile outfile [lutfile]
+#
+# USAGE: coloration [-help]
+#
+# OPTIONS:
+#
+# -h     hue          hue value to use for coloration; values are integers 
+#                     either in range 0 to 360 (degrees) or 0 to 100 (percent)
+#                     depending upon the units argument; default=0 (red)
+# -s     sat          saturation value to use for coloration; values are 
+#                     integers in range 0 to 100 (percent); default=50
+# -l     light        lightness value to use for coloration; values are 
+#                     integers in range -100 to 100(percent); default=0
+# -u     units        units for hue; choices are: degrees (d) or percent (p); 
+#                     default=degrees
+# -r     red          red mixing percent; float; default=29.9
+# -g     green        green mixing percent; float; default=58.7
+# -b     blue         blue mixing percent; float; default=11.4
+# -B     bright       percent brightness change in coloration processing; 
+#                     -100<=float<=100; default=10 (to match GIMP better)
+# -C     contrast     percent contrast change in coloration processing; 
+#                     -100<=float<=100; default=-10 (to match GIMP better)
+#
+###
+#
+# NAME: COLORATION 
+# 
+# PURPOSE: To mix the color channels from an image into a grayscale image and 
+# tints it.
+# 
+# DESCRIPTION: COLORATION mixes the color channels from an image into a 
+# single grayscale image using a weighted combination and then tints it in a 
+# manner similar to GIMP Colorize and using argument values similar to those 
+# used by GIMP. The script generates a color look up table (lut) and applies it 
+# against the grayscale version of the image. The lut can be saved, if desired, 
+# for future use and will have a size of 256x20 pixels.
+# 
+# 
+# OPTIONS: 
+#
+# -h hue ... HUE value to use for coloration. The values are integers either 
+# in the range 0 to 360(degrees) or 0 to 100(percent) depending upon the units  
+# argument. The default=0 (red).
+# 
+# -s sat ... SAT is the saturation value to use for coloration. The values are 
+# integers in the range 0 to 100 (percent). The default=50.
+# 
+# -l light ... LIGHT is the lightness value to use for coloration. The values 
+# are integers in range -100 to 100(percent). The default=0 is the normal 
+# amount of lightness. Larger values will use IM colorize to mix pure white 
+# with the result. Smaller values will use IM colorize to mix pure black 
+# with the result.
+# 
+# -u units ... UNITS for specifying hue values. The choices are: raw (r) or 
+# percent (p). The default=raw
+# 
+# -r red ... RED is the red mix percent (weight) in forming the grayscale 
+# image. Values are (pos. or neg.) floats. The default=29.9 is equivalent to 
+# IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
+# Weights are not relevant to form=desat.
+#
+# -g green ... GREEN is the red mix percent (weight) in forming the grayscale 
+# image. Values are (pos. or neg.) floats. The default=58.7 is equivalent to 
+# IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
+# Weights are not relevant to form=desat.
+#
+# -b blue ... BLUE is the red mix percent (weight) in forming the grayscale 
+# image. Values are (pos. or neg.) floats. The default=11.4 is equivalent to 
+# IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
+# Weights are not relevant to form=desat.
+#
+# -B bright ... BRIGHT is the percent change in brightness during processing. 
+# Values are floats in the range of -100 to 100. The default=10 
+# (to match GIMP better).
+# 
+# -C contrast ... CONTRAST is the percent change in contrast during processing. 
+# image. Values are floats in the range of -100 to 100. The default=-10 
+# (to match GIMP better).
+# 
+# 
+######
+#
+
+# set default values
+hue=0				# hue value
+sat=50				# saturation value
+light=0				# lightness value
+units="degrees"		# hue units; degrees (0-360) or percent (0-100)
+red=29.9			# red mix percent; pos or neg float; default=29.9
+green=58.7			# green mix percent; pos or neg float; default=58.7
+blue=11.4			# blue mix percent; pos or neg float; default=11.4
+bright=10			# percent change in brightness
+contrast=-10			# percent change in contrast
+filter="cubic"		# lut interpolation filter
+lutfile=""			# lut file created only if specified; default is no lutfile
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 19 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-h)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   checkMinus "$1"
+					   hue=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$hue MUST BE AN INTEGER ---"
+					   testA=`echo "$hue < 0" | bc`
+					   testB=`echo "$hue > 360" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HUE=$hue MUST BE AN INTEGER BETWEEN 0 AND 360 ---"
+					   ;;
+				-s)    # get sat
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   sat=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sat" = "" ] && errMsg "--- SAT=$sat MUST BE AN INTEGER ---"
+					   testA=`echo "$sat < 0" | bc`
+					   testB=`echo "$sat > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SAT=$sat MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-l)    # get light
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID LIGHT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   light=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$light" = "" ] && errMsg "--- LIGHT=$light MUST BE AN INTEGER ---"
+					   testA=`echo "$light < -100" | bc`
+					   testB=`echo "$light > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- LIGHT=$light MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-u)    # get  units
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UNITS SPECIFICATION ---"
+					   checkMinus "$1"
+					   units=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$units" in 
+					   		degrees|d) units="degrees";;
+					   		percent|p) units="percent";;
+					   		*) errMsg "--- UNITS=$units IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get red
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID RED SPECIFICATION ---"
+					   #checkMinus "$1"
+					   red=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$red" = "" ] && errMsg "--- RED=$red MUST BE A FLOAT ---"
+					   ;;
+				-g)    # get green
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID GREEN SPECIFICATION ---"
+					   #checkMinus "$1"
+					   green=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$green" = "" ] && errMsg "--- GREEN=$green MUST BE A FLOAT ---"
+					   ;;
+				-b)    # get blue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BLUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   blue=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$blue" = "" ] && errMsg "--- BLUE=$blue MUST BE A FLOAT ---"
+					   ;;
+				-B)    # get bright
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BRIGHT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   bright=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$bright" = "" ] && errMsg "--- BRIGHT=$bright MUST BE A FLOAT ---"
+		   			   testA=`echo "$bright < -100" | bc`
+		   			   testB=`echo "$bright > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHT=$bright MUST BE A FLOAT BETWEEN -100 AND 100 ---"
+					   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A FLOAT ---"
+		   			   testA=`echo "$contrast < -100" | bc`
+		   			   testB=`echo "$contrast > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- CONTRAST=$contrast MUST BE A FLOAT BETWEEN -100 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, outfile and lutfile
+	if [ $# -eq 3 ]; then
+		infile="$1"
+		outfile="$2"
+		lutfile="$3"
+	elif [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	elif [ $# -eq 1 ]; then
+		lutfile="$1"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# set up temp files
+tmpA1="$dir/color2gray_A_$$.mpc"
+tmpA2="$dir/color2gray_A_$$.cache"
+tmpB1="$dir/color2gray_B_$$.mpc"
+tmpB2="$dir/color2gray_B_$$.cache"
+tmpL="$dir/color2gray_L_$$.miff"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL; exit 1" ERR
+
+# read and test input
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cartoon.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.0.3
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# get colorspace
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+colorspace=`identify -ping -verbose $tmpA1 | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" ]; then
+	errMsg "--- FILE $infile MUST BE RGB or sRGB ---"
+fi
+
+# test if partially or all transparent alpha channel
+# if so save alpha channel
+test1=`convert $tmpA1 -format "%A" info:`
+test2=1
+if [ "$test1" = "True" ]; then
+	test2=`convert $tmpA1 -format "%[fx:mean]" info:`
+	if [ "$test2" != "1" ]; then
+		convert $tmpA1 -alpha extract $tmpB1
+	fi
+fi
+#echo "colorspace=$colorspace; test1=$test1; test2=$test2"
+
+# convert channel ratios from percent to fraction
+rf=`convert xc: -format "%[fx:$red/100]" info:`
+gf=`convert xc: -format "%[fx:$green/100]" info:`
+bf=`convert xc: -format "%[fx:$blue/100]" info:`
+#echo "rf=$rf; gf=$gf; bf=$bf; of=$of"
+
+# convert hue per IM version
+# note: starting at IM 6.9.2.1 HSL txt output is in format HSL(0-360,0-255 or %,0-255 or %) and raw values are all non-percent again
+# also at IM 6.9.2.1 all raw hsl values including alpha now back to range 0-quantumrange
+if [ "$units" = "degrees" -a "$im_version" -lt "06090201" ]; then
+	# convert to percent
+	hue=`convert xc: -format "%[fx:100*$hue/360]" info:`
+elif [ "$units" = "percent" ] && [ "$im_version" -ge "06090201" -o "$im_version" -lt "06050606" ]; then
+	# convert to 0 to 360
+	hue=`convert xc: -format "%[fx:360*$hue/100]" info:`
+fi
+
+
+
+# convert light to GIMP-like (percent) values
+test=`convert xc: -format "%[fx:$light<0?0:1]" info:`
+light=`convert xc: -format "%[fx:abs($light)]" info:`
+if [ $test -eq 0 ]; then
+fillcolor="black"
+else
+fillcolor="white"
+fi
+
+# convert bright to lut shift in pixels
+bright=`convert xc: -format "%[fx:$bright*128/100]" info:`
+
+# create colorized lut
+if [ "$im_version" -lt "06090201" ]; then
+	hslcolor="hsl($hue%,$sat%,50%)"
+elif [ "$im_version" -ge "06090201" ]; then
+	hslcolor="hsl($hue,$sat%,50%)"
+fi
+convert -size 1x1 xc:black xc:"$hslcolor" xc:white +append \
+	-filter $filter -resize 256x1! \
+	$setcspace -contrast-stretch 0 \
+	-virtual-pixel edge -fx "u.p{(i-(w/2))*(100+$contrast)/(100)+(w/2)+$bright,j}" \
+	$tmpL
+
+
+# save lut
+if [ "$lutfile" != "" ]; then
+	convert $tmpL -scale 256x20! $lutfile
+fi
+
+# set up for -color-matrix or -recolor
+if [ "$im_version" -lt "06060100" ]; then
+	channelmix="-recolor"
+else
+	channelmix="-color-matrix"
+fi
+
+# process image
+convert $tmpA1 $channelmix "\
+	$rf $gf $bf \
+	$rf $gf $bf \
+	$rf $gf $bf \
+	" \
+	$tmpL -clut \
+	-fill $fillcolor -colorize $light% \
+	$tmpA1
+
+
+# put alpha channel back
+if [ "$test2" != "1" ]; then
+	convert $tmpA1 $tmpB1 -alpha off -compose copy_opacity -composite "$outfile"
+else
+	convert $tmpA1 "$outfile"
+fi
+
+exit 0

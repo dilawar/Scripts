@@ -1,0 +1,385 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/29/2008 .......... revised11/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: sahoothresh [-p power] [-g graph] infile outfile
+# USAGE: sahoothresh [-help]
+#
+# OPTIONS:
+#
+# -p      power             power or exponent to use with method=4
+#                           float; power>0; default=2
+# -g	  graph             graph specifies whether to generate a 
+#                           histogram graph image displaying the 
+#                           location and value of the threshold;
+#                           choices are: view or save; 
+#                           default is no graph
+#
+###
+#
+# NAME: SAHOOTHRESH
+# 
+# PURPOSE: To automatically thresholds an image to binary (b/w) format 
+# using Sahoo's technique.
+# 
+# DESCRIPTION: SAHOOTHRESH automatically thresholds an image to binary
+# (b/w) format. It assume the histogram is bimodal, i.e. is the composite
+# of two bell-shaped distributions representing the foreground and 
+# background classes. The Sahoo appoach computes computes one measure of  
+# Entropy for each of the foreground (above threshold data) and background 
+# (at and below threshold value) classes. The optimal threshold is the one  
+# that maximizes the Sum of the Foreground and Background Entropies.
+# 
+# OPTIONS: 
+# 
+# -p power ... POWER is the exponent used in method 4. The value for 
+# power may be a float greater than zero. The default is 2.
+# 
+# -g graph ... GRAPH specifies whether to generate a graph (image) of 
+# the histogram, displaying the location and value of the threshold. 
+# The choices are: view, save and none. If graph=view is selected, the 
+# graph will be created and displayed automatically, but not saved. 
+# If graph=save is selected, then the graph will be created and saved 
+# to a file using the infile name, with "_histog_sahoo.gif" appended,  
+# but the graph will not be displayed automatically. If -g option is 
+# not specified, then no graph will be created.
+# 
+# NOTE: It is highly recommended that the output not be specified 
+# as a JPG image as that will cause compression and potentially a 
+# non-binary (i.e. a graylevel) result. GIF is the recommended 
+# output format.
+# 
+# REFERENCES: see the following:
+# http://climate.gsfc.nasa.gov/publications/fulltext/RSEpaper.pdf
+# http://www.istanbul.edu.tr/eng/ee/jeee/main/pages/issues/is62/62008.pdf
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+pow=2			#pow>0 and cannot equal 1 exactly
+graph=""		#none, save or view
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-p)    # get power
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POWER SPECIFICATION ---"
+					   checkMinus "$1"
+					   pow=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$pow" = "" ] && errMsg "--- POWER=$pow MUST BE A NON-NEGATIVE FLOAT ---"
+					   powtest=`echo "$pow <= 0" | bc`
+					   [ $powtest -eq 1 ] && errMsg "--- POWER=$pow MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-g)    # get  graph
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAPH SPECIFICATION ---"
+					   checkMinus "$1"
+					   graph="$1"
+					   [ "$graph" != "view" -a "$graph" != "save" ] && errMsg "--- GRAPH=$graph MUST BE EITHER VIEW OR SAVE ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get outname from infile to use for graph
+inname=`convert $infile -format "%t" info:`
+histfile=${inname}_histog_sahoo.gif
+
+tmpA1="$dir/sahoothresh_1_$$.mpc"
+tmpA2="$dir/sahoothresh_1_$$.cache"
+trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $histfile; exit 1" 1 2 3 15
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using sahoo thresh.
+# with IM 6.6.0.10, 6.7.4.10, 6.7.6.10, 6.7.5.5, 6.7.5.6, 6.7.5.7, 6.7.8.10
+# Note: some images (esp. flower) do not work the same as the examples for versions greater than 6.7.5.6.
+# There seems to be a bug 6.7.5.6, which I cannot seem to fix. But it appears very slightly different.
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA1"
+	then
+	: ' do nothing '
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAG ZERO SIZE ---"
+fi	
+
+# get totpix in image
+width=`convert $tmpA1 -format "%w" info:`
+height=`convert $tmpA1 -format "%h" info:`
+totpix=`echo "scale=0; $width * $height / 1" | bc`
+
+# function to convert IM histogram into two arrays, value and count
+getHistog()
+	{
+	echo "Generate Histogram"
+	img="$1"
+	# get lists of values and counts from histogram
+	# note that IM histograms are not well sorted (and have multiple bins with counts for the same values)
+	value=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *[0-9]*: [(]\([0-9 ]*\).*$/\1/ p'`
+	count=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *\([0-9]*\): [(].*$/\1/ p'`
+	
+	# put value and count into arrays
+	valueArr=($value)
+	countArr=($count)
+	
+	# check if both arrays are the same size
+	if [ ${#valueArr[*]} -ne ${#countArr[*]} ]
+		then
+			errMsg "--- ARRAY SIZES DO NOT MATCH ---"
+			exit 1
+		else
+		numbins=${#valueArr[*]}
+#echo "numbins=$numbins"
+	fi
+}
+
+# function to normalize histog
+getNormlizedHistog()
+	{
+	echo "Normalize Histogram"
+	j=0
+	while [ $j -lt $numbins ]; do
+		countArr[$j]=`echo "scale=10; ${countArr[$j]}/$totpix" | bc`
+		j=`expr $j + 1`
+	done
+	}
+
+
+# process image using Kapur's approach
+
+echo ""
+getHistog "$tmpA1"
+getNormlizedHistog
+[ "$pow" = "1" ] && pow=0.999999
+
+echo "Generate Cumulative Arrays"
+# p=c(i)/N (normalized count or probability, p, at bin i)
+# t=threshold bin
+# n=p0=sum(c(i)/N)zeroth histogram moment => cumulative normalized count (from i=0 to t) = N(t)
+# entropy=ln(sum((p/n)^pow))=ln(sum(p^pow)/n^pow)=ln(r/n^pow)=ln(r)-ln(n^pow)
+# b^x=e^(x*ln(b)); law of base change in raising number to power
+
+i=0
+nlow=0
+nhigh=0
+rlow=0
+rhigh=0
+# test if integer; returns 1 if integer and 0 if not integer
+test=`convert xc: -format "%[fx:($pow-floor($pow))==0?1:0]" info:`
+while [ $i -lt $numbins ]; do
+	if [ $test -eq 0 ]; then
+		nlow=`echo "scale=10; $nlow + ${countArr[$i]}" | bc`
+		nlowArr[$i]=`echo "scale=10; e($pow*l($nlow))" | bc -l`
+		rlow=`echo "scale=10; $rlow + e($pow*l(${countArr[$i]}))" | bc -l`
+		rlowArr[$i]=$rlow
+		j=`expr $numbins - $i - 1`
+		nhigh=`echo "scale=6; $nhigh + ${countArr[$j]}" | bc`
+		nhighArr[$i]=`echo "scale=10; e($pow*l($nhigh))" | bc -l`
+		rhigh=`echo "scale=10; $rhigh + e($pow*l(${countArr[$j]}))" | bc -l`
+		rhighArr[$i]=$rhigh
+	else
+		nlow=`echo "scale=10; $nlow + ${countArr[$i]}" | bc`
+		nlowArr[$i]=`echo "scale=10; $nlow^$pow" | bc`
+		rlow=`echo "scale=10; $rlow + (${countArr[$i]})^$pow" | bc`
+		rlowArr[$i]=$rlow
+		j=`expr $numbins - $i - 1`
+		nhigh=`echo "scale=6; $nhigh + ${countArr[$j]}" | bc`
+		nhighArr[$i]=`echo "scale=10; $nhigh^$pow" | bc`
+		rhigh=`echo "scale=10; $rhigh + (${countArr[$j]})^$pow" | bc`
+		rhighArr[$i]=$rhigh
+	fi
+#echo "i=$i; j=$j; nlow=${nlowArr[$i]}; nhigh=${nhighArr[$i]}; rlow=${rlowArr[$i]}; rhigh=${rhighArr[$i]}"
+	i=`expr $i + 1`
+done
+
+
+echo "Compute Threshold"
+# loop through histogram
+# compute threshold by maximizing total low and high class entropies
+# te=El+Eh
+
+i=0
+teold=0
+threshbin=0
+lastbin=`expr $numbins - 1`
+frac=`echo "scale=10; 1/(1 - $pow)" | bc`
+#echo "frac=$frac"
+while [ $i -lt $lastbin ]; do
+	j=`expr $lastbin - $i - 1`
+	nlow=${nlowArr[$i]}
+	nhigh=${nhighArr[$j]}
+	rlow=${rlowArr[$i]}
+	rhigh=${rhighArr[$j]}
+	te=`echo "scale=10; $frac*(l($rlow) -l($nlow) + l($rhigh) -l($nhigh)) / 1" | bc -l`
+	test=`echo "$te > $teold" | bc`
+	if [ $test -eq 1 ]; then
+		teold=$te
+		threshbin=$i
+	fi
+#echo "i=$i; rlow=$rlow; rhigh=$rhigh; te=$te; teold=$teold; test=$test; threshbin=$threshbin"
+	i=`expr $i + 1`
+done
+thresh=${valueArr[$threshbin]}
+
+
+# compute threshold graph x coord and threshold in percent
+xx=$thresh
+threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
+#echo "xx=$xx; threshpct=$threshpct"
+
+
+echo "Thresholding Image At $threshpct%"
+convert $tmpA1 -threshold $threshpct% "$outfile"
+echo ""
+
+
+if [ "$graph" != "" ]; then
+	convert $tmpA1 -define histogram:unique-colors=false histogram:- | \
+		convert - -negate \
+		-stroke red -strokewidth 1 -draw "line $xx,0 $xx,200" \
+		-background gray -splice 0x30 \
+		-fill white -stroke white -strokewidth 1 \
+		-font ArialB -pointsize 24 \
+		-draw "text 4,22 'threshold=$threshpct%'" -resize 50% \
+		-bordercolor gray50 -border 5 \
+		$histfile
+fi
+
+if [ "$graph" = "view" ]; then
+	convert $histfile x:
+	rm -f $histfile
+fi
+
+exit 0
+
+
+

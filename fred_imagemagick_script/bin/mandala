@@ -1,0 +1,310 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/1/2017 .......... revised 12/1/2017
+#
+# USAGE: mandala [-d dimension] [-t type] [-l length] [-n number] [-w width] [-s spiral] 
+# [-r revolutions] [-o offset] [-C colors] [-b bgcolor] outfile
+# USAGE: mandala [-help]
+#
+# OPTIONS:
+# 
+# -d     dimensions      dimensions of square output image; integer>0; default=500
+# -t     type            type of graphic figure; line, square, triangle, diamond or 
+#                        circle; default=line
+# -l     length          length of line or side or polygon or radius of circle; 
+#                        integer>0; default=150
+# -n     number          number of repeats of graphic figure; integer>0; default=16
+# -w     width           stroke width use to draw graphic figure; integer>0; default=1
+# -s     spiral          spiral the distance from the center outward; yes or no; 
+#                        default=no (constant distance)
+# -r     revolutions     number of revolutions covering all the number of repeats; 
+#                        integer>0; default=1
+# -o     offset          offset of figure from the center of the image; integer>=0; 
+#                        default=0
+# -C     colors          list of space delimited colors for the graphic figure; any 
+#                        valid Imagemagick color is allowed; list must include at least 
+#                        one color; default="red green1 blue"
+# -b     bgcolor         background color for the output image; any valid Imagemagick 
+#                        color is allowed; default=white
+# 
+###
+# 
+# NAME: MANDALA
+# 
+# PURPOSE: To create a Mandala type image from simple graphic figures.
+# 
+# DESCRIPTION: MANDALA creates a Mandala type image from simple graphic figures. The 
+# choice of graphic includes: line, triangle, square, diamond and circle.
+# 
+# 
+# OPTIONS: 
+#
+# -d dimensions ... DIMENSION of square output image. Values are integers>0. The 
+# default=500.
+# 
+# -t type ... TYPE (shape) of graphic figure. The choices are: line (l), square (s), 
+# triangle (t), diamond (d) or circle (c). The default=line.
+# 
+# -l length ... LENGTH of line or side of triangle/square/diamond or radius of circle. 
+# Values are integers>0. The default=150.
+# 
+# -n number ... NUMBER of repeats of the graphic figure. Values are integers>0. 
+# The default=16. Maximum value is OS dependent on the maximum allowed string length. 
+# On my Mac is seems to peak at about 2300.
+# 
+# -w width ... WIDTH is the stroke width use to draw graphic figure. Values are 
+# integers>0. The default=1.
+# 
+# -s spiral ... SPIRAL the distance of the figure from the center outward. The 
+# choices are: yes (y) or no (n). The default=no (constant distance).
+# 
+# -r revolutions ... REVOLUTIONS is the number of revolutions covering all the 
+# number of repeats. Values are integers>0. The default=1.
+# 
+# -o offset ... OFFSET of figure from the center of the image. Values are integers>=0. 
+# The default=0.
+# 
+# -C colors ... COLORS is a list of space delimited colors for the graphic figure. Any 
+# valid Imagemagick color is allowed. The list must include at least one color. The 
+# default="red green1 blue".
+# 
+# -b bgcolor ... BGCOLOR is the background color for the output image. Any valid 
+# Imagemagick color is allowed. The default=white.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+dim=500						# output size
+type="line"					# type of graphic figure: line, square, triangle, diamond, circle
+len=150						# length of side of figure
+num=16						# number of repeats
+width=1						# stroke width
+spiral="no"					# make spiral; yes or no
+revolve=1					# revolutions
+offset=0					# offset from center of image;
+colors="red green1 blue"	# stroke color
+bgcolor="white"				# background color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 21 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-d)    # get dim
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   dim=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dim" = "" ] && errMsg "--- DIMENSION=$dim MUST BE AN INTEGER ---"
+					   test=`echo "$dim == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- DIMENSION=$dim MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-t)    # get type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$type" in 
+					   		line|l) type="line" ;;
+					   		triangle|t) type="triangle" ;;
+					   		square|s) type="square" ;;
+					   		diamond|d) type="diamond" ;;
+					   		circle|c) type="circle" ;;
+					   		*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-l)    # get len
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LENGTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   len=`expr "$1" : '\([0-9]*\)'`
+					   [ "$len" = "" ] && errMsg "--- LENGTH=$len MUST BE AN INTEGER ---"
+					   test=`echo "$len == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- LENGTH=$len MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-n)    # get num
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NUMBER SPECIFICATION ---"
+					   checkMinus "$1"
+					   num=`expr "$1" : '\([0-9]*\)'`
+					   [ "$num" = "" ] && errMsg "--- NUMBER=$num MUST BE AN INTEGER ---"
+					   test=`echo "$num == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- NUMBER=$num MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE AN INTEGER ---"
+					   test=`echo "$width == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-s)    # get spiral
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SPIRAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   spiral=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$spiral" in 
+					   		yes|y) spiral="yes" ;;
+					   		no|n) spiral="no" ;;
+					   		*) errMsg "--- SPIRAL=$spiral IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get revolve
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REVOLUTIONS SPECIFICATION ---"
+					   checkMinus "$1"
+					   revolve=`expr "$1" : '\([0-9]*\)'`
+					   [ "$revolve" = "" ] && errMsg "--- REVOLUTIONS=$revolve MUST BE AN INTEGER ---"
+					   test=`echo "$revolve == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- REVOLUTIONS=$revolve MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-o)    # get offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   checkMinus "$1"
+					   offset=`expr "$1" : '\([0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE AN INTEGER ---"
+					   ;;
+				-C)    # get colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors="$1"
+					   test=`echo "$colors" | wc -w`
+					   [ $test -eq 0 ] && errMsg "--- COLORS MUST BE AT LEAST ONE COLOR ---"
+					   ;;
+				-b)    # get bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BGCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	# get infile, outfile and lutfile
+	outfile=$1
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+if [ "$type" = "line" ]; then
+	# get num vertices on circle and draw lines from each vertex to all other vertices
+	graphic=`echo | awk -v width=$dim -v height=$dim -v len=$len -v num=$num -v colors="$colors" '
+	BEGIN { centx=width/2; centy=height/2; anginc=360/num; graphic=""; pi = atan2(0, -1); n=split(colors, colorArr, " ");
+	for (i=0; i<num; i++) { 
+		xArr[i]=centx+len*cos(i*anginc*pi/180);
+		yArr[i]=centy+len*sin(i*anginc*pi/180);
+		ptArr[i]=xArr[i]","yArr[i]; } }
+	{ for (i=0; i<num; i++) {
+		for (j=0; j<num; j++) {
+		   if ( i != j ) { 
+				k=(i+j)%n+1;
+				graphic=graphic " push graphic-context stroke " colorArr[k] " line " ptArr[i] " " ptArr[j] " pop graphic-context " } } } }
+	END { print graphic }'`
+	#echo "$graphic"
+
+else
+	# draw shape with one corner or perimeter on center and rotate num times with optional spiral outward
+	[ "$type" = "circle" ] && len=`convert xc: -format "%[fx:$len/2]" info:`
+	graphic=`echo | awk -v width=$dim -v height=$dim -v len=$len -v num=$num -v colors="$colors" -v revolve=$revolve -v offset=$offset -v spiral=$spiral -v type=$type '
+	{ centx=width/2; centy=height/2; anginc=revolve*360/num; sizeinc=len/num; graphic=""; pi = atan2(0, -1); n=split(colors, colorArr, " ");
+	for (i=0; i<num; i++) { 
+		ang=i*anginc; if (spiral=="yes") {size=i*sizeinc;} else {size=len;}; xr=centx+offset*cos(ang*pi/180); yr=centy+offset*sin(ang*pi/180); k=i%n+1; x=size*0.5*cos(30*pi/180)/sin(30*pi/180); y1=size*0.5; y2=-size*0.5;
+		if (type=="triangle") { graphic=graphic " push graphic-context translate " xr","yr " stroke " colorArr[k] " rotate " ang " polygon 0,0 " x","y1 " " x","y2 " pop graphic-context" } 
+		else if (type=="square") { graphic=graphic " push graphic-context translate " xr","yr " stroke " colorArr[k] " rotate " ang " rectangle 0,0 " size","size " pop graphic-context" } 
+		else if (type=="diamond") { ang=ang+45; graphic=graphic " push graphic-context translate " xr","yr " stroke " colorArr[k] " rotate " ang " rectangle 0,0 " size","size " pop graphic-context" } 
+		else if (type=="circle") { xr=centx+(offset+size)*cos(ang*pi/180); yr=centy+(offset+size)*sin(ang*pi/180); graphic=graphic " push graphic-context translate " xr","yr " stroke " colorArr[k] " rotate " ang " circle 0,0 " 0","size  " pop graphic-context" } 
+		}
+	}
+	END { print graphic }'`
+	#echo "$graphic"
+
+fi
+
+convert -size ${dim}x${dim} xc:"$bgcolor" -fill none -strokewidth $width -draw "$graphic" -alpha off "$outfile"
+
+
+exit 0

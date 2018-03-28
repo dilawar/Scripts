@@ -1,0 +1,422 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/22/2011 .......... revised 9/19/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: turn [-a angle] [-x xshift] [-y yshift] [-f format] infile outfile
+# USAGE: turn [-h or -help]
+#
+# OPTIONS:
+#
+# -a      angle			clockwise angle of rotation; -360<=float<=360; default=0
+# -x      xshift        xshift of image; integer; default=0
+# -y      yshift        yshift of image; integer; default=0
+# -f      format        format for the output; choices are aspect (a), 
+#                       square (s) or maxarea (m); default=aspect 
+# 
+###
+#
+# NAME: TURN 
+# 
+# PURPOSE: To simultaneously rotate and crop an image to eliminate any 
+# background.
+# 
+# DESCRIPTION: TURN simultaneously rotate and crop an image to eliminate any 
+# background. Two methods are available: preserve the input image's w:h 
+# aspect ratio in the output or make the output square. 
+# 
+# OPTIONS: 
+# 
+# -a angle ... ANGLE of rotation. Values are floats in the range of -360 to 360 
+# degrees.
+# 
+# -x xshift ... XSHIFT of image. Values are integers (positive or negative). 
+# The default=0.
+# 
+# -y xshift ... YSHIFT of image. Values are integers (positive or negative). 
+# The default=0.
+# 
+# -f format ... FORMAT for the output image. The choices are: aspect (a), 
+# square (s) or maxarea (m). Format=aspect preserves the input image's w:h  
+# aspect ratio. Format=square makes the output square. Format=maxarea uses 
+# largest subsection possible for the output. The default=aspect.
+# 
+# Requirement: IM 6.3.6-1 or higher due to the use of 
+# -set distort:viewport WxH+X+Y
+# 
+# Reference: http://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders/16778797#16778797
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+angle=0  			# rotation angle
+xshift=0			# xshift
+yshift=0			# yshift
+format="aspect"		# output format
+vp="background"     # virtual pixel value
+bgcolor="black"		# background color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   angle=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE A NON-NEGATIVE FLOAT ---"
+		   			   testA=`echo "$angle < -360" | bc`
+		   			   testB=`echo "$angle > 360" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE A FLOAT BETWEEN -360 AND 360 ---"
+					   ;;
+				-x)    # get xshift
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID XSHIFT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   xshift=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$xshift" = "" ] && errMsg "--- XSHIFT=$xshift MUST BE AN INTEGER ---"
+					   ;;
+				-y)    # get yshift
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID YSHIFT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   yshift=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$yshift" = "" ] && errMsg "--- YSHIFT=$yshift MUST BE AN INTEGER ---"
+					   ;;
+				-f)    # get  format
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   format="$1"
+					   format=`echo "$format" | tr "[:upper:]" "[:lower:]"`
+					   case "$format" in 
+					   		aspect|a) format="aspect" ;;
+					   		square|s) format="square" ;;
+					   		maxarea|m) format="maxarea" ;;
+					   		*) errMsg "--- FORMAT=$format IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmpA1="$dir/turn_1_$$.mpc"
+tmpB1="$dir/turn_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+# get input image width, height and aspect ratio and mode
+w1=`convert -ping $tmpA1 -format "%w" info:`
+h1=`convert -ping $tmpA1 -format "%h" info:`
+aspect1=`convert xc: -format "%[fx:$w1/$h1]" info:`
+[ $w1 -ge $h1 ] && mode="landscape" || mode="portrait"
+#echo "w1=$w1; h1=$h1; aspect1=$aspect1; mode=$mode;"
+
+
+# compute chop values
+# note chop values must be 2xshift to get the center shifted by shift
+xchop=`convert xc: -format "%[fx:abs(2*$xshift)]" info:`
+ychop=`convert xc: -format "%[fx:abs(2*$yshift)]" info:`
+if [ $xshift -ge 0 ]; then
+	xgravityval="east"
+elif [ $xshift -lt 0 ]; then
+	xgravityval="west"
+fi
+if [ $yshift -ge 0 ]; then
+	ygravityval="south"
+elif [ $yshift -lt 0 ]; then
+	ygravityval="north"
+fi
+if [ $xshift -eq 0 -a $yshift -eq 0 ]; then
+	chopping=""
+elif [ $xshift -eq 0 -a $yshift -ne 0 ]; then
+	chopping="-gravity $ygravityval -chop 0x${ychop}"
+elif [ $xshift -ne 0 -a $yshift -eq 0 ]; then
+	chopping="-gravity $xgravityval -chop ${xchop}x0"
+elif [ $xshift -ne 0 -a $yshift -ne 0 ]; then
+	chopping="-gravity $xgravityval -chop ${xchop}x0 -gravity $ygravityval -chop 0x${ychop}"
+fi
+#echo "chopping=$chopping;"
+
+# chop the input image
+convert $tmpA1 $chopping $tmpA1
+
+# get shifted (chopped) image width, height and aspect
+w2=`convert -ping $tmpA1 -format "%w" info:`
+h2=`convert -ping $tmpA1 -format "%h" info:`
+aspect2=`convert xc: -format "%[fx:$w2/$h2]" info:`
+#echo "w2=$w2; h2=$h2; aspect2=$aspect2; mode=$mode;"
+
+
+# shave to preserve aspect
+if [ $xshift -ne 0 -o $yshift -ne 0 ]; then
+	if [ "$mode" = "landscape" ]; then
+		# shave width
+		# compute desired height from aspect1 and h2 and get diff with w2
+		shaveval=`convert xc: -format "%[fx:round(($w2-$h2*$aspect1)/2)]" info:`
+		[ "$shaveval" != "0" ] && convert $tmpA1 -shave ${shaveval}x0 $tmpA1
+	else
+		# shave height
+		# compute desired height from aspect1 and w2 and get diff with h2
+		shaveval=`convert xc: -format "%[fx:round(($h2-$w2/$aspect1)/2)]" info:`
+		[ "$shaveval" != "0" ] && convert $tmpA1 -shave 0x${shaveval} $tmpA1
+	fi
+	#echo "shaveval=$shaveval;"
+	
+	# get shaved image width, height and aspect
+	width=`convert -ping $tmpA1 -format "%w" info:`
+	height=`convert -ping $tmpA1 -format "%h" info:`
+	aspect=`convert xc: -format "%[fx:$width/$height]" info:`
+
+else
+	width=$w2
+	height=$h2
+	aspect=`convert xc: -format "%[fx:$width/$height]" info:`
+fi
+#echo "w=$w; h=$h; aspect=$aspect;"
+
+if [ "$format" = "aspect" -o "$format" = "square" ]; then
+	# computation from personal notes
+	
+	# evaluate asbolute value sin and cos of angle so that don't have to change sign for each quadrant
+	asang=`convert xc: -format "%[fx:abs(sin($angle*pi/180))]" info:`
+	acang=`convert xc: -format "%[fx:abs(cos($angle*pi/180))]" info:`
+
+	if [ "$mode" = "landscape" ]; then
+		a=`convert xc: -format "%[fx:$width]" info:`
+		b=`convert xc: -format "%[fx:$height]" info:`
+		wnum=`convert xc: -format "%[fx:$a*$b]" info:`
+		hnum=`convert xc: -format "%[fx:$b*$b]" info:`
+	else
+		a=`convert xc: -format "%[fx:$height]" info:`
+		b=`convert xc: -format "%[fx:$width]" info:`
+		wnum=`convert xc: -format "%[fx:$b*$b]" info:`
+		hnum=`convert xc: -format "%[fx:$a*$b]" info:`
+	fi
+
+	#echo "w=$width; h=$height; mode=$mode; angle=$angle; asang=$asing acang=$acang"
+	#echo "a=$a; b=$b"
+
+	if [ "$format" = "aspect" ]; then
+
+		ww=`convert xc: -format "%[fx:$wnum/($a*$asang+$b*$acang)]" info:`
+		hh=`convert xc: -format "%[fx:$hnum/($a*$asang+$b*$acang)]" info:`
+
+	elif [ "$format" = "square" ]; then
+
+		ww=`convert xc: -format "%[fx:$b/($asang+$acang)]" info:`
+		hh=$ww
+
+	fi
+
+elif [ "$format" = "maxarea" ]; then
+	# computation from http://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders/16778797#16778797
+
+	# get short and long dimensions
+	short=`convert xc: -format "%[fx:min($width,$height)]" info:`
+	long=`convert xc: -format "%[fx:max($width,$height)]" info:`
+
+	# make angle modulo 360 to convert negatives to equivalent positive angles
+	ang=`convert xc: -format "%[fx:mod($angle,360)]" info:`
+	
+	# convert angle from second to first quadrant
+	ang=`convert xc: -format "%[fx:($ang>90 && $ang<=180)?(180-$ang):$ang]" info:`
+
+	# convert angle from third to first quadrant
+	ang=`convert xc: -format "%[fx:($ang>180 && $ang<=270)?($ang-180):$ang]" info:`
+	
+	# convert angle from fourth to first quadrant
+	ang=`convert xc: -format "%[fx:($ang>270 && $ang<=360)?(360-$ang):$ang]" info:`
+
+	# convert ang to anglerad in radians
+	anglerad=`convert xc: -format "%[fx:$ang*pi/180]" info:`
+
+	# get sin and cos of angle (which now is always in first quadrant)
+	sina=`convert xc: -format "%[fx:sin($anglerad)]" info:`
+	cosa=`convert xc: -format "%[fx:cos($anglerad)]" info:`
+	#echo "sina=$sina; cosa=$cosa;"
+
+
+	# do processing from reference
+	if [ $ang -eq 0 ]; then
+		ww=$width
+		hh=$height
+		rwidth=$width
+		rheight=$height
+	elif [ $ang -eq 90 ]; then
+		ww=$height
+		hh=$width
+		rwidth=$height
+		rheight=$width
+	else	
+		test=`convert xc: -format "%[fx:($short<2*$sina*$cosa*$long)?1:0]" info:`
+		if [ $test -eq 1 ]; then
+			# 3 point coincident with sides of inscribed rectangle
+			xshort=`convert xc: -format "%[fx:floor(0.5*$short)]" info:`
+			if [ $width -le $height ]; then
+				ww=`convert xc: -format "%[fx:$xshort/$cosa]" info:`
+				hh=`convert xc: -format "%[fx:$xshort/$sina]" info:`
+			elif [ $width -gt $height ]; then
+				ww=`convert xc: -format "%[fx:$xshort/$sina]" info:`
+				hh=`convert xc: -format "%[fx:$xshort/$cosa]" info:`
+			fi
+
+		else
+			# 4 point coincident with sides of inscribed rectangle
+			test1=`convert xc: -format "%[fx:($ang>45)?1:0]" info:`
+			if [ $test1 -eq 1 ]; then
+				# note: to make it work for ang>45, I had to use complement angle, 
+				# which is equivalent to switching sin and cos and also swap ww and hh
+				cos2a=`convert xc: -format "%[fx:$sina*$sina - $cosa*$cosa]" info:`
+				ww=`convert xc: -format "%[fx:($height*$sina - $width*$cosa)/$cos2a]" info:`
+				hh=`convert xc: -format "%[fx:($width*$sina - $height*$cosa)/$cos2a]" info:`
+			else
+				cos2a=`convert xc: -format "%[fx:$cosa*$cosa - $sina*$sina]" info:`
+				ww=`convert xc: -format "%[fx:($width*$cosa - $height*$sina)/$cos2a]" info:`
+				hh=`convert xc: -format "%[fx:($height*$cosa - $width*$sina)/$cos2a]" info:`
+			fi
+		fi
+	fi
+fi
+
+ww=`convert xc: -format "%[fx:floor($ww)]" info:`
+hh=`convert xc: -format "%[fx:floor($hh)]" info:`
+xoff=`convert xc: -format "%[fx:ceil(($width-$ww)/2)]" info:`
+yoff=`convert xc: -format "%[fx:ceil(($height-$hh)/2)]" info:`
+#echo "ww=$ww; hh=$hh; xoff=$xoff; yoff=$yoff"
+
+
+# old method - get crop geometry for viewport
+: <<COMMENT
+[ $xoff -lt 0 ] && xsign="-" || xsign="+"
+[ $yoff -lt 0 ] && ysign="-" || ysign="+"
+xoff=`convert xc: -format "%[fx:abs($xoff))]" info:`
+yoff=`convert xc: -format "%[fx:abs($yoff))]" info:`
+geometry="${ww}x${hh}${xsign}${xoff}${ysign}${yoff}"
+echo "geometry=$geometry"
+COMMENT
+
+
+# new method - get crop geometry for viewport
+# thanks to Anthony Thyssen for this tip
+geometry=`printf "%dx%d%+d%+d"  $ww $hh $xoff $yoff`
+
+# process image
+# thanks to Anthony Thyssen for this tip
+convert $tmpA1 -set option:distort:viewport $geometry -background $bgcolor -virtual-pixel $vp \
+	+distort SRT $angle +repage "$outfile"
+
+exit 0

@@ -1,0 +1,250 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/14/2017 .......... revised 1/26/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: transfercolor [-c colormode] [-p printcoefs] infile1 infile2 outfile
+# USAGE: transfercolor [-h or -help]
+# 
+# OPTIONS:
+# 
+# -c     colormode     colorspace mode of processing; options are: rgb, 
+#                      lab or ycbcr; default=lab 
+# -p     printcoefs	   print the linear coefficients to the terminal; options 
+#                      are yes or no; default=no
+# 
+# coloring of infile2 will be transfered to that of infile1
+# 
+###
+# 
+# NAME: TRANSFERCOLOR 
+# 
+# PURPOSE: To transfer the coloring of one image to another image.
+# 
+# DESCRIPTION: TRANSFERCOLOR transfers the coloring from one image to another 
+# image. Specifically, the coloring of infile2 will be transfered to that of 
+# infile1. (infile1 will be colormatched to infile2). This is done via a  
+# linear transformation of each channel of the image after changing 
+# colorspace. The matching uses the mean and standard deviations from each 
+# channel according to the equation: (I2-Mean2)/Std2 = (I1-Mean1)/Std1.
+# This equation represents an normalized intensity such that it has zero mean 
+# and approximately the same range of values due to the division by the 
+# standard deviations. We solve this equation to form a linear transformation 
+# between I1 and I2 according to I2=A*I1+B, where A=(Std2/Std1) is the slope 
+# or gain and B=(Mean2-A*Mean1) is the intercept of bias.
+#
+# Arguments: 
+# 
+# -c colormode ... COLORMODE is the colorspace mode of processing. The options 
+# are: rgb, lab or ycbcr. The default=lab.
+# 
+# -p printcoefs ... PRINTCOEFS prints the linear coefficients to the terminal; 
+# options are yes or no. The default=no.
+# 
+# CAUTION: This script may not be backward compatible prior to IM 6.8.6.0, 
+# when IM colorspace and grayscale changed. I have not tested it for earlier 
+# releases. Let me know if anyone tries and it fails. See 
+# http://www.imagemagick.org/discourse-server/viewtopic.php?f=4&t=21269
+# 
+# REFERENCES:
+# http://www.pyimagesearch.com/2014/06/30/super-fast-color-transfer-images/
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+colormode="lab"			# rgb, lab or ycbcr
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0
+				   ;;
+			-c)    # get colormode
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COLORMODE SPECIFICATION ---"
+				   checkMinus "$1"
+				   colormode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$colormode" in
+						rgb) ;;
+						lab) ;;
+						ycbcr) ;;
+						*) errMsg "--- COLORMODE=$colormode IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-p)    # get printcoefs
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PRINTCOEFS SPECIFICATION ---"
+				   checkMinus "$1"
+				   printcoefs=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$printcoefs" in
+						yes) ;;
+						no) ;;
+						*) errMsg "--- PRINTCOEFS=$printcoefs IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			 *)    # end of arguments
+				   break
+				   ;;
+			esac
+			shift   # next option
+	done
+	# get infiles and outfile
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 2 SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+
+# set directory for temporary files
+tmpdir="$dir"
+
+dir="$tmpdir/TRANSFERCOLOR.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+#trap "rm -rf $dir; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# read infile1 and change colorspace and separate channels
+convert -quiet "$infile1" -colorspace $colormode -separate +channel $dir/tmpA.miff ||
+errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read infile2
+convert -quiet "$infile2" -colorspace $colormode -separate +channel $dir/tmpB.miff ||
+errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# use subshell processing for each channel and accumulate results in miff: structure
+(for ((i=0; i<3; i++)); do
+
+# get mean and std of image1
+MA=`convert $dir/tmpA.miff[$i] -format "%[fx:mean]" info:`
+SA=`convert $dir/tmpA.miff[$i] -format "%[fx:standard_deviation]" info:`
+
+# get mean and std of image2
+MB=`convert $dir/tmpB.miff[$i] -format "%[fx:mean]" info:`
+SB=`convert $dir/tmpB.miff[$i] -format "%[fx:standard_deviation]" info:`
+
+# get linear coefficients
+a=`convert xc: -format "%[fx:$SB/$SA]" info:`
+b=`convert xc: -format "%[fx:$MB-$a*$MA]" info:`
+
+# print linear coefficients
+[ "$printcoefs" = "yes" ] && echo >&2 "channel=$i; a=$a; b=$b;"
+
+# apply linear coefficients
+convert $dir/tmpA.miff[$i] -function polynomial "$a $b" miff:-
+
+done) | convert - -set colorspace $colormode -combine -colorspace sRGB "$outfile"
+
+exit 0
+
+
+
+
+
+

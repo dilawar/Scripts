@@ -1,0 +1,687 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 9/16/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: statsfilt [-s statistic] [-p power] infile outfile
+# USAGE: statsfilt [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s        statistic      id number for the statistical filter to compute; default=1
+#                          statistic=1:  simple average (arithmetic mean) of neighborhood 
+#                                        pixels
+#                          statistic=2:  minimum value of neighborhood pixels
+#                          statistic=3:  maximum value of neighborhood pixels
+#                          statistic=4:  average of the minimum and maximum values
+#                          statistic=5:  arithmetic mean without the min and max
+#                          statistic=6:  standard deviation of the neighborhood pixels
+#                          statistic=7:  geometric mean of the neighborhood pixels
+#                          statistic=8:  harmonic mean of the neighborhood pixels
+#                          statistic=9:  Lp mean of the neighborhood pixels;
+#                                        require p=integer option
+#                          statistic=10: contraharmonic mean of the neighborhood pixels;
+#                                        require p=integer option
+#                          statistic=11: linear distance weighted average of neighborhood
+#                                        pixels, excluding the center
+#                          statistic=12: inverse distance weighted average of neighborhood
+#                                        pixels, excluding the center
+#                          statistic=13: minimum or maximum whichever value is closest 
+#                                        to center 
+#                          statistic=14: average (arithmetic mean) without the center pixel 
+# -p         power         exponent value to use with statistic 9 and 10; 
+#                          exponent=integer; default=2
+# -h         get help
+# -help      get help
+# 
+###
+# 
+# NAME: STATSFILT 
+# 
+# PURPOSE: To compute various localized (neighborhood) statistical filters on an image. 
+# 
+# DESCRIPTION: STATSFILT is a collection of localized (neighborhood) statistical 
+# filters most of which are used for noise reduction in an image. Note that most 
+# noise reduction filters trade noise reduction for some degree of blurring.
+# 
+# Arguments: 
+# 
+# -h or -help    ---  displays help information. 
+# 
+# -s     statistic   statistic is a numerical id for the type of
+# statistic to be calculated. 
+# 
+# A value of 1 replaces each input pixel with the simple average 
+# (or arithmetic mean) of all the pixels in the 3x3 neighborhood about 
+# that input pixel.
+# 
+# A value of 2 replaces the input pixel with the minimum value found in
+# the neighborhood.
+# 
+# A value of 3 replaces the input pixel with the maximum value found in
+# the neighborhood.
+# 
+# A value of 4 replace the input pixel with average of the minimum and
+# maximum values in the neighborhood.
+# 
+# A value of 5 replaces the input pixel with simple average of all the
+# pixels in the neighborhood, except the minimum and maximum values. 
+# Thus it is throwing out the two extreme outliers.
+# 
+# A value of 6 replaces the input pixel with the standard deviation of
+# all the pixels in the neighborhood. This is more of an edge operator
+# that a noise reduction operator.
+# 
+# A value of 7 replaces the input pixel with geometric mean of all the
+# pixels in the neighborhood. The geometric mean is computed by taking
+# the ln of each neigborhood pixel value, averaging these values and
+# then taking the exp of the result. The geometric mean is used 
+# especially for noise reduction when dealing with one-sided noise 
+# that is all bright spikes (but not well at all dark spikes).
+# 
+# A value of 8 replaces the input pixel with the harmonic mean of all
+# the pixels in the neighborhood. The harmonic mean is computed by
+# taking the inverse of each pixel value, averaging these results and
+# then taking the inverse of the result. The harmonic mean is used 
+# especially for noise reduction when dealing with one-sided noise 
+# that is all bright spikes (but not well at all dark spikes).
+# 
+# A value of 9 replaces the input pixel with the Lp mean of all the
+# pixels in the neighborhood. The Lp mean is computed by raising each
+# pixel value in the neighborhood to some power, averaging these results
+# and then raising the result to the equivalent inverse power (i.e. the
+# negative value of the power). A choice of p=0 is not allowed.
+# Typically p is a low valued integer, i.e. 2 or -2. Note that p=1 is 
+# equivalent to the simple average (arithmetic mean) and p=-1 is 
+# equivalent to the harmonic mean. The Lp mean is used especially for 
+# noise reduction when dealing with one-sided noise that is either all 
+# bright spikes or all dark spikes. For all bright spikes, use negative 
+# p values and for all dark spikes, use positive p values.
+# 
+# A value of 10 replaces the input pixel with the contraharmonic mean 
+# of all the pixels in the neighborhood. The contraharmonic mean is
+# computed by taking the average of all the pixels in the neighborhood
+# raised to the power p+1 and dividing that by the average of all the
+# pixels in the neighborhood raised to the power p. The power p can be
+# any integer. A choice of p=-1 is not allowed. Note that p=0 is 
+# equivalent to the simple average (arithmetic mean). The contraharmonic 
+# mean is used especially for noise reduction when dealing with one-sided 
+# noise that is either all bright spikes or all dark spikes. For all bright 
+# spikes, use negative p values and for all dark spikes, use positive p 
+# values.
+# 
+# A value of 11 replaces each pixel in the input image with a linear 
+# distance weighted average of all pixels in the neighborhood, except the
+# original center pixel. Weighting is measured as one minus the absolute 
+# difference between the graylevel of each neighbor and the center pixel.
+# Thus pixels with smaller differences (i.e. values closer to that of the 
+# the center pixel) are weighted higher.
+# 
+# A value of 12 replaces each pixel in the input image with an inverse 
+# distance weighted average of all pixels in the neighborhood, except the
+# original center pixel. Weighting is measured as inverse of the absolute 
+# difference between the graylevel of each neighbor and the center pixel.
+# Thus pixels with smaller differences (i.e. values closer to that of the 
+# the center pixel) are weighted higher.
+# 
+# A value of 13 replaces each pixel in the input image with either the 
+# minimum or maximum value of all pixels in the neighborhood, whichever 
+# is closest in value to the given (center) pixel. This produces a 
+# sharpening effect on the image.
+# 
+# A value of 14 replaces each pixel in the input image with the average 
+# of all the pixels in the neighborhood, but the center pixel.
+#
+# All of these statistical filters are computed within a 3x3
+# neighborhood only. As it is, some of the latter statistics take a very
+# long time to compute since this script is based upon the use of fx.
+# 
+# -p     power        exponent value to use to raise the pixel value to the 
+#                     given power. 
+# The values may be positive or negative integers. The default is 2
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default value for statistic, power
+statistic=1
+p=2
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -eq 3 -o $# -eq 5 -o $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-s)    # statistic
+				   shift  # to get the next parameter - statistic
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID STATISTIC SPECIFICATION ---"
+				   checkMinus "$1"
+				   statistic=`expr "$1" : '\([0-9]*\)'`
+				   [ "$statistic" = "" ] && errMsg "--- STATISTICS=$statistic MUST BE AN INTEGER ---"
+				   statstestA=`echo "$statistic < 1" | bc`
+				   statstestB=`echo "$statistic > 14" | bc`
+				   [ $statstestA -eq 1 -o $statstestB -eq 1 ] && errMsg "--- STATISTICS=$statistic MUST BE AN INTEGER GREATER THAN 0 AND LESS THAN 14 ---"
+				   ;;
+			-p)    # power
+				   shift  # to get the next parameter - power
+				   p=`expr "$1" : '\([0-9-]*\)'`
+				   [ "$p" = "" ] && errMsg "--- POWER=$p MUST BE AN INTEGER ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+# test that outfile provided
+[ ""$outfile"" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/statsfilt_$$.mpc"
+tmpB="$dir/statsfilt_$$.cache"
+tmp0="$dir/statsfilt_0_$$.png"
+tmp1="$dir/statsfilt_1_$$.png"
+tmp2="$dir/statsfilt_2_$$.png"
+tmp3="$dir/statsfilt_3_$$.png"
+tmp4="$dir/statsfilt_4_$$.png"
+tmp5="$dir/statsfilt_5_$$.png"
+tmp6="$dir/statsfilt_6_$$.png"
+tmp7="$dir/statsfilt_7_$$.png"
+tmp8="$dir/statsfilt_8_$$.png"
+tmpw1="$dir/statsfilt_w1_$$.png"
+tmpw2="$dir/statsfilt_w2_$$.png"
+tmpw3="$dir/statsfilt_w3_$$.png"
+tmpw4="$dir/statsfilt_w4_$$.png"
+tmpw5="$dir/statsfilt_w5_$$.png"
+tmpw6="$dir/statsfilt_w6_$$.png"
+tmpw7="$dir/statsfilt_w7_$$.png"
+tmpw8="$dir/statsfilt_w8_$$.png"
+tmpMin="$dir/statsfilt_min_$$.png"
+tmpMax="$dir/statsfilt_max_$$.png"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 $tmpMin $tmpMax;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 $tmpMin $tmpMax; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 $tmpMin $tmpMax; exit 1" ERR
+
+echo ""
+echo "Please Wait - Filters 11 And 12 Take About 20 seconds To Process A 128x128 Image"
+echo "Whereas - Filters 1-10, 13, 14 Take Only A Few Seconds To Process A 128x128 Image"
+echo ""
+
+# process data
+ave="1,1,1,1,1,1,1,1,1"
+pixels="aa=p[-1,-1]; ab=p[0,-1]; ac=p[+1,-1]; ba=p[-1,0]; bb=p[0,0]; bc=p[+1,0]; ca=p[-1,+1]; cb=p[0,+1]; cc=p[+1,+1];"
+grav1="NorthWest"
+grav2="North"
+grav3="NorthEast"
+grav4="East"
+grav5="SouthEast"
+grav6="South"
+grav7="SouthWest"
+grav8="West"
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	width=`identify -format %w $tmpA`
+	height=`identify -format %h $tmpA`
+	width2=`expr $width - 2`
+	height2=`expr $height - 2`
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# function to create 8 1-pixel shifted images in each direction from center
+shiftimages()
+	{
+	# create 8 shifted images
+	image="$1"
+	j=1
+	while [ $j -lt 9 ]
+		do
+		eval grav=\$grav$j
+		eval img=\$tmp$j
+		convert $image $image[${width2}x${height2}+1+1] -gravity $grav -composite $img
+		j=`expr $j + 1`
+	done
+	}
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	
+# process images
+case "$statistic" in
+	1)	# arithmetic mean
+		convert $tmpA -define convolve:scale=1 -convolve "$ave" "$outfile"
+		;;
+	2)	# min
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# for each shifted image create successive min
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose darken -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA "$outfile"
+		;;
+	3)	# max
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# for each shifted image create successive max
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose lighten -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA "$outfile"
+		;;
+	4)	# average of min and max		
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# save input for dual use below
+		convert $tmpA $tmp0
+		
+		# do min
+		# for each shifted image create successive min
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose darken -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMin
+		
+		# initialize input again
+		convert $tmp0 $tmpA
+		
+		# do max
+		# recreate 8 shifted images from composite from first step above
+		shiftimages $tmpA
+
+		# for each shifted image create successive max
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose lighten -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMax
+		
+		# do average
+		if [ "$im_version" -ge "06060904" ]; then 
+			convert $tmpMin $tmpMax -evaluate-sequence mean "$outfile"
+		else
+			convert $tmpMin $tmpMax -average "$outfile"
+		fi
+		;;
+	5)	# average without max an min
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# save input for dual use below
+		convert $tmpA $tmp0
+		
+		# do min
+		# for each shifted image create successive min
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose darken -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMin
+		
+		# initialize input again
+		convert $tmp0 $tmpA
+		
+		# do max
+		# recreate shifted images from composite from step above
+		shiftimages $tmpA
+
+		# for each shifted image create successive max
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose lighten -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMax
+		
+		# do average
+		# this does not work but should?
+#		convert $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -average $tmp0
+#		convert $tmp0 $tmpMin $tmpMax -fx "((9*u[0])-u[1]-u[2])/7" "$outfile"
+		# this works, but is slower
+		if [ "$im_version" -lt "0608005" ]; then
+			convert $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 $tmpMin $tmpMax -fx "(u[0]+u[1]+u[2]+u[3]+u[4]+u[5]+u[6]+u[7]+u[8]-u[9]-u[10])/7" "$outfile"
+		else
+			ff=`convert xc: -format "%[fx:1/7]" info:`
+			convert $tmp0 $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 $tmpMin $tmpMax -evaluate multiply $ff -poly "1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 -1,1 -1,1" "$outfile"
+		fi		
+		;;
+	6)	# standard deviation
+		# -gamma 2 is equivalent to sqrt
+		convert $tmpA -define convolve:scale=1 -convolve "$ave" $tmp0
+		convert \( $tmpA $tmpA -compose multiply -composite -define convolve:scale=1 -convolve "$ave" \) \
+			\( $tmp0 $tmp0 -compose multiply -composite \) +swap \
+			-compose minus -composite -gamma 2 "$outfile"
+		;;
+	7)	# geometric mean
+		# fx range 0-1, but ln(1)=0 and ln(0)=-infinity, so add 1 to every value and normalize by ln(2) and remove 1 at end
+		# convert $tmpA -fx "ln(u+1)/ln(2)" -define convolve:scale=1 -convolve $ave -fx "exp(u*ln(2))-1" "$outfile"
+		# note don't need to normalize as ln(2)=.7 < 1; get same result as above
+		convert $tmpA -fx "ln(u+1)" -define convolve:scale=1 -convolve $ave -fx "exp(u)-1" "$outfile"
+		;;
+	8)	# harmonic mean
+		# fx range 0-1, but 1/x(1)=1 and 1/x(0)=infinity, so add 1 to every value and remove 1 at end
+		convert $tmpA -fx "1/(u+1)" -define convolve:scale=1 -convolve $ave -fx "(1/u)-1" "$outfile"
+		;;
+	9)	# Lp mean
+   		[ $p -eq 0 ] && errMsg "--- POWER CANNOT BE ZERO ---"
+   		ptestA=`echo "scale=0; $p > -2" | bc`
+   		ptestB=`echo "scale=0; $p < 2" | bc`
+		[ $ptestA -eq 1 -a $ptestB -eq 1 ] && errMsg "--- POWER=$p MUST BE AN INTEGER LESS THAN -1 AND GREATER THAN 1 ---"
+		ip=`echo "scale=10; 1 / $p" | bc`
+		# to avoid problems with (positive noise and) p=neg i.e. 1/(0^p)=infinity; simply negate the image and use p=pos
+		# note for p=-1, negating and using p=1 does not work as it is just the same as a plain average.
+		if [ $p -lt 0 ]
+			then
+			p=`echo "scale=0; - $p / 1" | bc`
+			ip=`echo "scale=10; 1 / $p" | bc`
+			#convert $tmpA -negate -fx "pow(u,$p)" -define convolve:scale=1 -convolve $ave -fx "pow(u,$ip)" -negate "$outfile"
+			# -gamma is same as pow, just invert exponent
+			convert $tmpA -negate -gamma $ip -define convolve:scale=1 -convolve $ave -gamma $p -negate "$outfile"
+		else
+			#convert $tmpA -fx "pow(u,$p)" -define convolve:scale=1 -convolve $ave -fx "pow(u,$ip)" "$outfile"
+			# -gamma is same as pow, just invert exponent
+			convert $tmpA -gamma $ip -define convolve:scale=1 -convolve $ave -gamma $p "$outfile"
+		fi
+		;;
+   10)	# contraharmonic mean
+   		[ $p -eq -1 ] && errMsg "--- POWER CANNOT BE NEGATIVE ONE ---"
+   		ptestA=`echo "scale=0; $p > -2" | bc`
+   		ptestB=`echo "scale=0; $p < 1" | bc`
+		[ $ptestA -eq 1 -a $ptestB -eq 1 ] && errMsg "--- POWER=$p MUST BE AN INTEGER LESS THAN -1 AND GREATER THAN 0 ---"
+		p1=`echo "scale=0; $p + 1" | bc`
+		# to avoid problems with (positive noise and) p=neg i.e. 1/(0^p)=infinity; simply negate the image and use p=pos
+		# note that it is still possible to have u/v=0 if v=0; if this happens then use: 
+		# incr=`echo "scale=10; 1 / 255" | bc` and
+		# xx=(u-$incr)>=0?u:$incr; in fx
+		if [ $p -lt 0 ]
+			then
+			p=`echo "scale=0; - $p" | bc`
+			p1=`echo "scale=0; ($p + 1) / 1" | bc`
+			#convert \( $tmpA -negate -fx "(pow((u),$p1))" -define convolve:scale=1 -convolve $ave \) \( $tmpA -negate -fx "(pow((u),$p))" -define convolve:scale=1 -convolve $ave \) -fx "(u/v)" -negate "$outfile"
+			# -gamma is same as pow, just invert exponent
+			pinv=`echo "scale=10; 1 / $p" | bc`
+			p1inv=`echo "scale=10; 1 / $p1" | bc`
+			convert \( $tmpA -negate -gamma $p1inv -define convolve:scale=1 -convolve $ave \) \( $tmpA -negate -gamma $pinv -define convolve:scale=1 -convolve $ave \) -fx "(u/v)" -negate "$outfile"
+
+		else
+			#convert \( $tmpA -fx "(pow((u),$p1))" -define convolve:scale=1 -convolve $ave \) \( $tmpA -fx "(pow((u),$p))" -define convolve:scale=1 -convolve $ave \) -fx "(u/v)" "$outfile"
+			# -gamma is same as pow, just invert exponent
+			pinv=`echo "scale=10; 1 / $p" | bc`
+			p1inv=`echo "scale=10; 1 / $p1" | bc`
+			convert \( $tmpA -gamma $p1inv -define convolve:scale=1 -convolve $ave \) \( $tmpA -gamma $pinv -define convolve:scale=1 -convolve $ave \) -fx "(u/v)" "$outfile"
+		fi
+		;;
+   11)  # linear distance weighted average
+		# weights are 1 minus grayscale absolute difference; if diff=0, then wt=1; if diff=1, then wt=0
+
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		: '
+		# this does not work so well
+		# create distance images
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			eval imgw=\$tmpw$j
+			# get difference images then negate (equivalent to subtract from max) and change zero to 1 to avoid divide by zero
+			convert $tmpA $img -compose difference -composite -negate -fill "rgb(1,1,1)" -opaque black $imgw
+			# multiply shifted images by weights
+			convert $img $imgw -compose multiply -composite $img
+			j=`expr $j + 1`
+		done
+		# average the weighted images and the weights
+		if [ "$im_version" -ge "06060904" ]; then 
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -evaluate-sequence mean $tmpA
+			convert $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 -evaluate-sequence mean $tmp0
+		else
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -average $tmpA
+			convert $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 -average $tmp0
+		fi
+		# divide averages
+		convert $tmpA $tmp0 -fx "u/v" "$outfile"
+		'
+
+		# this works fine but is slower than above
+		# create distance images
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			eval imgw=\$tmpw$j
+			# get difference images then negate (equivalent to subtract from max) and change zero to 1 to avoid divide by zero
+			convert $tmpA $img -compose difference -composite -negate -fill "rgb(1,1,1)" -opaque black $imgw
+			j=`expr $j + 1`
+		done
+		# create sum of weighted images and sum of weights then divide
+		summ="((u[0]*u[8])+(u[1]*u[9])+(u[2]*u[10])+(u[3]*u[11])+(u[4]*u[12])+(u[5]*u[13])+(u[6]*u[14])+(u[7]*u[15]))"		
+		wtSum="(u[8]+u[9]+u[10]+u[11]+u[12]+u[13]+u[14]+u[15])"
+		convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 \
+			$tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 \
+			-fx "$wts u=($summ/$wtSum)" "$outfile"
+		;;
+   12)  # inverse distance weighted average		
+		# create 8 shifted images
+		shiftimages $tmpA
+				
+		: '
+		# this does not work so well
+		# create distance images
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			eval imgw=\$tmpw$j
+			# get difference images and where value is zero change to max and then invert
+			convert $tmpA $img -compose difference -composite -fill white -opaque black -fx "1/u" $imgw
+			# multiply inverse weight images by shifted images to get weighted images
+			convert $img $imgw -compose multiply -composite $img
+			j=`expr $j + 1`
+		done
+		# average the weighted images
+		if [ "$im_version" -ge "06060904" ]; then 
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -evaluate-sequence mean $tmpA
+		else
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -average $tmpA
+		fi
+		# average the weight images
+		if [ "$im_version" -ge "06060904" ]; then 
+			convert $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 -evaluate-sequence mean $tmp0
+		else
+			convert $tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 -average $tmp0
+		fi
+		# divide averages
+		convert $tmpA $tmp0 -fx "u/v" "$outfile"
+		'
+		
+		# this works fine but is slower than above
+		# create distance images
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			eval imgw=\$tmpw$j
+			# get difference images and where value is zero change to max
+			convert $tmpA $img -compose difference -composite -fill white -opaque black $imgw
+			j=`expr $j + 1`
+		done
+		# note this is faster than separating out the individual inverse wts and multiplying
+		# create sum of inverse weighted images and sum of inverse weights then divide
+		summ="((u[0]/u[8])+(u[1]/u[9])+(u[2]/u[10])+(u[3]/u[11])+(u[4]/u[12])+(u[5]/u[13])+(u[6]/u[14])+(u[7]/u[15]))"		
+		wtSum="((1/u[8])+(1/u[9])+(1/u[10])+(1/u[11])+(1/u[12])+(1/u[13])+(1/u[14])+(1/u[15]))"
+		convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 \
+			$tmpw1 $tmpw2 $tmpw3 $tmpw4 $tmpw5 $tmpw6 $tmpw7 $tmpw8 \
+			-fx "$wts u=($summ/$wtSum)" "$outfile"
+		;;
+   13)	# sharp filter: min or max, whichever is closest to center
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# save input for dual use below
+		convert $tmpA $tmp0
+		
+		# do min
+		# for each shifted image create successive min
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose darken -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMin
+		
+		# initialize input again
+		convert $tmp0 $tmpA
+		
+		# do max
+		# recreate shifted images from composite from step above
+		shiftimages $tmpA
+
+		# for each shifted image create successive max
+		j=1
+		while [ $j -lt 9 ]
+			do
+			eval img=\$tmp$j
+			convert $tmpA $img -compose lighten -composite $tmpA
+			j=`expr $j + 1`
+		done
+		convert $tmpA $tmpMax
+		
+		# get result
+		convert $tmp0 $tmpMin $tmpMax -fx "(abs(u[1]-u[0])<abs(u[2]-u[0]))?u[1]:u[2]" "$outfile"
+		;;
+   14)	# average without center pixel
+		# create 8 shifted images
+		shiftimages $tmpA
+
+		# average 8 shifted images
+		if [ "$im_version" -ge "06060904" ]; then 
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -evaluate-sequence mean "$outfile"
+		else
+			convert $tmp1 $tmp2 $tmp3 $tmp4 $tmp5 $tmp6 $tmp7 $tmp8 -average "$outfile"
+		fi
+		;;
+	*)  # no other options allowed
+		errMsg "--- UNKNOWN STATISTICS ---"
+		;;
+esac
+exit 0

@@ -1,0 +1,652 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/8/2014 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: histcompare [-p processing] [-m metric] [-n normalization] 
+# [-c] infile1 infile2
+# USAGE: histcompare [-h or -help]
+# 
+# OPTIONS:
+# 
+# -p     processing        processing of images; choices are: gray (convert 
+#                          to grayscale first), global (append all channels 
+#                          into one grayscale image) and all (process each 
+#                          channel separately); default=gray
+# -m     metric            difference metrics; choices are: correlation (co),
+#                          chisquare (ch), intersection (i), bhattacharyya (b), 
+#                          earthmover (e) or jeffrey (j); default=correlation
+# -n     normalization     normalization of count values; comma separate pair 
+#                          minval,maxval; counts are scaled so that 
+#                          minimum histogram count becomes minval and  
+#                          maximum histogram count becomes maxval; 
+#                          default=no scaling
+# -c                       divide the histogram counts by the cumulative count                      
+# 
+###
+# 
+# NAME: HISTCOMPARE 
+# 
+# PURPOSE: To compute one of several metrics characterizing the difference 
+# between the histograms of two images.
+# 
+# DESCRIPTION: HISTCOMPARE computes one of several metrics characterizing the 
+# difference between the histograms of two images. The user may choose either 
+# to process the images to grayscale, to append all the channels into one 
+# grayscale image or process each channel separately. The choice of metrics are:
+# correlation, chisquare, intersection, bhattacharyya, earthmover or jeffrey. 
+# See the references below for the metric formulae.
+#
+# Arguments: 
+# 
+# -p processing ... PROCESSING of the images. The choices are: gray (convert 
+# to grayscale first), global (append all channels into one grayscale image) 
+# and all (process each channel separately). The default=gray.
+# 
+# -m metric ... METRIC is the desired difference metric. The choices are: 
+# correlation (co), chisquare (ch), intersection (i), bhattacharyya (b), 
+# earthmover (e) or jeffrey (j). The default=correlation.
+# 
+# -n normalization ... NORMALIZATION of histogram counts. Values are specified 
+# as a comma separate pair, minval,maxval. The counts are scaled so that the 
+# minimum histogram count becomes minval and the maximum histogram count 
+# becomes maxval. The default=no scaling.
+#
+# -c ... divide the histogram counts by the CUMULATIVE count                      
+# 
+# REFERENCES: 
+# http://siri.lmao.sk/fiit/DSO/Prednasky/7%20a%20Histogram%20based%20methods/7%20a%20Histogram%20based%20methods.pdf
+# (for correlation, chisquare, intersection and bhattacharyya)
+# http://docs.opencv.org/doc/tutorials/imgproc/histograms/histogram_comparison/histogram_comparison.html
+# (for correlation, intersection and bhattacharyya).
+# http://www.cs.umd.edu/~djacobs/CMSC426/Histograms.pdf and 
+# http://www-prima.inrialpes.fr/jlc/papers/eccv96.pdf
+# (for symmetric chisquare)
+# http://en.wikipedia.org/wiki/Earth_Mover%27s_Distance
+# (for earthmover).
+# http://robotics.stanford.edu/~rubner/papers/rubnerIjcv00.pdf 
+# (for jeffrey)
+# 
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+processing="gray"			# gray, global, all (each channel separately)
+metric="correlation" 		# correlation, chisquare, intersection, bhattacharyya, earthmover, jeffrey
+normalization=""			# scale mincount to this value; scale maxcount to this value; default="" is no scaling
+cumulative="no"				# divide counts by cumulative count; yes or no; default=no
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   exit 0
+				   ;;
+			-p)    # get processing
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PROCESSING SPECIFICATION ---"
+				   checkMinus "$1"
+				   processing=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$processing" in
+						gray) ;;
+						global) ;;
+						all) ;;
+						*) errMsg "--- PROCESSING=$processing IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-m)    # get metric
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID METRIC SPECIFICATION ---"
+				   checkMinus "$1"
+				   metric=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$metric" in
+						correlation|co) metric="correlation";;
+						chisquare|ch) metric="chisquare";;
+						intersection|i) metric="intersection";;
+						bhattacharyya|b) metric="bhattacharyya";;
+						earthmover|e) metric="earthmover";;
+						jeffrey|j) metric="jeffrey";;
+						*) errMsg "--- METRIC=$metric IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-n)    # get normalization
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID NORMALIZATION SPECIFICATION ---"
+				   checkMinus "$1"
+				   normalization=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+				   [ "$normalization" = "" ] && errMsg "--- NORMALIZATION=$normalization MUST BE A COMMA SEPARATED PAIR OF NON-NEGATIVE INTEGERS ---"
+				   min=`echo "$normalization" | cut -d, -f1`
+				   max=`echo "$normalization" | cut -d, -f2`
+				   [ $min -lt 0 -o "$min" == "" ] && errorMsg="--- INVALID MINVALUE SPECIFIED ---"
+				   [ $max -lt 0 -o "$max" == "" ] && errorMsg="--- INVALID MAXVALUE SPECIFIED ---"
+				   ;;
+			-c)    # get cumulative
+				   cumulative="yes"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			 *)    # end of arguments
+				   break
+				   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile
+	infile1="$1"
+	infile2="$2"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+
+# setup temporary images and auto delete upon exit
+tmpA1="$dir/histcompare_1_$$.mpc"
+tmpB1="$dir/histcompare_1_$$.cache"
+tmpA2="$dir/histcompare_2_$$.mpc"
+tmpB2="$dir/histcompare_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+
+# read the input image1 into the temp files and test validity.
+convert -quiet "$infile1[0]" -alpha off +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# read the input image2 into the temp files and test validity.
+convert -quiet "$infile2[0]" -alpha off +repage "$tmpA2" ||
+	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# function to extract the single desired channel histgram for each input image 
+# and fill in zero count graylevels and scale histogram counts
+extractChannelHistograms()
+	{
+	# gray/red/cyan=1; green/magenta=2; blue/yellow=3; black=4
+	channel="$1"
+	id=$((channel+1))
+
+	# fill in zero count graylevels and get histogram1 min and max counts
+	minmax1=`echo "$histdata1" |\
+		awk -v id="$id" '
+		# AWK to zero fill histogram and get min max counts
+			BEGIN { min = 1e+30; max = 0; } 
+			{ bin[$id] += $1; }
+			END { { for (i=0;i<256;i++) { bin[i]=(bin[i]+0); 
+				min=(bin[i]<min?bin[i]:min); max=(bin[i]>max?bin[i]:max); } }
+				{ print min","max } }'`
+
+
+	# fill in zero count graylevels and get histogram2 min and max counts
+	minmax2=`echo "$histdata2" |\
+		awk -v id="$id" '
+		# AWK to zero fill histogram and get min max counts
+			BEGIN { min = 1e+30; max = 0; } 
+			{ bin[$id] += $1; }
+			END { { for (i=0;i<256;i++) { bin[i]=(bin[i]+0); 
+				min=(bin[i]<min?bin[i]:min); max=(bin[i]>max?bin[i]:max); } }
+				{ print min","max } }'`
+
+	#echo "minmax1=$minmax1; minmax2=$minmax2;"
+
+	# separate min and max
+	min1=`echo "$minmax1" | cut -d, -f1`
+	max1=`echo "$minmax1" | cut -d, -f2`
+	min2=`echo "$minmax2" | cut -d, -f1`
+	max2=`echo "$minmax2" | cut -d, -f2`
+	#echo "min=$min; max=$max;  min1=$min1; max1=$max1; min2=$min2; max2=$max2;"
+
+
+	# compute count scaling factors
+	# solve for slope=a and intrcp=b from two equations
+	# min=a*min1+b and max=a*max1+b 
+	# solve by determinants using cramers rule 
+	# likewise solve from min=a*min2+b and max=a*max2+b
+	if [ "$min" = "" -a "$max" = "" ]; then
+		a1=1
+		b1=0
+		a2=1
+		b2=0
+	elif [ "$min" != "" -a "$max" != "" ]; then
+		a1=`convert xc: -format "%[fx:($max-$min)/($max1-$min1)]" info:`
+		b1=`convert xc: -format "%[fx:($max1*$min-$min1*$max)/($max1-$min1)]" info:`
+		a2=`convert xc: -format "%[fx:($max-$min)/($max2-$min2)]" info:`
+		b2=`convert xc: -format "%[fx:($max2*$min-$min2*$max)/($max2-$min2)]" info:`
+	else
+		echo "--- MIN AND MAX MUST BOTH BE SPECIFIED ---"
+	fi
+	#echo "a1=$a1; b1=$b1; a2=$a2; b2=$b2;"
+
+
+	# set up cumcounts
+	if [ "$cumulative" = "no" ]; then
+		cumcount1=1
+		cumcount2=1
+	elif [ "$cumulative" = "yes" -a "$max" != "" -a "$min" != "" ]; then
+		cumcount1=`convert xc: -format "%[fx:$a1*$totpix1+$b1]" info:`
+		cumcount2=`convert xc: -format "%[fx:$a2*$totpix2+$b2]" info:`
+	elif [ "$cumulative" = "yes" -a "$max" = "" -a "$min" = "" ]; then
+		cumcount1=$totpix1
+		cumcount2=$totpix2
+	fi
+	#echo "cumcount1=$cumcount1; cumcount2=$cumcount2;"
+
+
+	# get sorted and zero filled histogram1 and scaled using scaling y=ax+b
+	histArr1=(`echo "$histdata1" |\
+	awk -v id="$id" -v cumcount="$cumcount1" -v aa="$a1" -v bb="$b1" '
+	# AWK to generate a histogram
+		{ bin[$id] += $1; }
+		END { for (i=0;i<256;i++) { newbin[i] = (aa*(bin[i]+0)+bb); print (newbin[i]<0?0:newbin[i])/cumcount } } '`)
+
+
+	# get sorted and zero filled histogram2 and scaled using scaling y=ax+b
+	histArr2=(`echo "$histdata2" |\
+	awk -v id="$id" -v cumcount="$cumcount2" -v aa="$a2" -v bb="$b2" '
+	# AWK to generate a histogram
+		{ bin[$id] += $1; }
+		END { for (i=0;i<256;i++) { newbin[i] = (aa*(bin[i]+0)+bb); print (newbin[i]<0?0:newbin[i])/cumcount } } '`)
+
+
+	# create new 256 length array that is comma separate string of graylevel,histcountimage1,histcountimage2 
+	# trap for negative values from precision of scaling above
+	harr=(`for ((i=0; i<256; i++)); do
+	val1=$(echo "${histArr1[$i]}" | cut -d, -f1)
+	val2=$(echo "${histArr2[$i]}" | cut -d, -f1)
+	echo "$i,$val1,$val2"
+	done`)
+	}
+
+# function to compare two single channel histograms with the correlation metric
+correlationMetric()
+	{
+	correlation=`echo "${harr[*]}" |\
+		awk ' BEGIN { FS = ","; RS = " "; } 
+			{ h1[$1] = $2; h2[$1] = $3; h1ave += $2/256; h2ave += $3/256; } 
+			END { { for (i=0;i<256;i++) { diff1[i] = (h1[i]-h1ave); diff2[i] = (h2[i]-h2ave);  
+				num += diff1[i]*diff2[i]; den1 += diff1[i]*diff1[i]; den2 += diff2[i]*diff2[i]; 
+				correlation = num/sqrt(den1*den2); } print correlation } }'`
+	}
+
+# function to compare two single channel histograms with the chisquare metric
+chisquareMetric()
+	{
+	chisquare=`echo "${harr[*]}" |\
+		awk ' BEGIN { FS = ","; RS = " "; } 
+			{ if ($2 != 0 && $3 != 0) { diff = ($2-$3); sum = ($2+$3); chisquare += diff*diff/sum; } }
+			END { print chisquare/2 } '`
+	}
+
+# function to compare two single channel histograms with the intersection metric
+intersectionMetric()
+	{
+	intersection=`echo "${harr[*]}" |\
+		awk ' BEGIN { FS = ","; RS = " "; } 
+			{ intersection += ($2<=$3)?$2:$3; ; }
+			END { print intersection; } '`
+	}
+
+# function to compare two single channel histograms with the bhattacharyya metric
+bhattacharyyaMetric()
+	{
+	bhattacharyya=`echo "${harr[*]}" |\
+		awk ' BEGIN { FS = ","; RS = " "; } 
+			{ h1sum += $2; h2sum += $3; sumsqrt += sqrt($2*$3); }
+			END { sqrtave = sqrt(h1sum*h2sum)/256; 
+				bhattacharyya = sqrt(1 - sumsqrt/(256*sqrtave)); print bhattacharyya } '`
+	}
+
+# function to compare two single channel histograms with the earthmover metric
+earthmoverMetric()
+	{
+	earthmover=`echo "${harr[*]}" |\
+	awk ' BEGIN { FS = ","; RS = " "; } 
+		{ h1[$1] = $2; h2[$1] = $3; dist[0] = 0; }
+		END { { for (i=1;i<257;i++) { dist[i] = h1[i]+dist[i-1]-h2[i]; earthmover += dist[i]; } } print earthmover } '`
+	}
+
+# function to compare two single channel histograms with the jeffrey metric
+jeffreyMetric()
+	{
+	jeffrey=`echo "${harr[*]}" |\
+		awk ' BEGIN { FS = ","; RS = " "; } 
+			{ if ($2 != 0 && $3 != 0) { ave = ($2+$3)/2; jeffrey += $2*log($2/ave) + $3*log($3/ave); } }
+			END { print jeffrey } '`
+	}
+
+
+# main section
+
+# get colorspace and type for each image
+cspace1=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+type1=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+cspace2=`identify -ping -verbose $tmpA2 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+type2=`identify -ping -verbose $tmpA2 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+#echo "cspace1=$cspace1; cspace2=$cspace2; type1=$type1; type2=$type2;"
+
+# separate into proper colormode
+if [ "$type1" = "Grayscale" -o "$type1" = "Bilevel" ]; then
+	colormode1="Gray"
+elif [ "$cspace1" = "sRGB" ]; then
+	colormode1="RGB"
+elif [ "$cspace1" = "CMYK" ]; then
+	colormode1="CMYK"
+fi
+if [ "$type2" = "Grayscale" -o "$type2" = "Bilevel" ]; then
+	colormode2="Gray"
+elif [ "$cspace2" = "sRGB" ]; then
+	colormode2="RGB"
+elif [ "$cspace2" = "sRGB" ]; then
+	colormode2="CMYK"
+fi
+#echo "colormode1=$colormode1; colormode2=$colormode2;"
+
+[ "$colormode1" != "$colormode2" ] && echo "--- COLORMODES NOT THE SAME ---" || colormode=$colormode1
+
+# set up processing
+if [ "$processing" = "gray" -a "$colormode" != "Gray" ]; then
+	convert $tmpA1 -colorspace gray $tmpA1
+	convert $tmpA2 -colorspace gray $tmpA2
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "RGB" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	convert $tmpA2 -separate -append $tmpA2
+	colormode="Gray"
+elif [ "$processing" = "global" -a "$colormode" = "CMYK" ]; then
+	convert $tmpA1 -separate -append $tmpA1
+	convert $tmpA2 -separate -append $tmpA2
+	colormode="Gray"
+fi
+
+# get sparse IM histogram data for image 1
+histdata1=`convert $tmpA1 -depth 8 -format "%c" histogram:info:- \
+| tr -cs '0-9\012' ' '`
+
+# get sparse IM histogram data for image 2
+histdata2=`convert $tmpA2 -depth 8 -format "%c" histogram:info:- \
+| tr -cs '0-9\012' ' '`
+
+
+# get total number of pixels, which is equal to the cumulative count of the histogram
+totpix1=`convert $tmpA1 -ping -format "%[fx:w*h]" info:`
+totpix2=`convert $tmpA2 -ping -format "%[fx:w*h]" info:`
+#echo "totpix1=$totpix1; totpix2=$totpix2;"
+
+
+# compute metric for channels
+# Note: channel argument defined by: gray/red/cyan=1; green/magenta=2; blue/yellow=3; black=4
+if [ "$colormode" = "Gray" ]; then
+	if [ "$metric" = "correlation" ]; then
+		extractChannelHistograms "1"
+		correlationMetric
+		echo "$processing correlation = $correlation"
+	elif [ "$metric" = "chisquare" ]; then
+		extractChannelHistograms "1"
+		chisquareMetric
+		echo "$processing chisquare = $chisquare"
+	elif [ "$metric" = "intersection" ]; then
+		extractChannelHistograms "1"
+		intersectionMetric
+		echo "$processing intersection = $intersection"
+	elif [ "$metric" = "bhattacharyya" ]; then
+		extractChannelHistograms "1"
+		bhattacharyyaMetric
+		echo "$processing bhattacharyya = $bhattacharyya"
+	elif [ "$metric" = "earthmover" ]; then
+		extractChannelHistograms "1"
+		earthmoverMetric
+		echo "$processing earthmover = $earthmover"
+	elif [ "$metric" = "jeffrey" ]; then
+		extractChannelHistograms "1"
+		jeffreyMetric
+		echo "$processing jeffrey = $jeffrey"
+	fi
+		
+
+elif [ "$colormode" = "RGB" ]; then
+	if [ "$metric" = "correlation" ]; then
+		extractChannelHistograms "1"
+		correlationMetric
+		echo "red correlation = $correlation"
+		extractChannelHistograms "2"
+		correlationMetric
+		echo "green correlation = $correlation"
+		extractChannelHistograms "3"
+		correlationMetric
+		echo "blue correlation = $correlation"
+	elif [ "$metric" = "chisquare" ]; then
+		extractChannelHistograms "1"
+		chisquareMetric
+		echo "red chisquare = $chisquare"
+		extractChannelHistograms "2"
+		chisquareMetric
+		echo "green chisquare = $chisquare"
+		extractChannelHistograms "3"
+		chisquareMetric
+		echo "blue chisquare1 = $chisquare"
+	elif [ "$metric" = "intersection" ]; then
+		extractChannelHistograms "1"
+		intersectionMetric
+		echo "red intersection = $intersection"
+		extractChannelHistograms "2"
+		intersectionMetric
+		echo "green intersection = $intersection"
+		extractChannelHistograms "3"
+		intersectionMetric
+		echo "blue intersection = $intersection"
+	elif [ "$metric" = "bhattacharyya" ]; then
+		extractChannelHistograms "1"
+		bhattacharyyaMetric
+		echo "red bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "2"
+		bhattacharyyaMetric
+		echo "green bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "3"
+		bhattacharyyaMetric
+		echo "blue bhattacharyya = $bhattacharyya"
+	elif [ "$metric" = "earthmover" ]; then
+		extractChannelHistograms "1"
+		earthmoverMetric
+		echo "red earthmover = $earthmover"
+		extractChannelHistograms "2"
+		earthmoverMetric
+		echo "green earthmover = $earthmover"
+		extractChannelHistograms "3"
+		earthmoverMetric
+		echo "blue earthmover = $earthmover"
+	elif [ "$metric" = "jeffrey" ]; then
+		extractChannelHistograms "1"
+		jeffreyMetric
+		echo "red jeffrey = $jeffrey"
+		extractChannelHistograms "2"
+		jeffreyMetric
+		echo "green jeffrey = $jeffrey"
+		extractChannelHistograms "3"
+		jeffreyMetric
+		echo "blue jeffrey = $jeffrey"
+	fi
+
+elif [ "$colormode" = "CMYK" ]; then
+	if [ "$metric" = "correlation" ]; then
+		extractChannelHistograms "1"
+		correlationMetric
+		echo "cyan correlation = $correlation"
+		extractChannelHistograms "2"
+		correlationMetric
+		echo "magenta correlation = $correlation"
+		extractChannelHistograms "3"
+		correlationMetric
+		echo "yellow correlation = $correlation"
+		extractChannelHistograms "4"
+		correlationMetric
+		echo "black correlation = $correlation"
+	elif [ "$metric" = "chisquare" ]; then
+		extractChannelHistograms "1"
+		chisquareMetric
+		echo "cyan chisquare = $chisquare"
+		extractChannelHistograms "2"
+		chisquareMetric
+		echo "magenta chisquare = $chisquare"
+		extractChannelHistograms "3"
+		chisquareMetric
+		echo "yellow chisquare1 = $chisquare"
+		extractChannelHistograms "4"
+		chisquareMetric
+		echo "black chisquare = $chisquare"
+	elif [ "$metric" = "intersection" ]; then
+		extractChannelHistograms "1"
+		intersectionMetric
+		echo "cyan intersection = $intersection"
+		extractChannelHistograms "2"
+		intersectionMetric
+		echo "magenta intersection = $intersection"
+		extractChannelHistograms "3"
+		intersectionMetric
+		echo "yellow intersection = $intersection"
+		extractChannelHistograms "4"
+		intersectionMetric
+		echo "black intersectionMetric = $intersectionMetric"
+	elif [ "$metric" = "bhattacharyya" ]; then
+		extractChannelHistograms "1"
+		bhattacharyyaMetric
+		echo "cyan bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "2"
+		bhattacharyyaMetric
+		echo "magenta bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "3"
+		bhattacharyyaMetric
+		echo "yellow bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "4"
+		bhattacharyyaMetric
+		echo "black bhattacharyya = $bhattacharyya"
+	elif [ "$metric" = "earthmover" ]; then
+		extractChannelHistograms "1"
+		earthmoverMetric
+		echo "cyan earthmover = $earthmover"
+		extractChannelHistograms "2"
+		earthmoverMetric
+		echo "magenta earthmover = $earthmover"
+		extractChannelHistograms "3"
+		earthmoverMetric
+		echo "yellow earthmover = $earthmover"
+		extractChannelHistograms "4"
+		earthmoverMetric
+		echo "black earthmover = $earthmover"
+	elif [ "$metric" = "jeffrey" ]; then
+		extractChannelHistograms "1"
+		jeffreyMetric
+		echo "cyan jeffrey = $jeffrey"
+		extractChannelHistograms "2"
+		jeffreyMetric
+		echo "magenta jeffrey = $jeffrey"
+		extractChannelHistograms "3"
+		jeffreyMetric
+		echo "yellow jeffrey = $jeffrey"
+		extractChannelHistograms "5"
+		jeffreyMetric
+		echo "black jeffrey = $jeffrey"
+	fi
+fi
+
+
+
+exit 0
+
+
+
