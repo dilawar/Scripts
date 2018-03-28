@@ -38,11 +38,11 @@ Host common5
     User dilawars
 
 Host common1
-    Hostname 172.16.204.218
+    Hostname 172.16.204.52
     User dilawars
 
-Host behaviour2
-    Hostname 172.16.204.230
+Host common2
+    Hostname 172.16.208.154
     User dilawars
 
 Host behaviour4
