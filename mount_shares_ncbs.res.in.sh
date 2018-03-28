@@ -6,5 +6,6 @@ if [ ! -d $MOUNT_POINT ]; then
 fi
 echo "Mouting shares.ncbs.res.in"
 #sshfs dilawars@shares.ncbs.res.in:/home/bhalla/dilawars $MOUNT_POINT
-mount -t cifs //shares.ncbs.res.in/dilawars -o vers=3.0,rw,uid=50066,gid=50009,username=dilawars, $HOME/shares.ncbs.res.in
+#mount -t cifs //shares.ncbs.res.in/dilawars -o vers=3.0,rw,uid=50066,gid=50009,username=dilawars, $HOME/shares.ncbs.res.in
+mount -t cifs //shares.ncbs.res.in/dilawars $HOME/shares.ncbs.res.in
 
