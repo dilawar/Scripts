@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Replace \gls to their value in TeX file. It read the \loadglsentries files from
 Tex File to find the replacement. 
@@ -46,6 +47,7 @@ def replace_glossaries( tex, gls ):
     prevI, newTex, firstTime = 0, '', []
     glsPat = re.compile( r'\\gls\{\s*(?P<id>.+?)\}' )
     for m in glsPat.finditer( tex ):
+        a, b = m.span( )
         prevI, newTex = _replace_function( m, tex, prevI, newTex )
         # Now find replacement.
         mm = '%s' % m.group(1)
@@ -58,7 +60,7 @@ def replace_glossaries( tex, gls ):
         except Exception as e:
             newTex += mm
         newTex += replaceWith
-    return newTex
+    return newTex + tex[b:]
 
 def unit_to_tex( unit ):
     replaceDict = { 
