@@ -115,9 +115,10 @@ def replace_si( text ):
         val, units = m.group(1), m.group(2)
         newText += text[prevI:a]
         replaceWith = si_replacement( val, units )
+        #  print( '[INFO] %s %s %s' % (val,units,replaceWith.strip()))
         newText += replaceWith 
         prevI = b
-    return newText
+    return newText + text[b:]
 
 def read_glossaries( gls_files ):
     glossaries = { }
