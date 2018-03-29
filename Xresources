@@ -21,10 +21,12 @@ xterm*scrollBar: false
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.scrollBar: false
 URxvt.urgentOnBell: true
-!URxvt.font:xft:Noto Sans Kannada:style=Regular:pixelsize=12,xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
+URxvt.font:xft:Noto Sans Kannada:style=Regular:pixelsize=11,xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
 URxvt.scrollTtyKeypress: true
 URxvt.copyCommand: xclip -i -selection clipboard
-URxvt.letterSpace: 0
+! Setting letterSpace to 0 causes some unicode not to get displayed. What a
+! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
+URxvt.letterSpace: 1  
 URxvt.externalBorder: 0
 
 URxvt.iso14755: false
