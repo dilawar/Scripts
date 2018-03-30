@@ -10,12 +10,11 @@
 set -e
 set -o nounset                                  # Treat unset variables as an error
 
-PANDOC="$1"
+PANDOC_FILE="$1"
 EXT=${2:-docx}
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PANDOC_FILTERS="$($SCRIPT_DIR/./pandoc_find_filters.sh)"
 echo "generating docx"
-cat $PANDOC | $HOME/Scripts/pandoc/preprocess_of_docx.py | \
-    pandoc -F $HOME/Scripts/pandoc/code_blocks.py \
-    -F pandoc-crossref -F pandoc-citeproc \
-    -F pandoc-imagine \
-    -o $PANDOC.$EXT
+cat $PANDOC_FILE | $HOME/Scripts/pandoc/preprocess_of_docx.py | \
+    pandoc $PANDOC_FILTERS -o $PANDOC_FILE.$EXT
