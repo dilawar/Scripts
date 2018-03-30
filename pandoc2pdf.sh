@@ -17,11 +17,12 @@ outputFile="${filename%.pandoc}.pdf"
 outTex="${filename%.pandoc}.tex" 
 $PANDOC $filename "$@" -o $outTex 
 
-# NOTE: Following solution does not work well.
 # In two-column mode, longtable does not work see https://github.com/jgm/pandoc/issues/1023
 # We use a sed script to replace longtable with supertable
-# sed -i 's/\\begin{longtable}/\\begin{supertabular}/g' $outTex
-# sed -i 's/\\end{longtable}/\\end{supertabular}/g' $outTex
+# This is not a great solution but it does work.
+sed -i 's/\\begin{longtable}/\\begin{supertabular}/g' $outTex
+sed -i 's/\\end{longtable}/\\end{supertabular}/g' $outTex
+sed -i 's/\\endhead//g' $outTex
 
 # latexmk -pdf -lualatex -shell-escape -silent $outTex || lualatex --shell-escape $outTex
 lualatex --shell-escape $outTex
