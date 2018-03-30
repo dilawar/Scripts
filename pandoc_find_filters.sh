@@ -30,7 +30,7 @@ if which pandoc-imagine > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-imagine"
 fi
 
-if which pantable > /dev/null; then
+if which pantable2csv > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pantable"
 fi
 echo $PANDOC_FILTERS
