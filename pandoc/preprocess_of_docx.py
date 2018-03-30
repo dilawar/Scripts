@@ -57,9 +57,9 @@ def replace_glossaries( tex, gls ):
                 replaceWith = gls[ mm ][1] + ' (**%s**)' % gls[mm][0]
             else:
                 replaceWith = gls[ mm ][0] 
+            newTex += replaceWith
         except Exception as e:
             newTex += mm
-        newTex += replaceWith
     return newTex + tex[b:]
 
 def unit_to_tex( unit ):
