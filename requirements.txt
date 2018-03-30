@@ -1,0 +1,6 @@
+pantable
+numpy
+matplotlib 
+scipy
+sympy
+pandoc-imagine
