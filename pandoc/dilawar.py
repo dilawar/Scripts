@@ -52,7 +52,6 @@ def tikz2image(tikz_src, filetype, outfile):
         call(["convert", tmpdir + '/tikz.pdf', outfile + '.' + filetype])
     shutil.rmtree(tmpdir)
 
-
 def tikz(key, value, format, _):
     if key == 'RawBlock':
         [fmt, code] = value
