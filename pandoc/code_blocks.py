@@ -97,7 +97,9 @@ def process( value, format ):
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
     elif "standalone" in classes:
+        #  print( 'Found standalone', file = sys.stderr, end = ' ' )
         if format == "latex":
+            #  print( ' writer latex', file = sys.stderr )
             # if writer is latex, there is no need to generate spearate
             # standalone figure. Embed into latex itself.
             newCode = r'\[ \label{%s}' % ident if ident else ''

@@ -80,4 +80,4 @@ def comment(k, v, fmt, meta):
         return []  # suppress anything in a comment
 
 if __name__ == "__main__":
-    toJSONFilters( [ tikz, comment, theorem.theorems, code_blocks.codeblocks ] ) 
+    toJSONFilters( [ comment, theorem.theorems, code_blocks.codeblocks, tikz ] ) 
