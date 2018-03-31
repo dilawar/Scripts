@@ -17,6 +17,8 @@
 #      REVISION:  ---
 #===============================================================================
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 set -o nounset                                  # Treat unset variables as an error
 set -x -e
 
@@ -38,3 +40,5 @@ echo "[INFO] Execute phoronix test suite by yourself"
 #)
 
 # phoronix-test-suite batch-setup
+python2 $SCRIPT_DIR/test_scipy.py
+python3 $SCRIPT_DIR/test_scipy.py
