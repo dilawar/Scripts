@@ -22,5 +22,5 @@ set -x -e
 
 # This is from https://gist.github.com/joakimk/3965517
 echo 'int main() { double i=0;for(i=0;i<5000000000;i++) {20%7 * i; }}' > \
-    /tmp/test.c && gcc /tmp/test.c -o /tmp/test \
+    /tmp/test.c && gcc -O3 /tmp/test.c -o /tmp/test \
     && time /tmp/test && rm /tmp/test.c && rm /tmp/test
