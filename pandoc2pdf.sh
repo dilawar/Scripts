@@ -13,8 +13,8 @@ if [ $# -lt 1 ]; then
 fi
 
 filename=$1; shift
-outputFile="${filename%.pandoc}.pdf"
-outTex="${filename%.pandoc}.tex" 
+outputFile="${filename}.pdf"
+outTex="${filename}.tex" 
 $PANDOC $filename "$@" -o $outTex 
 
 ## In two-column mode, longtable does not work see https://github.com/jgm/pandoc/issues/1023
