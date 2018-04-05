@@ -99,7 +99,7 @@ def tikz(key, value, format, _):
             src = outfile + '.' + filetype
             if not os.path.isfile(src):
                 tikz2image(code, filetype, outfile)
-                sys.stderr.write('Created image ' + src + '\n')
+                log('Created image ' + src )
             return Para([Image(['', [], []], [], [src, ""])])
 
 def comment(k, v, fmt, meta):
@@ -125,9 +125,8 @@ def image_with_url( k, v, fmt, meta ):
             log( "[INFO ] Replacing url %s with downloaded file %s" % (url, path) )
             v[2][0] = path
             return Image( *v )
-        
 
 if __name__ == "__main__":
     toJSONFilters( 
-        [ comment, theorem.theorems, tikz, code_blocks.codeblocks, image_with_url ] 
+        [ image_with_url, comment, theorem.theorems, tikz, code_blocks.codeblocks ] 
         ) 
