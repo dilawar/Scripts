@@ -36,7 +36,9 @@ def tikz2image(tikz_src, filetype, outfile):
         f.write( '\n'.join( 
             [ "\\RequirePackage{luatex85,shellesc}"
                 , "\\documentclass{standalone}", "\\usepackage{tikz}"
-                , "\\usepackage{libertine,mathpazo}"
+                , "\\usepackage[sfdefault]{firasans}"
+                , "\\usepackage[small,euler-digits]{eulervm}"
+                , "\\pgfplotslibrary[]{units,groupplots}"
                 , "\\usepackage{pgfplots}", "\\begin{document}" ] 
             ))
         f.write(tikz_src)
