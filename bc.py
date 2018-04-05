@@ -20,7 +20,9 @@ import os
 from math import *
 
 def main( args ):
-    res = eval( args.file.read( ) )
+    _in = args.file.read()
+    _in = _in.replace( r'^', '**' )
+    res = eval( _in )
     print( res, file=sys.stdout )
 
 if __name__ == '__main__':
