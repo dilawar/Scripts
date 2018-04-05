@@ -40,11 +40,16 @@ def gen_standalone( code, dest ):
     tex = [ '\\RequirePackage{luatex85,shellesc}' ]
     tex += [ '\\documentclass[preview,multi=false]{standalone}' ]
     tex += [ '\\usepackage{amsmath,amssymb}' ]
+    tex += [ '\\usepackage[sfdefault]{FiraSans}' ]
+    tex += [ '\\usepackage[small,euler-digits]{eulervm}' ]
     tex += [ '\\usepackage{chemfig}' ]
     tex += [ '\\usepackage{pgfplots}' ]
-    tex += [ '\\begin{document}' ]
+    tex += [ '\\usepgfplotslibrary{units}' ]
+    if r'\begin{document}' not in code:
+        tex += [ '\\begin{document}' ]
     tex += [ code ]
-    tex += [ '\\end{document}']
+    if r'\end{document}' not in code:
+        tex += [ '\\end{document}']
 
     dirname = os.path.dirname( dest )
     basename = os.path.basename( dest )
@@ -98,13 +103,13 @@ def process( value, format ):
 
     elif "standalone" in classes:
         #  print( 'Found standalone', file = sys.stderr, end = ' ' )
-        if format == "latex":
-            #  print( ' writer latex', file = sys.stderr )
-            # if writer is latex, there is no need to generate spearate
-            # standalone figure. Embed into latex itself.
-            newCode = r'\[ \label{%s}' % ident if ident else ''
-            newCode += '\n%s \\]' % code
-            return latex( newCode )
+        #if format == "latex":
+        #    #  print( ' writer latex', file = sys.stderr )
+        #    # if writer is latex, there is no need to generate spearate
+        #    # standalone figure. Embed into latex itself.
+        #    newCode = r'\label{%s}' % ident if ident else ''
+        #    newCode += '\n%s ' % code
+        #    return latex( newCode )
 
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "png", html="png", latex="pdf")
