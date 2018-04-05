@@ -15,11 +15,11 @@ import sys
 import os
 import re
 import subprocess 
+import pandoc_preprocess_doc_html
 
 srcFile_ = None
 
 pandoc_ = [ 'pandoc'
-        #, '--mathjax', '-s'
         , '--mathml'
         , '-F', 'pandoc-crossref'
         , '-F', 'pandoc-imagine'
@@ -80,8 +80,7 @@ def process( text ):
 def main( ):
     global srcFile_
     srcFile_ = sys.argv[1]
-    with open( srcFile_, 'r' ) as f:
-        text = f.read( )
+    text = pandoc_preprocess_doc_html.replace( srcFile_ )
     process( text )
 
 if __name__ == '__main__':
