@@ -15,6 +15,9 @@ import shutil
 import sys
 import functools
 import subprocess
+import hashlib
+import requests
+import mimetypes
 
 from pandocfilters import toJSONFilters, Para, Image, get_filename4code, get_extension
 from tempfile import mkdtemp
@@ -26,6 +29,31 @@ import code_blocks
 
 incomment = False
 
+def log( *msg ):
+    print( *msg, file = sys.stderr )
+
+def get_filename( text ):
+    m = hashlib.sha256( text.encode() ).hexdigest( )
+    return '%s' % m
+
+
+def download_image_from_url( url ):
+    try:
+        r = requests.get( url, stream = True, timeout = 4)
+    except Exception as e:
+        log( e )
+        return url
+
+    ext = mimetypes.guess_extension( r.headers['content-type'] ) or url.split('.')[-1]
+    if '.jpe' in ext:
+        ext = '.jpg'
+    ext = ext.strip('.')
+    filename = get_filename4code( '_images_from_url', url, ext )
+    if not os.path.exists( filename ):
+        with open( filename, 'wb' ) as f:
+            f.write( r.content )
+    return filename
+
 def tikz2image(tikz_src, filetype, outfile):
     tmpdir = mkdtemp()
     olddir = os.getcwd()
@@ -35,11 +63,13 @@ def tikz2image(tikz_src, filetype, outfile):
     with open('tikz.tex', 'w') as f:
         f.write( '\n'.join( 
             [ "\\RequirePackage{luatex85,shellesc}"
-                , "\\documentclass{standalone}", "\\usepackage{tikz}"
+                , "\\documentclass{standalone}"
+                , "\\usepackage{tikz}"
                 , "\\usepackage[sfdefault]{firasans}"
                 , "\\usepackage[small,euler-digits]{eulervm}"
+                , "\\usepackage{pgfplots}"
                 , "\\pgfplotslibrary[]{units,groupplots}"
-                , "\\usepackage{pgfplots}", "\\begin{document}" ] 
+                , "\\begin{document}" ] 
             ))
         f.write(tikz_src)
         f.write("\n\\end{document}\n")
@@ -57,7 +87,7 @@ def tikz2image(tikz_src, filetype, outfile):
 def tikz(key, value, format, _):
     if key == 'RawBlock':
         [fmt, code] = value
-        if fmt == "latex" and re.match("\\\\begin{tikzpicture}", code):
+        if fmt == "latex" and re.match( r'\begin{tikzpicture}', code):
             outfile = get_filename4code("tikz", code)
             filetype = get_extension(format, "png", html="png", latex="pdf")
             src = outfile + '.' + filetype
@@ -80,5 +110,18 @@ def comment(k, v, fmt, meta):
     if incomment:
         return []  # suppress anything in a comment
 
+def image_with_url( k, v, fmt, meta ):
+    if k == 'Image':
+        urlOrPath = v[2][0]
+        if 'http' in urlOrPath:
+            url = urlOrPath
+            path = download_image_from_url( url )
+            log( "[INFO ] Replacing url %s with downloaded file %s" % (url, path) )
+            v[2][0] = path
+            return Image( *v )
+        
+
 if __name__ == "__main__":
-    toJSONFilters( [ comment, theorem.theorems, code_blocks.codeblocks, tikz ] ) 
+    toJSONFilters( 
+        [ comment, theorem.theorems, tikz, code_blocks.codeblocks, image_with_url ] 
+        ) 

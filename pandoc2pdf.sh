@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PANDOC_FILTERS=$($SCRIPT_DIR/pandoc_find_filters.sh)
