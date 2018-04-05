@@ -9,3 +9,5 @@ myhdl
 PySpice
 networkx
 git+https://github.com/dilawar/ajgar
+requests
+pymoose
