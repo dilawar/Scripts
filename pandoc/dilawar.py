@@ -18,6 +18,7 @@ import subprocess
 import hashlib
 import requests
 import mimetypes
+import glob
 
 from pandocfilters import toJSONFilters, Para, Image, get_filename4code, get_extension
 from tempfile import mkdtemp
@@ -38,17 +39,22 @@ def get_filename( text ):
 
 
 def download_image_from_url( url ):
+    basename = get_filename4code( '_downloaded_from_url', url, '' )
+    log( 'basename', basename )
+    if os.path.isdir( basename ):
+        # Return first file from this directory
+        return  glob.glob( '%s/*' % basename )[0]
     try:
         r = requests.get( url, stream = True, timeout = 4)
     except Exception as e:
-        log( e )
         return url
 
     ext = mimetypes.guess_extension( r.headers['content-type'] ) or url.split('.')[-1]
     if '.jpe' in ext:
         ext = '.jpg'
-    ext = ext.strip('.')
-    filename = get_filename4code( '_images_from_url', url, ext )
+
+    os.makedirs( basename )
+    filename = os.path.join( basename, 'downloaded_img' + ext )
     if not os.path.exists( filename ):
         with open( filename, 'wb' ) as f:
             f.write( r.content )
