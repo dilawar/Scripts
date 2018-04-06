@@ -68,7 +68,7 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
+export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/mypandoc:$PATH
 
 PROXYFILE=$HOME/Scripts/proxy
 if [ -f $PROXYFILE ]; then
@@ -78,7 +78,7 @@ fi
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
 source ~/Scripts/profile
-export PATH=$PATH:~/.mutt:$HOME/.local/bin
+export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
 if [ -f ~/Scripts/c ]; then 
@@ -121,7 +121,6 @@ if [ -f /etc/profile.d/bash-completion.sh ]; then
 fi
 export SSHPASS=jH7qMYpF
 
-export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
 export PATH=$PATH:$HOME/.cabal/bin
 export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
 #export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
