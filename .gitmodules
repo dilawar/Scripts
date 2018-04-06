@@ -22,3 +22,6 @@
 [submodule "tmux"]
 	path = tmux
 	url = https://github.com/dilawar/.tmux
+[submodule "mypandoc"]
+	path = mypandoc
+	url = https://github.com/dilawar/mypandoc
