@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Convert a pandoc file to HTML.
 
@@ -58,8 +58,8 @@ def toHtml( text ):
     htmlFileNameWe = '.'.join( srcFile_.split( '.' )[:-1] )
     htmlFile = htmlFileNameWe + '.html'
     pFile = '%s_html.md' % srcFile_ 
-    with open( pFile, 'w' ) as f:
-        f.write( text )
+    with open( pFile, 'wb' ) as f:
+        f.write( text.encode('utf-8') )
 
     cmd = pandoc_ + [ '-o', htmlFile, pFile ]
     subprocess.call( cmd, shell = False )
@@ -73,8 +73,8 @@ def process( text ):
         if ext.lower( ) not in [ 'png', 'jpg', 'jpeg' ]:
             text = convertToPNG( img, text )
 
-    with open( '/tmp/%s_html' % os.path.basename( srcFile_ ), 'w' ) as f:
-        f.write( text )
+    with open( '/tmp/%s_html' % os.path.basename( srcFile_ ), 'wb' ) as f:
+        f.write( text.encode( 'utf-8' ) )
     toHtml( text )
 
 def main( ):
