@@ -11,7 +11,7 @@ URxvt.keysym.C-Up:     perl:font-size:increase
 URxvt.keysym.C-Down:   perl:font-size:decrease
 URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
-! URxvt.cursorColor: blue
+URxvt.cursorColor: blue
 URxvt.cursorBlink: true
 URxvt*scrollTtyOutput: false
 URxvt*scrollWithBuffer: true
@@ -21,9 +21,9 @@ xterm*scrollBar: false
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.scrollBar: false
 URxvt.urgentOnBell: true
-!URxvt.font:xft:Noto Sans Kannada:style=Regular:pixelsize=11,xft:DejaVu Sans Mono:size=10,xft:PowerlineSymbols:pixelsize=12,xft:Mona:style=Regular:pixelsize=12
 URxvt.scrollTtyKeypress: true
 URxvt.copyCommand: xclip -i -selection clipboard
+
 ! Setting letterSpace to 0 causes some unicode not to get displayed. What a
 ! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
 URxvt.letterSpace: 1  
@@ -44,7 +44,6 @@ URxvt.iso14755_52: false
 ! URxvt.background: #141414
 ! URxvt.foreground: #eeeeee
 
-! URxvt.perl-ext-common: default,url-select,clipboard
 URxvt.url-select.underline: true
 URxvt.clipboard.autocopy: true
 URxvt.selection.pattern-0: \\|([^|]+)\\|
