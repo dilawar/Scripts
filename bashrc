@@ -173,3 +173,7 @@ if [ -f $HOME/Scripts/git_prompt.sh ]; then
     source $HOME/Scripts/git_prompt.sh
     export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
 fi
+
+if [ -f /etc/profile.d/undistract-me.sh ]; then 
+    source /etc/profile.d/undistract-me.sh
+fi
