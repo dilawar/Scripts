@@ -13,15 +13,12 @@ URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
 URxvt.cursorColor: blue
 URxvt.cursorBlink: true
-URxvt*scrollTtyOutput: false
-URxvt*scrollWithBuffer: true
-URxvt*scrollTtyKeypress: true
-xterm*scrollBar: false
+URxvt.scrollTtyOutput: false
+URxvt.scrollWithBuffer: true
+URxvt.scrollTtyKeypress: true
+xterm.scrollBar: false
 
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
-URxvt.scrollBar: false
-URxvt.urgentOnBell: true
-URxvt.scrollTtyKeypress: true
 URxvt.copyCommand: xclip -i -selection clipboard
 
 ! Setting letterSpace to 0 causes some unicode not to get displayed. What a
