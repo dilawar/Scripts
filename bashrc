@@ -177,3 +177,8 @@ fi
 if [ -f /etc/profile.d/undistract-me.sh ]; then 
     source /etc/profile.d/undistract-me.sh
 fi
+
+# autojump
+if [ -f /etc/profile.d/autojump.bash ]; then
+    source /etc/profile.d/autojump.bash
+fi
