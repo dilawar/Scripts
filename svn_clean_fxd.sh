@@ -1,22 +1,24 @@
 #!/bin/bash - 
-#===============================================================================
-#
-#          FILE: svn_clean_fxd.sh
-# 
-#         USAGE: ./svn_clean_fxd.sh 
-# 
-#   DESCRIPTION:  Like git -fxd
-# 
-#       OPTIONS: ---
-#  REQUIREMENTS: ---
-#          BUGS: ---
-#         NOTES: ---
-#        AUTHOR: Dilawar Singh (), dilawars@ncbs.res.in
-#  ORGANIZATION: NCBS Bangalore
-#       CREATED: 03/29/2017 01:08:03 PM
-#      REVISION:  ---
-#===============================================================================
+
+# Like git -fxd
+# The new version is from here https://stackoverflow.com/a/9144984/1805129
 
 set -o nounset                              # Treat unset variables as an error
 set -x
-svn st | grep '^?' | awk '{print $2}' | xargs rm -rf
+
+# make sure this script exits with a non-zero return value if the
+# current directory is not in a svn working directory
+svn info >/dev/null || exit 1
+
+svn status --no-ignore | grep '^[I?]' | cut -c 9- |
+# setting IFS to the empty string ensures that any leading or
+# trailing whitespace is not trimmed from the filename
+while IFS= read -r f; do
+    # tell the user which file is being deleted.  use printf
+    # instead of echo because different implementations of echo do
+    # different things if the arguments begin with hyphens or
+    # contain backslashes; the behavior of printf is consistent
+    printf '%s\n' "Deleting ${f}..."
+    # if rm -rf can't delete the file, something is wrong so bail
+    rm -rf "${f}" || exit 1
+done
