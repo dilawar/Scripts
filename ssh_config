@@ -52,3 +52,5 @@ Host behaviour4
 Host aur.archlinux.org
     IdentityFile ~/.ssh/id_rsa
     User aur
+
+ForwardX11Timeout 2d
