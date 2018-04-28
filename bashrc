@@ -178,11 +178,6 @@ if [ -f /etc/profile.d/undistract-me.sh ]; then
     source /etc/profile.d/undistract-me.sh
 fi
 
-# Launch fish if present
-if type fish > /dev/null; then
-    chsh -s `which fish`
-    fish-vi-key-bindings
-fi
 if [ -f /etc/profile.d/autojump.bash ]; then
     source /etc/profile.d/autojump.bash
 fi
