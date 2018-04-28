@@ -20,5 +20,6 @@
 
 set -o nounset                                  # Treat unset variables as an error
 PDFFILE=$1;shift
-WHAT=${1:--w}
-pdftotext $PDFFILE -enc UTF-8 - | wc $WHAT
+NWORDS=`pdftotext $PDFFILE -enc UTF-8 - | wc -w`
+NCHARS=`pdftotext $PDFFILE -enc UTF-8 - | wc -c`
+echo "Words: $NWORDS Chars: $NCHARS"
