@@ -182,3 +182,6 @@ fi
 if type fish > /dev/null; then
     chsh -s `which fish`
 fi
+if [ -f /etc/profile.d/autojump.bash ]; then
+    source /etc/profile.d/autojump.bash
+fi
