@@ -181,3 +181,7 @@ fi
 if [ -f /etc/profile.d/autojump.bash ]; then
     source /etc/profile.d/autojump.bash
 fi
+
+if [ -d /home/linuxbrew ]; then
+    export PATH=/home/linuxbrew/bin:$PATH 
+fi
