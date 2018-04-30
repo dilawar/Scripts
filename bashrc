@@ -3,6 +3,7 @@ export EDITOR=vim
 export LC_ALL=en_IN.UTF-8
 export LANG=en_IN.UTF-8
 export LANGUAGE=en_IN.UTF-8
+export PYTHONIOENCODING="utf_8"
 
 # History support
 export HISTCONTROL=ignoredups:erasedups
