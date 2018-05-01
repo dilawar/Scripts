@@ -1,5 +1,9 @@
 #.bashrc
 export EDITOR=vim
+export LC_ALL=en_IN.UTF-8
+export LANG=en_IN.UTF-8
+export LANGUAGE=en_IN.UTF-8
+export PYTHONIOENCODING="utf_8"
 
 # History support
 export HISTCONTROL=ignoredups:erasedups
@@ -178,7 +182,10 @@ if [ -f /etc/profile.d/undistract-me.sh ]; then
     source /etc/profile.d/undistract-me.sh
 fi
 
-# autojump
 if [ -f /etc/profile.d/autojump.bash ]; then
     source /etc/profile.d/autojump.bash
+fi
+
+if [ -d /home/linuxbrew ]; then
+    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 fi
