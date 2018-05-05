@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 INFILE=$1
-OUTFILE="$1.standalone.tex"
+OUTFILE="$1.tex"
 TEX=$(cat $1)
 
 cat > $OUTFILE <<-ENDOFFILE
@@ -10,11 +10,20 @@ cat > $OUTFILE <<-ENDOFFILE
 \usepgfplotslibrary{groupplots}
 \usepackage{tikz}
 \usepackage[sfdefault]{FiraSans}
-\usepackage[small]{eulervm}
+\usepackage{mathpazo}
 \pgfplotsset{compat=1.15}
-\usepackage{xcolor}
+
+\tikzset{font=\small}
+\pgfplotsset{
+    , ticklabel style={font=\footnotesize}
+    , label style={font=\footnotesize}
+    , group/.cd, vertical sep=20mm, horizontal sep=20mm
+}
+
 \begin{document}
+
 $TEX
+
 \end{document}
 ENDOFFILE
 pdflatex -interaction=nonstopmode $OUTFILE
