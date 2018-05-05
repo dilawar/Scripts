@@ -1,26 +1,15 @@
-#!/bin/bash
-# This script uses pandoc to convert markdown to pdf. 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-    echo "USAGE: ./$0 filename.markdown [output.html]"
-    exit
-fi
+#!/usr/bin/env bash
 
-filename=$1
-if [ $# -eq 2 ]; then
-    outputFile=$2
-else
-    outputFile="${filename%.markdown}.pdf"
-fi
-texFile=${filename%.markdown}.tex
-texFile=${filename%.pandoc}.tex
-# now convert the file to pdf
-PANDOC="pandoc --data-dir=$HOME/Scripts/pandoc"
-echo "Converting $filename to $outputFile using pandoc"
-html="true"
-if [[ $html = "true" ]]; then
-    $PANDOC -s -f markdown+tex_math_dollars+latex_macros -t latex -o $texFile $filename
-    htlatex $texFile "xhtml,docbook,css-in"
-else
-    $PANDOC -s -f markdown+tex_math_dollars+latex_macros -o $outputFile $filename
-fi
+set -e
+set -o nounset                                  # Treat unset variables as an error
 
+PANDOC_FILE="$1"
+EXT=${2:-html}
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PANDOC_FILTERS="$($SCRIPT_DIR/./pandoc_find_filters.sh)"
+echo "generating docx"
+cat $PANDOC_FILE | $HOME/Scripts/pandoc/preprocess_of_html.py | \
+    pandoc $PANDOC_FILTERS \
+    --standalone --self-contained --mathml \
+    -o $PANDOC_FILE.$EXT
