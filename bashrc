@@ -168,20 +168,20 @@ if [ -d $TEXDIR ]; then
     export PATH=$TEXDIR:$PATH
 fi
 
-# Source PYPY activate.
-if [ -f $HOME/Scripts/pypy_activate_func ]; then
-    source $HOME/Scripts/pypy_activate_func
-fi
+## Source PYPY activate.
+#if [ -f $HOME/Scripts/pypy_activate_func ]; then
+#    source $HOME/Scripts/pypy_activate_func
+#fi
 
 if [ -f $HOME/Scripts/git_prompt.sh ]; then
     source $HOME/Scripts/git_prompt.sh
     export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
 fi
 
-if [ -f /etc/profile.d/undistract-me.sh ]; then 
-    source /etc/profile.d/undistract-me.sh
-fi
-
+#if [ -f /etc/profile.d/undistract-me.sh ]; then 
+#    source /etc/profile.d/undistract-me.sh
+#fi
+#
 if [ -f /etc/profile.d/autojump.bash ]; then
     source /etc/profile.d/autojump.bash
 fi
