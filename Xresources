@@ -19,7 +19,7 @@ URxvt.scrollTtyKeypress: true
 xterm.scrollBar: false
 
 ! - Font
-URxvt.font: 9x15
+!URxvt.font: 9x15
 
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.copyCommand: xclip -i -selection clipboard
