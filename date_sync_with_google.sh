@@ -18,5 +18,8 @@
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
-sudo date -s "$(wget -qSO- --max-redirect=0 google.co.in 2>&1 | grep Date: | \
-    cut -d' ' -f5-8)Z"
+DATE=$(wget -qSO- --max-redirect=0 google.co.in 2>&1 | grep Date:)
+echo $DATE
+DATE=$(echo $DATE | cut -d' ' -f3-)
+echo $DATE
+sudo date -s "$(echo $DATE)Z"
