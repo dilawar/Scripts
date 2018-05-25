@@ -19,7 +19,8 @@
 
 set -o nounset                                  # Treat unset variables as an error
 
-docker pull bhallalab/moose
-docker run -it \
-    --rm -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -e DISPLAY=$DISPLAY bhallalab/moose
+docker pull bhallalab/moose:chamcham
+#docker run -it \
+#    --rm -v /tmp/.X11-unix:/tmp/.X11-unix \
+#    -e DISPLAY=$DISPLAY bhallalab/moose:chamcham
+docker run -it bhallalab/moose:chamcham /bin/bash
