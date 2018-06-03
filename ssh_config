@@ -20,6 +20,9 @@ Host srna
 Host ghevar
     Hostname 172.16.223.30
 
+Host gulgula
+    Hostname 172.16.207.17
+
 Host chamcham
     Hostname 172.16.207.23
 
