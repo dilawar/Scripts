@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-
-from __future__ import print_function
-
 """
 Pandoc filter to process code blocks with class "graphviz", "chemfig",
 "standalone" into pdf images.
@@ -25,7 +22,7 @@ def latex( x ):
     return RawBlock( 'latex',  x)
 
 def print1( *msg ):
-    print( msg, file=sys.stderr )
+    print( ' | '.join(msg), file=sys.stderr )
 
 def replace_ext( filename, newext = 'tex' ):
     oldExt = filename.split( '.' )[-1]
@@ -35,7 +32,7 @@ def gen_standalone( code, dest ):
     dest = os.path.realpath( dest )
     ext = dest.split( '.' )[-1]
 
-    code = r'\[ %s \]' % code
+    code = r'%s' % code
 
     tex = [ '\\RequirePackage{luatex85,shellesc}' ]
     tex += [ '\\documentclass[preview,multi=false]{standalone}' ]
@@ -43,6 +40,8 @@ def gen_standalone( code, dest ):
     tex += [ '\\usepackage[sfdefault]{FiraSans}' ]
     tex += [ '\\usepackage[small,euler-digits]{eulervm}' ]
     tex += [ '\\usepackage{chemfig}' ]
+    tex += [ '\\usepackage{tikz}' ]
+    tex += [ '\\usetikzlibrary{calc,shapes,arrows, arrows.meta, positioning,fit}' ]
     tex += [ '\\usepackage{pgfplots}' ]
     tex += [ '\\usepgfplotslibrary{units}' ]
     if r'\begin{document}' not in code:
@@ -60,9 +59,10 @@ def gen_standalone( code, dest ):
     with open( texFile, 'w' ) as f:
         f.write( '\n'.join( tex ) )
 
+    print1( "INFO", "Running lualatex in %s" % dirname )
     res1 = subprocess.check_output( 
             [ 'lualatex', '-shell-escape', texFile ]
-            , shell=False, stderr = subprocess.STDOUT 
+            #  , shell=False, stderr = subprocess.STDOUT
             , cwd = dirname
             )
 

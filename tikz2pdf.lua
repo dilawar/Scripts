@@ -6,7 +6,7 @@ local function tikz2image(src, filetype, outfile)
     f:write(src)
     f:write("\n\\end{document}\n")
     f:close()
-    os.execute("pdflatex -output-directory " .. tmpdir  .. " " .. tmp)
+    os.execute("lualatex -shell-escape -output-directory " .. tmpdir  .. " " .. tmp)
     if filetype == 'pdf' then
         os.rename(tmp .. ".pdf", outfile)
     else
