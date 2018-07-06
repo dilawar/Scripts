@@ -624,3 +624,4 @@ mathtext.default : regular # The default font to use for math.
 #animation.convert_path: 'convert' # Path to ImageMagick's convert binary.
                                    # On Windows use the full path since convert
                                    # is also the name of a system tool.
+
