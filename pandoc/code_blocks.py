@@ -71,10 +71,7 @@ def gen_standalone( code, dest ):
         print1( '%s' % res1.stdout.decode( 'utf8' )  )
         return False
 
-    if not os.path.isfile( dest ):
-        print1( "ERROR", "%s could not be generated." % dest )
-        return False
-
+    # destination may not be pdf. Use imagick to convert the pdf to other format.
     if ext != 'pdf':
         pdfFile = os.path.join( dirname, nameWE + '.pdf' )
         outfile = os.path.join( dirname, nameWE + '.%s' % ext )
@@ -85,6 +82,11 @@ def gen_standalone( code, dest ):
                 , stdout = subprocess.PIPE, stderr = subprocess.STDOUT
                 , cwd = dirname
                 )
+
+    if not os.path.isfile( dest ):
+        print1( "ERROR", "%s could not be generated." % dest )
+        return False
+
 
     return True
 
