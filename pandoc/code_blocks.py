@@ -28,9 +28,33 @@ def replace_ext( filename, newext = 'tex' ):
     oldExt = filename.split( '.' )[-1]
     return re.sub( r'(.+?)\.%s$' % oldExt, '\1\.%s' % newext )
 
+def replace_relative_filepaths( code ):
+    # Usually a datafile for gnuplot or table. It may not be surrounded by \".
+    # Well sniff all paths which starts with ./ and prefix them with .. since
+    # these are one level up.
+    filePat = re.compile( r'\.\/((.+?)\.(csv|dat|txt))', re.I )
+
+    # We can't replace using simple str.replace function since same filepath is
+    # often repeated in code. We need to find the location.
+    newText, start = [], 0
+    for m in filePat.finditer( code ):
+        filepath = m.group(0)
+        a, b = m.span()
+        replaceWith = '../%s' % filepath
+        newText.append( code[start:a] )
+        newText.append( replaceWith )
+        start = b
+
+    newText.append( code[start:] )
+    code = ''.join( newText )
+    #  code = code.replace( filepath, '../%s' % filepath )
+    return code
+
 def gen_standalone( code, dest ):
     dest = os.path.realpath( dest )
     ext = dest.split( '.' )[-1]
+
+    code = replace_relative_filepaths( code ) 
 
     code = r'%s' % code
 
@@ -97,6 +121,7 @@ def codeblocks(key, value, format, _):
 
 def process( value, format ):
     [[ident, classes, keyvals], code] = value
+
     if "graphviz" in classes:
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "png", html="png", latex="pdf")

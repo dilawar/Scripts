@@ -18,7 +18,7 @@ if [[ "$@" == *"-tex"* ]]; then
     shift;
     outputFile="${filename}.pdf"
     outTex="${filename}.tex" 
-    $PANDOC $filename "$@" -o $outTex 
+    $PANDOC  $filename "$@" -o $outTex 
 
     if latexmk -pdf -lualatex -shell-escape -silent $outTex; then
         echo "Successfully built"
@@ -27,5 +27,5 @@ if [[ "$@" == *"-tex"* ]]; then
         lualatex --shell-escape $outTex
     fi
 else
-    $PANDOC $filename -o ${filename}.pdf
+    $PANDOC --pdf-engine=lualatex --pdf-engine-opt=-shell-escape $filename -o ${filename}.pdf
 fi
