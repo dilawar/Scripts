@@ -1,4 +1,5 @@
-#!/bin/bash -
+#!/usr/bin/env bash
+
 #===============================================================================
 #
 #          FILE: pandoc_find_filters.sh
@@ -18,19 +19,20 @@
 #===============================================================================
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export PATH=$HOME/.cabal/bin:$PATH
 
 PANDOC_FILTERS=""
 # Order of filters are important.
-if which pantable > /dev/null; then
+if command -v pantable > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pantable"
 fi
-if which pandoc-imagine > /dev/null; then
+if command -v pandoc-imagine > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-imagine"
 fi
-if which pandoc-crossref -v > /dev/null; then
+if command -v pandoc-crossref > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-crossref"
 fi
-if which pandoc-citeproc -v > /dev/null; then
+if command -v pandoc-citeproc > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-citeproc"
 fi
 PANDOC_FILTERS="$PANDOC_FILTERS -F $SCRIPT_DIR/pandoc/dilawar.py "

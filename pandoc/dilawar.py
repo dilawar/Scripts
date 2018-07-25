@@ -80,14 +80,14 @@ def tikz2image(tikz_src, filetype, outfile):
         f.write(tikz_src)
         f.write("\n\\end{document}\n")
 
-    subprocess.call( ["latexmk", "-pdf", "-lualatex", '--shell-escape', '-silent', 'tikz.tex']
+    subprocess.run( ["latexmk", "-pdf", "-lualatex", '--shell-escape', '-silent', 'tikz.tex']
             , stdout=sys.stderr
             )
     os.chdir(olddir)
     if filetype == 'pdf':
         shutil.copyfile(tmpdir + '/tikz.pdf', outfile + '.pdf')
     else:
-        call(["convert", tmpdir + '/tikz.pdf', outfile + '.' + filetype])
+        subprocess.run(["convert", tmpdir + '/tikz.pdf', outfile + '.' + filetype])
     shutil.rmtree(tmpdir)
 
 def tikz(key, value, format, _):
