@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # The client_id and client_secret are copied from the API Access tab on
 # the Google APIs Console
@@ -164,7 +164,7 @@ def pull():
         doneFile.close()
 
     except IOError:
-        print "ERROR: The todo.txt files could not be read."
+        print( "ERROR: The todo.txt files could not be read." )
         sys.exit(2)
 
     for tasklist in tasklists["items"]:
@@ -231,7 +231,7 @@ def push(filename):
         todoFile.close()
 
     except IOError:
-        print "ERROR: The " + filename + ".txt files could not be read."
+        print( "ERROR: The " + filename + ".txt files could not be read." )
         sys.exit(2)
 
     for todo in todos:
@@ -264,13 +264,13 @@ def main(argv):
         sys.exit(2)
 
     if argv[1].lower() == "pull":
-        print "Pulling from Google Tasks"
+        print( "Pulling from Google Tasks" )
         pull()
     elif argv[1].lower() == "push" and len(argv) < 3:
-        print "Pushing to Google Tasks"
+        print( "Pushing to Google Tasks" )
         push("todo")
     elif argv[1].lower() == "push" and argv[2].lower() == "all":
-        print "Pushing all to Google Tasks"
+        print( "Pushing all to Google Tasks" )
         push("todo")
         push("done")
     else:
