@@ -1,2 +1,4 @@
 #!/usr/bin/env bash
-gcalcali remind 30
+# Add this to crontab 
+# 0,15,30,45 * * * * ~/Scripts/remind.sh
+gcalcli remind 30
