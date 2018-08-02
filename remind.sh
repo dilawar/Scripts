@@ -10,4 +10,5 @@ env | grep DBUS_SESSION_BUS_ADDRESS > $DBUSFILE
 echo 'export DBUS_SESSION_BUS_ADDRESS' >> $DBUSFILE
 # Now source this file.
 . $DBUSFILE
+notify-send "Upcoming event"
 gcalcli remind 30
