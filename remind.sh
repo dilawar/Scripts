@@ -12,5 +12,4 @@ echo 'export DBUS_SESSION_BUS_ADDRESS' >> $DBUSFILE
 . $DBUSFILE
 export DISPLAY=:0
 export XAUTHORITY=$HOME/.Xauthority
-notify-send "Anything in next 15 mins: "
-gcalcli remind 30
+gcalcli remind 15
