@@ -13,7 +13,7 @@ import sys
 import re
 import subprocess
 
-from pandocfilters import toJSONFilter, Para
+from pandocfilters import toJSONFilter, Para, Str, Strong, RawInline
 from pandocfilters import Image, get_filename4code, get_caption, get_extension
 from pandocfilters import RawBlock
 
@@ -28,9 +28,33 @@ def replace_ext( filename, newext = 'tex' ):
     oldExt = filename.split( '.' )[-1]
     return re.sub( r'(.+?)\.%s$' % oldExt, '\1\.%s' % newext )
 
+def replace_relative_filepaths( code ):
+    # Usually a datafile for gnuplot or table. It may not be surrounded by \".
+    # Well sniff all paths which starts with ./ and prefix them with .. since
+    # these are one level up.
+    filePat = re.compile( r'\.\/((.+?)\.(csv|dat|txt))', re.I )
+
+    # We can't replace using simple str.replace function since same filepath is
+    # often repeated in code. We need to find the location.
+    newText, start = [], 0
+    for m in filePat.finditer( code ):
+        filepath = m.group(0)
+        a, b = m.span()
+        replaceWith = '../%s' % filepath
+        newText.append( code[start:a] )
+        newText.append( replaceWith )
+        start = b
+
+    newText.append( code[start:] )
+    code = ''.join( newText )
+    #  code = code.replace( filepath, '../%s' % filepath )
+    return code
+
 def gen_standalone( code, dest ):
     dest = os.path.realpath( dest )
     ext = dest.split( '.' )[-1]
+
+    code = replace_relative_filepaths( code ) 
 
     code = r'%s' % code
 
@@ -59,27 +83,37 @@ def gen_standalone( code, dest ):
     with open( texFile, 'w' ) as f:
         f.write( '\n'.join( tex ) )
 
-    print1( "INFO", "Running lualatex in %s" % dirname )
-    res1 = subprocess.check_output( 
-            [ 'lualatex', '-shell-escape', texFile ]
+    res1 = subprocess.run( [ 'lualatex', '-shell-escape', texFile ]
             #  , shell=False, stderr = subprocess.STDOUT
             , cwd = dirname
+            , check = False
+            , stdout = subprocess.PIPE, stderr = subprocess.PIPE
             )
 
+    if res1.returncode != 0:
+        print1( "WARN", "It seems previous command failed." )
+        print1( '%s' % res1.stdout.decode( 'utf8' )  )
+        return False
+
+    # destination may not be pdf. Use imagick to convert the pdf to other format.
     if ext != 'pdf':
         pdfFile = os.path.join( dirname, nameWE + '.pdf' )
         outfile = os.path.join( dirname, nameWE + '.%s' % ext )
-        print1( pdfFile, outfile )
         opts = '-density 300 -antialias -quality 100'. split( )
-        res = subprocess.check_output( 
+        res = subprocess.run( 
                 [ 'convert', pdfFile ] + opts + [ outfile ]
                 , shell=False
-                , stderr = subprocess.STDOUT
+                , stdout = subprocess.PIPE, stderr = subprocess.STDOUT
                 , cwd = dirname
                 )
 
-    assert os.path.isfile( dest ), "%s could not be generated." % dest
-    
+    if not os.path.isfile( dest ):
+        print1( "ERROR", "%s could not be generated." % dest )
+        return False
+
+
+    return True
+
 
 def codeblocks(key, value, format, _):
     if key == 'CodeBlock':
@@ -87,6 +121,7 @@ def codeblocks(key, value, format, _):
 
 def process( value, format ):
     [[ident, classes, keyvals], code] = value
+
     if "graphviz" in classes:
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "png", html="png", latex="pdf")
@@ -97,29 +132,18 @@ def process( value, format ):
             g = pygraphviz.AGraph(string=code)
             g.layout()
             g.draw(dest)
-            sys.stderr.write('Created image ' + dest + '\n')
+            print1('INFO', 'Created image ' + dest + '\n')
 
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
     elif "standalone" in classes:
-        #  print( 'Found standalone', file = sys.stderr, end = ' ' )
-        #if format == "latex":
-        #    #  print( ' writer latex', file = sys.stderr )
-        #    # if writer is latex, there is no need to generate spearate
-        #    # standalone figure. Embed into latex itself.
-        #    newCode = r'\label{%s}' % ident if ident else ''
-        #    newCode += '\n%s ' % code
-        #    return latex( newCode )
-
         caption, typef, keyvals = get_caption(keyvals)
         filetype = get_extension(format, "png", html="png", latex="pdf")
         dest = get_filename4code("standalone", code, filetype)
         if not os.path.isfile(dest):
-            gen_standalone(code, dest)
-            sys.stderr.write('Created image ' + dest + '\n')
-        else:
-            sys.stderr.write('Exists  ' + dest + '\n')
-
+            success = gen_standalone(code, dest)
+            if not success:
+                return Para([ Str(">>> Error: This image could not be generated.")] )
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
 
 if __name__ == "__main__":
