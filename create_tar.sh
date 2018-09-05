@@ -36,5 +36,5 @@ mkdir -p $archiveDir
 archivePath="$archiveDir/$archiveName"
 # -h follows sybolic link.
 
-tar cvfzh $archivePath $dirname/ --exclude-vcs
+tar cvfzh $archivePath --exclude-vcs $dirname/
 echo "Wrote archive to $archivePath, size " `du -h $archivePath`
