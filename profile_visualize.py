@@ -17,7 +17,13 @@ import os
 import pstats
 
 def main():
-    s = pstats.Stats( sys.argv[0] )
+    filename = sys.argv[1]
+    sortby = 'cumtime'
+    if len(sys.argv) > 2:
+        sortby = sys.argv[2]
+    print( "[INFO ] Loading stats from %s" % filename )
+    s = pstats.Stats( filename )
+    s.sort_stats( sortby )
     s.print_stats()
 
 if __name__ == '__main__':
