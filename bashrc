@@ -189,3 +189,4 @@ fi
 #if [ -d /home/linuxbrew ]; then
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
+source ~/Python3.6.5/bin/activate
