@@ -17,6 +17,23 @@ Host srna
     User anushree
     IdentityFile ~/.ssh/id_rsa
 
+Host anushree
+    Hostname 172.16.206.134
+
+Host ghevar
+    Hostname 172.16.223.30
+
+Host gulgula
+    Hostname 172.16.207.17
+
+Host chamcham
+    Hostname 172.16.207.23
+
+Host hippo
+    Hostname 172.16.223.76
+    User hippo
+
+
 Host somya 
     Hostname 172.16.108.115
     User guest1

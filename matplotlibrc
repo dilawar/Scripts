@@ -224,7 +224,7 @@ font.sans-serif     : FiraSans,DejaVu Sans, Bitstream Vera Sans, Lucida Grande, 
 #text.color          : black
 
 ### LaTeX customizations. See http://wiki.scipy.org/Cookbook/Matplotlib/UsingTex
-text.usetex         : True  # use latex for all text handling. The following fonts
+text.usetex         : False  # use latex for all text handling. The following fonts
                               # are supported through the usual rc parameter settings:
                               # new century schoolbook, bookman, times, palatino,
                               # zapf chancery, charter, serif, sans-serif, helvetica,
@@ -624,3 +624,4 @@ mathtext.default : regular # The default font to use for math.
 #animation.convert_path: 'convert' # Path to ImageMagick's convert binary.
                                    # On Windows use the full path since convert
                                    # is also the name of a system tool.
+

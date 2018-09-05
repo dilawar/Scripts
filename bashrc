@@ -42,16 +42,15 @@ alias ss='sudo -E emerge --search'
 alias uu='sudo -E emerge -avuND @world'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias sudo='sudo -E'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias vi='vim'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
-alias ghci='stack ghci'
-alias ghc='stack ghc'
-alias runghc='stack runghc'
+# alias ghci='stack ghci'
+# alias ghc='stack ghc'
+# alias runghc='stack runghc'
 
 # Create alias for vim to launch it in profile mode.
 alias vv="vim --startuptime $HOME/.cache/vim_startup.log "
