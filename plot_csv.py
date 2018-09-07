@@ -23,7 +23,7 @@ console.setFormatter(formatter)
 _logger = logging.getLogger('')
 _logger.addHandler(console)
 
-style = 'seaborn-darkgrid'
+style = 'ggplot'
 try:
     plt.style.use( style )
 except:
@@ -100,7 +100,7 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
         # )
 
     if kwargs.get('label', None):
-        plt.legend(loc='best', framealpha=0.4)
+        plt.legend(loc='best' )
     return ax
 
 def modify_convas(header, nplots, args):
@@ -306,7 +306,8 @@ if __name__ == '__main__':
     parser.add_argument('--ycolumns', '-y'
             , default = "1"
             , type = str
-            , help = "Columns to plot on y-axis. Index or names of columns."
+            , help = "Columns to plot on y-axix. Index or names of columns."
+                     " e.g. '1,2,3' or 'a,b,c' "
             )
     parser.add_argument('--outfile', '-o'
             , required = False

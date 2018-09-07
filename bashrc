@@ -48,9 +48,9 @@ alias pylint='pylint -E'
 alias vi='vim'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
-alias ghci='stack ghci'
-alias ghc='stack ghc'
-alias runghc='stack runghc'
+# alias ghci='stack ghci'
+# alias ghc='stack ghc'
+# alias runghc='stack runghc'
 
 # Create alias for vim to launch it in profile mode.
 alias vv="vim --startuptime $HOME/.cache/vim_startup.log "
@@ -188,3 +188,4 @@ fi
 #if [ -d /home/linuxbrew ]; then
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
+source ~/Python3.6.5/bin/activate
