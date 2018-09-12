@@ -132,9 +132,6 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
 #export TEXMF=/usr/share/texmf
 
-# added by travis gem
-[ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh
-
 #export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java="java ${JAVA_FLAGS}"
 
@@ -188,4 +185,3 @@ fi
 #if [ -d /home/linuxbrew ]; then
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
-source ~/Python3.6.5/bin/activate
