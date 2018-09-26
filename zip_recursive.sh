@@ -5,6 +5,6 @@ set -x
 DIRPATH=`realpath ${1-.}`
 DIRNAME=$(basename $(realpath $DIRPATH))
 ZIPNAME=${DIRPATH}.zip
-zip -9 -r $ZIPNAME $DIRPATH -x *.git* -x *.svn* -x *.DS_Store*
+zip -9 -r $ZIPNAME $DIRNAME -x *.git* -x *.svn* -x *.DS_Store*
 echo "Created $ZIPNAME"
 ls -lh $ZIPNAME
