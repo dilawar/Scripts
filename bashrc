@@ -71,7 +71,7 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/mypandoc:$PATH
+# export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/mypandoc:$PATH
 
 PROXYFILE=$HOME/Scripts/proxy
 if [ -f $PROXYFILE ]; then
@@ -143,16 +143,16 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 # User scripts
 # source bash-preexec.sh 
 # Now for very command prefix is with alert command so that I can get notified.
-source alert.sh
+# source alert.sh
 #xrdb ~/Scripts/Xresources
 unset SSH_ASKPASS
 
 export MATPLOTLIBRC=$SCRIPTHOME/matplotlibrc
 export MPLCONFIGDIR=$SCRIPTHOME
 
-if type pandoc > /dev/null; then
-    eval $(`which pandoc` --bash-completion)
-fi
+#if type pandoc > /dev/null; then
+#    eval $(`which pandoc` --bash-completion)
+#fi
 
 #if [ -f ~/PYPY2/bin/activate ]; then
 #    source ~/PYPY2/bin/activate 
