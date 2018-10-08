@@ -71,7 +71,9 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-# export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/mypandoc:$PATH
+
+# mutt
+export PATH=$SCRIPTHOME:$HOME/.mutt:$PATH
 
 PROXYFILE=$HOME/Scripts/proxy
 if [ -f $PROXYFILE ]; then
