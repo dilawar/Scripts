@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-JARFILE=$HOME/Scripts/textidote.jar
+JARFILE=$HOME/.local/lib/textidote.jar
 
 if [ ! -f $JARFILE ]; then
     echo "Downloading required jar file."
