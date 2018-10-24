@@ -53,7 +53,7 @@ def do_save_png( G, outfile ):
     fig = plt.figure()
     #  ax = fig.add_subplot(111, projection='3d')
     pos = nx.get_node_attributes(G, 'coordinate2D' )
-    nsize = nx.get_node_attributes(G, 'radius' )
+    nsize = [x/1.0 for x in nx.get_node_attributes(G, 'radius' ).values()]
     nx.draw(G, pos=pos, node_size=nsize)
     plt.axis('off')
     plt.title( args_.input )
