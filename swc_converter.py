@@ -70,11 +70,12 @@ def _nx_to_paths( G ):
         g.remove_edges_from(edges)
     return paths
 
-def do_save_png( G, outfile, engine='matplotlib' ):
+def do_save_png( G, outfile):
+    global args_
     fig = plt.figure()
-    if engine == 'networkx':
+    if args_.engine == 'networkx':
         do_save_png_using_nx(G, outfile)
-    elif engine == 'matplotlib':
+    elif args_.engine == 'matplotlib':
         do_save_png_using_mpl3d(G, outfile)
     else:
         raise UserWarning( "Unknown engine %s" % engine )
@@ -104,7 +105,7 @@ def do_save_png_using_mpl3d( G, outfile ):
     ax = plt.subplot( 111, projection = '3d' )
     #  ax.view_init(90, 0)
     paths = _nx_to_paths(G)
-    paths = [ _smooth_path(p) for p in paths ]
+    #  paths = [ _smooth_path(p) for p in paths ]
     for p in paths:
         X, Y, Z = zip(*p)
         ax.plot(X, Y, Z, color='b')
@@ -119,8 +120,8 @@ def do_save_png_using_nx(G, outfile):
     import matplotlib.pyplot as plt
     pos = nx.get_node_attributes(G, 'coordinate2D' )
     nsize = [x/1.0 for x in nx.get_node_attributes(G, 'radius' ).values()]
-    nx.draw(G, pos=pos, node_size=nsize)
-    plt.title( os.path.basename(args_.input.name) )
+    nx.draw( G.to_undirected(), pos=pos, node_size=nsize)
+    plt.title( os.path.basename(args_.input) )
     plt.axis('off')
 
 def write_to_csv( G, outfile ):
@@ -199,6 +200,10 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o'
         , required = False, default = ''
         , help = 'Write result to this format.'
+        )
+    parser.add_argument('--engine', '-e'
+        , required = False, default = 'networkx'
+        , help = 'To draw PNG which engine to use (networkx|matplotlib)'
         )
     class Args: pass 
     args = Args()
