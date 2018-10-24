@@ -180,7 +180,7 @@ def main( args ):
             morph.add_edge(P, n)
     _sanitize_morphology(morph)
     _print_stats( morph )
-    outfile = args_.output or '%s.%s' % (self.input.name, self.fmt)
+    outfile = args_.output or '%s.%s' % (args_.input, args_.fmt)
     do_action( morph, outfile )
 
 if __name__ == '__main__':
