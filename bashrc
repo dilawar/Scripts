@@ -35,11 +35,6 @@ alias rm='rm -i'
 alias sh='bash'
 alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
-alias i='sudo -E emerge -avuD '
-alias netcat='nc.openbsd'
-alias ii='sudo apt-get -c ~/.aptconf install'
-alias ss='sudo -E emerge --search'
-alias uu='sudo -E emerge -avuND @world'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
@@ -187,3 +182,4 @@ fi
 #if [ -d /home/linuxbrew ]; then
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
+
