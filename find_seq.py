@@ -17,13 +17,15 @@ import difflib
 def main(args):
     a = args.seq
     l = len(a)
+    lineno = 0
     with open( args.input, 'r') as f:
-        for i, line in enumerate(f):
-            for ii in len(line)-l:
+        for line in f:
+            lineno += 1
+            for ii in range(len(line)-l):
                 b = line[ii:ii+l]
-                s = difflib.SequenceMatcher(line, a, b )
-                if s.ratio >= float(args.match):
-                    print("%d %s" % (i, b))
+                s = difflib.SequenceMatcher(None, a, b )
+                if s.ratio() >= float(args.threshold):
+                    print("%d %s" % (lineno, b))
 
 if __name__ == '__main__':
     import argparse
@@ -35,13 +37,13 @@ if __name__ == '__main__':
         , help = 'Input file'
         )
     parser.add_argument('--seq', '-s'
-        , required = True,
+        , required = True
         , help = 'Sequence to search'
         )
-    parser.add_argument( '--similarity', '-s'
+    parser.add_argument( '--threshold', '-t'
         , required = False, default = 0.9
         , type = float
-        , help = 'Similarity index (1.0 means exact match)'
+        , help = 'Similarity threshold (1.0 means exact match)'
         )
     class Args: pass 
     args = Args()
