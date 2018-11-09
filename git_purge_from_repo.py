@@ -3,12 +3,11 @@ import os
 import subprocess
 import sys 
 import string
- 
 
 usage = "Usage : {0} [-f | -d] file_or_dir_name".format(sys.argv[0])
 
 if len(sys.argv) < 3 :
-  print usage
+  print( usage )
   sys.exit(0)
 
 if sys.argv[1] == "-f" :
