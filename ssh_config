@@ -70,4 +70,11 @@ Host aur.archlinux.org
     IdentityFile ~/.ssh/id_rsa
     User aur
 
+Host harshvardan
+    Hostname 172.16.206.163
+
+Host pi
+    Hostname 172.16.206.38
+    User pi
+
 ForwardX11Timeout 2d

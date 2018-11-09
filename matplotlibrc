@@ -277,6 +277,7 @@ text.usetex         : False  # use latex for all text handling. The following fo
 #mathtext.it  : serif:italic
 #mathtext.bf  : serif:bold
 #mathtext.sf  : sans
+mathtext.fontset: stix
 #mathtext.fontset : dejavusans # Should be 'dejavusans' (default),
                                # 'dejavuserif', 'cm' (Computer Modern), 'stix',
                                # 'stixsans' or 'custom'
