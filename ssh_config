@@ -77,4 +77,8 @@ Host pi
     Hostname 172.16.206.38
     User pi
 
+Host pi_ethernet
+    Hostname 172.16.206.177
+    User pi
+
 ForwardX11Timeout 2d
