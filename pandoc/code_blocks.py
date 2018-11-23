@@ -111,9 +111,7 @@ def gen_standalone( code, dest ):
         print1( "ERROR", "%s could not be generated." % dest )
         return False
 
-
     return True
-
 
 def codeblocks(key, value, format, _):
     if key == 'CodeBlock':
