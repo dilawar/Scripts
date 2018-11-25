@@ -15,7 +15,7 @@ import subprocess
 
 from pandocfilters import toJSONFilter, Para, Str, Strong, RawInline
 from pandocfilters import Image, get_filename4code, get_caption, get_extension
-from pandocfilters import RawBlock
+from pandocfilters import RawBlock, CodeBlock
 
 
 def latex( x ):
@@ -143,6 +143,33 @@ def process( value, format ):
             if not success:
                 return Para([ Str(">>> Error: This image could not be generated.")] )
         return Para([Image([ident, [], keyvals], caption, [dest, typef])])
+
+    elif "include" in classes:
+        caption, typef, keyvals = get_caption(keyvals)
+        keyvalDict = dict(keyvals)
+
+        listing = ''
+        with open( keyvalDict['src'], 'r' ) as f:
+            listing = f.read() 
+
+        lang = keyvalDict.get( 'lang', 'python')
+        code = 'Failed to find any listing.'
+        if 'start' in keyvalDict:
+            # Assume that both start and end are line numbers.
+            start = int( keyvalDict['start'] )
+            end = int( keyvalDict['end'] )
+            code = '\n'.join( listing.split('\n')[start:end] )
+        elif 'pat' in keyvalDict:
+            pat = r'%s' % keyvalDict['pat']
+            print1( pat )
+            m = re.search( pat, listing, re.DOTALL )
+            if m:
+                code = m.group(0)
+            else:
+                code = "Pattern '%s' not found in '%s'" % (pat, keyvalDict['src'])
+        else:
+            code = 'No listing found.'
+        return CodeBlock([ident, [], keyvals], code)
 
 if __name__ == "__main__":
     toJSONFilter( codeblocks )
