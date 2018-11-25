@@ -35,6 +35,9 @@ fi
 if command -v pandoc-citeproc > /dev/null; then
     PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-citeproc"
 fi
+if command -v pandoc-include-code > /dev/null; then
+    PANDOC_FILTERS="$PANDOC_FILTERS -F pandoc-include-code"
+fi
 PANDOC_FILTERS="$PANDOC_FILTERS -F $SCRIPT_DIR/pandoc/dilawar.py "
 
 echo $PANDOC_FILTERS
