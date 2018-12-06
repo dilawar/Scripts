@@ -30,6 +30,10 @@ def read_glossary( f, gls ):
     if not os.path.isfile( f ):
         f = '%s.tex' % f
 
+    # If glossary file is not found, don't do anything.
+    if not os.path.exists(f):
+        return 
+
     glpat = re.compile( r'\\newacronym\{\s*(?P<gls>.+?)\}' + \
             r'\s*\{(?P<short>.+?)\}\s*\{(?P<long>.+?)\}', re.DOTALL )
 
@@ -46,6 +50,7 @@ def _replace_function( m, tex, prevI, newTex ):
 def replace_glossaries( tex, gls ):
     prevI, newTex, firstTime = 0, '', []
     glsPat = re.compile( r'\\gls\{\s*(?P<id>.+?)\}' )
+    newTex, b = '', 0
     for m in glsPat.finditer( tex ):
         a, b = m.span( )
         prevI, newTex = _replace_function( m, tex, prevI, newTex )
