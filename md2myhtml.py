@@ -19,14 +19,15 @@ import subprocess
 srcFile_ = None
 
 cdn = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+sdir_ = os.path.dirname(os.path.realpath __file__))
 
 pandoc_ = [ 'pandoc' 
         #, '--mathjax=%s' % cdn
         , '--mathml'
-        , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/pandoc.css" )
-        , '--css', os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/theorem.css" )
+        , '--css', os.path.join( sdir_, "pandoc", "pandoc.css" )
+        , '--css', os.path.join( sdir_, "pandoc", "theorem.css" )
         , '--to', 'html5'
-        , '-F',  os.path.join( os.getenv( 'HOME' ), "Scripts/pandoc/dilawar.py" )
+        , '-F',  os.path.join( sdir_, "pandoc", "dilawar.py" )
         , '-F', 'pandoc-imagine'
         , '-F', 'pandoc-crossref'
         , '-F', 'pandoc-citeproc'
@@ -61,12 +62,10 @@ def convertToPNG( img, text ):
 def toHtml( text ):
     global srcFile_
     global pandoc_
-    htmlFileNameWe = '.'.join( srcFile_.split( '.' )[:-1] )
-    htmlFile = htmlFileNameWe + '.html'
+    htmlFile = srcFile_ + '.html'
     pFile = '%s_html.md' % srcFile_ 
     with open( pFile, 'w' ) as f:
         f.write( text )
-
     cmd = pandoc_ + [ '-o', htmlFile, pFile ]
     subprocess.call( cmd, shell = False )
     print( '[INFO] Wrote HTML to %s' % htmlFile )
