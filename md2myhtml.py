@@ -19,7 +19,7 @@ import subprocess
 srcFile_ = None
 
 cdn = "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-sdir_ = os.path.dirname(os.path.realpath __file__))
+sdir_ = os.path.dirname(os.path.realpath(__file__))
 
 pandoc_ = [ 'pandoc' 
         #, '--mathjax=%s' % cdn
