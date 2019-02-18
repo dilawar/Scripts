@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import subprocess
 import sys 
-import string
 
 usage = "Usage : {0} [-f | -d] file_or_dir_name".format(sys.argv[0])
 
@@ -16,14 +15,14 @@ if sys.argv[1] == "-f" :
   command = """git filter-branch -f --index-filter 'git rm --cached
   --ignore-unmatch {0}' --tag-name-filter cat -- --all""".format(filename)
   print("Runing: %s" % command)
-  command = string.replace(command, "\n", " ")
+  command = command.replace("\n", " ")
   subprocess.call(command, shell=True)
 
 elif sys.argv[1] == "-d" :
   dirname = sys.argv[2]
   command = '''git filter-branch -f --tree-filter 'git rm -rf --ignore-unmatch {0}' 
   --tag-name-filter cat -- --all'''.format(dirname)
-  command = string.replace(command, "\n", " ")
+  command = command.replace("\n", " ")
   print("Purging directory {0}".format(dirname))
   print("Running %s" % command)
   subprocess.call(command, shell=True)
