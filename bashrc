@@ -144,9 +144,6 @@ export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
 #xrdb ~/Scripts/Xresources
 unset SSH_ASKPASS
 
-export MATPLOTLIBRC=$SCRIPTHOME/matplotlibrc
-export MPLCONFIGDIR=$SCRIPTHOME
-
 #if type pandoc > /dev/null; then
 #    eval $(`which pandoc` --bash-completion)
 #fi
