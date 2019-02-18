@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 INFILE=$1
-OUTFILE="$1.tex"
+OUTFILE=${INFILE%.tikz}.tex
 TEX=$(cat $1)
 
 cat > $OUTFILE <<-ENDOFFILE
@@ -17,6 +17,7 @@ cat > $OUTFILE <<-ENDOFFILE
 \pgfplotsset{
     , ticklabel style={font=\footnotesize}
     , label style={font=\footnotesize}
+    , title style={align=left}
     , group/.cd, vertical sep=20mm, horizontal sep=20mm
 }
 
