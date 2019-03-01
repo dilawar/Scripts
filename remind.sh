@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 (
-    flock -x -w 1 200 || (echo "Already running"; exit 1)
+    flock -x -n /tmp/__remind_lock_ -c "sleep 1" || (echo "Already running"; exit 1)
 
     # if gcalcli is not found. do nothing.
 
