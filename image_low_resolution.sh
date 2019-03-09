@@ -9,7 +9,8 @@ ORIGINAL_SIZE=$(stat -c%s "$1")
 OUTFILE=${filename}.low.${EXT}
 
 convert -format ${EXT} \
-    -density 72 -quality 70 \
+    -strip -interlace Plane -gaussian-blur 0.05 -quality 85% \
+    -density 72 \
     -flatten "$1" "${OUTFILE}"
 
 # Now check the size.
