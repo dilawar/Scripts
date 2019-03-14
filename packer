@@ -15,6 +15,7 @@
 
 [[ $PACMAN ]] || PACMAN="pacman"
 
+TMPDIR=$HOME/.cache/packertmp-$UID
 # set tmpfile stuff, clean tmpdir
 tmpdir="${TMPDIR:-/tmp}/packertmp-$UID"
 rm -rf "$tmpdir" &>/dev/null
