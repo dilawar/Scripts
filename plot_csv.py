@@ -227,6 +227,8 @@ def main(args):
                 )
     _logger.debug( 'Got data %s' % data )
     data = np.transpose(data)
+    if not args.xcolumn.isnumeric():
+        args.xcolumn = header.index(args.xcolumn)
     xvec = data[ args.xcolumn ]
     if len(usecols) > 5:
         modify_convas(header, len(usecols[1:]), args)
@@ -300,7 +302,6 @@ if __name__ == '__main__':
             )
     parser.add_argument('--xcolumn', '-x'
             , default =  0
-            , type = int
             , help = 'Which column is x-axis'
             )
     parser.add_argument('--ycolumns', '-y'
