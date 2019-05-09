@@ -6,6 +6,3 @@
 
 # the default umask is set in /etc/profile; for setting the umask
 # for ssh logins, install and configure the libpam-umask package.
-
-source ~/Scripts/git_prompt.sh
-source ~/Scripts/svn_prompt.sh

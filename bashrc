@@ -23,16 +23,7 @@ fi
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
-if [ "$(uname)" == "Darwin" ]; then
-    alias ls="gls --color=auto -ltr"
-else
-    alias ls='ls --color=auto'
-    alias ll='ls -alF -ltr'
-    alias la='ls -A -ltr'
-    alias l='ls -CF -ltr'
-fi
 alias rm='rm -i'
-alias sh='bash'
 alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
@@ -60,13 +51,6 @@ if [ -f $HOME/.termcap ]; then
     export TERMCAP
 fi
 
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
-if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
-    . /etc/bash_completion
-fi
-
 # mutt
 export PATH=$SCRIPTHOME:$HOME/.mutt:$PATH
 
@@ -77,7 +61,7 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-source ~/Scripts/profile
+# source ~/Scripts/profile
 export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
