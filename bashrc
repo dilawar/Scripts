@@ -23,7 +23,16 @@ fi
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
+if [ "$(uname)" == "Darwin" ]; then
+    alias ls="gls --color=auto -ltr"
+else
+    alias ls='ls --color=auto'
+    alias ll='ls -alF -ltr'
+    alias la='ls -A -ltr'
+    alias l='ls -CF -ltr'
+fi
 alias rm='rm -i'
+alias sh='bash'
 alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
@@ -31,7 +40,6 @@ alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
-alias vi='vim'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
 # alias ghci='stack ghci'
@@ -51,6 +59,13 @@ if [ -f $HOME/.termcap ]; then
     export TERMCAP
 fi
 
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion
+fi
+
 # mutt
 export PATH=$SCRIPTHOME:$HOME/.mutt:$PATH
 
@@ -61,7 +76,7 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-# source ~/Scripts/profile
+source ~/Scripts/profile
 export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
@@ -163,3 +178,15 @@ fi
 #if [ -d /home/linuxbrew ]; then
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
+
+fasd_cache="$HOME/.fasd-init-bash"
+if [ "$(command -v fasd)" -nt "$fasd_cache" -o ! -s "$fasd_cache" ]; then
+  fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
+fi
+source "$fasd_cache"
+unset fasd_cache
+alias c='fasd_cd -d'
+alias v='f -e vim' # quick opening files with vim
+alias m='f -e mplayer' # quick opening files with mplayer
+alias o='a -e xdg-open' # quick opening files with xdg-open
+_fasd_bash_hook_cmd_complete v m j o
