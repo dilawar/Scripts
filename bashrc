@@ -187,6 +187,6 @@ source "$fasd_cache"
 unset fasd_cache
 alias c='fasd_cd -d'
 alias v='f -e vim' # quick opening files with vim
-alias m='f -e mplayer' # quick opening files with mplayer
+alias mp='f -e mplayer' # quick opening files with mplayer
 alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
