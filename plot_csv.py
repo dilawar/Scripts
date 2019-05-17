@@ -52,7 +52,7 @@ def get_ycols(colexpr, header=None):
     cols = []
     for r in ranges:
         if ":" in r:
-            ranges = filter(None, r.strip().split(':') )
+            ranges = [x for x in r.strip().split(':') if x]
             ranges.append( len(header) - 1)
             low, high = ranges[0], ranges[1]
             cols += range(int(low), int(high))
