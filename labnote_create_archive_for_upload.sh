@@ -25,7 +25,9 @@ NOW=$(date +"%Y_%m_%d__%H_%M_%S")
 LABNOTE="LABNOTE_${NOW}"
 DIR="/tmp/${LABNOTE}"
 mkdir -p ${DIR}
-FILES=`find . -type f -size -500k -not -path "./_data/*" -not -path "./CMakeFiles/*"`
+FILES=$(find . -type f -size -500k -not -path "./_data/*" \
+    -not -name "*.tar.gz" \
+    -not -path "./CMakeFiles/*")
 for f in ${FILES}; do
     cp --parent $f ${DIR}/
 done
@@ -34,5 +36,14 @@ echo "Total size of labnote archive "
 du -sh ${DIR}
 
 # create archive file.
-tar -cvzf ${LABNOTE}.tar.gz ${DIR}
+tar -cvzf ${LABNOTE}.tar.gz \
+    --exclude *.log \
+    --exclude *.aux \
+    --exclude *.pyc \
+    --exclude-vcs \
+    ${DIR}
 ls -lh ${LABNOTE}.tar.gz 
+
+# Files in the tar
+tar -tvf ${LABNOTE}.tar.gz
+
