@@ -45,5 +45,5 @@ tar -cvzf ${LABNOTE}.tar.gz \
 ls -lh ${LABNOTE}.tar.gz 
 
 # Files in the tar
-tar -tvf ${LABNOTE}.tar.gz
+# tar -tf ${LABNOTE}.tar.gz
 
