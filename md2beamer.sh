@@ -17,6 +17,6 @@ if [ $# -lt 1 ]; then
 fi
 
 filename="$1"
-outputFile="${filename%.pandoc}.tex"
+outputFile="${filename%.pandoc}.pdf"
 $PANDOC -tbeamer $filename -o $outputFile
-lualatex --shell-escape ${outputFile} 
+# lualatex --shell-escape ${outputFile}
