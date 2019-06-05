@@ -41,7 +41,7 @@ def main():
     global args_
     freqs, times, sgram = spectogram(args_.input)
     sgram = sgram ** (1/3.0)  # see the n note above.
-    np.save(f"{args_.input}.npy", sgram)
+    #  np.save(f"{args_.input}.npy", sgram)
     if args_.plot:
         import matplotlib.pyplot as plt
         plt.pcolormesh(times, freqs, sgram)
