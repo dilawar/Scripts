@@ -60,12 +60,9 @@ if __name__ == '__main__':
     # Argument parser.
     description = '''Play a wav file.'''
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--input', '-i'
-        , required = True
-        , help = 'Input file'
-        )
+    parser.add_argument('input', help = 'Input WAV file')
     parser.add_argument('--low-freq', '-L'
-        , required = False, default = 20
+        , required = False, default = 10
         , help = 'Lower frequency'
         )
     parser.add_argument('--high-freq', '-H'
