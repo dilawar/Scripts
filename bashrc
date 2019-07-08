@@ -33,7 +33,6 @@ else
 fi
 alias rm='rm -i'
 alias sh='bash'
-alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
@@ -76,8 +75,6 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-source ~/Scripts/profile
-source ~/Scripts/notes.sh
 export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
@@ -191,3 +188,6 @@ alias v='f -e vim' # quick opening files with vim
 alias mp='f -e mplayer' # quick opening files with mplayer
 alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
+
+source ~/Scripts/profile
+source ~/Scripts/notes.sh

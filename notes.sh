@@ -1,5 +1,5 @@
 NOTEDIR=$HOME/Work/notes
-EXT=md
+EXT=pandoc
 [ -z "$EDITOR" ] && echo "You need to export EDITOR";
 
 n() {
