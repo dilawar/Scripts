@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+import os
+from pathlib import Path
+import time
+import subprocess
+class Args: pass 
+args = Args()
+
+NDIR = Path(os.getenv('HOME')) / 'Work' / 'notes'
+EDITOR = os.getenv('EDITOR', 'vim')
+EXT = 'md'
+
+def mtime(p):
+    # Return modified time.
+    return time.ctime(os.path.getmtime(p))
+
+def notes_ls():
+    global NDIR
+    #  files = [ f'{f.relative_to(NDIR)}' for f in NDIR.glob(f'*.{EXT}')]
+    for f in NDIR.glob(f'*.{EXT}'):
+        relPath = str(f.relative_to(NDIR))
+        print( f' {relPath:20s} {mtime(f)}' )
+
+def note_edit(p):
+    # launch editor to edit the note.
+
+def main():
+    global args
+    if args.command == 'ls':
+        notes_ls()
+
+if __name__ == '__main__':
+    import argparse
+    # Argument parser.
+    description = '''Notes management.'''
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('command', help = 'Subcommand.')
+    parser.parse_args(namespace=args)
+    main()
