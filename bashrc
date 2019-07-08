@@ -38,10 +38,10 @@ alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
-alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
+
 # alias ghci='stack ghci'
 # alias ghc='stack ghc'
 # alias runghc='stack runghc'
@@ -77,6 +77,7 @@ fi
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
 source ~/Scripts/profile
+source ~/Scripts/notes.sh
 export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
