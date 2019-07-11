@@ -108,7 +108,6 @@ alias move='mv -v -u -n'
 alias lwd='$HOME/Scripts/notify_when_done.sh'
 
 # NNN
-alias n='nnn'
 export NNN_USE_EDITOR=1
 export NNN_DE_FILE_MANAGER=thunar
 
@@ -190,4 +189,3 @@ alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
 
 source ~/Scripts/profile
-source ~/Scripts/notes.sh

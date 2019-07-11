@@ -4,37 +4,71 @@ import os
 from pathlib import Path
 import time
 import subprocess
+import difflib
 class Args: pass 
 args = Args()
 
 NDIR = Path(os.getenv('HOME')) / 'Work' / 'notes'
 EDITOR = os.getenv('EDITOR', 'vim')
+notes_ = {}
 EXT = 'md'
 
 def mtime(p):
     # Return modified time.
     return time.ctime(os.path.getmtime(p))
 
-def notes_ls():
+def _notes_ls():
     global NDIR
     #  files = [ f'{f.relative_to(NDIR)}' for f in NDIR.glob(f'*.{EXT}')]
-    for f in NDIR.glob(f'*.{EXT}'):
+    for i, f in enumerate(NDIR.glob(f'*.{EXT}')):
+        notes_[i] = f
+
+def notes_ls():
+    global NDIR
+    _notes_ls()
+    for i, f in notes_.items():
         relPath = str(f.relative_to(NDIR))
-        print( f' {relPath:20s} {mtime(f)}' )
+        print( f'{i:3d} {relPath:20s} {mtime(f)}' )
+
+def find_note(idx):
+    # Find a note either by searching for it.
+    global notes_
+    _notes_ls()
+    if idx.isnumeric():
+        return notes_.get(int(idx), None)
+    # else find in values.
+    s = difflib.get_close_matches(idx, list(notes_.values()), n=1)
+    return s[0] if s is not None else None
 
 def note_edit(p):
+    global EDITOR
     # launch editor to edit the note.
+    f = find_note(p)
+    if f is not None:
+        subprocess.run([EDITOR, f])
+
+def notes_sync():
+    global NDIR
+    cmd = 'git pull && git diff && git add . && git commit \-m "updating" && git push'
+    s = subprocess.run( cmd.split(), cwd=NDIR, capture_output=True, text=True)
+    print(s.stdout)
 
 def main():
     global args
-    if args.command == 'ls':
+    if not args.command or args.command[0] == 'ls':
         notes_ls()
+    elif args.command[0] == 'edit':
+        note_edit(args.command[1])
+    elif args.command[0] == 'sync':
+        notes_sync()
 
 if __name__ == '__main__':
     import argparse
     # Argument parser.
     description = '''Notes management.'''
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('command', help = 'Subcommand.')
+    parser.add_argument('command'
+            , nargs = '*'
+            , help = 'Subcommands. ls | edit note_id_or_name | sync')
     parser.parse_args(namespace=args)
     main()
