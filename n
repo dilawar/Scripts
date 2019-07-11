@@ -28,8 +28,9 @@ def find_closest_match(needle: str, haystack):
     for h in haystack:
         s = difflib.SequenceMatcher(None, needle, h.name)
         matches.append( (s.ratio(), h) )
-    sorted(matches, key=lambda x: x[0])
-    return matches[0][1]
+    matches = sorted(matches, key=lambda x: x[0])
+    # last entry has the highest match.
+    return matches[-1][1]
 
 def mtime(p):
     # Return modified time.
@@ -68,6 +69,9 @@ def note_edit(p):
     if f is not None:
         subprocess.run([EDITOR, f.path])
 
+def note_new(path):
+    subprocess.run([EDITOR, path])
+
 def notes_sync():
     global NDIR
     cmd = 'git pull && git diff && git add . && git commit -m "Sync" && git push'
@@ -87,6 +91,13 @@ def main():
         note_edit(args.command[1])
     elif args.command[0] == 'sync':
         notes_sync()
+    elif args.command:
+        # create a new note.
+        notePath = NDIR / Path(f"{args.command[0]}.{EXT}")
+        note_new(notePath)
+    else:
+        print( f"[INFO ] Unsupported command {args.command}" )
+        
 
 if __name__ == '__main__':
     import argparse
