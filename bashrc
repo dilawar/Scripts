@@ -118,7 +118,7 @@ fi
 export SSHPASS=jH7qMYpF
 
 export PATH=$PATH:$HOME/.cabal/bin
-export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
+# export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
 #export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
 #export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
@@ -128,10 +128,8 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java="java ${JAVA_FLAGS}"
 
-# Make sure that java launches with awesome windowmanager
+# To make sure that java launches with awesome windowmanager
 export AWT_TOOLKIT=MToolkit
-export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
-
 
 # User scripts
 # source bash-preexec.sh 
