@@ -33,15 +33,14 @@ else
 fi
 alias rm='rm -i'
 alias sh='bash'
-alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
-alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
+
 # alias ghci='stack ghci'
 # alias ghc='stack ghc'
 # alias runghc='stack runghc'
@@ -76,7 +75,6 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-source ~/Scripts/profile
 export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
@@ -110,7 +108,6 @@ alias move='mv -v -u -n'
 alias lwd='$HOME/Scripts/notify_when_done.sh'
 
 # NNN
-alias n='nnn'
 export NNN_USE_EDITOR=1
 export NNN_DE_FILE_MANAGER=thunar
 
@@ -190,3 +187,5 @@ alias v='f -e vim' # quick opening files with vim
 alias mp='f -e mplayer' # quick opening files with mplayer
 alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
+
+source ~/Scripts/profile

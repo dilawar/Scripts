@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+
+import os
+from pathlib import Path
+import time
+import subprocess
+import difflib
+class Args: pass 
+args = Args()
+
+NDIR = Path(os.getenv('HOME')) / 'Work' / 'notes'
+EDITOR = os.getenv('EDITOR', 'vim')
+
+# dictionaries are now sorted. Cool.
+notes_ = []
+EXT = 'md'
+
+class Note:
+    global NDIR
+    def __init__(self, path):
+        self.path = path
+        self.name = self.path.name.replace(f'.{EXT}', '')
+        self.relpath = self.path.relative_to(NDIR)
+        self.mtime = mtime(self.path)
+
+def find_closest_match(needle: str, haystack):
+    matches = []
+    for h in haystack:
+        s = difflib.SequenceMatcher(None, needle, h.name)
+        matches.append( (s.ratio(), h) )
+    matches = sorted(matches, key=lambda x: x[0])
+    # last entry has the highest match.
+    return matches[-1][1]
+
+def mtime(p):
+    # Return modified time.
+    return time.ctime(os.path.getmtime(p))
+
+def _notes_ls():
+    global NDIR
+    for i, f in enumerate(NDIR.glob(f'*.{EXT}')):
+        notes_.append(Note(f))
+
+def notes_ls():
+    global NDIR
+    _notes_ls()
+    for i, n in enumerate(notes_):
+        print( f'{i:3d} {n.name:20s} {n.mtime}' )
+
+def find_note(idx):
+    # Find a note either by searching for it.
+    global notes_
+    _notes_ls()
+    if idx.isnumeric():
+        if idx < len(notes_):
+            return notes_[int(idx)]
+        else:
+            print( f"[ERROR] invalid index {idx}." )
+            quit(-1)
+
+    # else find in values.
+    s = find_closest_match(idx, notes_)
+    return s 
+
+def note_edit(p):
+    global EDITOR
+    # launch editor to edit the note.
+    f = find_note(p)
+    if f is not None:
+        subprocess.run([EDITOR, f.path])
+
+def note_new(path):
+    subprocess.run([EDITOR, path])
+
+def notes_sync():
+    global NDIR
+    cmd = 'git pull && git diff && git add . && git commit -m "Sync" && git push'
+    for c in cmd.split('&&'):
+        c = c.strip()
+        print( f"[INFO ] Executing {c}" )
+        s = subprocess.run( c.split(), cwd=NDIR
+                , encoding='utf-8', stdout=subprocess.PIPE)
+        for l in s.stdout.split('\n'):
+            print(l)
+
+def main():
+    global args
+    if not args.command or args.command[0] == 'ls':
+        notes_ls()
+    elif args.command[0] == 'edit':
+        note_edit(args.command[1])
+    elif args.command[0] == 'sync':
+        notes_sync()
+    elif args.command:
+        # create a new note.
+        notePath = NDIR / Path(f"{args.command[0]}.{EXT}")
+        note_new(notePath)
+    else:
+        print( f"[INFO ] Unsupported command {args.command}" )
+        
+
+if __name__ == '__main__':
+    import argparse
+    # Argument parser.
+    description = '''Notes management.'''
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('command'
+            , nargs = '*'
+            , help = 'Subcommands. ls | edit note_id_or_name | sync')
+    parser.parse_args(namespace=args)
+    main()
