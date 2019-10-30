@@ -1,6 +1,6 @@
 Scripts
 =======
 
-My scripts, collected over years. 
+My scripts, written over many years. 
 
-Some functionals; some broken and I don't remeber why I wrote some of them.
+Some are still functionals; some are broken. And I don't even remeber why I wrote some of them.
