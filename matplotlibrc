@@ -1,0 +1,89 @@
+# My custom matplotlibrc.
+#
+# It is based on http://www.huyng.com/posts/sane-color-scheme-for-matplotlib/
+# and I might have written something about the motivation behind it on my blog
+# http://sbillaudelle.de/2015/02/20/matplotlib-with-style.html
+# 
+# Feel free to modify it to your liking. I would love to get some feedback from
+# you!
+
+################################################################################
+# backend settings                                                             #
+################################################################################
+backend              : pgf
+backend_fallback     : True
+
+################################################################################
+# misc                                                                         #
+################################################################################
+toolbar              : toolbar2
+timezone             : UTC    # a pytz timezone string, eg US/Central or Europe/Paris
+
+################################################################################
+# lines                                                                        #
+################################################################################
+lines.antialiased    : True   # render lines in antialised (no jaggies)
+lines.linewidth      : 0.8    # line width in points
+
+################################################################################
+# patches                                                                      #
+################################################################################
+patch.linewidth      : 0.5    # edge width in points
+patch.facecolor      : 348ABD # blue
+patch.edgecolor      : eeeeee
+patch.antialiased    : True   # render patches in antialised (no jaggies)
+
+################################################################################
+# text rendering                                                               #
+################################################################################
+font.size            : 10.0
+pgf.rcfonts          : False
+pgf.preamble         : \usepackage{amsmath}, \usepackage{siunitx}, \usepackage{unicode-math}, \setmainfont{Linux Libertine}, \setsansfont{Linux Libertine}, \setmathfont[range=\mathit]{Linux Libertine Italic}, \setmathfont{Linux Libertine}
+#pgf.preamble        : \usepackage{amsmath}, \usepackage{siunitx}, \usepackage{unicode-math}, \setmainfont{Fira Sans Light}, \setsansfont{Fira Sans Light}, \setmathfont[range=\mathit]{Fira Sans Light Italic}, \setmathfont{Fira Sans Light}
+text.color           : black
+text.latex.unicode   : True
+
+################################################################################
+# axes                                                                         #
+################################################################################
+axes.facecolor       : ffffff # axes background color
+axes.edgecolor       : b0b0b0 # axes edge color
+axes.linewidth       : 0.5    # edge linewidth
+axes.grid            : True   # display grid or not
+axes.titlesize       : large  # fontsize of the axes title
+axes.labelsize       : medium # fontsize of the x any y labels
+axes.labelcolor      : 555555
+axes.axisbelow       : True   # whether axis gridlines and ticks are below
+axes.color_cycle     : 348ABD, 7A68A6, A60628, 467821, CF4457, 188487, E24A33
+
+################################################################################
+# ticks                                                                        #
+################################################################################
+xtick.major.size     : 0      # major tick size in points
+xtick.minor.size     : 0      # minor tick size in points
+xtick.major.pad      : 6      # distance to major tick label in points
+xtick.minor.pad      : 6      # distance to the minor tick label in points
+xtick.color          : 555555 # color of the tick labels
+xtick.labelsize      : small  # fontsize of the tick labels
+xtick.direction      : in     # direction: in or out
+
+ytick.major.size     : 0      # major tick size in points
+ytick.minor.size     : 0      # minor tick size in points
+ytick.major.pad      : 6      # distance to major tick label in points
+ytick.minor.pad      : 6      # distance to the minor tick label in points
+ytick.color          : 555555 # color of the tick labels
+ytick.labelsize      : small  # fontsize of the tick labels
+ytick.direction      : in     # direction: in or out
+
+################################################################################
+# grids                                                                        #
+################################################################################
+grid.color           : b0b0b0 # grid color
+grid.linestyle       : :      # dotted
+grid.linewidth       : 0.3    # in points
+
+################################################################################
+# legend                                                                       #
+################################################################################
+legend.fontsize      : medium
+legend.fancybox      : False

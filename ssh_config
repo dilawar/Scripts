@@ -55,7 +55,8 @@ Host common5
     User dilawars
 
 Host common1
-    Hostname 172.16.204.52
+    # Hostname 172.16.204.52
+    Hostname 172.16.208.179
     User dilawars
 
 Host common2

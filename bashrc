@@ -118,9 +118,6 @@ fi
 export SSHPASS=jH7qMYpF
 
 export PATH=$PATH:$HOME/.cabal/bin
-# export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
-#export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
-#export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
 #export TEXMF=/usr/share/texmf
