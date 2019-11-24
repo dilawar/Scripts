@@ -1,11 +1,52 @@
-site_name: Spinesize Growth
-theme: material
+site_name: NCBS Hippo
+author: Dilawar Singh <dilawars@ncbs.res.in>
+site_url: https://ncbs.res.in/hippo
+site_author: Dilawar Singh <dilawars@ncbs.res.in>
+copyright: 'Copyright &copy; 2016-2019 Dilawar Singh'
+repo_url: https://github.com/dilawar/Hippo
+theme:
+    name: material
+    logo: images/logo.svg
+    highlightjs: true
+    hljs_languages:
+        - php
+        - python
+
+nav:
+    - Home: index.md
+    - User Manual: user_manual.md
+    - BookMyVenue Admin manual: bmv_admin_manual.md
+    - AcadmicAdmin Manual: acadmic_admin_manual.md
+    - SysAdmin Manual: system_admin_manual.md
+    - Developer Documents: developer.md
+    - Bug tracker: https://github.com/dilawar/hippo/issues
+
+extra_css: [extra.css]
 
 markdown_extensions:
-   # other extensions ...
-   - pymdownx.arithmatex
+    - admonition
+    - toc
+    - attr_list
+    - pymdownx.betterem:
+        smart_enable: all
+    - pymdownx.caret
+    - pymdownx.details
+    - pymdownx.inlinehilite
+    - pymdownx.magiclink
+    - pymdownx.mark
+    - pymdownx.smartsymbols
+    - pymdownx.superfences
+    - pymdownx.tasklist:
+        custom_checkbox: true
+    - pymdownx.tilde
 
-extra_javascript:
-  # other extra java script
-  - mathjax-config.js
-  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+plugins:
+    - markdownextradata: {}
+
+extra:
+    social:
+        - type: 'github'
+          link: 'https://github.com/dilawar'
+    site_url: 'https://dilawar.github.io/hippo'
+    intranet: 'http://intranet.ncbs.res.in'
+    webmail: 'https://webmail.ncbs.res.in'
