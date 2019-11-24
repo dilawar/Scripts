@@ -1,0 +1,11 @@
+site_name: Spinesize Growth
+theme: material
+
+markdown_extensions:
+   # other extensions ...
+   - pymdownx.arithmatex
+
+extra_javascript:
+  # other extra java script
+  - mathjax-config.js
+  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
