@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+import imageio
 from pathlib import Path
 import argparse
 # Argument parser.
@@ -19,6 +20,12 @@ parser.add_argument('--output',
                     required=False,
                     default='animation.gif',
                     help='Output file')
+parser.add_argument('--fps',
+                    '-f',
+                    required=False,
+                    default=4,
+                    type=int,
+                    help='Frames per second.')
 
 
 class Args:
@@ -32,8 +39,9 @@ inputs = args.input
 if len(inputs) == 1:
     # it is a directory?
     inputs = [str(x) for x in Path(inputs[0]).glob('**/*.png')]
-inputs = inputs[::args.every]
-print(f"[INFO ] Total {len(inputs)} files found.")
-pngStr = ' '.join(inputs)
-cmd = f"convert {pngStr} {args.output}".split()
-subprocess.run(cmd, timeout=60)
+
+print(f"Total  {len(inputs)} files found. Selecting every {args.every}th.")
+files = inputs[::args.every]
+imgs = [imageio.imread(f) for f in files]
+print(f"→ Writing to {args.output}")
+imageio.mimwrite(args.output, imgs, fps=args.fps)
