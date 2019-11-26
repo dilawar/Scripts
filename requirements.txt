@@ -11,3 +11,5 @@ networkx
 git+https://github.com/dilawar/ajgar
 requests
 pymoose
+mkdocs-material
+python-markdown
