@@ -117,7 +117,6 @@ if [ -f /etc/profile.d/bash-completion.sh ]; then
 fi
 export SSHPASS=jH7qMYpF
 
-export PATH=$PATH:$HOME/.cabal/bin
 export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 #export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
 #export TEXMF=/usr/share/texmf
@@ -183,4 +182,4 @@ alias mp='f -e mplayer' # quick opening files with mplayer
 alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
 
-source ~/Scripts/profile
+export PATH=$HOME/.cabal/bin:$PATH
