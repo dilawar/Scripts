@@ -8,6 +8,8 @@ pandocfilters
 myhdl
 PySpice
 networkx
-git+https://github.com/dilawar/ajgar
+git+https://github.com/dilawar/dilawar
 requests
 pymoose
+mkdocs
+mkdocs-material
