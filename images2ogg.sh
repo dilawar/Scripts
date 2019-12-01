@@ -9,4 +9,4 @@ ffmpeg -pattern_type glob -i "$PAT" -vcodec libtheora \
     -framerate 10\
     -r 10\
     -pix_fmt yuv444p \
-    output.ogv
+    output-$(date +%F).ogv
