@@ -46,16 +46,17 @@ if len(inputs) == 1:
     # it is a directory?
     inputs = [str(x) for x in Path(inputs[0]).glob('**/*.png')]
 
+inputs.sort()
 print(f"Total  {len(inputs)} files found. Selecting every {args.every}th.")
 files = inputs[::args.every]
-imgs = [imageio.imread(f) for f in files]
 print(f"→ Writing to {args.output}")
 gif_path = args.output
-with imageio.get_writer(gif_path, mode='I') as writer:
-    for img in imgs:
+with imageio.get_writer(gif_path, mode='I', duration=0.2) as writer:
+    for f in files:
+        img = imageio.imread(f)
         writer.append_data(img)
 try:
     from pygifsicle import optimize
     optimize(gif_path)
 except Exception as e:
-    print(f"[INFO ] pygifsicle is not found. So not optimizing..")
+    print(f"[INFO ] pygifsicle is not found. So not optimizing. {e}")
