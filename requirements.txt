@@ -14,3 +14,4 @@ requests
 pymoose
 mkdocs
 mkdocs-material
+pymdown-extensions
