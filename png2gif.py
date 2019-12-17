@@ -5,6 +5,7 @@ import sys
 import imageio
 from pathlib import Path
 import argparse
+
 # Argument parser.
 description = '''Convert pngs to gif'''
 parser = argparse.ArgumentParser(description=description)
@@ -20,6 +21,11 @@ parser.add_argument('--output',
                     required=False,
                     default='animation.gif',
                     help='Output file')
+parser.add_argument('--resize',
+                    '-r',
+                    required=False,
+                    default=1.0,
+                    help='Resize each image. [NOT AVAILABLE]')
 parser.add_argument('--fps',
                     '-f',
                     required=False,
@@ -40,8 +46,17 @@ if len(inputs) == 1:
     # it is a directory?
     inputs = [str(x) for x in Path(inputs[0]).glob('**/*.png')]
 
+inputs.sort()
 print(f"Total  {len(inputs)} files found. Selecting every {args.every}th.")
 files = inputs[::args.every]
-imgs = [imageio.imread(f) for f in files]
 print(f"→ Writing to {args.output}")
-imageio.mimwrite(args.output, imgs, fps=args.fps)
+gif_path = args.output
+with imageio.get_writer(gif_path, mode='I', duration=0.2) as writer:
+    for f in files:
+        img = imageio.imread(f)
+        writer.append_data(img)
+try:
+    from pygifsicle import optimize
+    optimize(gif_path)
+except Exception as e:
+    print(f"[INFO ] pygifsicle is not found. So not optimizing. {e}")
