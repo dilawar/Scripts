@@ -1,4 +1,5 @@
 pantable
+imageio
 numpy
 matplotlib 
 scipy
