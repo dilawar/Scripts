@@ -1,4 +1,5 @@
 pantable
+imageio
 numpy
 matplotlib 
 scipy
@@ -9,7 +10,9 @@ myhdl
 PySpice
 networkx
 git+https://github.com/dilawar/dilawar
+git+https://github.com/dilawar/mdx_bib
 requests
 pymoose
 mkdocs
 mkdocs-material
+pymdown-extensions

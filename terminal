@@ -2,7 +2,6 @@
 #urxvt256c -bg black -fg white
 #urxvt -bg black -fg white
 #urxvt
-xfce4-terminal
 #gnome-terminal
-#xfce4-terminal
+xfce4-terminal
 #xterm
