@@ -183,3 +183,4 @@ alias o='a -e xdg-open' # quick opening files with xdg-open
 _fasd_bash_hook_cmd_complete v m j o
 
 export PATH=$HOME/.cabal/bin:$PATH
+export PATH=$HOME/.cargo/bin:$PATH
