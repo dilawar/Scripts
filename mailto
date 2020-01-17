@@ -1,2 +1,2 @@
 #!/bin/sh 
-exec xterm -e ~/.mutt/m "$@"
+exec xterm -e mutt -F /home/dilawars/.mutt/mutt_server "$@"
