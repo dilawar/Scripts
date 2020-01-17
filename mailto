@@ -1,2 +1,4 @@
 #!/bin/sh 
+export NCBS_USER=dilawars
+export READ_NAME="Dilawar Singh"
 exec xterm -e mutt -F /home/dilawars/.mutt/mutt_server "$@"
