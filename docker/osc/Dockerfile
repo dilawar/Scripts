@@ -1,8 +1,8 @@
-FROM opensuse/leap:15.2
+FROM opensuse/tumbleweed
 MAINTAINER Dilawar Singh <dilawars@ncbs.res.in>
 
 # Install dependencies.
-RUN zypper install -y osc git cmake gcc \
+RUN zypper install -y osc git cmake gcc sudo \
     && rm -rf /var/cache/zypp/packages/*
 RUN zypper install -y obs-service-obs_scm \
     obs-service-tar obs-service-tar_scm \
