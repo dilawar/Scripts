@@ -170,6 +170,11 @@ fi
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
 
+mkcp() {
+    test -d "$2" || mkdir -p "$2"
+    cp -r "$1" "$2"
+}
+
 fasd_cache="$HOME/.fasd-init-bash"
 if [ "$(command -v fasd)" -nt "$fasd_cache" -o ! -s "$fasd_cache" ]; then
   fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
@@ -184,3 +189,4 @@ _fasd_bash_hook_cmd_complete v m j o
 
 export PATH=$HOME/.cabal/bin:$PATH
 export PATH=$HOME/.cargo/bin:$PATH
+
