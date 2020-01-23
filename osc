@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 PWD=$(pwd)
-docker run -w /osc -v $PWD:$PWD -it dilawars/osc \
+docker run --workdir /obs \
+  --mount type=bind,source=$PWD,target=/obs \
+  -it dilawars/obs \
   osc "$@"
 
