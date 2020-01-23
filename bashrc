@@ -170,6 +170,7 @@ fi
 #    export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH 
 #fi
 
+# This is from https://stackoverflow.com/a/34608146/1805129
 mkcp() {
     test -d "$2" || mkdir -p "$2"
     cp -r "$1" "$2"
