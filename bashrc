@@ -186,3 +186,5 @@ _fasd_bash_hook_cmd_complete v m j o
 export PATH=$HOME/.cabal/bin:$PATH
 export PATH=$HOME/.cargo/bin:$PATH
 
+# neo vim
+alias nv="nvim -u ~/.vim/vimrc"
