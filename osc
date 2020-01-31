@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
+set -x
 PWD=$(pwd)
-docker run --workdir /obs \
+docker run --privileged --net=host \
+  --workdir /obs \
   --mount type=bind,source=$PWD,target=/obs \
   -v /var/tmp/osbuild-packagecache:/var/tmp/oscbuild-packagecache:rw \
   -v $HOME/.config/osc/:/root/.config/osc:rw \
