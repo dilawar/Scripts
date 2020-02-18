@@ -18,12 +18,12 @@ fi
 SCRIPTHOME=$HOME/Scripts
 source $SCRIPTHOME/colors.sh
 
-colorPrint "STEP" "Adding myself to cool groups"
-sudo addgroup wheel power 
-sudo addgroup sound
-sudo gpasswd -a $USER sound 
-sudo gpasswd -a $USER power 
-sudo gpasswd -a $USER wheel
+# colorPrint "STEP" "Adding myself to cool groups"
+# sudo addgroup wheel power 
+# sudo addgroup sound
+# sudo gpasswd -a $USER sound 
+# sudo gpasswd -a $USER power 
+# sudo gpasswd -a $USER wheel
 
 set +x
 ##colorPrint "STEP" "Setting up crontab"
@@ -46,8 +46,8 @@ colorPrint "STEP" "Setting up TODO"
 sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
 
 colorPrint "STEP" "Copying todo and notes"
-git clone git@bitbucket.org:dilawar/todo $HOME/Work/todo
-git clone git@bitbucket.org:dilawar/notes $HOME/Work/notes
+git clone git@gitlab.com:dilawar/todo $HOME/Work/todo
+git clone git@gitlab.com:dilawar/notes $HOME/Work/notes
 
 colorPrint "STEP" "Updating submodules in Scripts"
 cd $SCRIPTHOME && git submodule init && git submodule update && cd
@@ -78,11 +78,15 @@ chmod 600 $HOME/.ssh/config
 WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
 WGET="$WGET  --no-check-ertificate"
 
-colorPrint "STEP"  "Configuring git."
-rm -f $HOME/.gitconfig 
-cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
-rm -f $HOME/.gitignore
-cp $SCRIPTHOME/gitignore $HOME/.gitignore 
+if [ ! -f $HOME/.gitconfig ]; then
+    colorPrint "STEP"  "Configuring git."
+    cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
+fi
+
+if [ ! -f $HOME/.gitignore ]; then
+    rm -f $HOME/.gitignore
+    cp $SCRIPTHOME/gitignore $HOME/.gitignore 
+fi
 
 colorPrint "STEP" "Configuring newsbeuter"
 rm -rf $HOME/.newsbeuter 
@@ -180,7 +184,7 @@ fi
 if [ -d $MUTTDIR ]; then
     cd $MUTTDIR && git pull &&  cd
 else
-    git clone https://dilawar@bitbucket.org/dilawar/mutt $MUTTDIR
+    git clone https://dilawar@gitlab.com/dilawar/mutt $MUTTDIR
     cd $MUTTDIR && git submodule init && git submodule update && cd
 fi
 
@@ -207,12 +211,12 @@ else
     touch $MPDHOME/tag_cache 
 fi
 
-colorPrint "STEP" "Setting up xfce4-terminal terminalrc ..."
-XFCE4HOME=$HOME/.config/xfce4/terminal
-if [ -d $XFCE4HOME ]; then
-    rm -f $XFCE4HOME/terminalrc
-    ln $SCRIPTHOME/terminalrc $XFCE4HOME/terminalrc
-fi
+# colorPrint "STEP" "Setting up xfce4-terminal terminalrc ..."
+# XFCE4HOME=$HOME/.config/xfce4/terminal
+# if [ -d $XFCE4HOME ]; then
+#     rm -f $XFCE4HOME/terminalrc
+#     ln $SCRIPTHOME/terminalrc $XFCE4HOME/terminalrc
+# fi
 
 
 colorPrint "STEP" "Updating vim"
@@ -245,9 +249,11 @@ mkdir -p $HOME/.elinks
 rm -f $HOME/.elinks/elinks.conf
 ln $SCRIPTHOME/elinks.conf $HOME/.elinks/elinks.conf
 
-colorPrint "STEP" "Setting up i3."
 I3HOME=$HOME/.config/i3
-git clone https://github.com/dilawar/i3 $I3HOME
+if [ ! -d $I3HOME ]; then
+    colorPrint "STEP" "Setting up i3."
+    git clone https://github.com/dilawar/i3 $I3HOME
+fi
 
 colorPrint "STEP" "Setting up latexmkrc"
 rm -rf $HOME/.latekmkrc
