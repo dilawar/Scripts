@@ -28,7 +28,6 @@
 # end
 #
 set editing-mode vi
-set -o vi
 
 # From linux hall of shame.
 

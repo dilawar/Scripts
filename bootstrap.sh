@@ -42,8 +42,8 @@ set +x
 #enable glob again.
 set +f
 
-colorPrint "STEP" "Setting up TODO"
-sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
+# colorPrint "STEP" "Setting up TODO"
+# sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
 
 colorPrint "STEP" "Copying todo and notes"
 git clone git@gitlab.com:dilawar/todo $HOME/Work/todo
@@ -80,17 +80,18 @@ WGET="$WGET  --no-check-ertificate"
 
 if [ ! -f $HOME/.gitconfig ]; then
     colorPrint "STEP"  "Configuring git."
-    cp $SCRIPTHOME/gitconfig $HOME/.gitconfig
+    ln -s $SCRIPTHOME/gitconfig $HOME/.gitconfig
 fi
 
 if [ ! -f $HOME/.gitignore ]; then
-    rm -f $HOME/.gitignore
-    cp $SCRIPTHOME/gitignore $HOME/.gitignore 
+    unlink $HOME/.gitignore
+    ls -s $SCRIPTHOME/gitignore $HOME/.gitignore 
 fi
 
 colorPrint "STEP" "Configuring newsbeuter"
-rm -rf $HOME/.newsbeuter 
-ln -s $SCRIPTHOME/newsbeuter $HOME/.newsbeuter
+if [ ! -d $HOME/.newsbeuter/ ]; then
+    ln -s $SCRIPTHOME/newsbeuter $HOME/.newsbeuter
+fi
 
 colorPrint "STEP" "Appending names of host to /etc/hosts file"
 IFS=$,
@@ -131,7 +132,7 @@ echo "pinentry-program /usr/bin/pinentry-curses" >> $gnupgFile
 #if [ ! -f /usr/local/bin/bfg ]; then
 #    colorPrint "STEP" "Download bfg to clean git repo"
 #    $WGET http://repo1.maven.org/maven2/com/madgag/bfg/1.11.1/bfg-1.11.1.jar -O /tmp/bfg
-#    sudo cp /tmp/bfg /usr/local/bin/
+#    sudo ls -s /tmp/bfg /usr/local/bin/
 #    sudo chmod + /usr/local/bin/bfg
 #fi
 
@@ -202,7 +203,7 @@ fi
 
 colorPrint "STEP" "Setting up MPD ..."
 rm -f $HOME/.mpdconf
-cp $SCRIPTHOME/mpd/mpdconf $HOME/.mpdconf
+ln -s $SCRIPTHOME/mpd/mpdconf $HOME/.mpdconf
 MPDHOME=$HOME/.mpd
 if [ -d $MPDHOME ]; then
     colorPrint "STEP" "$MPDHOME exists. Nothing to do."
@@ -238,11 +239,11 @@ fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
 colorPrint "STEP" "Configuring awesome to be used with slim"
-cp $SCRIPTHOME/xsession $HOME/.xsession
+ln -s $SCRIPTHOME/xsession $HOME/.xsession
 
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
-cp $SCRIPTHOME/gdbinit $HOME/.gdbinit
+ln -s $SCRIPTHOME/gdbinit $HOME/.gdbinit
 
 colorPrint "STEP" "Setting up elinks.. "
 mkdir -p $HOME/.elinks
@@ -267,23 +268,23 @@ colorPrint "STEP" "Setting up urxvt"
 git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
 
 colorPrint "STEP" "Setting up inputrc. bash in vi mode"
-cp $SCRIPTHOME/inputrc $HOME/.inputrc
+ln -s $SCRIPTHOME/inputrc $HOME/.inputrc
 
 colorPrint "STEP" "Setting up local tex paths"
 MYTEX=$HOME/texmf/tex/latex/local/
 mkdir -p $MYTEX 
-cp $SCRIPTHOME/latex/poisson.* $MYTEX/
+ln -s $SCRIPTHOME/latex/poisson.* $MYTEX/
 
 colorPrint "STEP" "Setting up HUB"
-cp $SCRIPTHOME/hub $HOME/.config/hub
+ln -s $SCRIPTHOME/hub $HOME/.config/hub
 
 colorPrint "STEP" "Setting up matplotlibrc"
 mkdir -p $HOME/.config/matplotlib/
-cp $SCRIPTHOME/matplotlibrc $HOME/.config/matplotlib/matplotlibrc
+ln -s $SCRIPTHOME/matplotlibrc $HOME/.config/matplotlib/matplotlibrc
 
 colorPrint "STEP" "Setting up ctags"
-cp $SCRIPTHOME/ctags $HOME/.ctags
+ln -s $SCRIPTHOME/ctags $HOME/.ctags
 
 colorPrint "STE" "Setting up lbdb"
 mkdir -p $HOME/.lbdb
-cp $SCRIPTHOME/lbdb.rc $HOME/.lbdb/
+ln -s SCRIPTHOME/lbdb.rc $HOME/.lbdb/
