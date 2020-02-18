@@ -40,14 +40,15 @@ set +x
 ##    crontab $SCRIPTHOME/crontab.txt
 ##fi
 #enable glob again.
-set +f
+# set +f
 
 # colorPrint "STEP" "Setting up TODO"
 # sudo cp $SCRIPTHOME/todo_completion  /etc/bash_completion.d/todo
 
 colorPrint "STEP" "Copying todo and notes"
-git clone git@gitlab.com:dilawar/todo $HOME/Work/todo
-git clone git@gitlab.com:dilawar/notes $HOME/Work/notes
+[[ -d $HOME/Work/todo ]] || git clone git@gitlab.com:dilawar/todo $HOME/Work/todo
+
+[[ -d $HOME/Work/notes ]] || git clone git@gitlab.com:dilawar/notes $HOME/Work/notes
 
 colorPrint "STEP" "Updating submodules in Scripts"
 cd $SCRIPTHOME && git submodule init && git submodule update && cd
@@ -226,20 +227,18 @@ if [ ! -d $HOME/.backup ]; then
     mkdir $HOME/.backup 
     cd $HOME/.backup && git init  
 fi
-
 VIMDIR=$HOME/.vim
 if [ -d $VIMDIR ]; then 
+    git stash save
     cd $VIMDIR && git pull && git submodule init && git submodule update && cd
-    rm -f $HOME/.vimrc
-    ln $VIMDIR/vimrc $HOME/.vimrc
+    git stash apply
 else 
-    git clone git@github.com:dilawar/vim $VIMDIR
-    cd $VIMDIR && git submodule init && git submodule update && cd
+    git clone git@github.com:dilawar/vim $VIMDIR --recursive
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
-colorPrint "STEP" "Configuring awesome to be used with slim"
-ln -s $SCRIPTHOME/xsession $HOME/.xsession
+# colorPrint "STEP" "Configuring awesome to be used with slim"
+# ln -s $SCRIPTHOME/xsession $HOME/.xsession
 
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
@@ -257,34 +256,26 @@ if [ ! -d $I3HOME ]; then
 fi
 
 colorPrint "STEP" "Setting up latexmkrc"
-rm -rf $HOME/.latekmkrc
-ln $SCRIPTHOME/latexmkrc $HOME/.latexmkrc
+unlink $HOME/.latekmkrc
+ln -s $SCRIPTHOME/latexmkrc $HOME/.latexmkrc
 
 colorPrint "STEP" "Setting up tmux"
-rm -f $HOME/.tmux.conf
-ln $SCRIPTHOME/tmux.conf $HOME/.tmux.conf
+unlink $HOME/.tmux.conf
+ln -s $SCRIPTHOME/tmux.conf $HOME/.tmux.conf
 
 colorPrint "STEP" "Setting up urxvt"
-git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
+[[ -d $HOME/.urxvt/ext ]] || git clone https://github.com/dilawar/rxvt-ext $HOME/.urxvt/ext
 
 colorPrint "STEP" "Setting up inputrc. bash in vi mode"
-ln -s $SCRIPTHOME/inputrc $HOME/.inputrc
+[[ -f $HOME/.inputrc ]] || ln -s $SCRIPTHOME/inputrc $HOME/.inputrc
 
-colorPrint "STEP" "Setting up local tex paths"
-MYTEX=$HOME/texmf/tex/latex/local/
-mkdir -p $MYTEX 
-ln -s $SCRIPTHOME/latex/poisson.* $MYTEX/
-
-colorPrint "STEP" "Setting up HUB"
-ln -s $SCRIPTHOME/hub $HOME/.config/hub
-
-colorPrint "STEP" "Setting up matplotlibrc"
-mkdir -p $HOME/.config/matplotlib/
-ln -s $SCRIPTHOME/matplotlibrc $HOME/.config/matplotlib/matplotlibrc
+## colorPrint "STEP" "Setting up local tex paths"
+## MYTEX=$HOME/texmf/tex/latex/local/
+## mkdir -p $MYTEX 
+## ln -s $SCRIPTHOME/latex/poisson.* $MYTEX/
 
 colorPrint "STEP" "Setting up ctags"
-ln -s $SCRIPTHOME/ctags $HOME/.ctags
+[[ -f $HOME/.ctags ]] || ln -s $SCRIPTHOME/ctags $HOME/.ctags
 
 colorPrint "STE" "Setting up lbdb"
-mkdir -p $HOME/.lbdb
-ln -s SCRIPTHOME/lbdb.rc $HOME/.lbdb/
+[[ -d $HOME/.lbdb ]] || mkdir -p $HOME/.lbdb && ln -s SCRIPTHOME/lbdb.rc $HOME/.lbdb/
