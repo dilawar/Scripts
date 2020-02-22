@@ -1,6 +1,6 @@
 URxvt.saveLines: 100000
 
-URxvt.perl-ext-common:  default,url-select,matcher,font-size,clipboard,selection-to-clibboard
+URxvt.perl-ext-common:  default,url-select,matcher,font-size,clipboard
 URxvt.keysym.Shift-Control-c: perl:clipboard:copy
 URxvt.keysym.Shift-Control-v: perl:clipboard:paste
 URxvt.keysym.M-C-v: perl:clipboard:paste_command
@@ -19,7 +19,7 @@ URxvt.scrollTtyKeypress: true
 xterm.scrollBar: false
 
 ! - Font
-URxvt.font: 9x1
+URxvt.font: 10x1
 
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.copyCommand: xclip -i -selection clipboard
