@@ -21,34 +21,38 @@ class Note:
         self.path = path
         self.name = self.path.name.replace(f'.{EXT}', '')
         self.relpath = self.path.relative_to(NDIR)
+        self.project = str(self.relpath.parent)
         self.mtime = mtime(self.path)
 
 def find_closest_match(needle: str, haystack):
     matches = []
     for h in haystack:
         s = difflib.SequenceMatcher(None, needle, h.name)
-        matches.append( (s.ratio(), h) )
-    matches = sorted(matches, key=lambda x: x[0])
-    # last entry has the highest match.
-    return matches[-1][1]
+        if s.ratio() > 0.5:
+            matches.append( (s.ratio(), h) )
+    if matches:
+        matches = sorted(matches, key=lambda x: x[0])
+        # last entry has the highest match.
+        return matches[-1][1]
+    return None
 
 def mtime(p):
     # Return modified time.
     return time.ctime(os.path.getmtime(p))
 
 def _notes_ls():
-    global NDIR
-    for i, f in enumerate(NDIR.glob(f'*.{EXT}')):
+    global NDIR, EXT
+    for i, f in enumerate(NDIR.glob(f'**/*.{EXT}')):
         notes_.append(Note(f))
 
 def notes_ls():
     global NDIR
     _notes_ls()
     for i, n in enumerate(notes_):
-        print( f'{i:3d} {n.name:20s} {n.mtime}' )
+        print( f'{i:3d} {n.name:20s} {n.mtime} {n.project}' )
 
 def find_note(idx):
-    # Find a note either by searching for it.
+    # Find a note either by its index or by searching it.
     global notes_
     _notes_ls()
     if idx.isnumeric():
@@ -59,22 +63,32 @@ def find_note(idx):
             quit(-1)
 
     # else find in values.
-    s = find_closest_match(idx, notes_)
-    return s 
+    return find_closest_match(idx, notes_)
 
 def note_edit(p):
     global EDITOR
-    # launch editor to edit the note.
     f = find_note(p)
     if f is not None:
+        # Launch the editor.
         subprocess.run([EDITOR, f.path])
+    else:
+        s = input(f"Not found {p}. Create a new one (y/n) [y]?")
+        if (not s) or s[0].lower() != 'n':
+            p = Path(p)
+            if not p.suffix:
+                p = p.with_suffix(f".{EXT}")
+            note_new(p)
 
 def note_new(path):
+    global NDIR
+    if NDIR not in path.parents:
+        path = NDIR / path
+    path.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([EDITOR, path])
 
 def notes_sync():
     global NDIR
-    cmd = 'git pull && git diff && git add . && git commit -m "Sync" && git push'
+    cmd = f'git pull && git diff && git add *.{EXT} && git commit -m "Sync" && git push'
     for c in cmd.split('&&'):
         c = c.strip()
         print( f"[INFO ] Executing {c}" )
