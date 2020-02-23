@@ -102,7 +102,6 @@ alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
-alias tmux='tmux -u -f $SCRIPTHOME/tmux/tmux.conf'
 alias move='mv -v -u -n'
 # Notify when done.
 alias lwd='$HOME/Scripts/notify_when_done.sh'
