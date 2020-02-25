@@ -22,9 +22,6 @@
 [submodule "tmux"]
 	path = tmux
 	url = https://github.com/dilawar/.tmux
-[submodule "mypandoc"]
-	path = mypandoc
-	url = https://github.com/dilawar/mypandoc
 [submodule "dotdrop"]
 	path = dotdrop
 	url = https://github.com/deadc0de6/dotdrop.git
