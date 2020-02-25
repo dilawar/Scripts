@@ -41,6 +41,9 @@ alias pylint='pylint -E'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
 
+" Alias for tmux.
+alias tmux="tmux -c $SCRIPTHOME/tmux/tmux.conf"
+
 # alias ghci='stack ghci'
 # alias ghc='stack ghc'
 # alias runghc='stack runghc'
