@@ -45,5 +45,5 @@ URxvt.url-select.underline: true
 URxvt.clipboard.autocopy: true
 URxvt.selection.pattern-0: \\|([^|]+)\\|
 
-URxvt.font: xft:FantasqueSansMono-Regular:size=9
-URxvt.letterSpace: -1
+! URxvt.font: xft:FantasqueSansMono-Regular:size=9
+! URxvt.letterSpace: -1
