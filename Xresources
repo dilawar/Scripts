@@ -1,4 +1,4 @@
-#include "~/Scripts/Xresources.light"
+#include "Xresources.light"
 
 URxvt.saveLines: 100000
 
