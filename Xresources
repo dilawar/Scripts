@@ -1,3 +1,5 @@
+#include "~/Scripts/Xresources.light"
+
 URxvt.saveLines: 100000
 
 URxvt.perl-ext-common:  default,url-select,matcher,font-size,clipboard
@@ -23,23 +25,10 @@ URxvt.copyCommand: xclip -i -selection clipboard
 
 ! Setting letterSpace to 0 causes some unicode not to get displayed. What a
 ! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
-URxvt.letterSpace: 1  
 URxvt.externalBorder: 0
 
 URxvt.iso14755: false
 URxvt.iso14755_52: false
-
-!URxvt.color1: #CC0000
-!URxvt.color2: #4E9A06
-!URxvt.color3: #EDD400
-!URxvt.color4: #0000AA
-!URxvt.color5: #AA00AA
-!URxvt.color6: #06989A
-!URxvt.color7: #D3D7CF
-!URxvt.color8: #303030
-
-! URxvt.background: #141414
-! URxvt.foreground: #eeeeee
 
 URxvt.url-select.underline: true
 URxvt.clipboard.autocopy: true
@@ -47,3 +36,4 @@ URxvt.selection.pattern-0: \\|([^|]+)\\|
 
 URxvt.font: xft:FantasqueSansMono-Regular:size=9
 URxvt.letterSpace: -1
+
