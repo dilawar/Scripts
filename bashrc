@@ -78,7 +78,6 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-export PATH=$PATH:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
 if [ -f ~/Scripts/c ]; then 
@@ -190,3 +189,6 @@ export PATH=$HOME/.cargo/bin:$PATH
 
 # neo vim
 alias nv="nvim -u ~/.vim/vimrc"
+
+# HOME/.local/bin
+export PATH=$HOME/.local/bin:$PATH

@@ -3,24 +3,26 @@
 (
     mkdir -p /tmp/vim_build
     cd /tmp/vim_build
-    FILENAME=v8.1.0412.tar.gz
-    if [ ! -f $FILENAME ]; then
-        wget https://github.com/vim/vim/archive/$FILENAME
-        tar xvf $FILENAME
+    if [ ! -d vim ]; then
+        git clone https://github.com/vim/vim --depth 1
+        cd vim
+    else
+        cd vim && git pull origin master
     fi
-
-    cd vim*
     ./configure  \
         --disable-nls  \
         --enable-cscope  \
         --enable-gui=yes \
         --enable-multibyte  \
-        --enable-pythoninterp \
+        --enable-gui=auto \
         --enable-rubyinterp  \
+        --enable-python3interp \
+        --enable-cscope \
         --with-features=huge \
         --with-tlib=ncurses \
+        --prefix=$HOME/.local \
         --with-x
     make -j`nproc`
-    sudo make install
+    make install
 )
 
