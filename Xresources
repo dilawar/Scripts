@@ -23,11 +23,6 @@ URxvt.copyCommand: xclip -i -selection clipboard
 
 ! Setting letterSpace to 0 causes some unicode not to get displayed. What a
 ! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
-URxvt.linespace: 1.2
-URxvt.externalBorder: 0
-
-URxvt.iso14755: false
-URxvt.iso14755_52: false
 
 !URxvt.color1: #CC0000
 !URxvt.color2: #4E9A06
@@ -45,5 +40,20 @@ URxvt.url-select.underline: true
 URxvt.clipboard.autocopy: true
 URxvt.selection.pattern-0: \\|([^|]+)\\|
 
-! URxvt.font: xft:FantasqueSansMono-Regular:size=9
-! URxvt.letterSpace: -1
+
+!-- Xft settings -- !
+Xft.dpi:        96
+Xft.antialias:  true
+Xft.rgba:       rgb
+Xft.hinting:    true
+Xft.hintstyle:  hintfull
+
+! URxvt.font: xft:FantasqueSansMono-Regular:size=10   ! This works.
+URxvt.font: xft:FiraCode:style=Retina:pixelsize=11:antialias=true:hinting=true
+URxvt.lineSpace: 1.25
+URxvt.letterSpace:-1.5
+URxvt.externalBorder:0
+
+! Ctlr+Shift binding to work, the default binding needs to be disabled.
+URxvt.iso14755:false
+URxvt.iso14755_52: false
