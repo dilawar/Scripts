@@ -133,7 +133,7 @@ export AWT_TOOLKIT=MToolkit
 # source bash-preexec.sh 
 # Now for very command prefix is with alert command so that I can get notified.
 # source alert.sh
-#xrdb ~/Scripts/Xresources
+xrdb ~/Scripts/Xresources
 unset SSH_ASKPASS
 
 #if type pandoc > /dev/null; then

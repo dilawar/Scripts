@@ -23,7 +23,7 @@ URxvt.copyCommand: xclip -i -selection clipboard
 
 ! Setting letterSpace to 0 causes some unicode not to get displayed. What a
 ! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
-URxvt.letterSpace: 1  
+URxvt.linespace: 1.2
 URxvt.externalBorder: 0
 
 URxvt.iso14755: false
