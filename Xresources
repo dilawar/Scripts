@@ -36,4 +36,3 @@ URxvt.selection.pattern-0: \\|([^|]+)\\|
 
 URxvt.font: xft:FantasqueSansMono-Regular:size=9
 URxvt.letterSpace: -1
-
