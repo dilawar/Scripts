@@ -18,9 +18,6 @@ URxvt.scrollWithBuffer: true
 URxvt.scrollTtyKeypress: true
 xterm.scrollBar: false
 
-! - Font
-URxvt.font: 10x1
-
 ! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
 URxvt.copyCommand: xclip -i -selection clipboard
 
@@ -48,8 +45,5 @@ URxvt.url-select.underline: true
 URxvt.clipboard.autocopy: true
 URxvt.selection.pattern-0: \\|([^|]+)\\|
 
-Xft.dpi:        96
-Xft.antialias:  true
-Xft.rgba:       rgba
-Xft.hinting:    true
-Xft.hintstyle: hintslight
+URxvt.font: xft:FantasqueSansMono-Regular:size=9
+URxvt.letterSpace: -1
