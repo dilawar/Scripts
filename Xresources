@@ -42,17 +42,17 @@ URxvt.selection.pattern-0: \\|([^|]+)\\|
 
 
 !-- Xft settings -- !
-Xft.dpi:        96
-Xft.antialias:  true
-Xft.rgba:       rgb
-Xft.hinting:    true
-Xft.hintstyle:  hintfull
+! Xft.dpi:        96
+! Xft.antialias:  true
+! Xft.rgba:       rgb
+! Xft.hinting:    true
+! Xft.hintstyle:  hintfull
 
 ! URxvt.font: xft:FantasqueSansMono-Regular:size=10   ! This works.
-URxvt.font: xft:FiraCode:style=Retina:pixelsize=11:antialias=true:hinting=true
-URxvt.lineSpace: 1.25
-URxvt.letterSpace:-1.5
-URxvt.externalBorder:0
+! URxvt.font: xft:FiraCode:style=Retina:pixelsize=11:antialias=true:hinting=true
+! URxvt.lineSpace: 1.25
+! URxvt.letterSpace:-1.5
+! URxvt.externalBorder:0
 
 ! Ctlr+Shift binding to work, the default binding needs to be disabled.
 URxvt.iso14755:false
