@@ -2,10 +2,11 @@
 
 URxvt.saveLines: 100000
 
-URxvt.perl-ext-common:  default,url-select,matcher,font-size,clipboard
+URxvt.perl-ext-common:  default,url-select,pasta,matcher,font-size,keyboard-select,selection-to-clipboard
 URxvt.keysym.Shift-Control-c: perl:clipboard:copy
 URxvt.keysym.Shift-Control-v: perl:clipboard:paste
-URxvt.keysym.M-C-v: perl:clipboard:paste_command
+URxvt.keysym.M-u: perl:url-select:select_next
+URxvt.keyboard-select.clipboard: true
 URxvt.url-launcher: firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #1682B4
