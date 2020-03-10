@@ -4,5 +4,5 @@ DIR=$(dirname ${FILENAME})
 (
     cd $DIR
     echo "IN DIR: `pwd`"
-    python $(basename ${FILENAME})
+    python3 $(basename ${FILENAME})
 )
