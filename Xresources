@@ -1,10 +1,15 @@
-#include "Xresources.light"
+# #include "Xresources.light"
 
 URxvt.saveLines: 100000
 
-URxvt.perl-ext-common:  default,url-select,pasta,matcher,font-size,keyboard-select,selection-to-clipboard
-URxvt.keysym.Shift-Control-c: perl:clipboard:copy
-URxvt.keysym.Shift-Control-v: perl:clipboard:paste
+URxvt.perl-ext-common:  default,url-select,pasta,matcher,font-size,keyboard-select
+
+# This is from https://stackoverflow.com/a/43685270/1805129
+URxvt.keysym.Shift-Control-V: eval:paste_clipboard
+URxvt.keysym.Shift-Control-C: eval:selection_to_clipboard
+URxvt.keysym.Control-Meta-c: builtin-string:
+URxvt.keysym.Control-Meta-v: builtin-string:
+
 URxvt.keysym.M-u: perl:url-select:select_next
 URxvt.keyboard-select.clipboard: true
 URxvt.url-launcher: firefox
