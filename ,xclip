@@ -1,2 +1,2 @@
 #!/bin/bash
-xclip -selection clipboard
+xclip -selection clipboard $@
