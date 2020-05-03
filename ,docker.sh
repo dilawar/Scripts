@@ -3,7 +3,7 @@
 set -u -x -e
 
 NAME="$1"
-docker run \
+docker run --net host --privileged \
     --mount type=bind,source="${HOME}"/.vim,target=/root/.vim \
     --mount type=bind,source="${HOME}"/.gitconfig,target=/root/.gitconfig,readonly \
     --mount type=bind,source="${HOME}"/Scripts,target=/root/Scripts \
