@@ -9,5 +9,6 @@ docker run \
     --mount type=bind,source="${HOME}"/Scripts,target=/root/Scripts \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v ~/.Xauthority:/root/.Xauthority \
     -it ${NAME} bash
 

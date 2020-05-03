@@ -82,4 +82,9 @@ Host pi_ethernet
     Hostname 172.16.206.177
     User pi
 
+Host shivam
+    Hostname 103.21.59.83
+    IdentityFile ~/.ssh/dilawar
+    User aspri44m
+
 ForwardX11Timeout 2d
