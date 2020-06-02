@@ -192,3 +192,4 @@ alias nv="nvim -u ~/.vim/vimrc"
 
 # HOME/.local/bin
 export PATH=$HOME/.local/bin:$PATH
+export TERM=xterm
