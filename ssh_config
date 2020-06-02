@@ -87,4 +87,13 @@ Host shivam
     IdentityFile ~/.ssh/dilawar
     User aspri44m
 
+Host milesweb
+    Hostname 103.212.121.51
+    Port 22999
+    User iuoubwdv
+
+Host bigrock
+    Hostname 162.241.114.222
+    User root
+
 ForwardX11Timeout 2d
