@@ -6,8 +6,7 @@ WORKDIR /workdir
 RUN echo "http://nl.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
     echo "http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN apk update
-RUN apk --no-cache -v add wget git vim texlive-luatex texlive-xetex coreutils \
-    wget zlib-dev graphviz sed bash
+RUN apk --no-cache -v add wget git vim coreutils wget zlib-dev graphviz sed bash
 RUN apk --no-cache -v add pandoc python3 && python3 -m ensurepip \
     && rm -rf /usr/lib/python*/ensurepip
 RUN cd /tmp \
@@ -17,6 +16,10 @@ RUN cd /tmp \
     && tar xvf pandoc-crossref-Linux-2.9.2.1.tar.xz \
     && mv pandoc-crossref /usr/bin/ \
     && ls -ltr pandoc-2.9.2.1/* \
-    && mv pandoc-2.9.2.1/bin/* /usr/bin/
-RUN python3 -m pip install dilawar 
-RUN pandoc -v 
+    && mv pandoc-2.9.2.1/bin/* /usr/bin/ \
+    && rm -rf /tmp/*
+RUN apk --no-cache -v add ghostscript imagemagick 
+RUN apk --no-cache -v add fontconfig ttf-dejavu perl
+RUN python3 -m pip install dilawar pandoc-latex-unlisted
+COPY latexmk.pl /usr/bin/latexmk
+RUN chmod +x /usr/bin/latexmk && latexmk -v
