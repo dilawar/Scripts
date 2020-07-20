@@ -23,3 +23,4 @@ RUN apk --no-cache -v add fontconfig ttf-dejavu perl
 RUN python3 -m pip install dilawar pandoc-latex-unlisted
 COPY latexmk.pl /usr/bin/latexmk
 RUN chmod +x /usr/bin/latexmk && latexmk -v
+RUN apk --no-cache -v add texlive-full
