@@ -190,3 +190,13 @@ export PATH=$HOME/.cargo/bin:$PATH
 # HOME/.local/bin
 export PATH=$HOME/.local/bin:$PATH
 export TERM=xterm
+
+# pyenv
+if [ -d $SCRIPTHOME/pyenv ]; then
+    export PYENV_ROOT=$SCRIPTHOME/pyenv
+    export PATH=$PYENV_ROOT/bin:$PATH
+fi
+
+if command -v pyenv 1>/dev/null 2>&1 ; then 
+    eval "$(pyenv init -)"
+fi
