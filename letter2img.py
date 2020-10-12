@@ -7,8 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 args_ = None
 
-
-def main():
+def gen_PIL(T):
     global args_
     W = int(args_.size)
     font_scale = W
@@ -16,9 +15,14 @@ def main():
     draw = ImageDraw.Draw(img)
     FONT = ImageFont.truetype(args_.font, font_scale)
     FONT_COLOR = 255
-    T = args_.LETTER
     draw.text((W // 5, 0), f"{T}", font=FONT, fill=FONT_COLOR)
-    img.save(f"{T}.png")
+    return img
+
+
+def main():
+    global args_
+    img = gen_PIL(args_.LETTER)
+    img.save(f"{args_.LETTER}.png")
 
 
 if __name__ == "__main__":
