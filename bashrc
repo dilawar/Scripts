@@ -132,8 +132,8 @@ export AWT_TOOLKIT=MToolkit
 # source bash-preexec.sh 
 # Now for very command prefix is with alert command so that I can get notified.
 # source alert.sh
-xrdb ~/Scripts/Xresources
-unset SSH_ASKPASS
+#xrdb ~/Scripts/Xresources || echo "X"
+#unset SSH_ASKPASS
 
 #if type pandoc > /dev/null; then
 #    eval $(`which pandoc` --bash-completion)
