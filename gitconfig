@@ -1,6 +1,6 @@
 [user]
-name = Dilawar Singh
-email = dilawars@ncbs.res.in
+	name = Dilawar Singh
+	email = dilawar.s.rajput@gmail.com
 [merge]
 tool = vimdiff
 [diff]
