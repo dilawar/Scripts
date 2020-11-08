@@ -12,6 +12,7 @@
 	# $HOME/.local/bin/nvim.appimage
 	chmod a+x nvim.appimage
 	./nvim.appimage --appimage-extract 
+	mv squashfs-root ~
 
 	if [ ! -d ~/.config/nvim ]; then
 		cd ~/.config && git clone https://github.com/dilawar/nvim --recursive
@@ -26,4 +27,5 @@
 	source ~/.bashrc
 )
 
+echo "Delete ~/.cache/*.appimage if you like now"
 
