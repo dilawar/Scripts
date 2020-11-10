@@ -3,7 +3,7 @@ export EDITOR=vim
 #export LC_ALL=en_IN.UTF-8
 #export LANG=en_IN.UTF-8
 #export LANGUAGE=en_IN.UTF-8
-export PYTHONIOENCODING="utf_8"
+#export PYTHONIOENCODING="utf_8"
 
 # History support
 export HISTCONTROL=ignoredups:erasedups
@@ -44,13 +44,15 @@ alias lualatex="lualatex -shell-escape"
 # Alias for tmux.
 alias T="tmux -f $SCRIPTHOME/tmux/tmux.conf"
 
+# mypy
+alias mypy="mypy --config $SCRIPTHOME/mypy.ini"
+
 # alias ghci='stack ghci'
 # alias ghc='stack ghc'
 # alias runghc='stack runghc'
 
 # Create alias for vim to launch it in profile mode.
 alias vv="vim --startuptime $HOME/.cache/vim_startup.log "
-
 
 if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
