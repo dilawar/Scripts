@@ -1,3 +1,10 @@
+"""
+USAGE:
+    python3 hippo_photoclub_json_to_csv.py 8 > data.csv
+
+where 8 is the id of the competetion.
+
+"""
 import sys
 import json
 import urllib.request
