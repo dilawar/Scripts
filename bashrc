@@ -42,7 +42,7 @@ alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
 
 # Alias for tmux.
-alias T="tmux -f $SCRIPTHOME/tmux/tmux.conf"
+alias tmux="tmux -f $SCRIPTHOME/tmux/tmux.conf"
 
 # mypy
 alias mypy="mypy --config $SCRIPTHOME/mypy.ini"
