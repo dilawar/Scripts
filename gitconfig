@@ -11,5 +11,3 @@
     lg = !"git lg1"
 [pull]
     rebase = false
-[ghi]
-    token = f248099101cee3f68edb59a6fa037e07ebcbab60
