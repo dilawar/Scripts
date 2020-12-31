@@ -215,3 +215,8 @@ if type brew &>/dev/null; then
     fi
 fi
 
+# mypy cache directory. By default, mypy create cache in the source directory.
+# ctags creates tags from this file and move to cache file on tag jump which is
+# so annoying.
+export MYPY_CACHE_DIR=$HOME/.cache/mypy
+mkdir -p $MYPY_CACHE_DIR
