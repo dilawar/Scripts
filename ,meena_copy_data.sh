@@ -1,2 +1,3 @@
 #!/bin/bash
-rsync -azv meena.subcom.tech:/srv/www/htdocs/meena/ .
+rsync -azv --exclude "*" --include "*.wav" \
+    meena.subcom.tech:/srv/www/htdocs/meena/ .
