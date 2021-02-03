@@ -5,6 +5,7 @@ __author__ = "Dilawar Singh"
 __email__ = "dilawar@subcom.tech"
 
 import os
+import typing as T
 from pathlib import Path
 
 import typer
@@ -17,10 +18,20 @@ def __show_trash(glob : str = '**'):
     for f in Path(CACHE_DIR_).glob(glob):
         print(f)
 
+def __trash(paths : T.List[Path], dry_run:bool=False):
+    if dry_run:
+        print('[INFO] Following files will be deleted')
+    for path in paths:
+        if dry_run:
+            print(path)
+        else:
+            path.rename(CACHE_DIR_/path)
+
+
 @app.command()
-def main(path : Path = Path('.'), show_trash:bool=False):
+def main(path : Path = Path('.'), show_trash:bool=False, dry_run:bool=False):
     if path.exists():
-        path.rename(CACHE_DIR_ / path)
+        __trash(path, dry_run)
         return
 
     if show_trash:
