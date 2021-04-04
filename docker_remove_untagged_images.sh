@@ -17,5 +17,6 @@
 #      REVISION:  ---
 #===============================================================================
 
+set -x
 set -o nounset                                  # Treat unset variables as an error
-docker rmi --force $(docker images | grep "^<none>" | awk '{print $3}') 
+docker rmi --force "$(docker images | grep "<none>" | awk '{print $3}')"
