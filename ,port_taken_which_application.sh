@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# list out the processes using a port.
+# This script does not give the exact answer but potential solutions. It uses
+# three tools one after another.
+#
+#  - lsof
+#  - netstat
+#  - ss
+
 set -e
 
 PORT="$1"
