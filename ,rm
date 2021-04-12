@@ -29,14 +29,17 @@ def __trash(paths : T.List[Path], dry_run:bool=False):
 
 
 @app.command()
-def main(path : Path = Path('.'), show_trash:bool=False, dry_run:bool=False):
-    if path.exists():
-        __trash(path, dry_run)
+def main(paths : T.List[Path] = Path('.'), show_trash:bool=False, dry_run:bool=False):
+    for path in paths:
+        if path.exists():
+            __trash(path, dry_run)
         return
 
     if show_trash:
-        __show_trash(path)
-    raise RuntimeWarning(f'{path} does not exists')
+        for p in paths:
+            __show_trash(p)
+        return
+    raise RuntimeWarning(f'{paths} does not exists')
 
 
 if __name__ == '__main__':
