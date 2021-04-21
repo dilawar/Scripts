@@ -1,17 +1,6 @@
 #.bashrc
 export EDITOR=vim
-#export LC_ALL=en_IN.UTF-8
-#export LANG=en_IN.UTF-8
-#export LANGUAGE=en_IN.UTF-8
-#export PYTHONIOENCODING="utf_8"
-
-# History support
-export HISTCONTROL=ignoredups:erasedups
-export HISTSIZE=100000
-export HISTFILESIZE=1000000
 shopt -s histappend 
-
-#export PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}history -a; history -c; history -r"
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
@@ -48,7 +37,7 @@ alias mypy="mypy --config \$SCRIPTHOME/mypy.ini"
 alias vv="vim --startuptime \$HOME/.cache/vim_startup.log "
 
 if [ -f "$HOME/.bash_aliases" ]; then
-    . "$HOME/.bash_aliases"
+    source "$HOME/.bash_aliases"
 fi
 
 if [ -f "$HOME/.termcap" ]; then
@@ -63,14 +52,6 @@ export PATH=$SCRIPTHOME:$HOME/.mutt:$PATH
 if [ -d "$HOME/Android/Sdk/platform-tools" ]; then
     export PATH=$HOME/Android/Sdk/platform-tools:$PATH
 fi
-
-PROXYFILE=$HOME/Scripts/proxy
-if [ -f "$PROXYFILE" ]; then
-    source "$PROXYFILE";
-fi
-
-# lynx
-export LYNX_CFG=~/Scripts/lynx.cfg
 
 # vim mode in bash
 set -o vi
@@ -118,12 +99,12 @@ if [ -f /etc/profile.d/autojump.bash ]; then
     source /etc/profile.d/autojump.bash
 fi
 
+fasd_cache="$HOME/.fasd-init-bash"
 if [ "$(command -v fasd)" -nt "$fasd_cache" -o ! -s "$fasd_cache" ]; then
     fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
-    fasd_cache="$HOME/.fasd-init-bash"
     source "$fasd_cache"
-    unset fasd_cache
     _fasd_bash_hook_cmd_complete v m j o
+    unset fasd_cache
 fi
 
 alias c='fasd_cd -d'
