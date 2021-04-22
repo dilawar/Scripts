@@ -102,6 +102,9 @@ fi
 fasd_cache="$HOME/.fasd-init-bash"
 if [ "$(command -v fasd)" -nt "$fasd_cache" -o ! -s "$fasd_cache" ]; then
     fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
+fi
+
+if [ "$(command -v fasd)" ]; then
     source "$fasd_cache"
     _fasd_bash_hook_cmd_complete v m j o
     unset fasd_cache
