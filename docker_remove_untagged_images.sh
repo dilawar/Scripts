@@ -5,7 +5,7 @@
 #
 #         USAGE: ./docker_remove_untagged_images.sh
 #
-#   DESCRIPTION: 
+#   DESCRIPTION:
 #
 #       OPTIONS: ---
 #  REQUIREMENTS: ---
@@ -18,5 +18,4 @@
 #===============================================================================
 
 set -x
-set -o nounset                                  # Treat unset variables as an error
-docker rmi --force "$(docker images | grep "<none>" | awk '{print $3}')"
+docker rmi $(docker images | grep "^<none>" | awk '{print $3}')
