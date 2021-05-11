@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """image2ascii.py: 
+
 Originally from: 
+
 https://www.hackerearth.com/practice/notes/beautiful-python-a-simple-ascii-art-generator-from-images/
+
+# Dependencies
+
+    pip3 install pillow --user
 
 """
     
@@ -13,7 +19,13 @@ __email__            = "dilawars@ncbs.res.in"
 __status__           = "Development"
 
 
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError as e:
+    print('Install PIL using pip')
+    print('$ python3 -m pip install pillow')
+    print('  and try again')
+    quit(1)
 
 ASCII_CHARS = [ '#', '?', '%', '.', 'S', '+', '.', '*', ':', ',', '@']
 
