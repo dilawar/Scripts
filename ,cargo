@@ -1,0 +1,4 @@
+#!/bin/sh
+
+TYPE=release
+cargo build --${TYPE} && ls -ltrh target/${TYPE}/

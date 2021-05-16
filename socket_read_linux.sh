@@ -2,4 +2,4 @@
 
 # read a linux socket
 set -e
-ncat -U "$1"
+sudo nc -U "$1"
