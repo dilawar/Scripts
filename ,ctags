@@ -1,0 +1,2 @@
+#!/bin/sh
+ctags -R --exclude=node_modules --exclude=vendor .
