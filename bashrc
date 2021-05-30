@@ -1,6 +1,6 @@
 #.bashrc
 export EDITOR=vim
-shopt -s histappend 
+shopt -s histappend
 
 # some more ls aliases
 export SCRIPTHOME=$HOME/Scripts
@@ -128,7 +128,7 @@ if [ -d $SCRIPTHOME/pyenv ]; then
     export PATH=$PYENV_ROOT/bin:$PATH
 fi
 
-if command -v pyenv 1>/dev/null 2>&1 ; then 
+if command -v pyenv 1>/dev/null 2>&1 ; then
     eval "$(pyenv init -)"
 fi
 
@@ -149,3 +149,6 @@ fi
 # so annoying.
 export MYPY_CACHE_DIR=$HOME/.cache/mypy
 mkdir -p $MYPY_CACHE_DIR
+
+" github token
+alias ghtoken='echo $GITHUB_TOKEN'
