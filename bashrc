@@ -150,5 +150,5 @@ fi
 export MYPY_CACHE_DIR=$HOME/.cache/mypy
 mkdir -p $MYPY_CACHE_DIR
 
-" github token
+# github token
 alias ghtoken='echo $GITHUB_TOKEN'
