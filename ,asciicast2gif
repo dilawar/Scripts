@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e 
+set -x
+docker run --rm -v $PWD:/data asciinema/asciicast2gif -t solarized-dark $1 $1.gif
