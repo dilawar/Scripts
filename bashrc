@@ -34,7 +34,7 @@ alias mypy="mypy --config \$SCRIPTHOME/mypy.ini"
 # alias runghc='stack runghc'
 
 # Create alias for vim to launch it in profile mode.
-alias vv="vim --startuptime \$HOME/.cache/vim_startup.log "
+alias vimstartup="vim --startuptime \$HOME/.cache/vim_startup.log "
 
 if [ -f "$HOME/.bash_aliases" ]; then
     source "$HOME/.bash_aliases"
@@ -111,7 +111,7 @@ if [ "$(command -v fasd)" ]; then
 fi
 
 alias c='fasd_cd -d'
-alias v='f -e vim' # quick opening files with vim
+alias vv='f -e vim' # quick opening files with vim
 alias mp='f -e mplayer' # quick opening files with mplayer
 alias o='a -e xdg-open' # quick opening files with xdg-open
 
