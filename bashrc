@@ -149,3 +149,11 @@ fi
 # so annoying.
 export MYPY_CACHE_DIR=$HOME/.cache/mypy
 mkdir -p $MYPY_CACHE_DIR
+
+# github token
+alias ghtoken='echo $GITHUB_TOKEN'
+
+# ruby
+export GEM_HOME=$HOME/.gem
+export GEM_PATH=$HOME/.gem
+export PATH=$HOME/.gem/bin:$PATH
