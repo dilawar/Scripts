@@ -4,4 +4,6 @@ python3 -m pip install \
     lxml \
     poetry \
     numpy \
+    tldr \
+    dilawar \
     --upgrade
