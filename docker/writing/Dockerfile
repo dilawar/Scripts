@@ -1,8 +1,8 @@
 FROM alpine:edge
 MAINTAINER Dilawar Singh <dilawars@ncbs.res.in>
 
-ARG PANDOC_VERSION=2.11.3.1
-ARG PANDOC_CROSSREF_VERSION=0.3.9.0
+ARG PANDOC_VERSION=2.14.0.1
+ARG PANDOC_CROSSREF_VERSION=0.3.11.0a
 
 # Install dependencies.
 WORKDIR /workdir
@@ -21,7 +21,7 @@ RUN cd /tmp \
     && ls -ltr pandoc-$PANDOC_VERSION/* \
     && mv pandoc-$PANDOC_VERSION/bin/* /usr/bin/ \
     && rm -rf /tmp/*
-RUN apk --no-cache -v add ghostscript imagemagick 
+RUN apk --no-cache -v add ghostscript imagemagick
 RUN apk --no-cache -v add fontconfig ttf-dejavu perl
 RUN python3 -m pip install dilawar pandoc-latex-unlisted
 COPY latexmk.pl /usr/bin/latexmk

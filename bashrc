@@ -157,3 +157,8 @@ alias ghtoken='echo $GITHUB_TOKEN'
 export GEM_HOME=$HOME/.gem
 export GEM_PATH=$HOME/.gem
 export PATH=$HOME/.gem/bin:$PATH
+
+TLMGR_BIN="/usr/share/texmf-dist/scripts/texlive/tlmgr.pl"
+if [ -f "$TLMGR_BIN" ]; then
+    alias tlmgr="$TLMGR_BIN --usermode"
+fi
