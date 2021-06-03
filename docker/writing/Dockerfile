@@ -10,7 +10,7 @@ RUN echo "http://nl.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositor
     echo "http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN apk update
 RUN apk --no-cache -v add wget git vim coreutils wget zlib-dev graphviz sed bash
-RUN apk --no-cache -v add pandoc python3 && python3 -m ensurepip \
+RUN apk --no-cache -v add python3 && python3 -m ensurepip \
     && rm -rf /usr/lib/python*/ensurepip
 RUN cd /tmp \
     && wget https://github.com/jgm/pandoc/releases/download/$PANDOC_VERSION/pandoc-$PANDOC_VERSION-linux-amd64.tar.gz \
