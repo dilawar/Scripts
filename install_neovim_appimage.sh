@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 (
+    CHANNEL=nightly
 	mkdir -p ~/.cache
 	cd ~/.cache
-	if [ ! -f ./nvim.appimage ]; then
-		curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim.appimage 
-		chmod u+x nvim.appimage
-	fi
+	if [ -f ./nvim.appimage ]; then
+        rm -f ./nvim.appimage
+    fi
+
+    curl -LO https://github.com/neovim/neovim/releases/download/$CHANNEL/nvim.appimage
+    chmod u+x nvim.appimage
 
 	# mkdir -p $HOME/.local/bin
 	# cp nvim.appimage $HOME/.local/bin/
 	# $HOME/.local/bin/nvim.appimage
 	chmod a+x nvim.appimage
-	./nvim.appimage --appimage-extract 
+	./nvim.appimage --appimage-extract
 	mv squashfs-root ~
 
 	if [ ! -d ~/.config/nvim ]; then
@@ -28,4 +31,3 @@
 )
 
 echo "Delete ~/.cache/*.appimage if you like now"
-
