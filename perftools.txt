@@ -5,3 +5,6 @@ dstat
 sar
 vnstat
 strace
+sysstat
+procps
+coreutils

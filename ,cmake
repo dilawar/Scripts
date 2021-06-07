@@ -16,12 +16,14 @@ NPROC=$(nproc)
 if [ ! -n "$NPROC" ]; then
     NPROC=4
 fi
-mkdir -p _build
+
+BUILDIR=$(pwd)/build
+mkdir -p $BUILDIR
 GITTAG=$(git rev-parse --short HEAD)
 (
-    cd _build
+    cd $BUILDIR
     cmake -DCMAKE_INSTALL_PREFIX=/tmp/$GITTAG .. "$@"
     make -j$NPROC | tee __$GITTAG__.log
-    ctest --output-on-failure
+    ctest --output-on-failure --rerun-failed
     make install
 )
