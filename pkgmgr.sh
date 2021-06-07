@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# Install a package using system package manager.
-
-PKGLIST="$@"
-
 # Thanks https://unix.stackexchange.com/a/6348/5362
 if [ -f /etc/os-release ]; then
     # freedesktop.org and systemd
@@ -37,7 +33,8 @@ fi
 
 echo "$OS $VER"
 
-if [[ "$OS" =~ "Manzaro"* || "$OS" =~ "Arch"* ]]; then
+if [[ "$OS" == "Manjaro"* || "$OS" == "Arch"* ]]; then
+    # arch or manjaro
     INSTALL_CMD="pacman -Sy"
 fi
 
@@ -47,4 +44,4 @@ if [[ ! -v INSTALL_CMD ]]; then
     exit 1;
 fi
 
-sudo $INSTALL_CMD $@
+set -x; sudo $INSTALL_CMD $@; set +x
