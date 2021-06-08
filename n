@@ -5,51 +5,63 @@ from pathlib import Path
 import time
 import subprocess
 import difflib
-class Args: pass 
+
+
+class Args:
+    pass
+
+
 args = Args()
 
-NDIR = Path(os.getenv('HOME')) / 'Work' / 'notes'
-EDITOR = os.getenv('EDITOR', 'vim')
+NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+EDITOR = os.getenv("EDITOR", "vim")
 
 # dictionaries are now sorted. Cool.
 notes_ = []
-EXT = 'md'
+EXT = "md"
+
 
 class Note:
     global NDIR
+
     def __init__(self, path):
         self.path = path
-        self.name = self.path.name.replace(f'.{EXT}', '')
+        self.name = self.path.name.replace(f".{EXT}", "")
         self.relpath = self.path.relative_to(NDIR)
         self.project = str(self.relpath.parent)
         self.mtime = mtime(self.path)
+
 
 def find_closest_match(needle: str, haystack):
     matches = []
     for h in haystack:
         s = difflib.SequenceMatcher(None, needle, h.name)
         if s.ratio() > 0.5:
-            matches.append( (s.ratio(), h) )
+            matches.append((s.ratio(), h))
     if matches:
         matches = sorted(matches, key=lambda x: x[0])
         # last entry has the highest match.
         return matches[-1][1]
     return None
 
+
 def mtime(p):
     # Return modified time.
     return time.ctime(os.path.getmtime(p))
 
+
 def _notes_ls():
     global NDIR, EXT
-    for i, f in enumerate(NDIR.glob(f'**/*.{EXT}')):
+    for i, f in enumerate(NDIR.glob(f"**/*.{EXT}")):
         notes_.append(Note(f))
+
 
 def notes_ls():
     global NDIR
     _notes_ls()
     for i, n in enumerate(notes_):
-        print( f'{i:3d} {n.name:20s} {n.mtime} {n.project}' )
+        print(f"{i:3d} {n.name:20s} {n.mtime} {n.project}")
+
 
 def find_note(idx):
     # Find a note either by its index or by searching it.
@@ -59,11 +71,12 @@ def find_note(idx):
         if idx < len(notes_):
             return notes_[int(idx)]
         else:
-            print( f"[ERROR] invalid index {idx}." )
+            print(f"[ERROR] invalid index {idx}.")
             quit(-1)
 
     # else find in values.
     return find_closest_match(idx, notes_)
+
 
 def note_edit(p):
     global EDITOR
@@ -73,11 +86,12 @@ def note_edit(p):
         subprocess.run([EDITOR, f.path])
     else:
         s = input(f"Not found {p}. Create a new one (y/n) [y]?")
-        if (not s) or s[0].lower() != 'n':
+        if (not s) or s[0].lower() != "n":
             p = Path(p)
             if not p.suffix:
                 p = p.with_suffix(f".{EXT}")
             note_new(p)
+
 
 def note_new(path):
     global NDIR
@@ -86,40 +100,56 @@ def note_new(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([EDITOR, path])
 
+
 def notes_sync():
     global NDIR
     cmd = f'git pull && git diff && git add *.{EXT} && git commit -m "Sync" && git push'
-    for c in cmd.split('&&'):
+    for c in cmd.split("&&"):
         c = c.strip()
-        print( f"[INFO ] Executing {c}" )
-        s = subprocess.run( c.split(), cwd=NDIR
-                , encoding='utf-8', stdout=subprocess.PIPE)
-        for l in s.stdout.split('\n'):
+        print(f"[INFO ] Executing {c}")
+        s = subprocess.run(
+            c.split(), cwd=NDIR, encoding="utf-8", stdout=subprocess.PIPE
+        )
+        for l in s.stdout.split("\n"):
             print(l)
 
+
+def clone():
+    global NDIR
+    os.chdir(NDIR.parent)
+    s = subprocess.run(
+        f"git clone git@gitlab.com:dilawar/notes {NDIR}".split(), check=True
+    )
+
+
 def main():
-    global args
-    if not args.command or args.command[0] == 'ls':
+    global args, NDIR
+
+    if not NDIR.exists():
+        clone()
+
+    if not args.command or args.command[0] == "ls":
         notes_ls()
-    elif args.command[0] == 'edit':
+    elif args.command[0] == "edit":
         note_edit(args.command[1])
-    elif args.command[0] == 'sync':
+    elif args.command[0] == "sync":
         notes_sync()
     elif args.command:
         # create a new note.
         notePath = NDIR / Path(f"{args.command[0]}.{EXT}")
         note_new(notePath)
     else:
-        print( f"[INFO ] Unsupported command {args.command}" )
-        
+        print(f"[INFO ] Unsupported command {args.command}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import argparse
+
     # Argument parser.
-    description = '''Notes management.'''
+    description = """Notes management."""
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('command'
-            , nargs = '*'
-            , help = 'Subcommands. ls | edit note_id_or_name | sync')
+    parser.add_argument(
+        "command", nargs="*", help="Subcommands. ls | edit note_id_or_name | sync"
+    )
     parser.parse_args(namespace=args)
     main()

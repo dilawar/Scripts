@@ -1,8 +1,22 @@
 #!/bin/bash
 
-## Build using cmake.
-set -e -x
+NPROC=$(nproc)
 
+if [ ! -n "$NPROC" ]; then
+    NPROC=4
+fi
+
+ISBUILD=$(basename $(pwd))
+
+if [[ "$ISBUILD" == "build" ]]; then
+    echo "Already in build directory";
+    BUILDIR=$(pwd)
+else
+    mkdir -p $BUILDIR
+    BUILDIR=$(pwd)/build
+fi
+
+## Build using cmake.
 if [[ $1 == "--clean" ]]; then
     echo "Cleaning old cmake cache files"
     find . -name "*CMakeCache*" -print0 | xargs -I file rm -f file
@@ -11,19 +25,14 @@ else
     echo "Warning: Using old CMakeCache files."
 fi
 
-NPROC=$(nproc)
 
-if [ ! -n "$NPROC" ]; then
-    NPROC=4
-fi
-
-BUILDIR=$(pwd)/build
-mkdir -p $BUILDIR
 GITTAG=$(git rev-parse --short HEAD)
 (
     cd $BUILDIR
+    set -e
     cmake -DCMAKE_INSTALL_PREFIX=/tmp/$GITTAG .. "$@"
     make -j$NPROC | tee __$GITTAG__.log
     ctest --output-on-failure --rerun-failed
     make install
+    set +e
 )
