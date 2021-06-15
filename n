@@ -1,23 +1,41 @@
 #!/usr/bin/env python3
 
 import os
-from pathlib import Path
+import sys
 import time
 import subprocess
+import typing as T
 import difflib
+from pathlib import Path
 
+try:
+    import typer
+except ImportError:
+    subprocess.run(f"{sys.executable} install typer".split(), check=True)
 
-class Args:
-    pass
+import typer
 
+app = typer.app()
 
-args = Args()
-
-NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
 EDITOR = os.getenv("EDITOR", "vim")
+NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+
+
+def clone():
+    """Clone repo"""
+    global NDIR
+    os.chdir(NDIR.parent)
+    s = subprocess.run(
+        f"git clone git@gitlab.com:dilawar/notes {NDIR}".split(), check=True
+    )
+
+
+if not NDIR.exists():
+    clone()
+
 
 # dictionaries are now sorted. Cool.
-notes_ = []
+NOTES: T.List[Note] = []
 EXT = "md"
 
 
@@ -32,7 +50,7 @@ class Note:
         self.mtime = mtime(self.path)
 
 
-def find_closest_match(needle: str, haystack):
+def find_closest_match(needle: str, haystack: T.List[Path]):
     matches = []
     for h in haystack:
         s = difflib.SequenceMatcher(None, needle, h.name)
@@ -50,37 +68,41 @@ def mtime(p):
     return time.ctime(os.path.getmtime(p))
 
 
-def _notes_ls():
+def _NOTESls():
     global NDIR, EXT
     for i, f in enumerate(NDIR.glob(f"**/*.{EXT}")):
-        notes_.append(Note(f))
+        NOTES.append(Note(f))
 
 
-def notes_ls():
+@app.command()
+def ls():
     global NDIR
-    _notes_ls()
-    for i, n in enumerate(notes_):
+    _NOTESls()
+    for i, n in enumerate(NOTES):
         print(f"{i:3d} {n.name:20s} {n.mtime} {n.project}")
 
 
-def find_note(idx):
+@app.command()
+def find(idx: str):
     # Find a note either by its index or by searching it.
-    global notes_
-    _notes_ls()
+    global NOTES
+    _NOTESls()
     if idx.isnumeric():
-        if idx < len(notes_):
-            return notes_[int(idx)]
+        idx = int(idx)
+        if idx < len(NOTES):
+            return NOTES[idx]
         else:
             print(f"[ERROR] invalid index {idx}.")
             quit(-1)
 
     # else find in values.
-    return find_closest_match(idx, notes_)
+    return find_closest_match(idx, NOTES)
 
 
-def note_edit(p):
+@app.command()
+def edit(p):
     global EDITOR
-    f = find_note(p)
+    f = find(p)
     if f is not None:
         # Launch the editor.
         subprocess.run([EDITOR, f.path])
@@ -93,7 +115,8 @@ def note_edit(p):
             note_new(p)
 
 
-def note_new(path):
+@app.command()
+def new(path: Path):
     global NDIR
     if NDIR not in path.parents:
         path = NDIR / path
@@ -101,7 +124,8 @@ def note_new(path):
     subprocess.run([EDITOR, path])
 
 
-def notes_sync():
+@app.command()
+def sync():
     global NDIR
     cmd = f'git pull && git diff && git add *.{EXT} && git commit -m "Sync" && git push'
     for c in cmd.split("&&"):
@@ -112,44 +136,3 @@ def notes_sync():
         )
         for l in s.stdout.split("\n"):
             print(l)
-
-
-def clone():
-    global NDIR
-    os.chdir(NDIR.parent)
-    s = subprocess.run(
-        f"git clone git@gitlab.com:dilawar/notes {NDIR}".split(), check=True
-    )
-
-
-def main():
-    global args, NDIR
-
-    if not NDIR.exists():
-        clone()
-
-    if not args.command or args.command[0] == "ls":
-        notes_ls()
-    elif args.command[0] == "edit":
-        note_edit(args.command[1])
-    elif args.command[0] == "sync":
-        notes_sync()
-    elif args.command:
-        # create a new note.
-        notePath = NDIR / Path(f"{args.command[0]}.{EXT}")
-        note_new(notePath)
-    else:
-        print(f"[INFO ] Unsupported command {args.command}")
-
-
-if __name__ == "__main__":
-    import argparse
-
-    # Argument parser.
-    description = """Notes management."""
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument(
-        "command", nargs="*", help="Subcommands. ls | edit note_id_or_name | sync"
-    )
-    parser.parse_args(namespace=args)
-    main()
