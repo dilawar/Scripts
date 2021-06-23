@@ -100,16 +100,13 @@ if [ -f /etc/profile.d/autojump.bash ]; then
 fi
 
 fasd_cache="$HOME/.fasd-init-bash"
-if [ "$(command -v fasd)" -nt "$fasd_cache" -o ! -s "$fasd_cache" ]; then
-    fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
-fi
+$SCRIPTHOME/fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
 
-if [ "$(command -v fasd)" ]; then
-    source "$fasd_cache"
-    _fasd_bash_hook_cmd_complete v m j o
-    unset fasd_cache
-fi
+source "$fasd_cache"
+_fasd_bash_hook_cmd_complete v m j o
+unset fasd_cache
 
+source $SCRIPTHOME/fasd
 alias c='fasd_cd -d'
 alias vv='f -e vim' # quick opening files with vim
 alias mp='f -e mplayer' # quick opening files with mplayer
