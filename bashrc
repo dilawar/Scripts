@@ -18,10 +18,21 @@ alias sh='bash'
 alias copy='rsync -azv --progress -C'
 alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
 alias pylint='pylint -E'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
+
+#
+# TODO
+#
+function t {
+    source $SCRIPTHOME/todo.cfg
+    if [ ! -d $TODO_DIR ]; then
+        echo "Clone into $TODO_DIR"
+        git clone git@gitlab.com:dilawar/todo $TODO_DIR
+    fi
+    $SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg
+}
 
 # Alias for tmux.
 alias tmux="tmux -f \$SCRIPTHOME/tmux/tmux.conf"
