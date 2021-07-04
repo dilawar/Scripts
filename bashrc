@@ -31,7 +31,7 @@ function t {
         echo "Clone into $TODO_DIR"
         git clone git@gitlab.com:dilawar/todo $TODO_DIR
     fi
-    $SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg
+    $SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg $@
 }
 
 # Alias for tmux.
