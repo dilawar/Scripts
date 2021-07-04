@@ -170,3 +170,8 @@ TLMGR_BIN="/usr/share/texmf-dist/scripts/texlive/tlmgr.pl"
 if [ -f "$TLMGR_BIN" ]; then
     alias tlmgr="$TLMGR_BIN --usermode"
 fi
+
+#
+# bash-completion
+#
+[[ $PS1 && -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion
