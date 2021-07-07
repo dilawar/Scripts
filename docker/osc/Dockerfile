@@ -13,5 +13,5 @@ RUN zypper install -y obs-service-obs_scm \
     obs-service-recompress \
     rpmdevtools \
     && rm -rf /var/cache/zypp/packages/*
+COPY oscrc $HOME/.config/osc/oscrc
 WORKDIR /work
-RUN mkdir -p $HOME/.config/osc && touch $HOME/.config/osc/oscrc
