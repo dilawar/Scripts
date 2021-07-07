@@ -14,3 +14,4 @@ RUN zypper install -y obs-service-obs_scm \
     rpmdevtools \
     && rm -rf /var/cache/zypp/packages/*
 WORKDIR /work
+RUN mkdir -p $HOME/.config/osc && touch $HOME/.config/osc/oscrc
