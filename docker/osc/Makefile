@@ -1,13 +1,14 @@
 NAME:=dilawars/obs
 VERSION:=$(shell date +%Y.%m.%d)
+DOCKER:=$(shell which docker)
 
 all : build
 
 build : Dockerfile
-	docker build -t $(NAME):$(VERSION) .
-	docker build -t $(NAME):latest .
+	$(DOCKER) build -t $(NAME):$(VERSION) .
+	$(DOCKER) build -t $(NAME):latest .
 
 upload :
-	docker push $(NAME):$(VERSION)
-	docker push $(NAME):latest
+	$(DOCKER) push $(NAME):$(VERSION)
+	$(DOCKER) push $(NAME):latest
 
