@@ -130,4 +130,3 @@ apiurl = https://api.opensuse.org
 # Plain text password
 pass=password
 user=user
-credentials_mgr_class=osc.credentials.KeyringCredentialsManager:keyring.backends.SecretService.Keyring
