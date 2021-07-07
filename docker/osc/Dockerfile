@@ -11,4 +11,5 @@ RUN zypper install -y obs-service-obs_scm \
     obs-service-download_url \
     obs-service-download_files \
     obs-service-recompress \
+    rpmdevtools \
     && rm -rf /var/cache/zypp/packages/*
