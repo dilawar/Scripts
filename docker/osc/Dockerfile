@@ -1,5 +1,5 @@
 FROM opensuse/tumbleweed
-MAINTAINER Dilawar Singh <dilawars@ncbs.res.in>
+MAINTAINER Dilawar Singh <dilawar.s.rajput@gmail.com>
 
 # Install dependencies.
 RUN zypper install -y osc git cmake gcc sudo hostname \
