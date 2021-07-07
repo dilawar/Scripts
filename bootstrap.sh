@@ -76,9 +76,6 @@ fi
 ln -s $SCRIPTHOME/ssh_config $HOME/.ssh/config
 chmod 600 $HOME/.ssh/config
 
-WGET="wget -e use_proxy=yes -e http_proxy=$http_proxy -e https_proxy=$https_proxy"
-WGET="$WGET  --no-check-ertificate"
-
 if [ ! -f $HOME/.gitconfig ]; then
     colorPrint "STEP"  "Configuring git."
     ln -s $SCRIPTHOME/gitconfig $HOME/.gitconfig
@@ -227,18 +224,27 @@ if [ ! -d $HOME/.backup ]; then
     mkdir $HOME/.backup 
     cd $HOME/.backup && git init  
 fi
+
 VIMDIR=$HOME/.vim
 if [ -d $VIMDIR ]; then 
     git stash save
     cd $VIMDIR && git pull && git submodule init && git submodule update && cd
     git stash apply
 else 
-    git clone git@github.com:dilawar/vim $VIMDIR --recursive
+    git clone https://github.com/dilawar/vim $VIMDIR --recursive
 fi
 colorPrint "TODO" "Open vim and run BundleInstall etc."
 
 # colorPrint "STEP" "Configuring awesome to be used with slim"
 # ln -s $SCRIPTHOME/xsession $HOME/.xsession
+NVIMDIR=$HOME/.config/nvim
+if [ -d $NVIMDIR ]; then 
+    git stash save
+    cd $NVIMDIR && git pull && git submodule init && git submodule update && cd
+    git stash apply
+else 
+    git clone https://github.com/dilawar/nvim $NVIMDIR --recursive
+fi
 
 colorPrint "STEP" "Setting up gdb"
 rm -f $HOME/.gdbinit
