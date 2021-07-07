@@ -15,7 +15,7 @@ except ImportError:
 
 import typer
 
-app = typer.app()
+app = typer.Typer()
 
 EDITOR = os.getenv("EDITOR", "vim")
 NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
@@ -33,12 +33,6 @@ def clone():
 if not NDIR.exists():
     clone()
 
-
-# dictionaries are now sorted. Cool.
-NOTES: T.List[Note] = []
-EXT = "md"
-
-
 class Note:
     global NDIR
 
@@ -48,6 +42,11 @@ class Note:
         self.relpath = self.path.relative_to(NDIR)
         self.project = str(self.relpath.parent)
         self.mtime = mtime(self.path)
+
+
+# dictionaries are now sorted. Cool.
+NOTES: T.List[Note] = []
+EXT = "md"
 
 
 def find_closest_match(needle: str, haystack: T.List[Path]):
@@ -136,3 +135,7 @@ def sync():
         )
         for l in s.stdout.split("\n"):
             print(l)
+
+
+if __name__ == "__main__":
+    app()
