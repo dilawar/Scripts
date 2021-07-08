@@ -15,5 +15,10 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo systemctl enable docker
 sudo systemctl start docker
 
+# install neovim
+./install_neovim_appimage.sh
+rm -rf ~/.config/nvim 
+git clone https://github.com/dilawar/nvim ~/.config/nvim
+
 sudo dnf install -y python39 python39-devel 
 ./bootstrap.sh
