@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x 
+set -x
 set -e
 
 sudo dnf install -y epel-release dnf-plugins-core
@@ -17,8 +17,9 @@ sudo systemctl start docker
 
 # install neovim
 ./install_neovim_appimage.sh
-rm -rf ~/.config/nvim 
+rm -rf ~/.config/nvim
 git clone https://github.com/dilawar/nvim ~/.config/nvim
 
-sudo dnf install -y python39 python39-devel 
+sudo dnf install -y python39 python39-devel
+
 ./bootstrap.sh
