@@ -3,8 +3,7 @@ Host v3
     User labadmin
     IdentityFile ~/.ssh/id_rsa
 
-Host v4
-    Hostname 172.16.204.73
+Host v4 Hostname 172.16.204.73
     User labadmin
     IdentityFile ~/.ssh/id_rsa
 
@@ -18,7 +17,8 @@ Host srna
     IdentityFile ~/.ssh/id_rsa
 
 Host anushree
-    Hostname 172.16.206.134
+    Hostname 172.16.206.64
+    User anushree
 
 Host ghevar
     Hostname 172.16.223.30
@@ -34,45 +34,17 @@ Host hippo
     User hippo
 
 
-Host somya 
+Host somya
     Hostname 172.16.108.115
     User guest1
 
-Host hippo 
+Host hippo
     Hostname 172.16.223.76
     User hippo
-
-Host rikesh
-    Hostname 172.16.206.189
-    User dilawar
-
-Host behaviour1
-    Hostname 172.16.202.218
-    User dilawars
-
-Host common5
-    Hostname 172.16.202.218
-    User dilawars
-
-Host common1
-    # Hostname 172.16.204.52
-    Hostname 172.16.208.179
-    User dilawars
-
-Host common2
-    Hostname 172.16.208.154
-    User dilawars
-
-Host behaviour4
-    Hostname 172.16.204.45
-    User dilawars
 
 Host aur.archlinux.org
     IdentityFile ~/.ssh/id_rsa
     User aur
-
-Host harshvardan
-    Hostname 172.16.206.163
 
 Host pi
     Hostname 172.16.206.38
@@ -87,18 +59,56 @@ Host shivam
     IdentityFile ~/.ssh/dilawar
     User aspri44m
 
-Host ipitech
+Host dilawars.me
     Hostname 103.212.121.51
     Port 22999
     User iuoubwdv
+    IdentityFile ~/.ssh/ipitech
+
+Host subcom.tech
+    Hostname 13.251.155.22
+    User centos
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
 
 Host bigrock
     Hostname 162.241.114.222
     User root
 
-Host dilawar.blog
-    Hostname 103.86.176.30 
-    User jipiagxu
-    IdentityFile ~/.ssh/dilawar.blog
+Host meena.subcom.tech
+    Hostname 52.66.213.193
+    User ec2-user
+    IdentityFile ~/.ssh/dilawar-mumbai.pem
 
-ForwardX11Timeout 2d
+Host apimeena.subcom.tech
+    Hostname 3.108.67.155
+    User admin
+    IdentityFile ~/.ssh/dilawar-mumbai.pem
+
+Host dilawar.subcom.tech
+    Hostname 54.255.169.59
+    User centos
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host hauhau
+    Hostname 65.1.118.229
+    User ubuntu
+    IdentityFile ~/.ssh/HuaHau.pem
+
+Host build.subcom.tech
+    Hostname 13.213.232.229
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host voicedb.subcom
+    Hostname 13.229.181.170
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host pi.local
+    Hostname 192.168.1.4
+    User pi
+
+Host api.canary.subcom
+    Hostname 52.77.188.163
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
