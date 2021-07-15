@@ -5,6 +5,8 @@ import datetime
 import typing as T
 from pathlib import Path
 
+app = typer.Typer()
+
 
 def main(title: str, postdir: T.Optional[Path] = None):
     today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -20,6 +22,7 @@ def main(title: str, postdir: T.Optional[Path] = None):
         f.write("---\n")
         f.write(f"title: {title}\n")
         f.write(f"date: {today}\n")
+        f.write("tags:\n- \n")
         f.write(f"comments: true\n")
         f.write("---\n")
     print(f"Saved to {fname}")
