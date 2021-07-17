@@ -36,6 +36,7 @@ function t {
 
 # Alias for tmux.
 alias tmux="tmux -f \$SCRIPTHOME/tmux/tmux.conf"
+alias T="$HOME/.local/bin --appimage-extract-and-run -f \$SCRIPTHOME/tmux/tmux.conf"
 
 # mypy
 alias mypy="mypy --config \$SCRIPTHOME/mypy.ini"
