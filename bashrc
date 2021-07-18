@@ -35,7 +35,7 @@ function t {
 }
 
 # Alias for tmux.
-alias T="tmux -f \$SCRIPTHOME/tmux/tmux.conf"
+alias T="/usr/bin/tmux -f \$SCRIPTHOME/tmux/tmux.conf"
 alias TMUX="$HOME/.local/bin/tmux --appimage-extract-and-run -f \$SCRIPTHOME/tmux/tmux.conf"
 alias tmux="$HOME/.local/bin/tmux -f \$SCRIPTHOME/tmux/tmux.conf"
 
