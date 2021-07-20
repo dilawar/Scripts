@@ -5,5 +5,5 @@
     find . -type f -not -path '*/\.*' -executable -print0 | xargs -0 -I file git add file
     git add -u :/
     git commit -m "Auto : $1"
-    ./git_push
+    $HOME/Scripts/git_push
 )
