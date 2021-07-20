@@ -1,0 +1,7 @@
+#!/bin/sh
+podman run \
+    -w /root \
+    -v ${PWD}:/root/ \
+    --user ${UID}:${GID} \
+    -it eddelbuettel/lintian \
+    lintian $@
