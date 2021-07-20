@@ -1,15 +1,111 @@
 #!/usr/bin/env python3
 
-__author__           = "Dilawar Singh"
-__email__            = "dilawar.s.rajput@gmail.com"
+__author__ = "Dilawar Singh"
+__email__ = "dilawar.s.rajput@gmail.com"
+
+from pathlib import Path
+import functools
+
+# CREDIT: https://stackoverflow.com/a/49912639/1805129
 
 
-# TODO https://stackoverflow.com/a/49912639/1805129
+class DisplayablePath(object):
+    display_filename_prefix_middle = "├──"
+    display_filename_prefix_last = "└──"
+    display_parent_prefix_middle = "    "
+    display_parent_prefix_last = "│   "
 
+    def __init__(self, path, parent_path, is_last):
+        self.path = Path(str(path))
+        self.parent = parent_path
+        self.is_last = is_last
+        if self.parent:
+            self.depth = self.parent.depth + 1
+        else:
+            self.depth = 0
 
+    @classmethod
+    def make_tree(
+        cls, root, dir_only: bool = False, parent=None, is_last=False, criteria=None
+    ):
+        root = Path(str(root))
+        criteria = criteria or functools.partial(cls._default_criteria,
+                dir_only=dir_only)
+
+        displayable_root = cls(root, parent, is_last)
+        yield displayable_root
+
+        children = sorted(
+            list(path for path in root.iterdir() if criteria(path)),
+            key=lambda s: str(s).lower(),
+        )
+        count = 1
+        for path in children:
+            is_last = count == len(children)
+            if path.is_dir():
+                yield from cls.make_tree(
+                    path,
+                    parent=displayable_root,
+                    is_last=is_last,
+                    criteria=criteria,
+                    dir_only=dir_only,
+                )
+            else:
+                yield cls(path, displayable_root, is_last)
+            count += 1
+
+    @classmethod
+    def _default_criteria(cls, path, dir_only:bool=False):
+        if dir_only:
+            return path.is_dir()
+        return True
+
+    @property
+    def displayname(self):
+        if self.path.is_dir():
+            return self.path.name + "/"
+        return self.path.name
+
+    def displayable(self):
+        if self.parent is None:
+            return self.displayname
+
+        _filename_prefix = (
+            self.display_filename_prefix_last
+            if self.is_last
+            else self.display_filename_prefix_middle
+        )
+
+        parts = ["{!s} {!s}".format(_filename_prefix, self.displayname)]
+
+        parent = self.parent
+        while parent and parent.parent is not None:
+            parts.append(
+                self.display_parent_prefix_middle
+                if parent.is_last
+                else self.display_parent_prefix_last
+            )
+            parent = parent.parent
+
+        return "".join(reversed(parts))
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Like GNU tree (barebone) but in Python"
+    )
+    parser.add_argument("DIR", nargs="?", default=Path("."), help="directory")
+    parser.add_argument(
+        "--dir-only", "-d", action="store_true", help="List only subdirectories."
+    )
+    args = parser.parse_args()
+
+    tree = DisplayablePath.make_tree(args.DIR, dir_only=args.dir_only)
+    for path in tree:
+        print(path.displayable())
+
 
 if __name__ == "__main__":
     main()
