@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+__author__           = "Dilawar Singh"
+__email__            = "dilawar.s.rajput@gmail.com"
+
+
+# TODO https://stackoverflow.com/a/49912639/1805129
+
+
+
+
+def main():
+
+if __name__ == "__main__":
+    main()
