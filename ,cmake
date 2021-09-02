@@ -1,30 +1,22 @@
 #!/bin/bash
 
+set -x
+
 NPROC=$(nproc)
 
 if [ ! -n "$NPROC" ]; then
-    NPROC=4
+    NPROC=3
 fi
 
-ISBUILD=$(basename $(pwd))
+ISBUILD=${1:$(basename $(pwd))}
 
 if [[ "$ISBUILD" == "build" ]]; then
     echo "Already in build directory";
     BUILDIR=$(pwd)
 else
+    BUILDIR=$(pwd)/cmake-build-Release
     mkdir -p $BUILDIR
-    BUILDIR=$(pwd)/build
 fi
-
-## Build using cmake.
-if [[ $1 == "--clean" ]]; then
-    echo "Cleaning old cmake cache files"
-    find . -name "*CMakeCache*" -print0 | xargs -I file rm -f file
-    exit
-else
-    echo "Warning: Using old CMakeCache files."
-fi
-
 
 GITTAG=$(git rev-parse --short HEAD)
 (
