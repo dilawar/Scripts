@@ -120,13 +120,15 @@ def edit(p):
     if f is not None:
         # Launch the editor.
         subprocess.run([EDITOR, f.path])
-    else:
-        s = input(f"Not found {p}. Create a new one (y/n) [y]?")
-        if (not s) or s[0].lower() != "n":
-            p = Path(p)
-            if not p.suffix:
-                p = p.with_suffix(f".{EXT}")
-            note_new(p)
+        return 
+
+    # create new note.
+    s = input(f"Not found {p}. Create a new one (y/n) [y]?")
+    if (not s) or s[0].lower() != "n":
+        p = Path(p)
+        if not p.suffix:
+            p = p.with_suffix(f".{EXT}")
+        note_new(p)
 
 
 @app.command()

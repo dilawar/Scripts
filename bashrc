@@ -53,17 +53,17 @@ function t {
 }
 
 # Alias for tmux.
-alias tmux="/usr/bin/tmux -f \$SCRIPTHOME/tmux/tmux.conf"
+alias tmux="/usr/bin/tmux -f /$SCRIPTHOME/tmux/tmux.conf"
 
 # mypy
-alias mypy="mypy --config \$SCRIPTHOME/mypy.ini"
+alias mypy="mypy --config /$SCRIPTHOME/mypy.ini"
 
 # alias ghci='stack ghci'
 # alias ghc='stack ghc'
 # alias runghc='stack runghc'
 
 # Create alias for vim to launch it in profile mode.
-alias vimstartup="vim --startuptime \$HOME/.cache/vim_startup.log "
+alias vimstartup="vim --startuptime /$HOME/.cache/vim_startup.log "
 
 if [ -f "$HOME/.bash_aliases" ]; then
     source "$HOME/.bash_aliases"
@@ -121,7 +121,7 @@ export AWT_TOOLKIT=MToolkit
 
 if [ -f "$SCRIPTHOME/git_prompt.sh" ]; then
     source "$SCRIPTHOME/git_prompt.sh"
-    export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
+    export PS1='[/u@/h /W$(__git_ps1 " (%s)")]/$ '
 fi
 
 if [ -f /etc/profile.d/autojump.bash ]; then
@@ -193,3 +193,12 @@ fi
 # bash-completion
 #
 [[ $PS1 && -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion
+
+#
+# MSSY2
+#
+if [[ "$OSTYPE" == "MSYS" ]]; then
+    PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/Shared/Common/VSPerfCollectionTools/vs2019/x64/"
+    PATH="$PATH:/mingw64/bin:/c/Program Files/nodejs"
+    export PATH
+fi
