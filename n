@@ -18,7 +18,21 @@ import typer
 app = typer.Typer()
 
 EDITOR = os.getenv("EDITOR", "vim")
+
 NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+try:
+    gitdir = subprocess.check_output(
+        "git rev-parse --show-toplevel".split(), text=True
+    ).strip()
+    if gitdir:
+        NDIR = Path(gitdir) / "docs" / "notes"
+        if not NDIR.exists():
+            NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+except Exception:
+    pass
+
+if not NDIR.exists():
+    raise Exception(f"{NDIR} doesn't exists")
 
 
 def clone():
@@ -32,6 +46,7 @@ def clone():
 
 if not NDIR.exists():
     clone()
+
 
 class Note:
     global NDIR
