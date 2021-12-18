@@ -119,9 +119,9 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 # To make sure that java launches with awesome windowmanager
 export AWT_TOOLKIT=MToolkit
 
-if [ -f "$SCRIPTHOME/git_prompt.sh" ]; then
-    source "$SCRIPTHOME/git_prompt.sh"
-    export PS1='[/u@/h /W$(__git_ps1 " (%s)")]/$ '
+if [ -f "$SCRIPTHOME/git-prompt.sh" ]; then
+    source "$SCRIPTHOME/git-prompt.sh"
+    export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
 fi
 
 if [ -f /etc/profile.d/autojump.bash ]; then
