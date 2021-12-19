@@ -147,7 +147,7 @@ export PATH=$HOME/.cargo/bin:$PATH
 # HOME/.local/bin
 export PATH=$HOME/.local/bin:$PATH
 export PATH=$HOME/.nimble/bin:$PATH   # nim
-export TERMINAL=gnome-terminal
+export TERMINAL=xfce4-terminal
 
 # pyenv
 if [ -d $SCRIPTHOME/pyenv ]; then
