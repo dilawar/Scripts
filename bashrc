@@ -198,7 +198,7 @@ fi
 #
 # MSSY2
 #
-if [[ "$OSTYPE" == "MSYS" ]]; then
+if [[ "$OSTYPE" == "msys" ]]; then
     PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/Shared/Common/VSPerfCollectionTools/vs2019/x64/"
     PATH="$PATH:/mingw64/bin:/c/Program Files/nodejs"
     export PATH
