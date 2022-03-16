@@ -24,16 +24,16 @@ def find_remote() -> str:
 
 
 def get_user(domain) -> T.Optional[str]:
-    if domain == "github.com":
+    if domain.endswith("github.com"):
         return env("GITHUB_USER", env("GIT_USER", None))
-    if domain == "gitlab.com":
+    if domain.endswith("gitlab.com"):
         return env("GITLAB_USER", env("GIT_USER", None))
     return env('GIT_USER', env('USER', None))
 
 def get_token(domain) -> T.Optional[str]:
-    if domain == "github.com":
+    if domain.endswith("github.com"):
         return env("GITHUB_TOKEN", env("GIT_TOKEN", None))
-    if domain == "gitlab.com":
+    if domain.endswith("gitlab.com"):
         return env("GITLAB_TOKEN", env("GIT_TOKEN", None))
     return env("GIT_TOKEN", None)
 
@@ -50,8 +50,8 @@ def rewrite_remote(remote: str) -> str:
     o = urlparse(remote)
     assert o.scheme in ["https", "http"]
     U, P = get_user(o.netloc), get_token(o.netloc)
-    assert U is not None, "Could not determine user"
-    assert P is not None, "Could not determine token"
+    assert U is not None, f"Could not determine user for {o.netloc}"
+    assert P is not None, f"Could not determine token for {o.netloc}"
     return o.geturl().replace(f"{o.scheme}://", f"{o.scheme}://{U}:{P}@")
 
 def git_push(url, branch):
