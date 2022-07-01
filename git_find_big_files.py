@@ -10,7 +10,7 @@ def getOutput(cmd):
   return os.popen(cmd).read()
 
 if (len(sys.argv) < 3):
-  print "usage: %s -s size_in_bytes -e regex" % sys.argv[0]
+  print("usage: %s -s size_in_bytes -e regex" % sys.argv[0])
 else:
   maxSize = int(sys.argv[2])
 
@@ -41,9 +41,9 @@ else:
     if(len(sys.argv) > 3) :
       pat = sys.argv[4]
       if(re.match(pat, filename)) :
-        print f.strip()
+        print(f.strip())
       else : pass
     else :
-      print f.strip()
+      print(f.strip())
 
 

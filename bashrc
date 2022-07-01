@@ -149,15 +149,15 @@ export PATH=$HOME/.local/bin:$PATH
 export PATH=$HOME/.nimble/bin:$PATH   # nim
 export TERMINAL=xfce4-terminal
 
-# pyenv
-if [ -d $SCRIPTHOME/pyenv ]; then
-    export PYENV_ROOT=$SCRIPTHOME/pyenv
-    export PATH=$PYENV_ROOT/bin:$PATH
-fi
-
-if command -v pyenv 1>/dev/null 2>&1 ; then
-    eval "$(pyenv init -)"
-fi
+## # pyenv
+## if [ -d $SCRIPTHOME/pyenv ]; then
+##     export PYENV_ROOT=$SCRIPTHOME/pyenv
+##     export PATH=$PYENV_ROOT/bin:$PATH
+## fi
+##
+## if command -v pyenv 1>/dev/null 2>&1 ; then
+##     eval "$(pyenv init -)"
+## fi
 
 # brew settings.
 if type brew &>/dev/null; then

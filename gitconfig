@@ -7,6 +7,7 @@
 [diff]
     tool = vimdiff
 [alias]
+    lol = log --all --decorate --oneline --graph
     lg1 = log --graph --abbrev-commit --decorate --all
     lg = !"git lg1"
 [pull]

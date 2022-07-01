@@ -26,11 +26,18 @@ class DisplayablePath(object):
 
     @classmethod
     def make_tree(
-        cls, root, dir_only: bool = False, parent=None, is_last=False, criteria=None
+        cls,
+        root,
+        *,
+        dir_only: bool = False,
+        parent=None,
+        is_last=False,
+        max_depth: int = -1,
     ):
         root = Path(str(root))
-        criteria = criteria or functools.partial(cls._default_criteria,
-                dir_only=dir_only)
+        criteria = functools.partial(
+            cls._default_criteria, dir_only=dir_only, max_depth=max_depth
+        )
 
         displayable_root = cls(root, parent, is_last)
         yield displayable_root
@@ -47,17 +54,19 @@ class DisplayablePath(object):
                     path,
                     parent=displayable_root,
                     is_last=is_last,
-                    criteria=criteria,
                     dir_only=dir_only,
+                    max_depth=max_depth,
                 )
             else:
                 yield cls(path, displayable_root, is_last)
             count += 1
 
     @classmethod
-    def _default_criteria(cls, path, dir_only:bool=False):
+    def _default_criteria(cls, path, dir_only: bool = False, max_depth: int = -1):
         if dir_only:
             return path.is_dir()
+        if max_depth > 0 and path.depth >= max_depth:
+            return False
         return True
 
     @property
@@ -100,9 +109,14 @@ def main():
     parser.add_argument(
         "--dir-only", "-d", action="store_true", help="List only subdirectories."
     )
+    parser.add_argument(
+        "--max-depth", "-n", type=int, default=-1, help="Maximum recursion depth."
+    )
     args = parser.parse_args()
 
-    tree = DisplayablePath.make_tree(args.DIR, dir_only=args.dir_only)
+    tree = DisplayablePath.make_tree(
+        args.DIR, dir_only=args.dir_only, max_depth=args.max_depth
+    )
     for path in tree:
         print(path.displayable())
 
