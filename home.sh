@@ -57,10 +57,6 @@ colorPrint "STEP" "Updating bash"
 rm -f $HOME/.bashrc
 echo "source $SCRIPTHOME/bashrc" >> $HOME/.bashrc
 source $HOME/.bashrc 
-colorPrint "STEP" "Adding proxy information"
-echo "export http_proxy=http://proxy.ncbs.res.in:3128" > $HOME/.proxy
-echo "export https_proxy=http://proxy.ncbs.res.in:3128" >> $HOME/.proxy
-source $HOME/.proxy
 
 ###colorPrint "STEP" "Setting up ssh keys"
 ###gpg -d $SCRIPTHOME/_ssh.tar.gz.gpg > /tmp/_ssh.tar.gz
