@@ -146,11 +146,7 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-export ftp_proxy=""
-export http_proxy=http://proxy.ncbs.res.in:3128/
-export https_proxy=http://proxy.ncbs.res.in:3128/
 export PATH=$HOME/Scripts:$PATH
-=======
 if [ -f $HOME/.termcap ]; then
     TERMCAP=~/.termcap
     export TERMCAP
@@ -224,7 +220,6 @@ export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
 
 # Open JDK.
 export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
-export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
 alias java='java ${JAVA_FLAGS}'
 
 # Make sure that java launches with awesome windowmanager
