@@ -161,7 +161,7 @@ fi
 export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
 
 # My pandoc filters.
-export PATH=$PATH:~/Scripts/pandoc
+export PATH=$PATH:$SCRIPTHOME/pandoc
 
 if [ -f ~/.proxy ]; then
     source ~/.proxy
@@ -169,12 +169,13 @@ fi
 
 # read history for each terminal
 #export PROMPT_COMMAND="history -n; history -a"
-source ~/Scripts/profile
+source $SCRIPTHOME/profile
+
 export PATH=$PATH:~/.mutt:$HOME/.local/bin
 export LYNX_CFG=~/Scripts/lynx.cfg
 
-if [ -f ~/Scripts/dilawar_cd.sh ]; then 
-    source ~/Scripts/dilawar_cd.sh
+if [ -f $SCRIPTHOME/dilawar_cd.sh ]; then 
+    source $SCRIPTHOME/dilawar_cd.sh
 fi
 
 if [ -f $SCRIPTHOME/notes.sh ]; then
@@ -204,31 +205,24 @@ export GOPATH=$HOME/go
 if [ -f /etc/profile.d/bash-completion.sh ]; then
     source /etc/profile.d/bash-completion.sh 
 fi
-export SSHPASS=jH7qMYpF
 
-export PATH="$PATH:/home_local/dilawars/sbw-2.10.0/bin/"
-export PATH=$PATH:$HOME/.cabal/bin
-export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/moose-core/_build/python"
-#export PYTHONPATH="$HOME/Work/GITHUB/DILAWAR/ngspyce/"
-#export PYTHONPATH="$PYTHONPATH:$HOME/Work/GITHUB/DILAWAR/yacml"
-export HOMEBREW_GITHUB_API_TOCKEN=8e08eccfe2ad9a8526ccf8992b4c68252fe390eb
-#export PATH=/opt/texlive/2016/bin/x86_64-linux/:$PATH
-#export TEXMF=/usr/share/texmf
+SSH_ENV="$HOME/.ssh/agent-environment"
+function start_agent {
+    echo "Initialising new SSH agent..."
+    /usr/bin/ssh-agent | sed 's/^echo/#echo/' > "${SSH_ENV}"
+    echo succeeded
+    chmod 600 "${SSH_ENV}"
+    . "${SSH_ENV}" > /dev/null
+    /usr/bin/ssh-add;
+}
 
-# added by travis gem
-[ -f /home1/dilawars/.travis/travis.sh ] && source /home1/dilawars/.travis/travis.sh
-
-# Open JDK.
-export JAVA_HOME=/usr/lib64/jvm/java-openjdk/
-alias java='java ${JAVA_FLAGS}'
-
-# Make sure that java launches with awesome windowmanager
-export AWT_TOOLKIT=MToolkit
-export PYTHONSTARTUP=$SCRIPTHOME/python_startup.py
-
-
-# User scripts
-# source bash-preexec.sh 
-# Now for very command prefix is with alert command so that I can get notified.
-source alert.sh
-xrdb ~/Scripts/Xresources
+# Source SSH settings, if applicable
+if [ -f "${SSH_ENV}" ]; then
+    . "${SSH_ENV}" > /dev/null
+    #ps ${SSH_AGENT_PID} doesn't work under cywgin
+    ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ > /dev/null || {
+        start_agent;
+    }
+else
+    start_agent;
+fi
