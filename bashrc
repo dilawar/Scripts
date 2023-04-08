@@ -211,6 +211,7 @@ if [ -f "${SSH_ENV}" ]; then
     }
 else
     start_agent;
+fi
 
 # This is invalid since I no longer behind proxy.
 #export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
@@ -249,57 +250,13 @@ export PATH=$HOME/.local/bin:$PATH
 export PATH=$HOME/.nimble/bin:$PATH   # nim
 export TERMINAL=xfce4-terminal
 
-## # pyenv
-## if [ -d $SCRIPTHOME/pyenv ]; then
-##     export PYENV_ROOT=$SCRIPTHOME/pyenv
-##     export PATH=$PYENV_ROOT/bin:$PATH
-## fi
-##
-## if command -v pyenv 1>/dev/null 2>&1 ; then
-##     eval "$(pyenv init -)"
-## fi
-
-# brew settings.
-if type brew &>/dev/null; then
-    HOMEBREW_PREFIX="$(brew --prefix)"
-    if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
-        source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
-    else
-        for COMPLETION in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
-            [[ -r "$COMPLETION" ]] && source "$COMPLETION"
-        done
-    fi
-fi
-
 # mypy cache directory. By default, mypy create cache in the source directory.
 # ctags creates tags from this file and move to cache file on tag jump which is
 # so annoying.
 export MYPY_CACHE_DIR=$HOME/.cache/mypy
 mkdir -p $MYPY_CACHE_DIR
 
-# github token
-alias ghtoken='echo $GITHUB_TOKEN'
-
 # ruby
 export GEM_HOME=$HOME/.gem
 export GEM_PATH=$HOME/.gem
 export PATH=$HOME/.gem/bin:$PATH
-
-TLMGR_BIN="/usr/share/texmf-dist/scripts/texlive/tlmgr.pl"
-if [ -f "$TLMGR_BIN" ]; then
-    alias tlmgr="$TLMGR_BIN --usermode"
-fi
-
-#
-# bash-completion
-#
-[[ $PS1 && -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion
-
-#
-# MSSY2
-#
-if [[ "$OSTYPE" == "msys" ]]; then
-    PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/Shared/Common/VSPerfCollectionTools/vs2019/x64/"
-    PATH="$PATH:/mingw64/bin:/c/Program Files/nodejs"
-    export PATH
-fi
