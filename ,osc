@@ -1,2 +1,4 @@
 #!/bin/bash
-podman run -it docker.io/subcomdocker/osc osc $@
+podman run \
+    -v $(PWD):/root \
+    -it docker.io/subcomdocker/osc osc $@
