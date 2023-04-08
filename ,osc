@@ -1,0 +1,2 @@
+#!/bin/bash
+podman run -it docker.io/subcomdocker/osc osc $@
