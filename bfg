@@ -1,3 +1,13 @@
-#!/bin/bash
+#!/bin/sh
+
+set -e
+VERSION=1.14.0
+JARFILE="$HOME/Scripts/bfg-$VERSION.jar"
+URL=https://repo1.maven.org/maven2/com/madgag/bfg/$VERSION/bfg-$VERSION.jar
+if [ ! -f "$JARFILE" ]; then
+    echo "Downloading jar file"
+    wget $URL -O "$JARFILE"
+fi
+
 set -x
-java -jar /opt/bfg-1.12.15.jar $@
+java -jar "$HOME/Scripts/bfg-$VERSION.jar" "$@"

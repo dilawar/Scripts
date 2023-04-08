@@ -1,0 +1,171 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/15/2017 .......... revised 11/15/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: vibrance2 [-a amount] infile outfile
+# USAGE: vibrance2 [-h or -help]
+#
+# OPTIONS:
+#
+# -a     amount     vibrance amount; float>=0; default=1; no change
+#
+###
+#
+# NAME: VIBRANCE2
+# 
+# PURPOSE: To apply a non-linear change to the chroma channel of an image.
+# 
+# DESCRIPTION: VIBRANCE2 applies a non-linear change to the vibrance of an 
+# image using a gamma adjustment of the chroma channel in HCL colorspace.
+# 
+# OPTIONS: 
+# 
+# -a amount ... AMOUNT is the vibrance value relative to 1. Values are floats>=0. 
+# The default=1 (no change). Larger values increase the vibrance and smaller values 
+# decrease the vibrance.
+#
+# REQUIREMENTS: IM 6.8.6-3 or greater in order to properly use HCL colorspace after a 
+# bug was fixed.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+amount=1			# amount of non-linear chroma change
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter - bluramt
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "AMOUNT=$amount MUST BE A NON-NEGATIVE FLOAT"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmp1A="$dir/vibrance_1_$$.mpc"
+tmp1B="$dir/vibrance_1_$$.cache"
+trap "rm -f $tmp1A $tmp1B;" 0
+trap "rm -f $tmp1A $tmp1B; exit 1" 1 2 3 15
+#trap "rm -f $tmp1A $tmp1B; exit 1" ERR
+
+# test input image
+convert -quiet "$infile" +repage $tmp1A ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# process image
+convert $tmp1A \
+	-colorspace HCL -separate \( -clone 1 -gamma $amount \) \
+	-swap 1,-1 +delete -set colorspace HCL -combine -colorspace sRGB \
+	"$outfile"
+
+exit 0

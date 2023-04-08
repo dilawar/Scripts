@@ -5,6 +5,8 @@ Pandoc filter to process raw latex tikz environments into images.
 Assumes that pdflatex is in the path, and that the standalone
 package is available.  Also assumes that ImageMagick's convert
 is in the path. Images are put in the tikz-images directory.
+
+CREDIT: Did I write this? Or downloaded it from somewhere? Oh the mystery.
 """
 
 import os

@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+
+import sys
+import re
+import time
+import subprocess
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+def get_params( text ):
+    params = ','.join( re.findall( r'param\s+(.+?)\n', text ) )
+    params = list( filter(lambda x: len(x.strip()) > 0
+            , params.replace( ' ', ',' ).split( ',')) )
+    params = [ x.split( '=' ) for x in params ]
+    return { k : v for k, v  in params }
+
+def parse_ode( file ):
+    with open( file ) as f:
+        text = f.read( )
+    params = get_params( text )
+    return params
+
+def parse( output ):
+    try:
+        output = output.decode( 'utf-8' )
+    except Exception as e:
+        pass
+    variables = re.findall( r'\d+\:d(?P<id>\S+?)/dt=', output )
+
+    # Print output to console.
+    output = '.. ' + output.replace( '\n', '\n.. ' )
+    print( '-- XPPY output:' )
+    print( output )
+    print( '--')
+    return variables
+
+def main(  ):
+    infile = sys.argv[1]
+    ode = parse_ode( infile )
+    print( '[INFO] Solving system in file %s' % infile )
+    t = time.time( )
+    cmd = 'xppaut -silent %s %s' % (''.join(sys.argv[2:]), infile)
+    #print( '[INFO] Executing %s' % cmd )
+    try:
+        res = subprocess.check_output( cmd.split( ), shell=False )
+        print( '[INFO] Time taken %f sec' % (time.time()-t) )
+    except Exception as e:
+        print( 'Failed to compute. Error was %s' % e )
+        quit(1)
+
+    variables = parse( res ) 
+    print( '[INFO] Plotting data from output.dat' )
+    data = np.loadtxt( 'output.dat' )
+    tvec = data[:,0]
+    for i, k in enumerate( variables ):
+        ax = plt.subplot( len(variables), 1, i + 1 )
+        ax.plot( tvec, data[:,i+1], label = k )
+        ax.legend( )
+    outfile = '%s.png' % infile
+    plt.savefig( outfile )
+    print( '[INFO] Saved to %s' % outfile )
+
+if __name__ == '__main__':
+    main( )

@@ -74,20 +74,24 @@ esac
 #.bashrc
 export EDITOR=vim
 
-# History support
-export HISTCONTROL=ignoredups:erasedups
-export HISTSIZE=100000
-export HISTFILESIZE=1000000
-#shopt -s histappend 
+# Thanks https://unix.stackexchange.com/a/48116/5362
+HISTSIZE=9000
+HISTFILESIZE=$HISTSIZE
+HISTCONTROL=ignorespace:ignoredups
 
-# enable color support of ls and also add handy aliases
-if [ -x /usr/bin/dircolors ]; then
-    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+_bash_history_sync() {
+    builtin history -a         #1
+    HISTFILESIZE=$HISTSIZE     #2
+    builtin history -c         #3
+    builtin history -r         #4
+}
 
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
-fi
+history() {                  #5
+    _bash_history_sync
+    builtin history "$@"
+}
+
+PROMPT_COMMAND=_bash_history_sync
 
 # some more ls aliases
 alias ll='ls -alF'
@@ -99,6 +103,7 @@ alias l='ls -CF'
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 export SCRIPTHOME=$HOME/Scripts
+
 if [ "$(uname)" == "Darwin" ]; then
     alias ls="gls --color=auto -ltr"
 else
@@ -109,78 +114,57 @@ else
 fi
 alias rm='rm -i'
 alias sh='bash'
-alias src='source ~/.bashrc'
 alias copy='rsync -azv --progress -C'
-alias i='sudo -E emerge -avuD '
-alias netcat='nc.openbsd'
-alias ii='sudo apt-get -c ~/.aptconf install'
-alias ss='sudo -E emerge --search'
-alias uu='sudo -E emerge -avuND @world'
-alias cpptags='ctags h-c++-kinds=+p --fields=+iaS --extra=+q'
-alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc --latex-engine=lualatex'
+alias cpptags='ctags --exclude=node_modules/* --exclude=vendor/*'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias sudo='sudo -E'
-alias t='$SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg'
-alias note='terminal_velocity -x md ~/Work/notes'
 alias pylint='pylint -E'
-alias vi='vim'
 alias pdflatex="pdflatex -shell-escape"
 alias lualatex="lualatex -shell-escape"
-#alias ghci='stack ghci'
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
 
-if [ -f ~/.bash_aliases ]; then
-    . ~/.bash_aliases
+#
+# TODO
+#
+function t {
+    source $SCRIPTHOME/todo.cfg
+    if [ ! -d $TODO_DIR ]; then
+        echo "Clone into $TODO_DIR"
+        git clone git@gitlab.com:dilawar/todo $TODO_DIR
+    fi
+    $SCRIPTHOME/todo.sh -d $SCRIPTHOME/todo.cfg $@
+}
+
+# Alias for tmux.
+alias tmux="/usr/bin/tmux -f /$SCRIPTHOME/tmux/tmux.conf"
+
+# mypy
+alias mypy="mypy --config /$SCRIPTHOME/mypy.ini"
+
+# alias ghci='stack ghci'
+# alias ghc='stack ghc'
+# alias runghc='stack runghc'
+
+# Create alias for vim to launch it in profile mode.
+alias vimstartup="vim --startuptime /$HOME/.cache/vim_startup.log "
+
+if [ -f "$HOME/.bash_aliases" ]; then
+    source "$HOME/.bash_aliases"
 fi
 
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
-if ! shopt -oq posix; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
-fi
-export PATH=$HOME/Scripts:$PATH
-if [ -f $HOME/.termcap ]; then
+if [ -f "$HOME/.termcap" ]; then
     TERMCAP=~/.termcap
     export TERMCAP
 fi
 
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
-if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
-    . /etc/bash_completion
-fi
-export PATH=~/Scripts/:$HOME/.mutt:$HOME:~/Scripts/data_over_git_ssh:$PATH
+# mutt
+export PATH=$SCRIPTHOME:$HOME/.mutt:$PATH
 
-# My pandoc filters.
-export PATH=$PATH:$SCRIPTHOME/pandoc
-
-if [ -f ~/.proxy ]; then
-    source ~/.proxy
+# android goodies
+if [ -d "$HOME/Android/Sdk/platform-tools" ]; then
+    export PATH=$HOME/Android/Sdk/platform-tools:$PATH
 fi
 
-# read history for each terminal
-#export PROMPT_COMMAND="history -n; history -a"
-source $SCRIPTHOME/profile
-
-export PATH=$PATH:~/.mutt:$HOME/.local/bin
-export LYNX_CFG=~/Scripts/lynx.cfg
-
-if [ -f $SCRIPTHOME/dilawar_cd.sh ]; then 
-    source $SCRIPTHOME/dilawar_cd.sh
-fi
-
-if [ -f $SCRIPTHOME/notes.sh ]; then
-    source $SCRIPTHOME/notes.sh
-fi
+# vim mode in bash
+set -o vi
 
 # some more ls aliases
 alias rm='rm -i'
@@ -194,17 +178,19 @@ alias ii='sudo apt-get -c ~/.aptconf install'
 alias s='apt-cache search'
 alias u='sudo apt-get upgrade'
 alias cpptags='ctags --c++-kinds=+p --fields=+iaS --extra=+q'
-alias pandoc='pandoc --data-dir=$HOME/Scripts/pandoc'
 alias lynx='lynx --cfg=$HOME/Scripts/lynx.cfg'
-alias c='dilawar_cd'
 alias antlr4='java -jar /opt/antlr/antlr-4.0-complete.jar'
 alias antrlworks='/opt/antlr/antlrworks2/bin/antlrworks2'
 alias gcal='gcalcli --calendar="dilawar"'
-alias tmux='tmux -f $SCRIPTHOME/tmux/tmux.conf'
+alias move='mv -v -u -n'
+# Notify when done.
+alias lwd='$HOME/Scripts/notify_when_done.sh'
+
+# NNN
+export NNN_USE_EDITOR=1
+export NNN_DE_FILE_MANAGER=thunar
+
 export GOPATH=$HOME/go
-if [ -f /etc/profile.d/bash-completion.sh ]; then
-    source /etc/profile.d/bash-completion.sh 
-fi
 
 SSH_ENV="$HOME/.ssh/agent-environment"
 function start_agent {
@@ -225,4 +211,95 @@ if [ -f "${SSH_ENV}" ]; then
     }
 else
     start_agent;
+
+# This is invalid since I no longer behind proxy.
+#export JAVA_FLAGS="-Dhttp.proxyHost=proxy.ncbs.res.in -Dhttp.proxyPort=3128"
+#alias java="java ${JAVA_FLAGS}"
+
+# To make sure that java launches with awesome windowmanager
+export AWT_TOOLKIT=MToolkit
+
+if [ -f "$SCRIPTHOME/git-prompt.sh" ]; then
+    source "$SCRIPTHOME/git-prompt.sh"
+    export PS1='[\u@\h \W$(__git_ps1 " (%s)")]\$ '
+fi
+
+if [ -f /etc/profile.d/autojump.bash ]; then
+    source /etc/profile.d/autojump.bash
+fi
+
+fasd_cache="$HOME/.fasd-init-bash"
+$SCRIPTHOME/fasd --init posix-alias bash-hook bash-ccomp bash-ccomp-install >| "$fasd_cache"
+
+source "$fasd_cache"
+_fasd_bash_hook_cmd_complete v m j o
+unset fasd_cache
+
+source $SCRIPTHOME/fasd
+alias c='fasd_cd -d'
+alias vv='f -e vim' # quick opening files with vim
+alias mp='f -e mplayer' # quick opening files with mplayer
+alias o='a -e xdg-open' # quick opening files with xdg-open
+
+export PATH=$HOME/.cabal/bin:$PATH
+export PATH=$HOME/.cargo/bin:$PATH
+
+# HOME/.local/bin
+export PATH=$HOME/.local/bin:$PATH
+export PATH=$HOME/.nimble/bin:$PATH   # nim
+export TERMINAL=xfce4-terminal
+
+## # pyenv
+## if [ -d $SCRIPTHOME/pyenv ]; then
+##     export PYENV_ROOT=$SCRIPTHOME/pyenv
+##     export PATH=$PYENV_ROOT/bin:$PATH
+## fi
+##
+## if command -v pyenv 1>/dev/null 2>&1 ; then
+##     eval "$(pyenv init -)"
+## fi
+
+# brew settings.
+if type brew &>/dev/null; then
+    HOMEBREW_PREFIX="$(brew --prefix)"
+    if [[ -r "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]]; then
+        source "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"
+    else
+        for COMPLETION in "${HOMEBREW_PREFIX}/etc/bash_completion.d/"*; do
+            [[ -r "$COMPLETION" ]] && source "$COMPLETION"
+        done
+    fi
+fi
+
+# mypy cache directory. By default, mypy create cache in the source directory.
+# ctags creates tags from this file and move to cache file on tag jump which is
+# so annoying.
+export MYPY_CACHE_DIR=$HOME/.cache/mypy
+mkdir -p $MYPY_CACHE_DIR
+
+# github token
+alias ghtoken='echo $GITHUB_TOKEN'
+
+# ruby
+export GEM_HOME=$HOME/.gem
+export GEM_PATH=$HOME/.gem
+export PATH=$HOME/.gem/bin:$PATH
+
+TLMGR_BIN="/usr/share/texmf-dist/scripts/texlive/tlmgr.pl"
+if [ -f "$TLMGR_BIN" ]; then
+    alias tlmgr="$TLMGR_BIN --usermode"
+fi
+
+#
+# bash-completion
+#
+[[ $PS1 && -f /usr/share/bash-completion/bash_completion ]] && . /usr/share/bash-completion/bash_completion
+
+#
+# MSSY2
+#
+if [[ "$OSTYPE" == "msys" ]]; then
+    PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/Shared/Common/VSPerfCollectionTools/vs2019/x64/"
+    PATH="$PATH:/mingw64/bin:/c/Program Files/nodejs"
+    export PATH
 fi

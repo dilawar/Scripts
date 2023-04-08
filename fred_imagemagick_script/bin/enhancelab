@@ -1,0 +1,269 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/28/2012 .......... revised 10/31/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: enhancelab [-b blackpt ] [-w whitept] [-g gammaval] [-s sigmoid] [-c colorize] infile outfile
+# USAGE: enhancelab [-h or -help]
+# 
+# OPTIONS:
+#
+# -b     blackpt      black point percent value for level adjustment of the L 
+#                     channel; 0<=integer<=100; default=0 (no change)                   
+# -w     whitept      white point percent value for level adjustment of the L 
+#                     channel; 0<=integer<=100; default=100 (no change)
+# -g     gammaval     gamma value for non-linear adjustment on the L channel;  
+#                     float>0; default=1 (no change)
+# -s     sigmoid      sigmoidal contrast value for non-linear adjustment of 
+#                     the L channel; float (positive or negative); default=0 
+#                     (no change)                      
+# -c     colorize     percent change in colorization; integer (positive or 
+#                     negative; default=0 (no change)                      
+# 
+###
+# 
+# NAME: ENHANCELAB
+# 
+# PURPOSE: To apply brightness/contrast/colorization enhancement on an image 
+# via LAB colorspace.
+# 
+# DESCRIPTION: ENHANCELAB applies brightness/contrast/colorization enhancement 
+# on an image via LAB colorspace.
+# 
+# Arguments: 
+# 
+# -b blackpt ... BLACKPT is the black point percent value for level adjustment 
+# of the L channel. Values are integers between 0 and 100. The default=0 
+# (no change) 
+#                  
+# -w whitept ... WHITEPT is the white point percent value for level adjustment 
+# of the L channel. Values are integers between 0 and 100. The default=0 
+# (no change)
+#               
+# -g gammaval ... GAMMAVAL is the gamma value for non-linear adjustment on the 
+# L channel. Values are floats greater than 0. The default=1 (no change)
+# 
+# -s sigmoid ... SIGMOID is the sigmoidal contrast value for non-linear 
+# adjustment of the L channel. Values are floats (positive or negative). The
+# default=0 (no change)
+#                      
+# -c colorize ... COLORIZE is the percent change in colorization. Values are 
+# integers (positive or negative). The default=0 (no change)                      
+# 
+# REQUIREMENTS: IM 6.7.8.2 or higher, when the LAB colorspace conversions were fixed.
+# 
+# REFERENCE: http://digital-photography-school.com/turn-ho-hum-color-into-wow-with-photoshop
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+blackpt=0			# blackpt percent for level operation on L channel; integer 0 to 100
+whitept=100			# whitept percent for level operation on L channel; integer 0 to 100
+gammaval=1				# gamma amount for level operation on L channel; float>0
+sigmoid=0			# sigmoidal contrast operation on L channel; float (positive or negative)
+colorize=0			# color enhancement percent level operation of AB channels; integer 0 to 100
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 12 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-b)    # get blackpt
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID BLACKPT SPECIFICATION ---"
+				   checkMinus "$1"
+				   blackpt=`expr "$1" : '\([0-9]*\)'`
+				   [ "$blackpt" = "" ] && errMsg "--- BLACKPT=$blackpt MUST BE AN INTEGER ---"
+				   test1=`echo "$blackpt < 0" | bc`
+				   test2=`echo "$blackpt > 100" | bc`
+				   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BLACKPT=$blackpt MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+				   ;;
+			-w)    # get whitept
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID WHITEPT SPECIFICATION ---"
+				   checkMinus "$1"
+				   whitept=`expr "$1" : '\([0-9]*\)'`
+				   [ "$whitept" = "" ] && errMsg "--- WHITEPT=$whitept MUST BE AN INTEGER ---"
+				   test1=`echo "$whitept < 0" | bc`
+				   test2=`echo "$whitept > 100" | bc`
+				   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- WHITEPT=$whitept MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+				   ;;
+			-g)    # get gammaval
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID GAMMAVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   gammaval=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$gammaval" = "" ] && errMsg "--- GAMMAVAL=$gammaval MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+				   test1=`echo "$gammaval <= 0" | bc`
+				   [ $test1 -eq 1 ] && errMsg "--- GAMMAVAL=$gammaval MUST BE A POSITIVE FLOAT ---"
+				   ;;
+			-s)    # get sigmoid
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID SIGMOID SPECIFICATION ---"
+				   #checkMinus "$1"
+				   sigmoid=`expr "$1" : '\([-.0-9]*\)'`
+				   [ "$sigmoid" = "" ] && errMsg "--- SIGMOID=$sigmoid MUST BE A FLOAT ---"
+				   ;;
+			-c)    # get colorize
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COLORIZE SPECIFICATION ---"
+				   #checkMinus "$1"
+				   colorize=`expr "$1" : '\([-0-9]*\)'`
+				   [ "$colorize" = "" ] && errMsg "--- COLORIZE=$colorize MUST BE AN INTEGER ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# set up temp file
+tmpA1="$dir/enhancelab_1_$$.mpc"
+tmpB1="$dir/enhancelab_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test for proper IM version
+[ "$im_version" -lt "06070802" ] && errMsg "--- REQUIRES IM 6.7.8.2 OR HIGHER  ---"
+
+# set up colorization to be symmetric linear transform properly centered and used equally on both A and B channels
+low=$colorize
+high=$((100-$colorize))
+
+# test for sign to use for sigmoidal-contrast function
+test=`convert xc: -format "%[fx:$sigmoid<0?1:0]" info:`
+if [ $test -eq 1 ]; then 
+	sign="+"
+else
+	sign="-"
+fi
+
+
+# allow sigmoidal contrast of zero to be close to zero but not exactly equal where it degenerates
+
+# convert sigmoid to absolute value
+sigmoid=`convert xc: -format "%[fx:abs($sigmoid)]" info:`
+
+# test if sigmoid too close to zero
+[ "$sigmoid" = "0" ] && sigmoid=0.001
+	
+
+# process image
+convert $tmpA1 -colorspace LAB \
+	-channel R -level ${blackpt}%,${whitept}%,$gammaval ${sign}sigmoidal-contrast ${sigmoid},50% +channel \
+	-channel GB -level ${low}%,${high}% +channel \
+	-colorspace sRGB \
+	"$outfile"
+
+exit 0

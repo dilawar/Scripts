@@ -1,0 +1,531 @@
+#!/bin/bash
+#
+# Revised by Fred Weinhaus ................... 4/25/2015
+# Developed by Fred Weinhaus & Anthony Thyssen 6/28/2011
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: kaleidoscopic [-m mode] [-o orient] [-i] [-s spread] [-d density] 
+# [-c curviness] [-D dimension] [-b blur] [-e emboss] [-S sharpen] 
+# [-B blend] [-n newseed] [-R] [infile] outfile
+# USAGE: kaleidoscopic [-h or -help]
+#
+# OPTIONS:
+#
+# -m      mode               mode of effect; choices are: image, disperse 
+#                            and random; default=image
+# -o      orient             orientation of quadrant; choices are: 0, 90, 180
+#                            and 270; default=0
+# -i                         invert quadrant mask
+# -s      spread             spread distance with mode=disperse; integer>0; 
+#                            default=5
+# -d      density            density or frequency mode=disperse; integer>0; 
+#                            default=5
+# -c      curviness          curviness/clumpiness of dispersion; integer>=0; 
+#                            default=10
+# -D      dimension          dimension of random noise image when no input image
+#                            is provided; dimension is used for both width 
+#                            and height; integer>0; default=128
+# -b      blur               amount of blur to use with mode=random; integer>0
+#                            default=5
+# -e      emboss             amount of emboss effect with mode=random; 
+#                            integer>0; default=2
+# -S      sharpen            amount of sharpening with mode=random; integer>=0
+#                            default=0
+# -n      newseed            new seed value; integer>0; default will randomly 
+#                            change seed value for modes=random and disperse
+# -B      blend              percent blend of random noise with image; 
+#                            0<=integer<=100; default=100 (all random noise)
+# -R                         resize to minimum dimension of original image
+#
+# If the input image is not square, the center square section will be used to 
+# generate the kaleidoscopic effect.
+#
+# If no input image is provided, a random noise image will be created of size 
+# determined from the provided dimension.
+#
+###
+#
+# NAME: KALEIDOSCOPIC 
+# 
+# PURPOSE: To apply a kaleidoscope effect to an image.
+# 
+# DESCRIPTION: KALEIDOSCOPIC applies a kaleidoscope effect to an image. The 
+# image is transposed and composited with the original using a diagonal mask. 
+# This forms one quadrant. The other quadrants are 90, 180 and 270 rotations.
+# The four created quadrants are then appended together to create the output.
+# Optionally a dispersion effect may be applied to the image or the image may 
+# be mixed with random noise. If no input image is provided, the user may 
+# specify a size and a random image will be generated as the base image. 
+# The output will be twice the size of the cropped input image.
+# 
+# OPTIONS: 
+#
+# -m mode ... MODE of kaleidoscopic effect. The choices are: image (i), 
+# disperse (d) or random (r). The dispersion effect is applied to the image.
+# The random effect may be appied to an input image which covers the image or 
+# a user supplied dimension may be provided to create a new image if no input
+# image is supplied. Either way, the result will be the same.
+# 
+# -o orient ... ORIENT is the rotational oriention of the created image
+# quadrant.
+# 
+# -i ... INVERT the mask so as to swap the input image and its transpose.
+# 
+# -s spread ... SPREAD distance with mode=disperse. Values are integers>0.
+# Typical values range from 2 to 20. The default=5
+#
+# -d density ... DENSITY is the closeness or frequency of detail with 
+# mode=disperse. Values are integers>0. The default=5.
+#
+# -c curviness ... CURVINESS/CLUMPINESS with mode=disperse. Values are 
+# integers>=0. Small values produce fine, dust-like detail. Larger values 
+# produce more clumpy and curvy clusters. Typical values range from 0 to 20. 
+# The default=10
+# 
+# -D dimension ... DIMENSION will be the width and height of the random noise
+# image when no input image is provided. Values are integers>0. One value is 
+# supplied and it will be used for both the width and height.
+# 
+# -b blur ... Amount of blur to use with mode=random. Values are integers>0; 
+# The default=5
+# 
+# -e emboss ... Amount of emboss to use with mode=random. Values are integers>0;
+# The default=2
+# 
+# -S sharpen ... Amount of sharpening to use with mode=random. Value are 
+# integers>=0. The default=0
+# 
+# -B blend ... BLEND percent of random noise with the image. Values are 
+# integers between 0 and 100. The default=100 (all random noise).
+# 
+# -n newseed ... NEWSEED is the seed value to use for randomization. This 
+# permits the pattern to be repeated. The default is to change the seed value 
+# randomly each time the script is run, thus causing somewhat different 
+# patterns each time the script is run. This argument is used for both 
+# mode=random and mode=disperse.
+# 
+# -R ... RESIZE to minimum dimension of original image
+# 
+# REQUIREMENT: IM 6.4.8.5 or higher due to the use of -evaluate sine and 
+# cosine
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+orient="0"			# 0,90,180,270
+invert="no"			# invert mask
+mode="image"		# image, disperse, random
+spread=5			# dispersion spread
+density=5			# dispersion density
+curviness=10		# dispersion curviness
+dim=128				# random image size
+blur=5				# random image blur
+emboss=2			# random image emboss
+sharpen=0			# random image sharpening
+blend1=100			# use with mode=random
+newseed=""			# use with mode=random or disperse
+resize="no"         # yes or no
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 26 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get  mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+					   		image|i) mode="image" ;;
+					   		disperse|d) mode="disperse" ;;
+					   		random|r) mode="random" ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-o)    # get  orient
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ORIENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   orient="$1"
+					   case "$orient" in 
+					   		0) ;;
+					   		90) ;;
+					   		180) ;;
+					   		270) ;;
+					   		*) errMsg "--- ORIENT=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-i)    # get invert
+					   invert="yes"
+					   ;;
+				-s)    # get spread
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SPREAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   spread=`expr "$1" : '\([0-9]*\)'`
+					   [ "$spread" = "" ] && errMsg "SPREAD=$spread MUST BE AN INTEGER"
+		   			   test=`echo "$spread < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SPREAD=$spread MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-d)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "DENSITY=$density MUST BE AN INTEGER"
+		   			   test=`echo "$density < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- DENSITY=$density MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-c)    # get curviness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CURVINESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   curviness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$curviness" = "" ] && errMsg "CURVINESS=$curviness MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-D)    # get dim
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   dim=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dim" = "" ] && errMsg "DIMENSION=$dim MUST BE AN INTEGER"
+		   			   test=`echo "$dim < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- DIMENSION=$dim MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "BLUR=$blur MUST BE AN INTEGER"
+		   			   test=`echo "$blur < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- BLUR=$blur MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-e)    # get emboss
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EMBOSS SPECIFICATION ---"
+					   checkMinus "$1"
+					   emboss=`expr "$1" : '\([0-9]*\)'`
+					   [ "$emboss" = "" ] && errMsg "EMBOSS=$emboss MUST BE AN INTEGER"
+		   			   test=`echo "$emboss < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- EMBOSS=$emboss MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-S)    # get sharpen
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHARPEN SPECIFICATION ---"
+					   checkMinus "$1"
+					   sharpen=`expr "$1" : '\([0-9]*\)'`
+					   [ "$sharpen" = "" ] && errMsg "SHARPEN=$sharpen MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-B)    # get blend1
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLEND SPECIFICATION ---"
+					   checkMinus "$1"
+					   blend1=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blend1" = "" ] && errMsg "BLEND=$blend1 MUST BE AN INTEGER"
+		   			   test1=`echo "$blend1 < 0" | bc`
+		   			   test2=`echo "$blend1 > 100" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- BLEND=$blend1 MUST BE A POSITIVE INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-n)    # get  newseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$newseed" = "" ] && errMsg "--- NEWSEED=$newseed MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-R)    # set resize
+					   resize="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	if [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	elif [ $# -eq 1 ]; then
+		outfile="$1"
+		infile=""
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+tmpA1="$dir/kaleidoscopic_1_$$.mpc"
+tmpB1="$dir/kaleidoscopic_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1;" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using kaleidoscopic
+# with IM 6.6.0.10, 6.7.4.10, 6.7.6.10, 6.7.7.2, 6.7.7.3, 6.7.9.1
+# Note fixed seeding problem for random and disperse 8/23/2012, 
+# but random does not match old examples, since don't know what seed was used
+# Also, for disperse, shapes are correct, but coloration is slightly off for 
+# all versions prior to 6.7.7.3
+# need to use colorspace sRGB for IM 7 grayscale images
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+elif [ "$im_version" -ge "06070903" -a "$im_version" -le "06080309" ]; then
+	# needed to fix overly light results between 6.7.9.3 and 6.8.3.9; does not fix 6.8.3.5 - 6.8.3.9
+	setcspace="-set colorspace RGB"
+elif [ "$im_version" -gt "06080504" ]; then
+echo "got here 6"
+	setcspace=""
+elif [ "$im_version" -ge "70000000" ]; then
+echo "got here 7"
+	setcspace="-set colorspace sRGB"
+else
+	setcspace=""
+fi
+
+[ "$im_version" -lt "06040805" ] && errMsg "--- REQUIRES IM 6.4.8.5 OR HIGHER ---"
+
+
+# get image width, height, min
+if [ "$infile" != "" ]; then
+ww=`convert $infile -ping -format "%w" info:`
+hh=`convert $infile -ping -format "%h" info:`
+min=`convert xc: -format "%[fx:min($ww,$hh)]" info:`
+	# if not square, then crop to square at min dimension
+	if [ $ww -ne $hh ]; then
+		cropping="-gravity center -crop ${min}x${min}+0+0"
+	else
+		cropping=""
+	fi
+fi
+
+if [ "$newseed" = "" ]; then
+	seeding=""
+else
+	seeding="-seed $newseed"
+fi
+
+if [ "$blur" = "0" ]; then
+	blurring=""
+else
+	blurring="-blur 0x$blur"
+fi
+
+if [ "$emboss" = "0" ]; then
+	embossing=""
+else
+	embossing="-emboss $emboss"
+fi
+
+if [ "$sharpen" = "0" ]; then
+	sharpening=""
+else
+	sharpening="-sharpen 0x$sharpen"
+fi
+
+if [ "$curviness" = "0" ]; then
+	smooth=""
+else
+	smooth="-blur 0x$curviness"
+fi
+
+
+blend2=$((100-$blend1))
+
+
+if [ "$infile" = "" ]; then
+	convert -size ${dim}x${dim} xc: $seeding +noise random $blurring $embossing $sharpening $tmpA1
+elif [ "$mode" = "image" ]; then
+	# test input image
+	convert -quiet "$infile" $cropping +repage "$tmpA1" ||
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+elif [ "$mode" = "random" ]; then
+	# test input image
+	convert -quiet "$infile" "$tmpA1" ||
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	convert $tmpA1 $setcspace $cropping +repage \( +clone $seeding +noise random \) \
+		-compose blend -define compose:args=$blend1,$blend2 -composite \
+		$blurring $embossing $sharpening $tmpA1
+elif [ "$mode" = "disperse" ]; then
+	# test input image
+	convert -quiet "$infile" $cropping +repage "$tmpA1" ||
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+		# note removed -virtual-pixel tile as it did not work for older versions and left a quadrant border effect
+		if [ "$im_version" -lt "06050304" ]; then
+			convert $tmpA1 $seeding +noise Random $smooth \
+				$setcspace -colorspace gray -auto-level \
+				-channel R -evaluate sine $density \
+				-channel G -evaluate cosine $density \
+				-channel RG -separate $tmpA1 +swap miff:- | \
+					composite - -displace ${spread}x${spread} $tmpA1
+		elif [ "$im_version" -ge "06050304" -a "$im_version" -lt "07000000" ]; then
+			convert $tmpA1 $seeding +noise Random $smooth \
+				$setcspace -colorspace gray -auto-level \
+				-channel R -evaluate sine $density \
+				-channel G -evaluate cosine $density \
+				-channel RG -separate $tmpA1 -insert 0 \
+				-define compose:args=${spread}x${spread} \
+				-compose displace -composite $tmpA1
+		elif [ "$im_version" -ge "07000000" ]; then
+			convert $tmpA1 $seeding +noise Random $smooth \
+				$setcspace -colorspace gray -auto-level $setcspace  \
+				-channel R -evaluate sine $density \
+				-channel G -evaluate cosine $density \
+				-channel RG -separate $tmpA1 -insert 0 \
+				-define compose:args=${spread}x${spread} \
+				-compose displace -composite $tmpA1
+		fi
+fi
+
+# make kaleidoscopic effect
+case "$orient" in 
+	270) rotation="-rotate 270";;
+	180) rotation="-rotate 180";;
+	90) rotation="-rotate 90";;
+	0) rotation="";;
+	*) echo "--- ORIENT=$orient IS AN INVALID VALUE ---" 
+esac
+if [ "$invert" = "yes" ]; then
+	color1="black"
+	color2="white"
+else
+	color1="white"
+	color2="black"
+fi
+
+
+# set up for resizing
+if [ "$infile" != "" -a "$resize" = "yes" ]; then
+	resizing="-resize ${min}x${min}!"
+else
+	resizing=""
+fi
+
+
+convert $tmpA1 \
+\( +clone -transpose \) \
+\( +clone -sparse-color voronoi "%w,0 $color1 0, %h $color2" \) \
+-composite $rotation \
+\( +clone -flop \) +append \
+\( +clone -flip \) -append \
+$resizing "$outfile"
+
+exit 0

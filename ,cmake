@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -x
+
+NPROC=$(nproc)
+
+if [ ! -n "$NPROC" ]; then
+    NPROC=3
+fi
+
+ISBUILD=${1:$(basename $(pwd))}
+
+if [[ "$ISBUILD" == "build" ]]; then
+    echo "Already in build directory";
+    BUILDIR=$(pwd)
+else
+    BUILDIR=$(pwd)/cmake-build-Release
+    mkdir -p $BUILDIR
+fi
+
+GITTAG=$(git rev-parse --short HEAD)
+(
+    cd $BUILDIR
+    set -e
+    cmake -DCMAKE_INSTALL_PREFIX=/tmp/$GITTAG .. "$@"
+    make -j$NPROC | tee __$GITTAG__.log
+    ctest --output-on-failure --rerun-failed
+    make install
+    set +e
+)

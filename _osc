@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+PWD=$(pwd)
+docker run --privileged --net=host \
+  --workdir /obs \
+  --mount type=bind,source="$(pwd)",target=/obs \
+  -v /var/tmp:/var/tmp:rw \
+  -v $HOME/.config/osc/:/root/.config/osc:rw \
+  -it dilawars/obs \
+  osc "$@"
+

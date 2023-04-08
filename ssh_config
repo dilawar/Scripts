@@ -3,15 +3,9 @@ Host v3
     User labadmin
     IdentityFile ~/.ssh/id_rsa
 
-Host v4
-    Hostname 172.16.204.73
+Host v4 Hostname 172.16.204.73
     User labadmin
     IdentityFile ~/.ssh/id_rsa
-
-Host motichoor
-    Hostname 172.16.206.132
-    User dilawars
-
 
 Host shares
     Hostname shares.ncbs.res.in
@@ -22,49 +16,99 @@ Host srna
     User anushree
     IdentityFile ~/.ssh/id_rsa
 
-host mohini 
-    Hostname 172.16.206.218
-    User dilawars
+Host anushree
+    Hostname 172.16.206.64
+    User anushree
 
+Host ghevar
+    Hostname 172.16.223.30
 
-Host gowtham
-    Hostname 172.16.235.250
+Host gulgula
+    Hostname 172.16.207.17
 
-Host openday 
-    Hostname 172.16.212.117
-    User dilawars
-Host blinky
-    Hostname 172.16.206.202 
-    User dilawars
+Host chamcham
+    Hostname 172.16.207.23
 
-Host somya 
-    Hostname 172.16.108.115
-    User guest1
-
-Host hippo 
+Host hippo
     Hostname 172.16.223.76
     User hippo
 
-Host rikesh
-    Hostname 172.16.206.189
-    User dilawar
 
-Host behaviour1
-    Hostname 172.16.202.218
-    User dilawars
+Host somya
+    Hostname 172.16.108.115
+    User guest1
 
-Host behaviour2
-    Hostname 172.16.204.230
-    User dilawars
+Host hippo
+    Hostname 172.16.223.76
+    User hippo
 
-Host port2
-    Hostname 172.16.206.249
-    User dilawars
+Host aur.archlinux.org
+    IdentityFile ~/.ssh/id_rsa
+    User aur
 
-Host intel 
-    Hostname 192.102.190.12
-    User NCBS
+Host pi
+    Hostname 172.16.206.38
+    User pi
 
-Host bhumika_bench 
-    Hostname 172.16.208.154
-    User bhumika
+Host pi_ethernet
+    Hostname 172.16.206.177
+    User pi
+
+Host shivam
+    Hostname 103.21.59.83
+    IdentityFile ~/.ssh/dilawar
+    User aspri44m
+
+Host dilawars.me
+    Hostname 103.212.121.51
+    Port 22999
+    User iuoubwdv
+    IdentityFile ~/.ssh/ipitech
+
+Host subcom.tech
+    Hostname 13.251.155.22
+    User centos
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host bigrock
+    Hostname 162.241.114.222
+    User root
+
+Host meena.subcom.tech
+    Hostname 52.66.213.193
+    User ec2-user
+    IdentityFile ~/.ssh/dilawar-mumbai.pem
+
+Host apimeena.subcom.tech
+    Hostname 3.108.67.155
+    User admin
+    IdentityFile ~/.ssh/dilawar-mumbai.pem
+
+Host dilawar.subcom.tech
+    Hostname 54.255.169.59
+    User centos
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host hauhau
+    Hostname 65.1.118.229
+    User ubuntu
+    IdentityFile ~/.ssh/HuaHau.pem
+
+Host build.subcom.tech
+    Hostname 13.213.232.229
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host voicedb.subcom
+    Hostname 13.229.181.170
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem
+
+Host pi.local
+    Hostname 192.168.1.4
+    User pi
+
+Host api.canary.subcom
+    Hostname 52.77.188.163
+    User admin
+    IdentityFile ~/.ssh/LightsailDefaultKey-ap-southeast-1.pem

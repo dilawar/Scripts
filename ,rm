@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+__author__ = "Dilawar Singh"
+__email__ = "dilawar@subcom.tech"
+
+import os
+import typing as T
+from pathlib import Path
+
+import typer
+app = typer.Typer()
+
+CACHE_DIR_ = Path(os.environ['HOME']) / '.cache' / 'iprm'
+CACHE_DIR_.mkdir(parents=True, exist_ok=True)
+
+def __show_trash(glob : str = '**'):
+    for f in Path(CACHE_DIR_).glob(glob):
+        print(f)
+
+def __trash(paths : T.List[Path], dry_run:bool=False):
+    if dry_run:
+        print('[INFO] Following files will be deleted')
+    for path in paths:
+        if dry_run:
+            print(path)
+        else:
+            path.rename(CACHE_DIR_/path)
+
+
+@app.command()
+def main(paths : T.List[Path] = Path('.'), show_trash:bool=False, dry_run:bool=False):
+    for path in paths:
+        if path.exists():
+            __trash(path, dry_run)
+        return
+
+    if show_trash:
+        for p in paths:
+            __show_trash(p)
+        return
+    raise RuntimeWarning(f'{paths} does not exists')
+
+
+if __name__ == '__main__':
+    app()

@@ -1,0 +1,729 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 1/22/2010 .......... revised 7/15/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: notch [-r rad] [-t thresh] [-c centrad] [-h horizontal] [-v vertical] [-o outer] [-L left] [-R right] [-U upper] [-B bottom] [-m median] [-d dilate] [-s smooth] [-S] [-K] infile outfile
+# USAGE: notch [-H or -help]
+#
+# OPTIONS:
+#
+# -r      rad               blurring radius for generating mask from spectrum;
+#                           integer>0; default=7
+# -t      thresh            binarization threshold in percent; 0<=integer<=100;
+#                           default=automatic entropy threshold
+# -c      centrad           circular center mask radius; integer>0; default=2
+# -h      horizontal        thickness of horizontal center line mask area; 
+#                           integer>=0; default=0 (none)
+# -v      vertical          thickness of vertical center line mask area; 
+#                           integer>=0; default=0 (none)
+# -o      outer             distance from center sides to create an outer 
+#                           circular mask; integer>0; default=2
+# -L      left              thickness of left side mask area; 
+#                           integer>=0; default=0 (none)
+# -R      right             thickness of right side mask area; 
+#                           integer>=0; default=0 (none)
+# -U      upper             thickness of upper (top) side mask area; 
+#                           integer>=0; default=0 (none)
+# -B      bottom            thickness of bottom side mask area; 
+#                           integer>=0; default=0 (none)
+# -m      median            radius of median filtering; integer>=0; 
+#                           default=0 (no median filtering)
+# -d      dilate            dilation radius; integer>0; default=1
+# -s      smooth            smoothing distance across black-white transitions;
+#                           integer>=0; default=1
+# -S                        show (display) mask image; yes or no; default=0
+# -K                        keep (save) mask image to disk; yes or no; default=no
+#
+###
+#
+# NAME: NOTCH 
+# 
+# PURPOSE: To create and apply a notch filter to an image in the frequency 
+# domain to remove dither patterns and other regular noise patterns.
+# 
+# DESCRIPTION: NOTCH creates a notch filter image from the frequency domain  
+# spectrum of an image and then uses it as a mask image in the frequency 
+# domain to remove dither patterns and other regular noise patterns. This 
+# avoids manually drawing the mask from the spectrum, but may not do quite 
+# as good a job. Certain parameters must be estimated from viewing the 
+# spectrum image. The key ones include: 1) a binarization threshold (usually 
+# found automatically), 2) a radius near the center of the image to preserve 
+# low frequency components, 3) the thickness of a horizontal and/or a vertical 
+# linear mask from edge to edge crossing the center of the image, again to 
+# preseve low frequencies in one or the other (x or y) direction.
+# 
+# The spectrum image is the basis of the notch filter. It will show distinct 
+# bright "star-like" patterns and short to medium repeated line patterns that 
+# represent some kind of dither or regular noise patterns in the original image. 
+# We want to eliminate these artifacts without suppressing any frequency domain 
+# signals, which also will be brightest at the very center and spread out 
+# around it. Thus we want an ultimate mask that is white everywhere and black 
+# where these star-like and linear patterns appear in the spectrum. So we will 
+# do some processing to try to extract these bright patterns in the spectrum 
+# and then mask out the areas of signal that we want to preserve and then invert 
+# or negate the result to form the final mask.
+# 
+# The order of processing is as follows:
+# 
+# First use the spectrum script to generate a spectrum image and view it to 
+# estimate the key parameters. Do this before running the notch script. 
+# 
+# Then run the notch script which will do the following:
+# 
+# 1) Generates a grayscale spectrum from the fourier transform of the image.
+# 2) Blurs the spectrum using the rad parameter and subtracts the result 
+# from the original spectrum.
+# 3) Thresholds the result of step two. This will form the basic filter, which 
+# will still show bright star and linear patterns along with some extraneous 
+# noise on a black background. Note that this is opposite of what we want and 
+# the last step will invert the mask.
+# 4) Applies a small cirular mask using the centrad parameter to preserve the 
+# area near the center of the spectrum so that low frequencies are maintained. 
+# The size of the circular mask can be from 2 pixels minimum to as large a 
+# value possible that does not reach the closest bright star or linear pattern.
+# 5) Optionally applies a linear mask along the center row and/or column of a 
+# specified thickness given by the horizontal and vertical parameters, but only 
+# if one sees bright but somewhat fuzzy regions that extend from one side of 
+# the image to the other and passing through the center. If they are uniformly 
+# bright and of constant thickness and do not reach the center, then do not 
+# mask them as they are part of the noise that we want to remove.
+# 6) Optionally applies similar linear masks for the outer edges of the spectrum 
+# if one sees bright areas extending along the sides. The thichknesses of these 
+# linear masks are given by the left, right, upper and bottom parameters. 
+# This is not usually necessary, but can be done to try to improve the result. 
+# 7) Optionally applies a circular mask in the outer regions of the spectrum, to 
+# preserve the high frequency components. Again this is usually not needed, 
+# but can be done to try to improve the result. The radius is given by the 
+# outer parameter subtracted from the half-width of the spectrum image. The 
+# outer parameter can be simply estimated as the pixel distance inward from 
+# the center of one side of the image before it reaches the outermost star 
+# or linear pattern associated with the dither that we want to remove.
+# 8) Optionally applies a median filter to remove some of the spurious tiny 
+# bright dots that are not part of the star or linear dither patterns. If 
+# the star and linear patterns are too small or thin, then this is not a good 
+# idea as it will remove the patterns that we are trying to identify as 
+# being associated with the dither.
+# 9) Dilates the bright patterns that remain typically by one pixel radius to 
+# make them a little bigger.
+# 10) Smoothes (ramps) the transition from white to black in the mask so that 
+# ringing artifacts are not introduced in the resulting filtered image. A one 
+# pixel smoothing transition is usually sufficient.
+# 11) Invert black and white so that the areas that are associated with the 
+# dither pattern (the bright-stars and linear patterns) become black and
+# the rest becomes white (apart from some spurious remaining black noise that  
+# was not removed).
+# 
+# 
+# OPTIONS: 
+# 
+# -r ... RAD is the radius of the blur used to compute the difference image 
+# (image-blurredimage) from the spectrum image. This difference image will 
+# then be thresholded. Values are integers>0. The default=7, which seems to 
+# be rather robust.
+# 
+# -t ... THRESH is the value in percent used to threshold the difference image.
+# Values are integers between 0 and 100. The default is to compute the threshold 
+# automatically using an entropy thresholding technique.
+# 
+# -c ... CENTRAD is the radius of a circular mask applied at the center of 
+# thresholded image, which is used to preserve the low frequency signal 
+# content in the spectrum. Values are integers>0. The default=2, but can 
+# made larger to preserve higher frequencies. But the radius should not be so 
+# large as to cover any of the star-like or linear patterns that appear in 
+# the spectrum due to the dither-like patterns that we want to remove.
+# 
+# -h ... HORIZONTAL is the thickness of a rectangular mask extending across 
+# the spectrum along the horizontal center line. This is used to preserve signal 
+# content along this center line, if one sees a narrow bright fuzzy area that 
+# extends completely accross this center line. If one sees a bright, constant 
+# intensity area of uniform thickness that does not cross the center, then 
+# that is likely part of the dither-like pattern that we want to remove and so 
+# should not be masked. Values are positive integers. The default is 0 to 
+# indicate no masking along this region.
+# 
+# -v ... VERTICAL is the thickness of a rectangular mask extending across 
+# the spectrum along the vertical center line. This is used to preserve signal
+# content along this center line, if one sees a narrow bright fuzzy area that 
+# extends completely accross this center line. If one sees a bright, constant 
+# intensity area of uniform thickness that does not cross the center, then 
+# that is likely part of the dither-like pattern that we want to remove and so 
+# should not be masked. Values are positive integers. The default is 0 to 
+# indicate no masking along this region.
+# 
+# -o ... OUTER is a parameter that determines an outer circular mask use to 
+# preserve the high frequency signal content in the outer regions of the 
+# spectrum. The radius of the circular mask is given by the half-width of the 
+# spectrum image minus the outer parameter. The outer parameter can be estimated 
+# simply by the pixel distance from the center of any side of the spectrum 
+# inward such that the circular mask will not cover any star-like or linear 
+# patterns due to the dither pattern, but may cover any other extraneous bright 
+# areas along the outer sides or corners of the spectrum. Values are 
+# integers>=0. The default=0 indicating no masking. 
+#
+# -L ... LEFT is the thickness of a rectangular mask extending across the left 
+# side of the spectrum, which may be used to cover any extraneous bright 
+# areas along the left side that are not inclusive of any star-like or strong 
+# linear patterns associated with the dither. This may be used to preserve 
+# the high frequency components of the image signal in this region. Values are 
+# positive integers. The default is 0 to indicate no masking along this region.
+#
+# -R ... RIGHT is the thickness of a rectangular mask extending across the  
+# right side of the spectrum, which may be used to cover any extraneous bright 
+# areas along the right side that are not inclusive of any star-like or strong 
+# linear patterns associated with the dither. This may be used to preserve 
+# the high frequency components of the image signal in this region. Values are 
+# positive integers. The default is 0 to indicate no masking along this region.
+#
+# -U ... UPPER is the thickness of a rectangular mask extending across the  
+# upper (top) side of the spectrum, which may be used to cover any extraneous 
+# bright areas along the right side that are not inclusive of any star-like or 
+# strong linear patterns associated with the dither. This may be used to preserve 
+# the high frequency components of the image signal in this region. Values are 
+# positive integers. The default is 0 to indicate no masking along this region.
+# 
+# -B ... BOTTOM is the thickness of a rectangular mask extending across the  
+# bottom side of the spectrum, which may be used to cover any extraneous bright 
+# areas along the right side that are not inclusive of any star-like or strong 
+# linear patterns associated with the dither. This may be used to preserve 
+# the high frequency components of the image signal in this region. Values are 
+# positive integers. The default is 0 to indicate no masking along this region.
+# 
+# -m ... MEDIAN is the amount or radius of a median filter applied to try to 
+# remove extraneous bright specks that are associated with the signal and not 
+# bright star-like patterns associate with the dither pattern. Values are 
+# integers>=0. The default=0 (no median filtering). If the dither star and linear 
+# patterns are too small or thin, then it is not a good idea to apply the median 
+# filtering as it will remove these star-like and linear patterns as well.
+# 
+# -d ... DILATE is the radius of the dilation that is used to make the star-like 
+# and linear patterns larger and stronger. Values are integers>=0. The default=1
+# 
+# -s ... SMOOTH is the smoothing distance to ramp the transition from white to 
+# black in the final mask. This is used to avoid introducing ringing artifacts 
+# in the recovered image. Values are integers>=0. The default=1.
+# 
+# -S ... Show (display) the mask image. Values are yes or no. The default=no. 
+# If yes, then the X11 display system must be enabled.
+# 
+# -k ... Keep (save) the mask image to disk. Values are yes or no. The 
+# default=no. If yes, then the resulting mask image will start with the same 
+# name used for the output (less the suffix) with '_mask.gif' appended.
+# 
+# REQUIREMENTS: IM IM 6.5.4-3 or higher due to the use -fft. Also requires 
+# the FFTW delegate library to compute the Fourier Transform. Q8 IM compilation 
+# is not generally recommended and may not carry enough precision for the 
+# Fourier Transform.
+# 
+# See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
+# for more details about the Fourier Transform with ImageMagick.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+rad=7			# radius of initial blur for getting (image - mean); rad>0
+thresh="" 		# default=kapurthresh; otherwise percent for -threshold
+centrad=2		# circular center mask radius; center>0
+horizontal=0	# optional horizontal center line mask thickness
+vertical=0		# optional vertical center line mask thickness
+outer=0			# circular outer mask distance from center sides
+left=0			# optional left side line mask thickness
+right=0			# optional right side line mask thickness
+upper=0			# optional upper side line mask thickness
+bottom=0		# optional bottom side line mask thickness
+median=0		# optional median filter
+dilate=1		# dilate radius
+smooth=1		# blur ramping of final mask
+show="no"		# display mask image; yes or no
+save="no"		# save mask image to disk; yes or no
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 30 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -H|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get rad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   rad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rad" = "" ] && errMsg "RAD=$rad MUST BE A NON-NEGATIVE INTEGER"
+		   			   radtest=`echo "$rad <= 0" | bc`
+					   [ $radtest -eq 1 ] && errMsg "--- RAD=$rad MUST BE GREATER THAN 0 ---"
+					   ;;
+				-t)    # get thresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   thresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "THRESH=$thresh MUST BE A NON-NEGATIVE INTEGER"
+		   			   threshtestA=`echo "$rad < 0" | bc`
+		   			   threshtestB=`echo "$rad > 100" | bc`
+					   [ $threshtestA -eq 1 -o $threshtestB -eq 1 ] && errMsg "--- THRESH=$rad MUST BE GREATER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get centrad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTRAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   centrad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$centrad" = "" ] && errMsg "CENTRAD=$centrad MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-h)    # get horizontal
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HORIZONTAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   horizontal=`expr "$1" : '\([0-9]*\)'`
+					   [ "$horizontal" = "" ] && errMsg "HORIZONTAL=$horizontal MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-v)    # get vertical
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VERTICAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   vertical=`expr "$1" : '\([0-9]*\)'`
+					   [ "$vertical" = "" ] && errMsg "VERTICAL=$vertical MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-L)    # get left
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LEFT SPECIFICATION ---"
+					   checkMinus "$1"
+					   left=`expr "$1" : '\([0-9]*\)'`
+					   [ "$left" = "" ] && errMsg "LEFT=$left MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-R)    # get right
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   right=`expr "$1" : '\([0-9]*\)'`
+					   [ "$right" = "" ] && errMsg "RIGHT=$right MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-U)    # get upper
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UPPER SPECIFICATION ---"
+					   checkMinus "$1"
+					   upper=`expr "$1" : '\([0-9]*\)'`
+					   [ "$upper" = "" ] && errMsg "UPPER=$upper MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-B)    # get bottom
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BOTTOM SPECIFICATION ---"
+					   checkMinus "$1"
+					   bottom=`expr "$1" : '\([0-9]*\)'`
+					   [ "$bottom" = "" ] && errMsg "BOTTOM=$bottom MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-o)    # get outer
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OUTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   outer=`expr "$1" : '\([0-9]*\)'`
+					   [ "$outer" = "" ] && errMsg "OUTER=$outer MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-m)    # get median
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MEDIAN SPECIFICATION ---"
+					   checkMinus "$1"
+					   median=`expr "$1" : '\([0-9]*\)'`
+					   [ "$median" = "" ] && errMsg "MEDIAN=$median MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-d)    # get dilate
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DILATE SPECIFICATION ---"
+					   checkMinus "$1"
+					   dilate=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dilate" = "" ] && errMsg "DILATE=$dilate MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-s)    # get smooth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   smooth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$smooth" = "" ] && errMsg "SMOOTH=$smooth MUST BE A NON-NEGATIVE INTEGER"
+					   ;;
+				-S)    # show (display) mask
+					   show="yes"
+					   ;;
+				-K)    # keep (save) mask to disk
+					   save="yes"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# create maskfile name
+maskname=`echo "$outfile" | sed -n 's/^\(.*\)[\.].*$/\1/p'`
+maskfile="${maskname}_mask.gif"
+
+
+# setup temp files
+tmp1A="$dir/notch_1_$$.mpc"
+tmp1B="$dir/notch_1_$$.cache"
+tmp2A="$dir/notch_2_$$.mpc"
+tmp2B="$dir/notch_2_$$.cache"
+tmp3A="$dir/notch_3_$$.mpc"
+tmp3B="$dir/notch_3_$$.cache"
+
+trap "rm -rf $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B;" 0
+trap "rm -ff $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" 1 2 3 15
+trap "rm -ff $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" ERR
+
+# read the input image into the TMP cached image.
+convert -quiet "$infile" +repage "$tmp1A" ||
+  errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+# get IM version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test for valid IM version to use FFT
+[ "$im_version" -lt "06050403" ] && errMsg "--- IM VERSION $im_version IS NOT COMPATIBLE WITH FFT ---"
+
+# get image width and height and total pixels
+ww=`convert $tmp1A -ping -format "%w" info:`
+hh=`convert $tmp1A -ping -format "%h" info:`
+totpix=`convert xc: -format "%[fx:$ww*$hh]" info:`
+
+# function to get linear stretch parameters
+levelParms()
+	{
+	img="$1"
+	if [ "$im_version" -ge "06030901" ]; then 
+		min=`convert $img -format "%[min]" info:`
+		max=`convert $img -format "%[max]" info:`
+	else
+		errMsg "--- REQUIRES IM 6.3.9-1 OR HIGHER ---"
+	fi
+	}
+
+
+# function to compute Kapur stats and threshold
+kapurThresh()
+	{
+	img=$1
+
+	# get value array from IM histogram
+	nvalArr=(`convert $img -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ vbin[$2] += $2;} 
+	END { for (i=0;i<256;i++) {print vbin[i]; } } '`)
+#	echo ${nvalArr[*]}
+#	echo ${#nvalArr[*]}
+	numvals=${#nvalArr[*]}
+	
+	# get count array from IM histogram
+	countArr=(`convert $img -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ cbin[$2] += $1; } 
+	END { for (i=0;i<256;i++) {print cbin[i]; } } '`)
+#	echo ${countArr[*]}
+#	echo ${#countArr[*]}
+	numcounts=${#countArr[*]}
+	
+	[ $numvals -ne $numcounts ] && errMsg "--- NUMBER OF COUNTS IS NOT THE SAME AS NUMBER OF VALUES ---"
+	
+	# compute normalized count array
+	ncountArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${countArr[$i]}"
+	done |\
+	awk -v totpix="$totpix" -v numcounts="$numcounts" '
+	# AWK 
+	{ bin[$1] = $2; }
+	END { for (i=0;i<numcounts;i++) {print bin[i]/totpix; } } ') )
+#	echo ${ncountArr[*]}
+#	echo ${#ncountArr[*]}
+	
+	# compute elowArr
+	elowArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ ncbin[$1] = $2; nlow += $2; nlowbin[$1] = nlow; qlow += $2*log($2); qlowbin[$1] = qlow;} 
+	END { for (i=0;i<numcounts;i++) {if (ncbin[i]!=0) {elowbin[i]=log(nlowbin[i]) - qlowbin[i]/nlowbin[i]} else {elowbin[i]=0}; print elowbin[i] } } ') )
+#	echo ${elowArr[*]}
+#	echo ${#elowArr[*]}
+	
+	# compute ehighArr
+	ehighArr=( $(for ((i=0; i<$numcounts; i++)); do
+	j=`expr $numcounts - 1 - $i`
+	echo "$j ${ncountArr[$j]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ ncbin[$1] = $2; nhigh += $2; nhighbin[$1] = nhigh; qhigh += $2*log($2); qhighbin[$1] = qhigh;} 
+	END { for (i=0;i<numcounts;i++) {if (ncbin[i]!=0) {ehighbin[i]=log(nhighbin[i]) - qhighbin[i]/nhighbin[i]} else {ehighbin[i]=0}; print ehighbin[i] } } ') )
+#	echo ${ehighArr[*]}
+#	echo ${#ehighArr[*]}
+	
+	# compute threshold
+	threshbin=$(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${elowArr[$i]} ${ehighArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" -v teold=0 -v threshbin=0 '
+	# AWK to compute entropy threshold...
+	{ tebin[$1] = ($2 + $3); } 
+	END { for (i=0;i<numcounts;i++) { if (tebin[i]>teold) {teold=tebin[i]; threshbin=i};  } print threshbin } ')
+#	echo "threshbin=$threshbin"
+	thresh=${nvalArr[$threshbin]}
+#	echo "thresh=$thresh"
+	threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
+	echo ""
+	echo "Thresholding Image At $threshpct%"
+	echo ""
+
+	convert $tmp3A -threshold $threshpct% $tmp3A
+	}
+	
+	
+# get fft mag and phase
+convert $tmp1A -fft $tmp2A
+
+# get fft width and height and total pixels
+fww=`convert $tmp2A[0] -ping -format "%w" info:`
+fhh=`convert $tmp2A[0] -ping -format "%h" info:`
+totpix=`convert xc: -format "%[fx:$fww * $fhh]" info:`
+lastcol=`convert xc: -format "%[fx:$fww-1]" info:`
+lastrow=`convert xc: -format "%[fx:$fhh-1]" info:`
+centcol=`convert xc: -format "%[fx:($fww-1)/2]" info:`
+centrow=`convert xc: -format "%[fx:($fhh-1)/2]" info:`
+
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using redist.
+# Note: bug in 6.7.6.6 HSL/HSB bad, 6.7.7.0 HSL/HSB/RGB bad, 6.7.7.8 & 6.7.7.9 HSL/HSB bad, 6.7.8.1 HSB very bad
+# Note: for notch and other auto thresholding scripts, some (small?) differences between 6.7.5.10 and 6.7.7.0 inclusive
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# convert to non-linear grayscale
+convert $tmp2A[0] $setcspace -colorspace gray $tmp3A
+if [ "$im_version" -gt "06050501" ]; then
+	convert $tmp3A -auto-level $tmp3A
+else
+	levelParms $tmp3A
+	convert $tmp3A -level ${min},${max} $tmp3A
+fi
+scale=`convert $tmp3A -format "%[fx:floor(exp(log(mean)/log(0.5)))]" info:`
+convert $tmp3A -evaluate log $scale $tmp3A
+echo "scale=$scale;"
+
+
+# compute mean and subtract from image
+# clamp in HDRI mode
+convert $tmp3A \( +clone -blur ${rad}x65000 \) \
+	+swap -compose minus -composite -clamp $tmp3A
+
+#echo "thresh"
+# threshold 
+if [ "$thresh" != "" ]; then
+	# simple threshold on percent
+	convert $tmp3A -threshold ${thresh}% $tmp3A
+else
+	# kapur entropy threshold
+	kapurThresh $tmp3A
+fi
+
+
+# do masking
+masking="-fill black -stroke black"
+if [ "$horizontal" != "0" ]; then
+	masking="$masking -strokewidth $horizontal -draw \"line 0,$centrow $lastcol,$centrow\""
+fi
+if [ "$vertical" != "0" ]; then
+	masking="$masking -strokewidth $vertical -draw \"line $centcol,0 $centcol,$lastrow\""
+fi
+if [ "$left" != "0" ]; then
+	left=`convert xc: -format "%[fx:2*$left]" info:`
+	masking="$masking -strokewidth $left -draw \"line 0,0 0,$lastrow\""
+fi
+if [ "$right" != "0" ]; then
+	right=`convert xc: -format "%[fx:2*$right]" info:`
+	masking="$masking -strokewidth $right -draw \"line $lastcol,0 $lastcol,$lastrow\""
+fi
+if [ "$upper" != "0" ]; then
+	upper=`convert xc: -format "%[fx:2*$upper]" info:`
+	masking="$masking -strokewidth $upper -draw \"line 0,0 $lastcol,0\""
+fi
+if [ "$bottom" != "0" ]; then
+	bottom=`convert xc: -format "%[fx:2*$bottom]" info:`
+	masking="$masking -strokewidth $bottom -draw \"line 0,$lastrow $lastcol,$lastrow\""
+fi
+
+centcol2=`convert xc: -format "%[fx:$centcol+$centrad]" info:`
+masking="$masking -strokewidth 0 -draw \"circle $centcol,$centrow $centcol2,$centrow\""
+eval convert $tmp3A $masking -alpha off $tmp3A
+if [ "$outer" != "0" ]; then
+	centcol3=`convert xc: -format "%[fx:$centcol+($centcol-$outer)]" info:`
+	convert $tmp3A \( +clone -threshold -1 -negate \
+		-fill white -draw "circle $centcol,$centrow $centcol3,$centrow" -alpha off \) \
+		-compose multiply -composite $tmp3A
+fi
+
+
+#correct for change in median at IM 6.6.8-6 from radius to widthxheight
+#and from -median to -statistic median
+if [ "$im_version" -ge "06060806" -a "$median" != "0" ]; then
+	median=$((2*$median+1))
+	proc="-statistic median"
+else
+	proc="-median"
+fi
+
+# apply optional median filter, dilate, smooth, negate
+if [ "$median" != "0" ]; then
+	medianize="$proc $median"
+else
+	medianize=""
+fi
+if [ "$smooth" = "0" ]; then 
+	smooth=$dilate
+fi
+convert $tmp3A $medianize -blur ${dilate}x65000 -threshold 0 \
+	-blur ${smooth}x65000 -negate $tmp3A
+
+
+# display the mask 
+[ "$show" = "yes" ] && convert $tmp3A show:
+
+# save the mask to disk
+if [ "$save" = "yes" ]; then
+	convert $tmp3A $maskfile
+fi
+
+# apply mask to FFT and do IFT
+convert \( $tmp2A[0] $tmp3A -compose multiply -composite \) $tmp2A[1] \
+	-ift -crop ${ww}x${hh}+0+0 +repage "$outfile"
+
+exit 0
+

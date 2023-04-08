@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 
 # Author: Tim Pulver
@@ -17,7 +17,6 @@
 #   - TODO_TXT_PATH: Where the todo.txt / done.txt file is located
 #   - NUMBER_OF_DAYS: How many days should be visualized (optional, default: 7)
 
-from __future__ import print_function
 
 import datetime
 import sys
@@ -73,7 +72,7 @@ class Colors(object):
 
     def __getattr__(self,key):
         if key not in CCODES.keys():
-            raise AttributeError, "Colors object has no attribute '%s'" % key
+            raise AttributeError( "Colors object has no attribute '%s'" % key )
         else:
             if self.disabled:
                 return lambda x: x
@@ -134,7 +133,7 @@ def main(directory, cutoffDays = 7):
 
     # find out max value
     max = 0
-    for key, value in dic.iteritems():
+    for key, value in dic.items():
         if value > max:
             max = value
 
@@ -145,7 +144,7 @@ def main(directory, cutoffDays = 7):
 
     # display graph
     print()
-    for key, value in orderedDic.iteritems():
+    for key, value in orderedDic.items():
         print_blocks(key, value, step)
     print()
 
@@ -156,7 +155,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if os.path.isdir(sys.argv[1]):
-        if len(sys.argv) is 3:
+        if len(sys.argv) == 3:
             main(sys.argv[1], int(sys.argv[2]))
         else:
             main(sys.argv[1])

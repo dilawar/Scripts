@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+
+"""csv_summary.py: 
+
+Produce csv summary.
+
+"""
+    
+__author__           = "Dilawar Singh"
+__copyright__        = "Copyright 2017-, Dilawar Singh"
+__version__          = "1.0.0"
+__maintainer__       = "Dilawar Singh"
+__email__            = "dilawars@ncbs.res.in"
+__status__           = "Development"
+
+import sys
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+import pandas as pd 
+
+pygnuplot_ = True
+try:
+    import PyGnuplot as pg
+except ImportError as e:
+    pygnuplot_ = False
+
+args_ = None
+info_ = { }
+
+def _userDelimToPandasSep( delim ):
+    opts = dict( comma = ',', space=' ', tab = '\t', semicolon = ';' )
+    return opts.get( delim, ' ' )
+
+def analyze( data, column, xvec = None ):
+    global info_
+    global pygnuplot_
+    print( '\n\n=== Analysing %s ' % column )
+    vec = data[ column ]
+    hist, bins = np.histogram( vec, normed = False )
+    info = dict( min=vec.min(), max=vec.max(), mean=vec.mean(), std=vec.std() )
+    info[ 'sum' ] = np.sum( vec )
+    if pygnuplot_:
+        if xvec is None:
+            xvec = np.arange( 0, len(vec) )
+        pg.s( [ bins[1:], hist ] )
+        #pg.c( 'set terminal caca' )
+        pg.c( 'set terminal dumb 80,20' )
+        pg.c( 'unset grid' )
+        pg.c( 'set title "Histogram of %s"' % column )
+        pg.c( 'plot "tmp.dat" u 1:2 w lp notitle' )
+        pg.s( [xvec, vec], filename = 'temp_.dat' )
+        pg.c( 'set title "Series of %s"' % column )
+        pg.c( 'replot "temp_.dat" u 1:2 w lp notitle' )
+        time.sleep( 0.1 )
+        sys.stdout.flush( )
+
+    for c in info:
+        print( ' %10s : %s' % (c, info[c] ) )
+
+def main( args ):
+    global args_
+    args_ = args 
+    data = pd.read_csv( args_.input
+            , sep = _userDelimToPandasSep( args_.delimiter )
+            , comment='#' )
+
+    columns = [ ]
+    if args_.column:
+        for c in args_.column:
+            if c.isdigit( ):
+                try:
+                    columns.append( data.columns[int(c)] )
+                except IndexError as e:
+                    print( '[WARN] Column at index %s not found. Ignoring' % c )
+            else:
+                columns += list( filter( lambda x: c in x, data.columns ) )
+    else:
+        columns = data.columns
+
+    print( '[INFO] Processing for %s' % columns )
+    print( 'Number of records = %d' % len( data ) )
+    try:
+        for i, column in enumerate( columns ):
+            analyze( data, column )
+    except Exception as e:
+        print( 'Failed to analyze. Error was %s' %  e )
+        print( 'Following columsn are available in dataset' )
+        print( '   %s' % ', '.join(data.columns) )
+        quit( 1 )
+
+if __name__ == '__main__':
+    import argparse
+    # Argument parser.
+    description = '''CSV file summary.'''
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--input', '-i'
+        , required = True
+        , help = 'csv file.'
+        )
+    parser.add_argument('--output', '-o'
+        , required = False
+        , help = 'Output file'
+        )
+    parser.add_argument('--delimiter', '-d'
+        , required = False
+        , default = 'space'
+        , help = 'delimiter (default space). Values tab or , or ;'
+        )
+    parser.add_argument('--column', '-c'
+        , required = False
+        , action = 'append'
+        , default = [ ]
+        , help = 'Column index/name/pattern to analyze (default all). ' 
+                 'First column is alreays treated as index column.'
+        )
+    class Args: pass 
+    args = Args()
+    parser.parse_args(namespace=args)
+    main( args )

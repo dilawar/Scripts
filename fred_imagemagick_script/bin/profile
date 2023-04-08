@@ -1,0 +1,522 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/25/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: profile [-r row] [-c col] [-w width] [-l label] [-f format] infile [outfile]
+# USAGE: profile [-h or -help]
+#
+# OPTIONS:
+#
+# -r        row       row of image to profile; rows start at 0; default=0
+# -c        col       column of image to profile; cols start at 0
+#                     script will use only one of -r or -c; the last one 
+#                     specified in the command line; default is -r 0
+# -w        width     width of profile; width>=0; recommend 100 to 300; 
+#                     default=0 means use the full length of the row or column; 
+#                     however it will be slow if length is greater than 300;
+# -l        label     enable or disable label; label=on or off; default=on
+# -f        format    one graph or three for RGB image; format=1 or 3; default=3
+# outfile             if not specified, outfile will be named from the infile name
+#
+###
+#
+# NAME: PROFILE 
+# 
+# PURPOSE: To generate a profile of an image row or column. 
+# 
+# DESCRIPTION: PROFILE generates an output image which is composed of the 
+# separate profiles from each channel of the input image for a given row 
+# or column. Profile values will be plotted in the range of 0 to 100 as 
+# percent graylevel. A label is included which specifies: the min and max 
+# values along the row or column for each channel (in the same range), 
+# the size of the profile and the row or column number.
+# 
+# 
+# OPTIONS: 
+# 
+# -r row is the row of image to profile. Rows start at 0. The default=0.
+# 
+# -c col is the column of image to profile. Rows start at 0. The default=0.
+# 
+# Note, the script will use only one of -r or -c, whichever is the last one  
+# specified in the command line. The default is to use -r 0.
+#
+# -w width is the width of profile. Values are width=0 or between 100 to 300. 
+# The default=0 means to use the full length of the row or column. However 
+# processing will be slow if length is greater than 300. 
+#
+# -l label is a flag to enable or disable the annotation labeling. The values 
+# for label are on or off. The default is lable=on.
+#
+# -f format determines whether to have 3 individual graphs for each channel or 
+# one graph with all three channel profiles superimposed. Values for format are
+# 1 or 3. The default is format=3.
+#
+# If no outfile is specified, then outfile will be named as 
+# infilename_profile.gif, where the suffix has been removed from infile 
+# to generate infilename.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+line="Row"     # Row or Col
+lineval=0      # number of row or col
+height=101     # fixed height of profile
+width=0        # width of profile (0 means use full length of row or col)
+maxval=255     # corresponds to depth 8 used in script
+label="on"     # enable or disable labels
+format=3       # 1 or 3 graphs for RGB colorspace
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+#
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+#
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+#
+# function to get min, max, mean, std from Brightness channel (or Graylevel image)
+function imagestats
+	{
+	data=`convert $1 -verbose info:`
+	min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$min" = "" ] && errMsg "--- MIN NOT FOUND --- "
+	max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	[ "$max" = "" ] && errMsg "--- MAX NOT FOUND --- "
+	}
+#
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get row
+					   line="Row"
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROW SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test lineval values
+					   lineval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lineval" = "" ] && errMsg "--- ROW=$lineval MUST BE AN INTEGER ---"
+					   ;;
+				-c)    # get col
+					   line="Col"
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COL SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test lineval values
+					   lineval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lineval" = "" ] && errMsg "--- COL=$lineval MUST BE AN INTEGER ---"
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter - width
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE AN INTEGER ---"
+					   ;;
+				-l)    # get label
+					   shift  # to get the next parameter - label
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LABEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   label=$1
+					   [ "$label" != "on" -a "$label" != "off" ] && errMsg "--- LABEL=$label MUST BE EITHER 'on' OR 'off' ---"
+					   ;;
+				-f)    # get format
+					   shift  # to get the next parameter - format
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test width values
+					   format=$1
+					   [ $format -ne 1 -a $format -ne 3 ] && errMsg "--- FORMAT=$format IS NOT A VALID VALUE ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+#
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+# test that outfile provided
+if [ "$outfile" = "" ]
+	then
+	# get infile name before suffix
+	inname=`convert "$infile" -format "%t" info:`
+	gg="_profile"
+	outfile="$inname$gg.gif"
+fi
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/profile_$$.mpc"
+tmpB="$dir/profile_$$.cache"
+tmp0="$dir/profile_0_$$.miff"
+tmp1="$dir/profile_1_$$.miff"
+tmp2="$dir/profile_2_$$.miff"
+tmp3="$dir/profile_3_$$.miff"
+tmp4="$dir/profile_4_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3 $tmp4; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3 $tmp4; exit 1" 1 2 3 15
+
+
+#
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+		# get colorspace
+		data=`identify -verbose $tmpA`
+		colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+		type=`echo "$data" | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+		colormode=$colorspace
+		if [ "$colorspace" = "Gray" -o "$type" = "Grayscale" -o "$type" = "Bilevel" ]; then
+			colormode="Gray"
+		else 
+			colormode="RGB"
+		fi
+				
+		# get image width and height
+		imgwidth=`identify -format %w $tmpA`
+		imgheight=`identify -format %h $tmpA`
+
+		# get size and offset and line of data depending upon row or column
+		if [ "$line" = "Row" ]
+			then 
+			size="${imgwidth}x1"
+			offset="0+$lineval"
+			imgsize=$imgwidth
+			rot=""
+		elif [ "$line" = "Col" ]
+			then 
+			size="1x${imgheight}"
+			offset="$lineval+0"
+			imgsize=$imgheight
+			rot="-rotate -90"
+		fi
+
+		if [ $width -gt 0 ]
+			then
+			shrink="-resize ${width}x1!"
+		else
+			shrink=""
+			width=$imgsize
+		fi
+
+: '
+echo "colorspace=$colorspace"
+echo "colormode=$colormode"
+echo "size=$size"
+echo "offset=$offset"
+echo "rot=$rot"
+echo "shrink=$shrink"
+echo "width=$width"
+'
+
+		# set padding and box size for graph
+		width2=`expr $width + 2`
+		height2=`expr $height + 2`
+		width4=`expr $width + 4`
+		height4=`expr $height + 4`
+		width20=`expr $width + 20`
+		height10=`expr $height + 10`
+
+
+		# get im_version
+		im_version=`convert -list configure | \
+			sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+		
+		# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+		# though probably not resolved until the latter
+		# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+		# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+		# though probably not resolved until the latter
+		# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+		# but we need to use -set colorspace RGB before using them at appropriate times
+		# so that results stay as in original script
+		# The following was determined from various version tests using pagepeel.
+		# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+		if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+			setcspace="-set colorspace RGB"
+		else
+			setcspace=""
+		fi
+		# no need for setcspace for grayscale or channels after 6.8.5.4
+		if [ "$im_version" -gt "06080504" ]; then
+			setcspace=""
+		fi
+
+
+		if [ "$colormode" = "RGB" ]
+			then
+			convert $tmpA[$size+$offset] $rot $shrink $setcspace -channel R -separate $tmp0
+			convert $tmpA[$size+$offset] $rot $shrink $setcspace -channel G -separate $tmp1
+			convert $tmpA[$size+$offset] $rot $shrink $setcspace -channel B -separate $tmp2
+		elif [ "$colormode" = "Gray" ]
+			then
+			convert $tmpA[$size+$offset] $rot $shrink $tmp0
+		else 
+			errMsg "--- INVALID COLORSPACE ---"
+		fi
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+
+# function to process profile for a given channel
+profile()
+	{
+	img=$1
+	strokecolor=$2
+
+	# get line of image and convert into text format
+	frac=`convert xc: -format "%[fx:($height-1)/255]" info:`
+	pixvals=`convert $img -strip -depth 8 -evaluate multiply $frac -compress none pgm:- | sed '1,3d'`
+	
+	# create point pair list
+	plist=""
+	x=0
+	for y in $pixvals; do
+	plist="$plist $x,$y"
+	x=`expr $x + 1`
+	done
+	numpairs=$(($x-1))
+
+	# draw graph of point pairs
+	im_version=`convert -list configure | \
+		sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	if [ $width -le 300 -o "$im_version" -ge "06030600" ]
+		then 
+		convert -size ${width}x${height} xc: \
+			-stroke $strokecolor -fill white \
+			-draw "polyline $plist" -flip $tmp3
+	else
+		i=0
+		j=200
+		k=0
+		kmax=`echo "scale=5; $numpairs / $j" | bc`
+		kmaxint=`echo "scale=0; $numpairs / $j" | bc`
+		remainder=`echo "scale=5; ($kmax - $kmaxint) / 1" | bc`
+		test=`echo "scale=5; $remainder > 0" | bc`
+		[ $test -eq 1 ] && kmaxint=`expr $kmaxint + 1`
+		points=""
+		convert -size ${width}x${height} xc:white $tmp3
+		while [ $k -lt $kmaxint ]
+			do
+			while [ $i -lt $j ]
+				do
+				points="$points ${pairArray[$i]}"
+				i=`expr $i + 1`
+				[ $i -ge $numpairs ] && break
+			done
+			convert $tmp3 -stroke $strokecolor \
+				-fill white -draw "polyline $points" $tmp3
+			ii=`expr $i - 1`
+			points=${pairArray[$ii]}
+			k=`expr $k + 1`
+			j=`expr $j + 200`
+		done
+		convert $tmp3 -flip $tmp3
+	fi
+	}
+
+
+
+# process the profile
+
+echo ""
+echo "Please Wait - This May Take Some Time"
+
+
+if [ "$colormode" = "RGB" -a $format -eq 3 ]
+	then
+	echo ""
+	echo "Processing Red"
+	imagestats $tmp0
+	profile $tmp0 "red"
+	convert $tmp3 -background white -gravity center \
+		-extent ${width4}x${height4} \
+		-fill none -stroke black \
+		-draw "rectangle 0,0 ${width2},${height2}" $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width20}x${height10} $tmp0
+	[ "$label" = "on" ] && montage -label "min=$min\nmax=$max" -geometry +0+0 $tmp0 $tmp0
+
+	echo "Processing Green"	
+	imagestats $tmp1
+	profile $tmp1 "green"
+	convert $tmp3 -background white -gravity center \
+		-extent ${width4}x${height4} \
+		-fill none -stroke black \
+		-draw "rectangle 0,0 ${width2},${height2}" $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width20}x${height10} $tmp1
+	[ "$label" = "on" ] && montage -label "min=$min\nmax=$max" -geometry +0+0 $tmp1 $tmp1
+	
+	echo "Processing Blue"
+	imagestats $tmp2
+	profile $tmp2 "blue"
+	convert $tmp3 -background white -gravity center \
+		-extent ${width4}x${height4} \
+		-fill none -stroke black \
+		-draw "rectangle 0,0 ${width2},${height2}" $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width20}x${height10} $tmp2
+	[ "$label" = "on" ] && montage -label "min=$min\nmax=$max" -geometry +0+0 $tmp2 $tmp2
+
+	convert $tmp0 $tmp1 $tmp2 -append $tmp4
+	[ "$label" = "on" ] && montage -label "Profile\n${width}x${height}\n\n$line $lineval" -geometry +0+0 $tmp4 $tmp4
+
+elif [ "$colormode" = "RGB" -a $format -eq 1 ]
+	then
+	echo ""
+	echo "Processing Red"
+	imagestats $tmp0
+	minr=$min
+	maxr=$max
+	profile $tmp0 "red"
+	convert $tmp3 $tmp0
+
+	echo ""
+	echo "Processing Green"	
+	imagestats $tmp1
+	ming=$min
+	maxg=$max
+	profile $tmp1 "green"
+	convert $tmp3 -transparent white $tmp1
+	
+	echo ""
+	echo "Processing Blue"
+	imagestats $tmp2
+	minb=$min
+	maxb=$max
+	profile $tmp2 "blue"
+	convert $tmp3 -transparent white $tmp2
+
+#	montage $tmp2 $tmp1 -tile 1x1 -geometry +0+0 -compose over $tmp0 $tmp3
+	convert \( $tmp0 $tmp1 -compose over -composite \) $tmp2 -compose over -composite $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width4}x${height4} \
+		-fill none -stroke black \
+		-draw "rectangle 0,0 ${width2},${height2}" $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width20}x${height10} $tmp4
+
+	[ "$label" = "on" ] && montage -label \
+		"Red:\nmin=$minr\nmax=$maxr\n\nGreen:\nmin=$ming\nmax=$maxg\n\nBlue:\nmin=$minb\nmax=$maxb\n\nProfile\n${width}x${height}\n\n$line $lineval" \
+		-geometry +0+0 $tmp4 $tmp4
+
+elif [ "$colormode" = "Gray" ]
+	then
+	echo ""
+	echo "Processing Grayscale"
+	imagestats $tmp0
+	profile $tmp0 "black"
+	convert $tmp3 -background white -gravity center \
+		-extent ${width4}x${height4} \
+		-fill none -stroke black \
+		-draw "rectangle 0,0 ${width2},${height2}" $tmp3
+	convert $tmp3 -background white -gravity center \
+		-extent ${width20}x${height10} $tmp4
+
+	[ "$label" = "on" ] && montage -label \
+	"min=$min\nmax=$max\n\nProfile\n${width}x${height}\n\n$line $lineval" \
+	-geometry +0+0 $tmp4 $tmp4
+else
+	errMsg "--- INVALID COLORSPACE ---"
+fi
+
+convert $tmp4 "$outfile"
+
+echo ""
+exit 0

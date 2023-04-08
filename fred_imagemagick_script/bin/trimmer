@@ -1,0 +1,409 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 5/14/2009 .......... revised 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: trimmer [-s sides] [-f fuzzval] [-b bcolor] [-g gcolor] infile outfile
+# USAGE: trimmer [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s       sides        comma delimited list of sides to trim; list can include 
+#                       any combination of: north, east, south, west or just "all"; 
+#                       default=north
+# -f       fuzzamt      fuzz amount in percent for trimming border color; float; 
+#                       fuzzamt>=0; default=0
+# -b       bcolor       background color for area to trim; any valid IM color 
+#                       may be specified; default will be determined automatically 
+#                       from the average color of all specified sides
+# -g       gcolor       guard color used to preserve sides not be trimmed; 
+#                       any valid IM color that is further from the background color 
+#                       than the fuzzval; default will be determined automatically 
+#                       as either the complement of the background color, black or 
+#                       white whichever is furthest from the background color.
+# 
+###
+# 
+# NAME: TRIMMER 
+#  
+# PURPOSE: To trim the background from any number of specified sides of an image.
+# 
+# DESCRIPTION: UNROTATE trims the background from any number of specified sides 
+# of an image. The user may specify from one to four sides as a comma delimited list 
+# that is enclosed in quotes. A fuzz value may be specified if the background is not 
+# a constant color.
+# 
+# 
+# Arguments: 
+# 
+# -s sides --- SIDES is a comma delimited list of the sides to be trimmed enclosed 
+# in quotes. Any number of sides from one to four may be specified. The list can 
+# include any combination of: north, east, south, west or just "all". 
+# The default=north.
+# 
+# -f fuzzamt --- FUZZAMT is the fuzz amount specified as a float percent greater 
+# than zero (without the % sign). The default is zero which indicates that border 
+# is a uniform color. Larger values are needed when the border is not a uniform color.
+# 
+# -b bcolor --- BCOLOR is the background color for the area to trim. Any valid IM  
+# color may be specified. The default will be determined automatically from the  
+# average color of all specified sides. There is no guarantee that this will be 
+# accurate. So if it does not work, then you will need to supply the border color.
+# 
+# -g gcolor --- GCOLOR is the guard color used to preserve the side that are not 
+# to be trimmed. Any valid IM color may be specified that is further from the 
+# background color than the fuzzval. The default will be determined automatically 
+# as either the complement of the background color, black or white whichever is 
+# furthest from the background color. There is no guarantee that this will be 
+# accurate. So if it does not work, then you will need to supply the guard color.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values; 
+sides="north"			# comma delimited list: north, south, east, west, all
+fuzzamt=0				# fuzz amount in percent
+bcolor=""				# background color; use none for transparent background
+gcolor=""				# guard color
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-s)    # sides
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID SIDES SPECIFICATION ---"
+				   checkMinus "$1"
+				   sides=$1
+				   # further testing done later
+				   ;;
+			-f)    # fuzzamt
+				   shift  # to get the next parameter - fuzzval
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FUZZAMT SPECIFICATION ---"
+				   checkMinus "$1"
+				   fuzzamt=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$fuzzamt" = "" ] && errMsg "--- FUZZAMT=$fuzzamt MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   fuzzamttest=`echo "$fuzzamt < 0" | bc`
+				   [ $fuzzamttest -eq 1 ] && errMsg "--- FUZZAMT=$fuzzamt MUST BE A NON-NEGATIVE FLOATING POINT VALUE ---"
+				   ;;
+			-b)    # bcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   bcolor=$1
+				   ;;
+			-g)    # gcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID GUARD COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   gcolor=$1
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary files
+tmpA="$dir/trimmer_$$.mpc"
+tmpB="$dir/trimmer_$$.cache"
+trap "rm -f $tmpA $tmpB;" 0
+trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
+
+# read the input image into the TMP cached image.
+convert -quiet "$infile" +repage "$tmpA" ||
+	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# get sides as array
+sides=`echo "$sides" | tr "[:upper:]" "[:lower:]"`
+# add comma to end, then remove spaces, then change commas to spaces
+sides_list=`echo "${sides}," | sed -n 's/[ ]*//gp' | tr "," " "`
+sidesArray=($sides_list)
+num=${#sidesArray[*]}
+
+
+# test valid sides
+i=0
+while [ $i -lt $num ]; do
+	side="${sidesArray[$i]}"
+	case "$side" in 
+		north) ;;
+		east) ;;
+		south) ;;
+		west) ;;
+		all) ;;
+		*) echo "--- INVALID SIDE SPECIFIED ---" ;;
+	esac
+	i=`expr $i + 1`
+done
+
+
+# strip duplicate sides
+# change space delimited list to list of one-word rows
+# note \012 is octal for line break
+sides_list=`echo "$sides_list" | tr " " "\012"`
+
+# sort list of rows to reorder and remove duplicates
+sides_list=`echo $sides_list | sort -u`
+
+# use grep '.*' to put back into space delimited list from sorted rows
+sides_list=`echo $sides_list | grep '.*'`
+
+
+# process image if sides=all or all 4 sides provided, then exit 0
+# otherwise continute
+if [ "$sides_list" = "all" -o $num -eq 4 ]; then
+	convert $tmpA -fuzz ${fuzzamt}% -trim +repage $outfile
+	exit 0
+fi
+
+
+# change sides to "remove" to sides to "preserve" by 
+# deleting elements from list of all possible values
+pSidesArray=(north east south west)
+i=0
+while [ $i -lt $num ]; do
+	side="${sidesArray[$i]}"
+	[ "$side" = "north" ] && pnum=0
+	[ "$side" = "east" ] && pnum=1
+	[ "$side" = "south" ] && pnum=2
+	[ "$side" = "west" ] && pnum=3
+	unset pSidesArray[$pnum]
+	i=`expr $i + 1`
+done
+pnum="${#pSidesArray[*]}"
+
+# NOTE: must reset array from list to remove empty and non-showing elements
+# produced by unset, so that the new array can be indexed properly again.
+pSidesArray=(${pSidesArray[*]})
+pnum="${#pSidesArray[*]}"
+
+
+if [ "$bcolor" = "" ]; then
+	# get average color of specified sides
+	
+	# get width and height and sides to be removed
+	ww=`identify -ping -format "%w" $tmpA`
+	hh=`identify -ping -format "%h" $tmpA`
+	[ "${sidesArray[0]}" != "" ] && side1="${sidesArray[0]}"
+	[ "${sidesArray[1]}" != "" ] && side2="${sidesArray[1]}"
+	[ "${sidesArray[2]}" != "" ] && side3="${sidesArray[2]}"
+	[ "${sidesArray[3]}" != "" ] && side4="${sidesArray[3]}"
+	
+	# get average colors for all four outer edges
+	color_north=`convert ${infile} -gravity north -crop ${ww}x1+0+0 +repage -format '%[pixel:s.p{0,0}]' info:`
+	color_east=`convert ${infile} -gravity east -crop 1x${hh}+0+0 +repage -format '%[pixel:s.p{0,0}]' info:`
+	color_south=`convert ${infile} -gravity south -crop ${ww}x1+0+0 +repage -format '%[pixel:s.p{0,0}]' info:`
+	color_west=`convert ${infile} -gravity west -crop 1x${hh}+0+0 +repage -format '%[pixel:s.p{0,0}]' info:`
+
+	# compute global average from only edges (averages) to be removed
+	# use that for background color
+	if [ $num -eq 1 ]; then
+		eval color1="\${color_${side1}}"
+		bcolor="$color1"
+	elif [ $num -eq 2 ]; then
+		eval color1="\${color_${side1}}"
+		eval color2="\${color_${side2}}"
+		bcolor=`convert xc: -format "%[pixel:($color1+$color2)/2]" info:`
+	elif [ $num -eq 3 ]; then
+		eval color1="\${color_${side1}}"
+		eval color2="\${color_${side2}}"
+		eval color3="\${color_${side3}}"
+		bcolor=`convert xc: -format "%[pixel:($color1+$color2+$color3)/3]" info:`
+	elif [ $num -eq 4 ]; then
+		eval color1="\${color_${side1}}"
+		eval color2="\${color_${side2}}"
+		eval color3="\${color_${side3}}"
+		eval color4="\${color_${side4}}"
+		bcolor=`convert xc: -format "%[pixel:($color1+$color2+$color3+$color4)/4]" info:`
+	fi
+fi
+
+
+if [ "$gcolor" = "" ]; then
+	# get color complement (negate) to background color for possible guard color
+
+	# note: negating the alpha channel does not work for opaque white "rgba(255,255,255,1)"
+	# as ncolor becomes "none" as does not make a good guard color
+	# so just negate ignoring the alpha channel
+	# that seems to work
+	ncolor=`convert -size 1x1 xc:"$bcolor" \
+		-negate -format '%[pixel:s.p{0,0}]' info:`
+	
+	# test differnce between background color (in percent) with complement (in percent) 
+	# and also with opaque black and opaque white
+	# choose color that is furtherest (largest diff) from background color 
+	# to use as guard color
+	diffn=`compare -metric rmse -size 1x1 xc:"$bcolor" xc:"$ncolor" null: 2>&1 | \
+		sed -n 's/^.*[(]\(.*\)[)].*$/\1/p'`
+	diffb=`compare -metric rmse -size 1x1 xc:"$bcolor" xc:"black" null: 2>&1 | \
+		sed -n 's/^.*[(]\(.*\)[)].*$/\1/p'`
+	diffw=`compare -metric rmse -size 1x1 xc:"$bcolor" xc:"white" null: 2>&1 | \
+		sed -n 's/^.*[(]\(.*\)[)].*$/\1/p'`
+	diff_max=`convert xc: -format "%[fx:max(max($diffn,$diffb),$diffw)]" info:`
+	if [ "$diffn" = "$diff_max" ]; then
+		gcolor="$ncolor"
+	elif [ "$diffb" = "$diff_max" ]; then
+		gcolor="black"
+	elif [ "$diffw" = "$diff_max" ]; then
+		gcolor="white"
+	fi
+fi
+
+
+# set up spice and chop amounts
+i=0
+while [ $i -lt $pnum ]; do
+	side=${pSidesArray[$i]}
+	if [ "$side" = "north" ]; then
+		amountsArray[$i]="0x1+0+0"
+	elif [ "$side" = "south" ]; then
+		amountsArray[$i]="0x1+0+0"
+	elif [ "$side" = "west" ]; then 
+		amountsArray[$i]="1x0+0+0"
+	elif [ "$side" = "east" ]; then
+		amountsArray[$i]="1x0+0+0"
+	fi
+	i=`expr $i + 1`
+done
+
+
+# set up command sequences
+# splice
+splicer=""
+i=0
+while [ $i -lt $pnum ]; do
+	splicer="$splicer -gravity ${pSidesArray[$i]} -splice ${amountsArray[$i]}"
+	i=`expr $i + 1`
+done
+
+
+# composite
+composer=""
+i=0
+while [ $i -lt $pnum ]; do
+	composer="$composer -size 1x1 xc:$gcolor -gravity ${pSidesArray[$i]} -composite"
+	i=`expr $i + 1`
+done
+
+
+# chop
+chopper=""
+i=0
+while [ $i -lt $pnum ]; do
+	chopper="$chopper -gravity ${pSidesArray[$i]} -chop ${amountsArray[$i]}"
+	i=`expr $i + 1`
+done
+
+
+# do trimming
+convert $tmpA \
+	-background "$bcolor" $splicer \
+	$composer \
+	-fuzz ${fuzzamt}% -trim +repage \
+	$chopper \
+	"$outfile"
+
+exit 0

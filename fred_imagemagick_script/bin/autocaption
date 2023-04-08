@@ -1,0 +1,429 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 2/3/2010 .......... revised 10/1/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: autocaption -s size -t text [-b buffer] [-f font] [-c color] 
+# [-u undercolor] [-o outlinecolor] [-w width] infile outfile
+# USAGE: autocaption [-h or -help]
+# 
+# OPTIONS:
+# 
+# -s     size           size of square textbox; integer>0
+# -t     text           text to apply to image; enclose in quotes
+# -b     buffer         buffer or padding around text box; integer>=0; 
+#                       default=0
+# -f     font           font name or path to font file; default=Arial
+# -c     color          text color; any valid IM color specification;
+#                       default will be either black or white, whichever 
+#                       contrasts best with the color of the region that 
+#                       was found by the search
+# -u     undercolor     undercolor for text; any valid IM color 
+#                       specification; default=none for transparent so that 
+#                       image coloration shows behind text
+# -o                    outlinecolor for text; any valid IM color 
+#                       specification; default=none for transparent so that 
+#                       there is effectively no outline; if this is not 
+#                       none, then no contrast will be used and the text 
+#                       color will default to white.
+# -w     width          width (thickness) of outline; integer>=0; default=1
+#                           
+# 
+###
+# 
+# NAME: AUTOCAPTION 
+# 
+# PURPOSE: To place text automatically in a specified square size region that  
+# has the least color variation throughout the image.
+# 
+# DESCRIPTION: AUTOCAPTION places text automatically in a specified square size 
+# region that has the least color variation throughout the image. The text will 
+# be placed at the first acceptable location found. By default the text will be 
+# placed on the image with no undercolor. But an undercolor can be used which 
+# will cover the underlying image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s size ... SIZE of square textbox. Also used to find the location in the 
+# image that has the least color variation. The text will be placed in multiple 
+# rows as determined by the textbox size.
+#
+# -t text ... TEXT to apply to image. Be sure to enclose in quotes.
+# 
+# -b buffer ... BUFFER is the amount of padding around the textbox. Values are 
+# integers greater than zero. The default=0.
+# 
+# -f font ... FONT is the text font or path to the font file. The default is 
+# Arial.
+# 
+# -c color ... COLOR is the text color. Any valid IM color specification is 
+# allowed. The default will be either black or white, whichever contrasts best 
+# with the color of the region that was found by the search.
+# 
+# -u undercolor ... UNDERCOLOR is the color to use under the text within the 
+# textbox. Any valid IM color specification is allowed. The default=none, which 
+# means that the text will be placed over the image without any undercolor. If 
+# an undercolor is specified, then it will cover the underlying image.
+# 
+# -o outlinecolor ... OUTLINECOLOR is the color to use for outline style text. 
+# Any valid IM color specification is allowed. The default=none for transparent 
+# so that there is effectively no outline. if this is not none (recommend 
+# black), then no contrast will be used and the text color will default to 
+# white.
+# 
+# -w width ... WIDTH (thickness) of outline. Values are integers>=0. The 
+# default=1
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+size=""					# size of square match window
+buffer=0				# match window buffer (pad)
+color=""				# text color; default black or white depending upon grayscale
+ucolor="none"			# text under color; default transparent
+ocolor="none"			# text outline color; default transparent
+owidth=1				# outline thickness
+font="Arial"			# font name or path to font
+text=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   test=`echo "$size == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SIZE=$size MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-t)    # get  text
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   #checkMinus "$1"
+					   text="$1"
+					   ;;
+				-b)    # get  buffer
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BUFFER SPECIFICATION ---"
+					   checkMinus "$1"
+					   buffer=`expr "$1" : '\([0-9]*\)'`
+					   [ "$buffer" = "" ] && errMsg "--- BUFFER=$buffer MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				-f)    # get  font
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FONT SPECIFICATION ---"
+					   checkMinus "$1"
+					   font="$1"
+					   ;;
+				-c)    # get color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color="$1"
+					   ;;
+				-u)    # get ucolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ucolor="$1"
+					   ;;
+				-o)    # get ocolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ocolor="$1"
+					   ;;
+				-w)    # get owidth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   owidth=`expr "$1" : '\([0-9]*\)'`
+					   [ "$owidth" = "" ] && errMsg "--- WIDTH=$owidth MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# test if no test or no size specified
+[ "$text" = "" ] && errMsg "--- SOME TEXT MUST BE SPECIFIED ---"
+[ "$size" = "" ] && errMsg "--- TEXTBOX SIZE MUST BE SPECIFIED ---"
+
+# setup temp files
+tmpA1="$dir/autocaption_1_$$.mpc"
+tmpB1="$dir/autocaption_1_$$.cache"
+tmpA2="$dir/autocaption_2_$$.mpc"
+tmpB2="$dir/autocaption_2_$$.cache"
+tmpA3="$dir/autocaption_3_$$.mpc"
+tmpB3="$dir/autocaption_3_$$.cache"
+
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
+
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# get image width and height
+width=`convert $tmpA1 -ping -format "%w" info:`
+height=`convert $tmpA1 -ping -format "%h" info:`
+
+
+# get padded size of window
+sizep=`convert xc: -format "%[fx:$size+2*$buffer]" info:`
+
+
+# get -blur radius from padded size
+rad=`convert xc: -format "%[fx:floor($sizep/2)]" info:`
+
+
+# get crop offsets to correct for window center to upper left corner
+xoff=$rad
+yoff=$rad
+wwc=`convert xc: -format "%[fx:$width-2*$xoff]" info:`
+hhc=`convert xc: -format "%[fx:$height-2*$yoff]" info:`
+
+#echo "buffer=$buffer; sizep=$sizep; rad=$rad; wwc=$wwc; hhc=$hhc;"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autocaption 
+# with IM 6.6.0.10, 6.7.2.10, 6.7.4.10, 6.7.5.5, 6.7.5.9, 6.7.6.10, 6.7.8.6
+# Note: bug in caption: via pango somewhere after 6.7.2.10 and before 6.7.5.9 ?
+# Pango introduced at 6.7.3-3 -- so probably started there
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# set up for gamma or evaluate pow
+# don't want gamma to change meta value of gamma from 0.4545, so use -evaluate pow
+if [ "$im_version" -lt "06040109" ]; then
+	sqrt="-gamma 2"
+else
+	sqrt="-evaluate pow 0.5"
+fi
+
+# get std = sqrt( ave(x^2) - ave(x)^2 )
+# second line get average of squared image
+# third line get average
+# fourth line get square of average
+# fifth line delete temps
+# sixth line get std
+# seventh line get equal average of 3 channels std, then negate 
+# so best result is largest (white)
+convert $tmpA1 $setcspace \
+	\( -clone 0 -clone 0 -compose multiply -composite -virtual-pixel black -blur ${rad}x65000 \) \
+	\( -clone 0 -virtual-pixel black -blur ${rad}x65000 \) \
+	\( -clone 2 -clone 2 -compose multiply -composite \) \
+	-delete 0,2 +swap \
+	-compose minus -composite $sqrt \
+	-colorspace OHTA -channel R -separate +channel -negate -depth 8 \
+	-crop ${wwc}x${hhc}+${xoff}+${yoff} +repage $tmpA2
+
+
+# get im version where -subimage-search introduced for compare
+if [ "$im_version" -ge "06060305" ]; then
+	searching="-subimage-search"
+else
+	searching=""
+fi
+
+# find location of max
+max=`convert $tmpA2 -format "%[fx:round(255*maxima)]" info:`
+if [ "$im_version" -ge "06080806" ]; then
+	data=`identify -precision 5 -define identify:locate=maximum \
+		-define identify:limit=1 $tmpA2 2>&1 |\
+		tr -cs ".0-9" " " | sed 's/^[ ]*//'`
+else
+echo "got here le"
+	data=`compare -metric rmse $searching $tmpA2 \
+		\( -size 1x1 xc:"gray($max)" \) null: 2>&1 |\
+		tr -cs ".0-9\n" " "`
+fi
+#echo "max=$max; data=$data"
+
+
+# get window score and location
+score=`echo "$data" | cut -d\  -f2`
+xxm=`echo "$data" | cut -d\  -f3`
+yym=`echo "$data" | cut -d\  -f4`
+
+# set up for contrast text
+if [ "$ocolor" != "none" -a "$color" = "" ]; then
+	color="white"
+elif [ "$ocolor" = "none" -a "$color" != "" ]; then
+	color=$color
+elif [ "$ocolor" = "none" ]; then
+	# get black or white text color
+		if [ "$color" = "" ]; then
+			if [ "$ucolor" = "none" ]; then
+				gray=`convert $tmpA1[${sizep}x${sizep}+${xxm}+${yym}] \
+					-filter box -resize 1x1\! \
+					-colorspace gray -format "%[fx:round(100*s.r)]" info:`
+			else
+				gray=`convert -size 1x1 xc:"$ucolor" \
+					-colorspace gray -format "%[fx:round(100*s.r)]" info:`
+			fi
+			if [ $gray -lt 50 ]; then
+				color="white"
+			else
+				color="black"
+			fi
+		fi
+fi
+
+
+# write text into window
+# note caption: determination of pointsize changed at IM 6.7.7-3 according to the changelog for proper wrapping
+convert -background "$ucolor" -fill "$color" -stroke "$ocolor" \
+	-strokewidth $owidth -font $font -gravity center \
+	-size ${size}x${size} caption:"$text" \
+	$tmpA3
+
+
+# compute text area offset including pad correction
+xxmp=`convert xc: -format "%[fx:$xxm+$buffer]" info:`
+yymp=`convert xc: -format "%[fx:$yym+$buffer]" info:`
+#echo "x=$xxmp; y=$yymp"
+
+# write text onto image at match location corrected for buffer
+convert $tmpA1 $tmpA3 -geometry +${xxmp}+${yymp} \
+-composite "$outfile"
+
+exit 0
+
+
+

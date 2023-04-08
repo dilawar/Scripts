@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import time
+import subprocess
+import typing as T
+import difflib
+from pathlib import Path
+
+try:
+    import typer
+except ImportError:
+    subprocess.run(f"{sys.executable} install typer".split(), check=True)
+
+import typer
+
+app = typer.Typer()
+
+EDITOR = os.getenv("EDITOR", "vim")
+
+NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+try:
+    gitdir = subprocess.check_output(
+        "git rev-parse --show-toplevel".split(), text=True
+    ).strip()
+    if gitdir:
+        NDIR = Path(gitdir) / "docs" / "notes"
+        if not NDIR.exists():
+            NDIR = Path(os.getenv("HOME")) / "Work" / "notes"
+except Exception:
+    pass
+
+if not NDIR.exists():
+    raise Exception(f"{NDIR} doesn't exists")
+
+
+def clone():
+    """Clone repo"""
+    global NDIR
+    os.chdir(NDIR.parent)
+    s = subprocess.run(
+        f"git clone git@gitlab.com:dilawar/notes {NDIR}".split(), check=True
+    )
+
+
+if not NDIR.exists():
+    clone()
+
+
+class Note:
+    global NDIR
+
+    def __init__(self, path):
+        self.path = path
+        self.name = self.path.name.replace(f".{EXT}", "")
+        self.relpath = self.path.relative_to(NDIR)
+        self.project = str(self.relpath.parent)
+        self.mtime = mtime(self.path)
+
+
+# dictionaries are now sorted. Cool.
+NOTES: T.List[Note] = []
+EXT = "md"
+
+
+def find_closest_match(needle: str, haystack: T.List[Path]):
+    matches = []
+    for h in haystack:
+        s = difflib.SequenceMatcher(None, needle, h.name)
+        if s.ratio() > 0.5:
+            matches.append((s.ratio(), h))
+    if matches:
+        matches = sorted(matches, key=lambda x: x[0])
+        # last entry has the highest match.
+        return matches[-1][1]
+    return None
+
+
+def mtime(p):
+    # Return modified time.
+    return time.ctime(os.path.getmtime(p))
+
+
+def _NOTESls():
+    global NDIR, EXT
+    for i, f in enumerate(NDIR.glob(f"**/*.{EXT}")):
+        NOTES.append(Note(f))
+
+
+@app.command()
+def ls():
+    global NDIR
+    _NOTESls()
+    for i, n in enumerate(NOTES):
+        print(f"{i:3d} {n.name:20s} {n.mtime} {n.project}")
+
+
+@app.command()
+def find(idx: str):
+    # Find a note either by its index or by searching it.
+    global NOTES
+    _NOTESls()
+    if idx.isnumeric():
+        idx = int(idx)
+        if idx < len(NOTES):
+            return NOTES[idx]
+        else:
+            print(f"[ERROR] invalid index {idx}.")
+            quit(-1)
+
+    # else find in values.
+    return find_closest_match(idx, NOTES)
+
+
+@app.command()
+def edit(p):
+    global EDITOR
+    f = find(p)
+    if f is not None:
+        # Launch the editor.
+        subprocess.run([EDITOR, f.path])
+        return 
+
+    # create new note.
+    s = input(f"Not found {p}. Create a new one (y/n) [y]?")
+    if (not s) or s[0].lower() != "n":
+        p = Path(p)
+        if not p.suffix:
+            p = p.with_suffix(f".{EXT}")
+        note_new(p)
+
+
+@app.command()
+def new(path: Path):
+    global NDIR
+    if NDIR not in path.parents:
+        path = NDIR / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([EDITOR, path])
+
+
+@app.command()
+def sync():
+    global NDIR
+    cmd = f'git pull && git diff && git add *.{EXT} && git commit -m "Sync" && git push'
+    for c in cmd.split("&&"):
+        c = c.strip()
+        print(f"[INFO ] Executing {c}")
+        s = subprocess.run(
+            c.split(), cwd=NDIR, encoding="utf-8", stdout=subprocess.PIPE
+        )
+        for l in s.stdout.split("\n"):
+            print(l)
+
+
+if __name__ == "__main__":
+    app()

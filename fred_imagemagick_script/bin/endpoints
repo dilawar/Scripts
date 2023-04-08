@@ -1,0 +1,332 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 6/6/2015 .......... revised 6/6/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: endpoints [-l lowpt] [-h highpt] [-u units] [-c channels ] infile outfile
+# USAGE: endpoints [-help]
+# 
+# OPTIONS:
+#
+# -l     lowpt         lowpt input,output graylevels as pair of 
+#                      comma separate non-negative floats; 
+#                      default="0,0"
+# -h     highpt        highpt input,output graylevels as pair of 
+#                      comma separate non-negative floats; 
+#                      default="100,100" or "255,255" depending upon units.
+# -u     units         units to use for lowpt and highpt values;
+#                      choices are: percent (p) for 0 to 100 percent or 
+#                      8bit (8) for 0 to 255; default=8bit                      
+# -C     channels      processing channels; choices are: all (a), 
+#                      red (r), green (g) or blue (b); default=global                     
+# 
+###
+# 
+# NAME: ENDPOINTS
+# 
+# PURPOSE: To apply a Photoshop-like curves operation that only adjusts the 
+# linear endpoints.
+# 
+# DESCRIPTION: ENDPOINTS applies a Photoshop-like curves operation on 
+# an image that only adjusts the linear endpoints. Processing can be applied  
+# globally (i.e. to the rgb channels equally), to the rgb channels 
+# independently or to the luminosity channel from YUV.
+# 
+# Arguments: 
+# 
+# -l lowpt ... LOWPT input,output graylevels as pair of comma separate 
+# non-negative floats. The default="0,0".
+# 
+# -h  highpt ... HIGHPT input,output graylevels as pair of comma separate 
+# non-negative floats. The default="0,0.
+# 
+# -u  units ... UNITS to use for lowpt and highpt values. The choices are: 
+# percent (p) for 0 to 100 percent or 8bit (8) for 0 to 255. The 
+# default=8bit.
+#                      
+# -c channels ... CHANNELS are the channel or channels to process. The 
+# choices are: all (a) i.e., R,G,B equally, red (r), green (g) or 
+# blue (b). The default=all.  
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+channels="all"		# channels to process
+lowpt="0,0"				# lowpt values
+highpt="255,255"		# highpt values
+units="8bit"			# units for values
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	     -help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-l)    # lowpt
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID LOWPT SPECIFICATION ---"
+				   checkMinus "$1"
+				   lowpt=`expr "$1" : '\([.0-9]*,[.0-9]*\)'`
+				   ;;
+			-h)    # highpt
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID HIGHPT SPECIFICATION ---"
+				   checkMinus "$1"
+				   highpt=`expr "$1" : '\([.0-9]*,[.0-9]*\)'`
+				   ;;
+		 	-u)    # units
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID UNITS SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test mode values
+				   units="$1"
+				   units=`echo "$units" | tr "[:upper:]" "[:lower:]"`
+				   case "$units" in 
+						percent|p) units="percent" ;;
+						8bit|8) units="8bit" ;;
+						*) errMsg "--- UNITS=$units IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+		 	-c)    # channels
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID CHANNELS SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test mode values
+				   channels="$1"
+				   channels=`echo "$channels" | tr "[:upper:]" "[:lower:]"`
+				   case "$channels" in 
+						all|a) channels="all" ;;
+						red|r) channels="red" ;;
+						green|g) channels="green" ;;
+						blue|b) channels="blue" ;;
+						*) errMsg "--- CHANNELS=$channels IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+ 
+
+# set up temp file
+tmpA1="$dir/levels_1_$$.mpc"
+tmpB1="$dir/levels_1_$$.cache"
+tmpL="$dir/levels_L_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmpL;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpL; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpL; exit 1" ERR
+
+
+# read the input image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+
+# set up range and test values
+if [ "$units" = "percent" ]; then
+	
+	lowpt1=`echo "$lowpt" | cut -d, -f1`
+	lowpt2=`echo "$lowpt" | cut -d, -f2`
+	test1=`convert xc: -format "%[fx:$lowpt1<0||$lowpt1>100?0:1]" info:`
+	test2=`convert xc: -format "%[fx:$lowpt2<0||$lowpt2>100?0:1]" info:`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "--- LOWPT VALUES MUST BE FLOATS BETWEEN 0 AND 100 ---"
+	
+	highpt1=`echo "$highpt" | cut -d, -f1`
+	highpt2=`echo "$highpt" | cut -d, -f2`
+	test1=`convert xc: -format "%[fx:$highpt1<0||$highpt1>100?0:1]" info:`
+	test2=`convert xc: -format "%[fx:$highpt2<0||$highpt2>100?0:1]" info:`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "--- HIGHPT VALUES MUST BE FLOATS BETWEEN 0 AND 100 ---"
+
+elif [ "$units" = "8bit" ]; then
+
+	lowpt1=`echo "$lowpt" | cut -d, -f1`
+	lowpt2=`echo "$lowpt" | cut -d, -f2`
+	test1=`convert xc: -format "%[fx:$lowpt1<0||$lowpt1>255?0:1]" info:`
+	test2=`convert xc: -format "%[fx:$lowpt2<0||$lowpt2>255?0:1]" info:`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "--- LOWPT VALUES MUST BE FLOATS BETWEEN 0 AND 255 ---"
+	lowpt1=`convert xc: -format "%[fx:100*$lowpt1/255]" info:`
+	lowpt2=`convert xc: -format "%[fx:100*$lowpt2/255]" info:`
+	lowpt="$lowpt1,$lowpt2"
+
+	highpt1=`echo "$highpt" | cut -d, -f1`
+	highpt2=`echo "$highpt" | cut -d, -f2`
+	test1=`convert xc: -format "%[fx:$highpt1<0||$highpt1>255?0:1]" info:`
+	test2=`convert xc: -format "%[fx:$highpt2<0||$highpt2>255?0:1]" info:`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "--- HIGHPT VALUES MUST BE FLOATS BETWEEN 0 AND 255 ---"
+	highpt1=`convert xc: -format "%[fx:100*$highpt1/255]" info:`
+	highpt2=`convert xc: -format "%[fx:100*$highpt2/255]" info:`
+	highpt="$highpt1,$highpt2"
+fi
+
+
+# set up channels
+if [ "$channels" = "all" ]; then
+	channeling=""
+elif [ "$channels" = "red" ]; then
+	channeling="-channel red"
+elif [ "$channels" = "green" ]; then
+	channeling="-channel green"
+elif [ "$channels" = "blue" ]; then
+	channeling="-channel blue"
+fi
+
+echo "channels=$channels; units=$units; lowpt=$lowpt; highpt=$highpt;"
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using levels.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# need to set colorspace to sRGB to create 3-channel image from grayscale for IM 7
+if [ "$im_version" -gt "07000000" ]; then
+	setcspace="-set colorspace sRGB"
+fi
+
+# create gradient lut
+convert -size 1x4000 gradient: -rotate 90 $setcspace $tmpL
+
+# compute slope and intercept from endpoints Y=aX+b
+a=`convert xc: -format "%[fx:($highpt2-$lowpt2)/($highpt1-$lowpt1)]" info:`
+b=`convert xc: -format "%[fx:($lowpt2-$a*$lowpt1)/100]" info:`
+echo "a=$a; b=$b;"
+
+
+# apply results
+if [ "$channels" = "all" ]; then
+	convert $tmpL -function polynomial "$a,$b" \
+		-evaluate max $lowpt2% -evaluate min $highpt2% $tmpL
+	convert $tmpA1 $tmpL -clut "$outfile"
+elif [ "$channels" = "red" ]; then
+	convert $tmpL -channel R -function polynomial "$a,$b" \
+		-evaluate max $lowpt2% -evaluate min $highpt2% +channel $tmpL
+	convert $tmpA1 $tmpL -clut "$outfile"
+elif [ "$channels" = "green" ]; then
+	convert $tmpL -channel G -function polynomial "$a,$b" \
+		-evaluate max $lowpt2% -evaluate min $highpt2% +channel $tmpL
+	convert $tmpA1 $tmpL -clut "$outfile"
+elif [ "$channels" = "blue" ]; then
+	convert $tmpL -channel B -function polynomial "$a,$b" \
+		-evaluate max $lowpt2% -evaluate min $highpt2% +channel $tmpL
+	convert $tmpA1 $tmpL -clut "$outfile"
+fi
+
+
+exit 0
+
+
+

@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 function findGroup( $laboffice )
@@ -14,7 +15,7 @@ function serviceping($host, $port=389, $timeout=1)
     $op = fsockopen($host, $port, $errno, $errstr, $timeout);
     if (!$op) return 0; //DC is N/A
     else {
-        fclose($opanak); //explicitly close open socket connection
+        fclose($op); //explicitly close open socket connection
         return 1; //DC is up & running, we can safely connect with ldap_connect
     }
 }
@@ -36,30 +37,31 @@ function getUserInfoFromLdap( $ldap, $ldap_ip="ldap.ncbs.res.in" )
         return Array( );
     }
 
-    $sr = ldap_search($ds, $base_dn, "uid=$ldap");
+
+    $justthese = ["ou", "sn", "givenname", "mail", "profilelaboffice"];
+    $filter = "(|(uid=$ldap)(profilelaboffice=$ldap))";
+    $sr = ldap_search($ds, $base_dn, $filter, $justthese);
     $info = ldap_get_entries($ds, $sr);
+    return $info;
 
     $result = array();
-
     for( $s=0; $s < $info['count']; $s++)
     {
         $i = $info[$s];
-
-        $laboffice = $i['profilelaboffice'][0];
-        array_push($result
-            , array(
-                "fname" => $i['givenname'][0]
-                , "lname" => $i['sn'][0]
-                , "uid" => $i['profileidentification'][0]
-                , "email" => $i['mail'][0]
-                , "laboffice" => $laboffice
-                //, "joined_on" => $i['profiletenureend'][0]
-            )
-        );
+        $result[] = array_values($i[0]);
     }
-    return $result[0];
+    return $result;
 }
 
-print_r( getUserInfoFromLdap( $argv[1]  ));
+$res = getUserInfoFromLdap($argv[1]);
+$i = 0;
+foreach($res as $k => $v)
+{
+    $i += 1;
+    foreach($v as $val)
+        if(is_array($val))
+            echo "$i, ", $val[0]. ", ";
+    echo "\n";
+}
 
 ?>

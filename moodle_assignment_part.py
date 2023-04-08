@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import tarfile, zipfile
@@ -16,27 +16,27 @@ def extract_asssignments(dirs):
     os.chdir(path)
     listing = glob.glob(path+'/*gz')
     for file in listing:
-      print " |- Extracting archive ...{0}".format(file)
+      print(" |- Extracting archive ...{0}".format(file))
       subprocess.call(["tar", "xzvf", file], stdout=subprocess.PIPE)
 
     listing = glob.glob(path+'/*bz')
     for file in listing:
-      print " |- Extracting archive ...{0}".format(file)
+      print(" |- Extracting archive ...{0}".format(file))
       subprocess.call(["tar", "xjvf", file], stdout=subprocess.PIPE)
 
     listing = glob.glob(path+'/*zip')
     for file in listing:
-      print " |- Extracting archive ...{0}".format(file)
+      print(" |- Extracting archive ...{0}".format(file))
       subprocess.call(["unzip", "-o", file], stdout=subprocess.PIPE)
 
     listing = glob.glob(path+'/*rar')
     for file in listing:
-      print " |- Extracting archive ...{0}".format(file)
+      print(" |- Extracting archive ...{0}".format(file))
       subprocess.call(["unrar", "x", "-o+", file], stdout=subprocess.PIPE)
 
     listing = glob.glob(path+'/*tar')
     for file in listing:
-      print " |- Extracting archive ...{0}".format(file)
+      print(" |- Extracting archive ...{0}".format(file))
       subprocess.call(["tar", "xvf", file], stdout=subprocess.PIPE)
 
 

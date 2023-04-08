@@ -1,0 +1,451 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 8/11/2017 .......... revised 1/14/2018
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: pano2fisheye [-p projection] [-v viewtype] [-d dimension] [-b bgcolor] 
+# [-f fade] [-s smooth] [-n newseed] infile outfile
+# USAGE: pano2fisheye [-h or -help]
+#
+# OPTIONS:
+# 
+# -p     projection     fisheye projection type: choices are linear, stereographic, or
+#                       orthographic; default=linear
+# -v     viewtype       type of view; choices are: planet or manhole; planet is a view 
+#                       looking down from the sky; manhole is a view from the ground up; 
+#                       default=planet
+# -d     dimension      square dimension of output; integer>0; default is the height 
+#                       of the input
+# -b     bgcolor        bgcolor is the color for the area outside the 
+#                       circle of the fisheye area; any valid IM color is permitted or 
+#                       the special name of "stars" to create a black background with 
+#                       random point star field; use none to make the background 
+#                       transparent; default=white
+# -f     fade           amount of fade in pixels between the image and background color 
+#                       at the top of the image for viewtype=planet; integer>=0; 
+#                       default=0
+# -s     smooth         amount of smoothing for antialiasing when bgcolor=none; 
+#                       float>=0; default=0
+# -n     newseed        random seed for creating the star field when bgcolor=stars
+# 
+###
+# 
+# NAME: PANO2FISHEYE 
+# 
+# PURPOSE: To transforms a spherical panorama to a fisheye view.
+# 
+# DESCRIPTION: FISHEYE is designed to transform a spherical (equirectangular) panorama 
+# to a fisheye view. There are 3 choices for the fisheye format: linear, stereographics 
+# and orthographic. The spherical (equirectangular) panorama's pixels represent 
+# x=longitude and y=latitude. That is, both x and y are angular units. Longitude 
+# corresponds to 360 degree range. Thus the left and right sides must wrap contiguously.
+# Thus a width to height aspect of 2:1. An image can be faked by cropping to w/h aspect 
+# of 2:1 (width is twice the height), then mirroring it horizontally, appending 
+# horizontally, then cropping the center half and rolling it horizontally 50%.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -p projection ... PROJECTION is the fisheye projection type. Choices are linear (l), 
+# stereographic (s), or orthographic (o). The default=linear.
+# 
+# -v viewtype ... VIEWTYPE is the type of view. Choices are: planet (p) or manhole (m). 
+# The choice of planet is a view looking down from the sky. The choice of manhole is a 
+# view from the ground up. The default=planet.
+# 
+# -d dimension ... DIMENSION is the square dimension of output image. Values are 
+#  integers>0. The default is the height of the input.
+# 
+# -b bgcolor ... BGCOLOR is the color for the area outside the circle of the fisheye 
+# region. Any valid IM color is permitted or the special name of "stars" to create 
+# a black background with random point star field. Use "none" to make the background 
+# transparent. The default=white.
+# 
+# -f fade ... FADE is the amount of fade in pixels between the top of the input image 
+# and background color for viewtype=planet. This is a preprocessing step so that 
+# the outside of the fisheye circular region will fade to the background color. 
+# Values are integers>=0. The default=0.
+# 
+# -s smooth ... SMOOTH is the amount of smoothing for antialiasing when bgcolor=none or 
+# stars. Values are float>=0. The default=0.
+# 
+# -n newseed .. .NEWSEED is the random seed for creating the star field when 
+# bgcolor=stars. Values are integers>=0. The default is totally random star placement 
+# from run-to-run.
+# 
+# REFERENCES:
+# http://en.wikipedia.org/wiki/Fisheye_lens
+# http://www.bobatkins.com/photography/technical/field_of_view.html
+# http://www.photographymad.com/pages/view/little-planet-photos-5-simple-steps-to-making-panorama-worlds
+# 
+# NOTE: This script will be slow due to the use of -fx.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+projection="linear"			# linear, stereographic, orthographic
+viewtype="planet"			# planet or manhole
+dimension=""				# output square dimension; default=height of input
+bgcolor="white"				# background color outside fisheye circle
+fade=0						# fade height (fade at top to bgcolor); integer>=0
+smooth=0					# smoothing for antialiasing if bgcolor=none or stars; float>=0
+newseed=""					# seed for random stars; integer>=0
+ 
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-p)    # get  projection
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PROJECTION SPECIFICATION ---"
+					   checkMinus "$1"
+					   projection=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$1" in
+						 linear|l)			projection="linear";;
+						 stereographic|s)	projection="stereographic";;
+						 orthographc|o)		projection="orthographc";;
+					   	 *) errMsg "--- PROJECTION=$projection IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-v)    # get  viewtype
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIEWTYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   viewtype=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$1" in
+						 planet|p)	viewtype="planet";;
+						 manhole|m)	viewtype="manhole";;
+					   	 *) errMsg "--- VIEWTYPE=$viewtype IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-d)    # get dimension
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   dimension=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dimension" = "" ] && errMsg "--- DIMENSION=$dimension MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$dimension == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- DIMENSION=$dimension MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-b)    # get  bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				-f)    # get fade
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FADE SPECIFICATION ---"
+					   checkMinus "$1"
+					   fade=`expr "$1" : '\([0-9]*\)'`
+					   [ "$fade" = "" ] && errMsg "--- FADE=$fade MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-s)    # get smooth
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SMOOTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   smooth=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$smooth" = "" ] && errMsg "--- SMOOTH=$smooth MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-n)    # get newseed
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NEWSEED SPECIFICATION ---"
+					   checkMinus "$1"
+					   newseed=`expr "$1" : '\([0-9]*\)'`
+					   [ "$newseed" = "" ] && errMsg "--- NEWSEED=$newseed MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# setup temporary images
+tmpA1="$dir/pano2fisheye_1_$$.mpc"
+tmpB1="$dir/pano2fisheye_1_$$.cache"
+tmpA2="$dir/pano2fisheye_2_$$.mpc"
+tmpB2="$dir/pano2fisheye_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test that input exists and is readable
+if [ ! -f "$infile" -a ! -r "$infile" -a ! -s "$infile" ]; then
+	errMsg "--- INFILE $infile DOES NOT EXIST OR IS NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# set up viewing
+# could use -roll +50%+0% for IM 6.9.9.0 or higher, but before IM 7. 
+# or im 7.0.6.1 or higher.
+# too many conditionals to deal with now.
+if [ "$view" = "manhole" ]; then
+	rollamt=`convert -ping "$infile" -format "%[fx:round(w/2)]" info:`
+	viewing="-roll +${rollamt}+0 -rotate 180"
+elif [ "$view" = "planet" ]; then
+	viewing=""
+fi
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $viewing $tmpA1 ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get input image dimensions and half dimensions
+ww=`convert -ping $tmpA1 -format "%w" info:`
+hh=`convert -ping $tmpA1 -format "%h" info:`
+ww2=`convert xc: -format "%[fx:floor($ww/2)-1]" info:`
+hh2=`convert xc: -format "%[fx:floor($hh/2)-1]" info:`
+#echo "ww=$ww; hh=$hh; ww2=$ww2; hh2=$hh2"
+
+if [ "$bgcolor" = "stars" ]; then
+	bcolor="none"
+else
+	bcolor=$bgcolor
+fi
+
+# set output square dimensions equal to input height
+if [ "$dimension" = "" ]; then
+	wd=$hh
+	ht=$hh
+	scale=1
+else
+	wd=$dimension
+	ht=$dimension
+	scale=`convert xc: -format "%[fx:$hh/$ht]" info:`
+fi
+
+# set destination (output) centers
+xcd=`convert xc: -format "%[fx:floor($wd/2)-1]" info:`
+ycd=`convert xc: -format "%[fx:floor($ht/2)-1]" info:`
+
+
+# set up for fade
+if [ "$fade" != "0" ]; then
+	convert $tmpA1 \( -size ${ww}x${fade} gradient:"${bcolor}-none" \) -gravity north -compose over -composite $tmpA1
+fi
+
+# set up for seeding
+if [ "$newseed" != "" ]; then
+	seeding="-seed $newseed"
+else
+	seeding=""
+fi
+
+# create stars image
+if [ "$bgcolor" = "stars" ]; then
+	convert -size ${wd}x${ht} xc:black $seeding +noise random -channel g -separate +channel -threshold 99.9% $tmpA2
+fi
+
+# http://en.wikipedia.org/wiki/Fisheye_lens
+# http://www.bobatkins.com/photography/technical/field_of_view.html
+
+# Pertinent equations:
+# fov=180 for fisheye
+# fov=2*phimax or phimax=fov/2
+# note rmax=N/2; N=height of input
+# linear: r=f*phi; f=rmax/phimax; f=(N/2)/((fov/2)*(pi/180))=N*180/(fov*pi)
+# stereographic: r=2*f*tan(phi/2); f=(rmax/2)/tan(phimax/2); f=(rmax/2)/tan(fov/4); f=(N/4)/(tan((fov/4)*(pi/180)))=N/(4*tan(fov*pi/720))
+# orthographic: r=f*sin(phi); f= rmax/sin(phimax); f=rmax/sin(fov/2); f=(N/2)/sin((fov/2)*(pi/180))=N/(2*sin(fov*pi/360))
+# substitute fov=180
+# linear: f=N/pi
+# linear: phi=r*pi/N
+# stereographic: f=N/(4*tan(180*pi/720))=N/(4*tan(pi/4))=N/4
+# stereographic: phi=2*atan(r/(2*f))=2*atan(r/(2*N/4))=2*atan(r/(N/2))=2*atan(2*r/N)
+# orthographic: f=N/(2*sin(fov*pi/360))=N/(2*sin(pi/2))=N/2
+# orthographic: phi=asin(r/f)=asin(2*r/N)
+
+
+# compute input pixels per angle in radians
+# theta ranges from -180 to 180 = 360 = 2*pi
+# phi ranges from 0 to 90 = pi/2
+px_per_theta=`convert xc: -format "%[fx:$ww/(2*pi)]" info:`
+px_per_phi=`convert xc: -format "%[fx:$hh/(pi/2)]" info:`
+#echo "px_per_theta=$px_per_theta; px_per_phi=$px_per_phi;"
+
+
+# define destination (output) coordinates center relative xd,yd
+if [ "$scale" != "1" ]; then
+	xd="xd=$scale*(i-$xcd);"
+	yd="yd=$scale*(j-$ycd);"
+else
+	xd="xd=(i-$xcd);"
+	yd="yd=(j-$ycd);"
+fi
+
+# compute destination radius and theta angle
+if [ "$im_version" -ge "06030600" ]
+	then 
+	rd="rd=hypot(xd,yd);"
+else
+	rd="rd=sqrt(xd^2+yd^2);"
+fi
+# set theta so original is north rather than east
+#theta="theta=atan2(-xd,yd);"
+theta="theta=atan2(yd,xd);"
+
+
+# convert radius to phiang according to fisheye mode
+if [ "$projection" = "linear" ]; then
+	# destination output diameter (dimensions) corresponds to 180 deg = pi (fov); angle is proportional to radius
+	rad_per_px=`convert xc: -format "%[fx:pi/$hh]" info:`
+	phiang="phiang=$rad_per_px*rd;"
+elif [ "$projection" = "stereographic" ]; then
+	phiang="phiang=2*atan(2*rd/$hh);"
+elif [ "$projection" = "orthographic" ]; then
+	phiang="phiang=asin(2*rd/$hh);"
+fi
+
+# convert theta to source (input) xs and phi to source ys
+# -rotate 90 aligns theta=0 with north and is faster than including in theta computation
+# y corresponds to h-phi, so that bottom of the input is center of output
+xs="xs=$ww2+theta*$px_per_theta;"
+ys="ys=$hh-phiang*$px_per_phi;"
+
+# set up tproc (for transparency) and smoothing
+if [ "$bgcolor" = "none" -o "$bgcolor" = "transparent" -o "$bgcolor" = "stars" ]; then 
+	tproc="-alpha on -channel rgba"
+	if [ "$smooth" != "0" ]; then
+		smoothing="-alpha on -channel a -blur 0x$smooth -level 50x100% +channel"
+	fi
+else
+	tproc=""
+fi
+
+# process image
+# -transverse to so origin of angle is north rather then east
+if [ "$bgcolor" = "stars" ]; then
+	convert -size ${wd}x${ht} xc: $tmpA1 $tproc -virtual-pixel background -background $bcolor \
+		-monitor -fx \
+		"$xd $yd $rd $theta $phiang $xs $ys (rd>$hh2)?$bcolor:v.p{xs,ys}" +monitor \
+		-rotate -90 $smoothing \
+		$tmpA2 +swap -compose over -composite \
+		"$outfile"
+else
+	convert -size ${wd}x${ht} xc: $tmpA1 $tproc -virtual-pixel background -background $bcolor \
+		-monitor -fx \
+		"$xd $yd $rd $theta $phiang $xs $ys (rd>$hh2)?$bcolor:v.p{xs,ys}" +monitor \
+		-rotate -90 $smoothing \
+		"$outfile"
+fi
+exit 0
+
+
+
+
+
+

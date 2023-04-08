@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+PYTHON=$(which python3)
+$PYTHON -m pip install "$1"

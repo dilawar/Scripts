@@ -1,0 +1,331 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/14/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: scatter [-s scale] [-m] infile1 infile2 outfile
+# USAGE: scatter [-h or -help]
+#
+# OPTIONS:
+#
+# -s        scale     subsampling scale size for input images in both dimensions;
+#                     default=50 (pixels)
+# -m                  mirror the resulting scatter diagram vertically 
+# 
+# The two input images must be the same size.
+#
+###
+#
+# NAME: SCATTER 
+# 
+# PURPOSE: To generate a channel-by-channel scatter diagram between two images. 
+# 
+# DESCRIPTION: SCATTER generates a channel-by-channel scatter diagram between 
+# two images. The 8-bit channel graylevel values at each corresponding pixel 
+# in the two images are used as the x and y coordinates to plot white points 
+# on a 256x256 black background image. The process is slow and is proportional 
+# to the size of the input images. Therefore the two images will be scaled 
+# down to the desired size in order to keep the processing to a reasonable time, 
+# but have an adequate uniform sampling of the data. The resulting graph image 
+# may be mirrored vertically so that the x,y origin is at the bottom left, if 
+# desired, rather than the default top left.
+# 
+# 
+# OPTIONS: 
+# 
+# -s scale ... SCALE is the resulting subsampled scale size of the two input  
+# images. The two images will be scaled to the desired size in pixels maximum on  
+# each side, if the images are larger than this size. The default is 50. Thus  
+# for a square image equal to or larger than 50, 50x50=2500 points will be 
+# plotted.
+# 
+# -m ... Indicates to mirror the resulting scatter diagram vertically, 
+# so that the x,y origin is at the bottom left rather than the top left.
+#
+# The two input images must be the same size. If both images are grayscale, 
+# only the one channel will be processed.
+#
+# NOTE: This process is slow and takes about 2 minutes to generate with the 
+# default sample size of 50 on my Mac Mini 1.4 GHz G4.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values
+scale=50
+mirror="no"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 6 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+		 	 -m|-M)    # mirror vertically
+					   mirror="yes"
+					   ;;
+				-s)    # scale size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SCALE SPECIFICATION ---"
+					   checkMinus "$1"
+					   scale=`expr "$1" : '\([0-9]*\)'`
+					   [ "$scale" = "" -o $scale -eq 0 ] && errMsg "--- SCALE=$scale MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infiles and outfile
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "NO INPUT FILE 1 SPECIFIED"
+
+# test that infile2 provided
+[ "$infile2" = "" ] && errMsg "NO INPUT FILE 2 SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA1="$dir/scatter_A_$$.mpc"
+tmpA2="$dir/scatter_A_$$.cache"
+tmpB1="$dir/scatter_B_$$.mpc"
+tmpB2="$dir/scatter_B_$$.cache"
+tmpC1="$dir/scatter_C_$$.mpc"
+tmpC2="$dir/scatter_C_$$.cache"
+tmpRed="$dir/scatter_Red_$$.png"
+tmpGreen="$dir/scatter_Green_$$.png"
+tmpBlue="$dir/scatter_Blue_$$.png"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpC1 $tmpC2 $tmpRed $tmpGreen $tmpBlue;" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpC1 $tmpC2 $tmpRed $tmpGreen $tmpBlue; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpC1 $tmpC2 $tmpRed $tmpGreen $tmpBlue; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using scatter.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -lt "06070606" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# test if infile exists
+if convert -quiet "$infile1" -scale "${scale}x${scale}>" +repage "$tmpA1"
+	then
+	: 'do nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+if convert -quiet "$infile2" -scale "${scale}x${scale}>" +repage "$tmpB1"
+	then
+	: 'do nothing'
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+
+# test if two images are the same size
+ww=`identify -ping -format "%w" $tmpA1`
+hh=`identify -ping -format "%h" $tmpA1`
+ww2=`identify -ping -format "%w" $tmpB1`
+hh2=`identify -ping -format "%h" $tmpB1`
+
+[ $ww -ne $ww2 -a $hh -ne $hh2 ] && errMsg "--- THE TWO INFILES ARE NOT THE SAME SIZE ---"
+
+# get colorspace
+cspace1=""
+cspace2=""
+
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+if [ "$im_version" -ge "06030902" ]; then
+	cspace1=`convert $tmpA1 -ping -format "%[colorspace]" info:`
+	cspace2=`convert $tmpB1 -ping -format "%[colorspace]" info:`
+else
+	data=`identify -verbose $tmpA1`
+	colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+	type=`echo "$data" | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+	[ "$colorspace" = "Gray" -o "$type" = "Grayscale" ] && cspace1="Gray"
+	data=`identify -verbose $tmpB1`
+	colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+	type=`echo "$data" | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+	[ "$colorspace" = "Gray" -o "$type" = "Grayscale" ] && cspace2="Gray"
+fi
+
+if [ "$cspace1" != "Gray" -a "$cspace1" != "sRGB" -a "$cspace1" != "RGB" ]; then
+	errMsg "--- INFILE $infile1 COLORSPACE MUST BE EITHER Gray, sRGB or RGB ---"
+fi
+if [ "$cspace2" != "Gray" -a "$cspace2" != "sRGB" -a "$cspace2" != "RGB" ]; then
+	errMsg "--- INFILE $infile1 COLORSPACE MUST BE EITHER Gray, sRGB or RGB ---"
+fi
+
+# set up loop list
+if [ "$cspace1" = "Gray" -a "$cspace2" = "Gray" ]; then
+	colorlist="Red"
+else
+	colorlist="Red Green Blue"
+fi
+
+#process the image channel by channel
+for color in $colorlist; do
+	if [ "$colorlist" = "Red" ]; then
+		echo "Processing gray"
+	else
+		echo "Processing $color"
+	fi
+
+	xArray=(`convert  $tmpA1 -depth 8 $setcspace -channel $color -separate txt:- |\
+	tail -n +2 |\
+	tr -cs '0-9\n'  ' ' |\
+	cut -d' ' -f3`)
+		
+	yArray=(`convert  $tmpB1 -depth 8 $setcspace -channel $color -separate txt:- |\
+	tail -n +2 |\
+	tr -cs '0-9\n'  ' ' |\
+	cut -d' ' -f3`)
+		
+	# Generate a MVG file for IM to draw all components
+	( echo "viewbox 0 0 256 256   fill black  rectangle 0,0 256 256"
+	echo "fill white"
+	i=0
+	while [ $i -lt $hh ]; do
+		j=0
+		while [ $j -lt $ww ]; do
+			k=`expr $ww \* $i + $j`
+			echo " point ${xArray[$k]},${yArray[$k]}"
+			j=`expr $j + 1`
+		done
+		i=`expr $i + 1`
+	done
+	) | eval convert mvg:- \$tmp$color
+done
+
+# set up mirror
+if [ "$mirror" = "yes" ]; then
+	flip="-flip"
+else
+	flip=""
+fi
+
+# convert output
+if [ "$colorlist" = "Red" ]; then
+	convert $tmpRed $flip "$outfile"
+else
+	convert $tmpRed $tmpGreen $tmpBlue -combine -colorspace $cspace $flip "$outfile"
+fi
+exit 0

@@ -1,0 +1,163 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/4/2016 .......... revised 9/4/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: maxrgb infile outfile
+# USAGE: maxrgb [-h|-help]
+#
+###
+#
+# NAME: MAXRGB
+# 
+# PURPOSE: To generate an image that keeps only the channel with the maximum 
+# value at each pixel.
+# 
+# DESCRIPTION: MAXRGB generate a new image that for each pixel keeps the 
+# maximum value of each of the RGB channels of an RGB image and zeroes the 
+# other two channels. The mathematics are: 
+# For each pixel in the image I:
+# Grab the r, g, and b pixel intensities located at I[x, y]
+# Determine the maximum value of r, g, and b: m = max(r, g, b)
+# If r < m: r = 0
+# If g < m: g = 0
+# If b < m: b = 0
+# Store the r, g, and b values back in image: I[x, y] = (r, g, b)
+# 
+# REQUIREMENTS: Input must be RGB colorspace.
+# 
+# REFERENCES: 
+# http://docs.gimp.org/en/plug-in-max-rgb.html
+# http://www.pyimagesearch.com/2015/09/28/implementing-the-max-rgb-filter-in-opencv/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set directory for temporary files
+# tmpdir="/tmp"
+tmpdir="."
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+dir="$tmpdir/MAXRGB.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+
+
+# read input image
+convert -quiet "$infile" $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get max of R,G,B channels
+convert $dir/tmpI.mpc -separate +channel +write $dir/tmpS.mpc -evaluate-sequence max $dir/tmpM.mpc
+
+# get subtraction masks for each channel and threshold to binary so that if R<M (ie R-M<0 or R+1-M<=0); R=black, otherwise R=white
+convert \( $dir/tmpS.mpc[0] -evaluate add 1 \) $dir/tmpM.mpc +swap -compose minus -composite -threshold 0 $dir/tmpMR.mpc
+convert \( $dir/tmpS.mpc[1] -evaluate add 1 \) $dir/tmpM.mpc +swap -compose minus -composite -threshold 0 $dir/tmpMG.mpc
+convert \( $dir/tmpS.mpc[2] -evaluate add 1 \) $dir/tmpM.mpc +swap -compose minus -composite -threshold 0 $dir/tmpMB.mpc
+
+# composite masks with channels and combine channels back to RGB image
+convert \
+\( $dir/tmpI.mpc[0]  $dir/tmpMR.mpc -compose multiply -composite \) \
+\( $dir/tmpI.mpc[1]  $dir/tmpMG.mpc -compose multiply -composite \) \
+\( $dir/tmpI.mpc[2]  $dir/tmpMB.mpc -compose multiply -composite \) \
+-set colorspace sRGB -combine -colorspace sRGB "$outfile"
+
+exit 0

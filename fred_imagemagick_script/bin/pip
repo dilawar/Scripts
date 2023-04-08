@@ -1,0 +1,446 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 5/29/2017 .......... revised 6/5/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: pip [-s size] [-p points] [-a angle] [-t thickness] [-f framecolor] 
+# [-d darkness] [-r rolloff] [-e extent] [-B brightness] [-S saturation] [-h hue] 
+# [-C contrast] [infile] [outfile]
+# 
+# USAGE: pip [-help]
+# 
+# OPTIONS:
+# 
+# -s     size           size of frame; if one value is specified, it will be used as 
+#                       a percentage of the dimensions of the input image; if two 
+#                       values are specified as WxH, then those dimensions will be used 
+#                       for the Width and Height of the frame; values are integers>0; 
+#                       default=60
+# -p     points         points is up to two pair of X,Y coordinates within the image; 
+#                       if no points are specified (default), then the center of the 
+#                       input image will be computed and use for the center of the frame; 
+#                       if one point is specified, it will be used for the center of 
+#                       frame; if two points are specified, they will be interpreted 
+#                       as defining a diagonal of the frame. Values are integers>=0
+# -a     angle          angle of rotation of the frame in degrees; angle are positive 
+#                       in the clockwise direction and negative in the counterclockwise 
+#                       direction; values are integers; default=-15
+# -t     thickness      thickness of the frame; values are integers>0; default=10
+# -f     framecolor     framecolor is the color of the frame; any valid IM color is 
+#                       allowed; default=white
+# -d     darkeness      darkeness of the frame shadow; 0<=integer<=100; default=60
+# -r     rolloff        rolloff of the shadow darkness; integer>=0; default=3
+# -e     extent         extent (distance) of the shadow; integer>=0; default=5
+# -B     brightness     brightness percent change; -100<=integer<=100; default=0
+# -S     saturation     saturation percent change; -100<=integer<=100; default=0
+# -H     hue            hue angle change in degrees; -360<=integer<=360; default=0
+# -C     contrast       sigmoidal contrast change; values are integers; default=0
+#
+###
+# 
+# NAME: PIP 
+# 
+# PURPOSE: To create a picture-in-picture effect.
+# 
+# DESCRIPTION: PIP creates a picture-in-picture effect. The script adds a picture frame 
+# inside the image to highlight some region of interest in the image.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -s size ... SIZE of frame. If one value is specified, then it will be used as a 
+# percentage of the dimensions of the input image. If two  values are specified as WxH, 
+# then those dimensions will be used for the Width and Height of the frame. Values are 
+# integers>0. The default=60
+# 
+# -p points ... POINTS is up to two pair of X,Y coordinates within the image. If no 
+# points are specified (default), then the center of the input image will be computed 
+# and use for the center of the frame. If one point is specified, it will be used for 
+# the center of frame. If two points are specified, they will be interpreted as 
+# defining a diagonal of the frame. Values are integers>=0. The default is to compute 
+# the center of the image as the frame center.
+# 
+# -a angle ... ANGLE of rotation of the frame in degrees. Angles are positive in the 
+# clockwise direction and negative in the counterclockwise direction. Values are 
+# -90<=integers<=90. The default=-15.
+# 
+# -t thickness ... THICKNESS of the frame. Values are integers>0. The default=10.
+# 
+# -f framecolor ... FRAMECOLOR is the color of the frame. Any valid IM color is allowed,
+# even partially transparent colors. The default=white.
+# 
+# -d darkeness ... DARKNESS of the frame shadow. Values are 0<=integer<=100. The 
+# default=60.
+# 
+# -r rolloff ... ROLLOFF (fading) of the shadow darkness. Values are integer>=0. 
+# The default=3.
+# 
+# -e extent ... EXTENT (distance) of the shadow. Values are integer>=0; default=5.
+# 
+# -B brightness ... BRIGHTNESS percent change of the image. Value are -100<=integer<=100. 
+# The default=0.
+# 
+# -S saturation ... SATURATION percent change of the image. Value are -100<=integer<=100. 
+# The default=0.
+# 
+# -H hue ... HUE angle change of the image in degrees. Value are -360<=integer<=360. 
+# The default=0.
+# 
+# -C contrast ... CONTRAST change in the image. Value are positive or negative integers. 
+# The default=0. This is a sigmoidal-contrast adjustment so values are typically 0 to 10.
+# 
+# Reference: 
+# http://www.photoshopessentials.com/photo-effects/photo-in-photo/
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+# set default values
+size=60					# size of frame relative to image; one value is scale percent, two values WxH are dimensions
+points=""				# points defining the center of the frame or one of its diagonals
+angle=-15				# rotation angle of frame
+thickness=10			# thickness of frame
+framecolor=white		# frame color
+darkness=60				# darkness of shadow
+rolloff=3				# rolloff of shadow
+extent=5				# extent of shadow
+brightness=0			# brightness percent change
+saturation=0			# saturation percent change
+hue=0					# hue ange change
+contrast=0				# sigmoidal contrast
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 26 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		 -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*x*[0-9]*\)'`
+					   [ "$size" = "" ] && errMsg "--- SIZE=$size MUST BE A NON-NEGATIVE INTEGER(s) ---"
+					   testA=`echo "$size == 0" | bc`
+					   testB=`echo "$size > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SIZE=$size MUST BE INTEGER(s) BETWEEN 1 AND 100 ---"
+					   ;;
+				-p)    # get points
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID POINTS SPECIFICATION ---"
+					   checkMinus "$1"
+					   points="$1"
+					   ;;
+				-a)    # get angle
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ANGLE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   angle=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$angle" = "" ] && errMsg "--- ANGLE=$angle MUST BE AN INTEGER ---"
+					   testA=`echo "$angle < -90" | bc`
+					   testB=`echo "$angle > 90" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- ANGLE=$angle MUST BE AN INTEGER BETWEEN -90 AND 90 ---"
+					   ;;
+				-t)    # get thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$thickness == 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-f)    # get  framecolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FRAMECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   framecolor="$1"
+					   ;;
+				-d)    # get darkness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DARKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   darkness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$darkness" = "" ] && errMsg "--- DARKNESS=$darkness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$darkness > 100" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- DARKNESS=$darkness MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-r)    # get rolloff
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLLOFF SPECIFICATION ---"
+					   checkMinus "$1"
+					   rolloff=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rolloff" = "" ] && errMsg "--- ROLLOFF=$rolloff MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-e)    # get extent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID EXTENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   extent=`expr "$1" : '\([0-9]*\)'`
+					   [ "$extent" = "" ] && errMsg "--- EXTENT=$extent MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-B)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   brightness=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$brightness < -100" | bc`
+					   testB=`echo "$brightness > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-S)    # get saturation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
+					   #checkMinus "$1"
+					   saturation=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$saturation < -100" | bc`
+					   testB=`echo "$saturation > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-H)    # get hue
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HUE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   hue=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$hue" = "" ] && errMsg "--- HUE=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$hue < -360" | bc`
+					   testB=`echo "$hue > 360" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HUE=$saturation MUST BE AN INTEGER BETWEEN -360 AND 360 ---"
+					   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE AN INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/pip_1_$$.mpc"
+tmpB1="$dir/pip_1_$$.cache"
+trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" -alpha off +repage "$tmpA1" ||
+	errMsg "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+
+# get image dimensions
+ww=`convert -ping $tmpA1 -format "%w" info:`
+hh=`convert -ping $tmpA1 -format "%h" info:`
+
+# get the number of points provided
+initpoints="$points"
+echo "points=$points;"
+# change all other characters to spaces, remove extra spaces, remove extra commas, remove trailing spaces
+newpoints=`echo "$points" | tr -cs '[ ,0-9]' ' ' | sed 's/[ ][ ]*/ /g' | sed 's/[,][,]*/,/g' | sed 's/[ ]*$//'`
+echo "newpoints=$newpoints;"
+numpts=`echo "$newpoints" | wc -w | sed 's/ *//g'`
+echo "newpoints=$newpoints; numpts=$numpts;"
+[ $numpts -gt 2 ] && errMsg "--- POINTS=$initpoints IS INVALID  ---"
+points="$newpoints"
+
+# get center of image for center if no points provided
+if [ $numpts -eq 2 ]; then
+echo "2"
+	p1=`echo "${points}," | cut -d\  -f1`
+	p2=`echo "${points}," | cut -d\  -f2`
+	p1x=`echo "$p1" | cut -d, -f1`
+	p1y=`echo "$p1" | cut -d, -f2`
+	p2x=`echo "$p2" | cut -d, -f1`
+	p2y=`echo "$p2" | cut -d, -f2`
+	[ "$p1x" = "" -o "$p1y" = "" -o "$p2x" = "" -o "$p2y" = "" ] && errMsg "--- POINTS=$initpoints IS INVALID ---"
+	cx=`convert xc: -format "%[fx:($p1x+$p2x)/2]" info:`
+	cy=`convert xc: -format "%[fx:($p1y+$p2y)/2]" info:`
+	echo "p1=$p1; p2=$p2; p1x=$p1x; p1y=$p1y; p2x=$p2x; p2y=$p2y; cx=$cx; cy=$cy;"
+elif [ $numpts -eq 1 ]; then
+echo "1"
+	cx=`echo "${points}," | cut -d, -f1`
+	cy=`echo "${points}," | cut -d, -f2`
+	[ "$cx" = "" -o "$cy" = "" ] && errMsg "--- POINTS=$initpoints IS INVALID ---"
+elif [ $numpts -eq 0 ]; then
+echo "0"
+	cx=`convert xc: -format "%[fx:$ww/2]" info:`
+	cy=`convert xc: -format "%[fx:$hh/2]" info:`
+else
+errMsg "--- IMPROPER NUMBER OF POINTS  ---"
+fi
+center="$cx,$cy"
+
+
+# get half dimensions of frame
+if [ $numpts -eq 2 ]; then
+echo "3"
+	diag=`convert xc: -format "%[fx:hypot($p2x-$p1x,$p2y-$p1y)]" info:`
+	diagang=`convert xc: -format "%[fx:(180/pi)*atan(($p2y-$p1y)/($p2x-$p1x))]" info:`
+	wd=`convert xc: -format "%[fx:$diag*cos(abs($diagang-$angle)*pi/180)]" info:`
+	ht=`convert xc: -format "%[fx:$diag*sin(abs($diagang-$angle)*pi/180)]" info:`
+	wd2=`convert xc: -format "%[fx:$wd/2]" info:`
+	ht2=`convert xc: -format "%[fx:$ht/2]" info:`
+	size="${wd}x${ht}"
+	echo "diag=$diag; diagang=$diagang; angle=$angle; wd=$wd; ht=$ht; wd2=$wd2; ht2=$ht2;"
+else
+echo "4"
+	numvals=`echo "$size" | tr "x" " " | wc -w`
+	if [ $numvals -eq 1 ]; then
+		wd=`convert xc: -format "%[fx:$size*$ww/100]" info:`
+		ht=`convert xc: -format "%[fx:$size*$hh/100]" info:`
+		wd2=`convert xc: -format "%[fx:$wd/2]" info:`
+		ht2=`convert xc: -format "%[fx:$ht/2]" info:`
+	elif [ $numvals -eq 2 ]; then
+		wd=`echo $size | cut -dx -f1`
+		ht=`echo $size | cut -dx -f2`
+		wd2=`convert xc: -format "%[fx:$wd/2]" info:`
+		ht2=`convert xc: -format "%[fx:$ht/2]" info:`
+	else
+		errMsg "--- IMPROPER SIZE SPECIFIED  ---"
+	fi
+fi
+echo "dimensions=${wd}x${ht} center=$center"
+
+
+# set up brighness, saturation, hue and contrast
+bri=$((100+$brightness))
+sat=$((100+$saturation))
+hue=`convert xc: -format "%[fx:(200/360)*$hue+100]" info:`
+sign=`convert xc: -format "%[fx:sign($contrast)>=0?1:0]" info:`
+con=`convert xc: -format "%[fx:abs($contrast)]" info:`
+if [ "$sign" = "1" ]; then
+	sigmoidal="-sigmoidal-contrast $con"
+else
+	sigmoidal="+sigmoidal-contrast $con"
+fi
+
+# create frame image
+convert -size ${ww}x${hh} xc:none -stroke $framecolor -strokewidth $thickness -gravity center \
+	-fill none -draw "translate $center rotate $angle rectangle -$wd2,-$ht2 $wd2,$ht2" \
+	\( +clone -background black -shadow ${darkness}x${range}+${extent}+${extent} \) +swap -background none -layers merge +repage \
+	\( $tmpA1 $sigmoidal -modulate $bri,$sat,$hue \) +swap -compose over -composite \
+	"$outfile"
+
+
+exit 0
+
+
+
+
+
+

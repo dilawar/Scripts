@@ -1,0 +1,533 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/17/2016 .......... revised 10/22/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: textdeskew [-n number] [-r radius ] [-m metric] [-a attenuate]  
+# [-l logval] [-c color] [-t trimval] [-p padval] infile outfile1 [outfile2]
+#
+# USAGE: textdeskew [-h or -help]
+# 
+# OPTIONS:
+#
+# -n     number        stopping number of maxima; integer>1; default=20
+# -r     radius        radius for masking out peaks; integer>0; default=7
+# -m     metric        compare metric; any valid IM metric; default=rmse
+# -a     attenuate     attenuation percent for the brightness near the 
+#                      center of the FFT spectrum; 0<integer<=100; default=85
+# -l     logval        value for log when converting the FFT magnitude to 
+#                      spectrum; integer>0; default=1000000
+# -c     color         background color for deskewed image; any valid IM 
+#                      color is allowed; default=white
+# -t     trimval       trim fuzz value; 0<=float<=100; default=no trim
+# -p     padval        padding added to output; integer>=0; default=no padding
+# 
+# An optional output image may be specified which will be the masked 
+# FFT spectrum showing the locations of the peaks that define the line from  
+# which the unrotation angle is determined.
+#
+###
+# 
+# NAME: TEXTDESKEW
+# 
+# PURPOSE: To unrotate (deskews) an image containing text.
+# 
+# DESCRIPTION: TEXTDESKEW unrotates (deskews) an image containing many rows 
+# of text. If the meta data contain orientation information, then the image 
+# will be auto-oriented first. The image is converted to the FFT spectrum 
+# image and a list of peaks orthogonal to the rows of text are located. From 
+# the list of peak coordinates a least square fit to a line is computed and   
+# the orientation of the line is used to get the unrotation angle. The approach  
+# will not be able to determine whether the text is right side up or up side  
+# down. However, it should properly correct for rotations in the range of 
+# -90<=rotation<90. Note that +90 will be upside down, since lines rotated 
+# by 180 degrees are undistinguishable. The more lines of text, the better 
+# the script works. If there are too few lines of text, the the script may 
+# fail.
+# 
+# Arguments: 
+# 
+# -n number ... NUMBER of peaks to be found. Values are integers>1. 
+# The default=20.
+# 
+# -r  radius ... RADIUS value for masking out peaks. Values are integers>0. 
+# The default=20.
+# 
+# -m metric ... METRIC is the compare metric used to locate the maxima. 
+# Any valid IM metric may be used. The default=rmse. This option is only 
+# needed for Imagemagick versions less than 6.8.6-10.
+# 
+# -a attenuate ... ATTENUATE is the attenuation percent for the brightness 
+# near the center of the FFT spectrum. This is used since the center of 
+# the FFT spectrum is brighter than the outer regions. Attenuation linearly 
+# ramps from the center to no attenuation at the edges of the spectrum. 
+# Attenuating the center allows a longer linear distribution of found peaks, 
+# which helps to better define the orientation line. However, it may introduce 
+# more off-linear false peaks. Shorter lengths of text may require a different 
+# attenuation. Values are 0<integer<=100. 100 means no center attenuation. 
+# The default=85.
+#
+# -l logval ... LOGVAL is the value for log when converting the FFT magnitude  
+# to the spectrum. Values are integers>0. The default=1000000.
+# 
+# -c color ... COLOR is the background color for deskewed image. Any valid IM 
+# color is allowed. The default=white.
+# 
+# -t trimval ... TRIMVAL is the trim fuzz value (percent) for trimming the 
+# output to its minimum bounding box. Values are 0<=floats<=100. The 
+# default=no trimming.
+# 
+# -p padval ... PADVAL is the padding added to the output. Values are
+# integers>=0. The default=no padding.
+# 
+# An optional output image may be specified which will be the masked 
+# FFT spectrum showing the locations of the peaks that define the line from  
+# which the unrotation angle is determined.
+# 
+# REQUIREMENTS: IM 6.5.4-7 or higher and the FFTW delegate library.
+# 
+# NOTE: Some versions of Imagemagick around 6.8.8-5 may not work due to a bug.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+number=20			# number of peaks
+radius=7			# mask radius
+metric="rmse"		# compare metric
+attenuate=85		# center intensity attenuation
+logval=1000000		# value for log conversion of magnitude to spectrum
+trimval=""			# trim fuzz value
+padval=""			# pad amount
+
+# set internal arguments
+res_thresh=2		# threshold on residuals to filter points and refine regression
+debug="false"		# show debug information
+
+# set directory for temporary files
+tmpdir="." 		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+dir="$tmpdir/TEXTDESKEW.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+#trap "rm -rf $dir; exit 1" ERR
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# function to do linear regression to find best fit line, rotation angle, and orthogonal residuals 
+# see http://dep.fie.umich.mx/~lromero/my_papers/2014_TLS_ICMEE029.pdf
+# y=ax+b; b=intercept and a=slope
+# use line form of r,phi
+# r=x*cos(phi)+y*sin(phi) or y=-(x/tan(phi)) +r/sin(phi)
+# do total least square fit to get phi and then use r=Xave*cos(phi)+Yave*sin(phi)
+# then use previous line to get slope=-1/tan(phi) and intercept=r/sin(phi)
+linearRegression() 
+	{
+	Arr="$1"
+	regression_Arr=(`echo "${Arr[*]}" | awk \
+	'BEGIN { FS = ","; RS = " "; pi = atan2(0, -1); }
+	NF == 2 { x_sum += $1
+			  y_sum += $2
+			  xy_sum += $1*$2
+			  x2_sum += $1*$1
+			  y2_sum += $2*$2
+			  num += 1
+			  x[NR] = $1
+			  y[NR] = $2
+			}
+	END { mean_x = x_sum / num
+		  mean_y = y_sum / num
+		  for (i = 1; i <= num; i++) {	
+		  	  delx = (x[i]-mean_x)
+		  	  dely = (y[i]-mean_y)
+			  numerator += delx*dely
+			  denominator += dely*dely - delx*delx
+		  }
+		  phi = 0.5*atan2(-2*numerator,denominator)
+		  r = mean_x*cos(phi)+mean_y*sin(phi)
+		  if ( sqrt(phi*phi) < 0.0001 ) {
+		      angle = -90
+		  }
+		  else {
+			  slope = -cos(phi)/sin(phi)
+			  inter = r/sin(phi)
+			  angle = (180/pi)*atan2(slope,1)
+		  }
+		  for (j = 1; j <= num; j++) {
+		  	  delr = (x[j]*cos(phi)+y[j]*sin(phi)-r)
+		  	  res_sq = delr*delr
+		  	  sum_res_sq += res_sq
+		  	  res = sqrt(delr*delr)
+		  	  sum_res += res
+			  print "Residual"j":"res
+		  }	
+		  res_ave = sum_res/num
+		  res_std = sqrt((sum_res_sq/num)-(sum_res/num)**2)
+		  print "res_ave:"res_ave
+		  print "res_std:"res_std
+		  print "phi:"phi
+		  print "r:"r
+		  print "Slope:"slope
+		  print "Intercept:"inter
+		  print "Angle:"angle
+		}'`)
+
+	rnum=${#regression_Arr[*]}
+	if $debug; then
+		echo ""
+		echo "rnum=$rnum;"
+
+		# list regression data
+		for ((ii=0; ii<rnum; ii++)); do
+		echo "${regression_Arr[$ii]}"
+		done
+	fi
+
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-r)    # radius
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID RADIUS SPECIFICATION ---"
+				   checkMinus "$1"
+				   radius=`expr "$1" : '\([0-9]*\)'`
+				   [ "$radius" = "" ] && errMsg "--- RADIUS=$radius MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   ;;
+			-n)    # number
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID NUMBER SPECIFICATION ---"
+				   checkMinus "$1"
+				   number=`expr "$1" : '\([0-9]*\)'`
+				   [ "$number" = "" ] && errMsg "--- NUMBER=$number MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   test=`echo "$number <= 2" | bc`
+				   [ $test -eq 1 ] && errMsg "--- NUMBER=$number MUST BE A POSITIVE INTEGER GREATER THAN 1 ---"
+				   ;;
+		 	-m)    # metric
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID METRIC SPECIFICATION ---"
+				   checkMinus "$1"
+				   # test mode values
+				   metric="$1"
+				   metric=`echo "$metric" | tr "[:upper:]" "[:lower:]"`
+				   case "$metric" in 
+				   		ae) ;;
+						fuzz) ;;
+						mae) ;;
+						mepp) ;;
+						mse) ;;
+						ncc) ;;
+						pae) ;;
+						psnr) ;;
+						rmse) ;;
+						*) errMsg "--- METRIC=$metric IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			-a)    # attenuate
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID ATTENUATE SPECIFICATION ---"
+				   checkMinus "$1"
+				   attenuate=`expr "$1" : '\([0-9]*\)'`
+				   [ "$attenuate" = "" ] && errMsg "--- ATTENUATE=$attenuate MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   test1=`echo "$attenuate < 1" | bc`
+				   test2=`echo "$attenuate > 100" | bc`
+				   [ $test1 -eq 1 -o $test -eq 2 ] && errMsg "--- ATTENUATE=$attenuate MUST BE A POSITIVE INTEGER BETWEEN 1 AND 100 ---"
+				   ;;
+			-l)    # logval
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID LOGVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   logval=`expr "$1" : '\([0-9]*\)'`
+				   [ "$logval" = "" ] && errMsg "--- LOGVAL=$logval MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   ;;
+			-c)    # color
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   color="$1"
+				   ;;
+			-t)    # trimval
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID TRIMVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   trimval=`expr "$1" : '\([0-9]*\)'`
+				   [ "$trimval" = "" ] && errMsg "--- TRIMVAL=$trimval MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+				   test1=`echo "$trimval > 100" | bc`
+				   [ $test1 -eq 1 ] && errMsg "--- TRIMVAL=$trimval MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+				   ;;
+			-p)    # padval
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PADVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   padval=`expr "$1" : '\([0-9]*\)'`
+				   [ "$padval" = "" ] && errMsg "--- PADVAL=$padval MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	# get infile and outfile
+	infile="$1"
+	outfile1="$2"
+	outfile2="$3"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+
+# test input image
+convert -quiet "$infile" -auto-orient +repage $dir/tmpI.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+# create spectrum image
+convert $dir/tmpI.mpc -alpha off \
+	-colorspace gray -fft +delete -evaluate log $logval \
+	$dir/tmpS.mpc
+
+# attenuate spectrum by radial gradient
+wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
+convert $dir/tmpS.mpc \
+	\( -size $wxh radial-gradient:"gray($attenuate%)-white" \) \
+	-compose multiply -composite -auto-level -evaluate max 1 \
+	$dir/tmpS.mpc
+ 
+# get quantumrange
+qrange=`convert xc: -format "%[fx:quantumrange]" info:`
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using maxima.
+# with IM 6.7.4.10, 6.7.6.10, 6.8.5.10
+if [ "$im_version" -lt "06070606" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+
+# set up use of -subimage-search
+if [ "$im_version" -ge "06060306" ]; then
+	subimagesearch="-subimage-search"
+else
+	subimagesearch=""
+fi
+	
+
+# set up for using (new) %[max] or (old) %[maxima]
+# notation changed somewhere between 6.7.4.10 and 6.7.7.7, but don't know where
+test=`convert -quiet xc:white xc:black +append -format "%[maxima]" info:`
+if [ "$test" != "" ]; then
+	# old
+	maximum="maxima"
+else
+	# new
+	maximum="max"
+fi
+
+
+if [ "$im_version" -lt "06080610" ]; then
+	flag=""
+	for ((i=0; i<number; i++)); do
+		val=`convert $dir/tmpS.mpc -format "%[$maximum]" info:`
+		valpct=`convert xc: -format "%[fx:100*$val/$qrange]" info:`
+		match=`compare -metric $metric $subimagesearch $dir/tmpI.mpc \( -size 1x1 xc:"gray($valpct%)" \) null: 2>&1`
+		location=`echo $match | cut -d\  -f4`
+		locArr[$i]=$location
+		if $debug; then
+			echo "$location gray=$valpct%"
+		fi
+		convert $dir/tmpS.mpc -fill black -draw "translate $location circle 0,0 0,$radius" $dir/tmpS.mpc
+	done
+else
+	flag=""
+	for ((i=0; i<number; i++)); do
+		[ "$graphic" = "yes" ] && convert $dir/tmpI.mpc show:
+		data=`identify -precision 5 -define identify:locate=maximum -define identify:limit=1 $dir/tmpS.mpc |
+			tail -n +2 | tr -cs "[0-9,.]*" " " | sed 's/^ *//g'`
+		location=`echo "$data" | cut -d\  -f3`
+		valfrac=`echo "$data" | cut -d\  -f2`
+		valpct=`convert xc: -format "%[fx:100*$valfrac]" info:`
+		locArr[$i]=$location
+		if $debug; then
+			echo "$location gray=$valpct%"
+		fi
+		convert $dir/tmpS.mpc -fill black -draw "translate $location circle 0,0 0,$radius" $dir/tmpS.mpc
+	done
+fi
+
+
+
+# do total (orthogonal) linear regression to fit set of points to line
+linearRegression "${locArr[*]}"
+angle=`echo ${regression_Arr[rnum-1]} | cut -d: -f2`
+# set rotation to be correct for -90<=angle<90 (+90 will be upside downs)
+rotation=`convert xc: -format "%[fx:$angle<0?-($angle+90):-($angle-90)]" info:`
+rotation=`convert xc: -format "%[fx:abs($rotation)<0.00001?0:$rotation]" info:`
+
+# remove outliers, if res_ave > res_thresh
+res_ave=`echo ${regression_Arr[rnum-7]} | cut -d: -f2`
+test1=`convert xc: -format "%[fx:$res_ave>$res_thresh?1:0]" info:`
+if [ $test1 -eq 1 ]; then
+	res_std=`echo ${regression_Arr[rnum-6]} | cut -d: -f2`
+	res_std2=`convert xc: -format "%[fx:2*$res_std]" info:`
+	if $debug; then
+		echo "res_std=$res_std; res_std2=$res_std2;"
+	fi
+	k=0
+	for ((j=0; j<number; j++)); do
+		res=`echo ${regression_Arr[$j]} | cut -d: -f2`
+		test2=`convert xc: -format "%[fx:$res>$res_std2?1:0]" info:`
+		if $debug; then
+			echo "res_$j=$res; res_std2=$res_std2; test2=$test2;"
+		fi
+		if [ $test2 -eq 0 ]; then
+			locArr2[$k]="${locArr[$j]}"
+			k=$((k+1))
+		fi		
+	done
+
+	if $debug; then
+		echo "newnum=${#locArr2[*]}"
+		echo "${locArr2[*]}"
+	fi
+	
+	# do another total (orthogonal) linear regression to fit filtered set of points to line
+	linearRegression "${locArr2[*]}"
+	angle=`echo ${regression_Arr[rnum-1]} | cut -d: -f2`
+	# set rotation to be correct for -90<=angle<90 (+90 will be upside downs)
+	rotation=`convert xc: -format "%[fx:$angle<0?-($angle+90):-($angle-90)]" info:`
+	rotation=`convert xc: -format "%[fx:abs($rotation)<0.00001?0:$rotation]" info:`
+	echo "Rotating Image $rotation degrees"
+else
+echo "Rotating Image $rotation degrees"
+fi
+
+
+# set up trimming
+if [ "$trimval" != "" ]; then
+	trimming="-fuzz $trimval% +repage"
+else
+	trimming=""
+fi
+
+# set up padding
+if [ "$padval" != "" ]; then
+	trimming="-bordercolor $color -border $padval"
+else
+	trimming=""
+fi
+
+# do rotation to deskew
+convert $dir/tmpI.mpc -background "$color" -rotate $rotation $trimming $paddings "$outfile1"
+[ "$outfile2" != "" ] && convert $dir/tmpS.mpc "$outfile2"
+
+exit 0
+
+
+

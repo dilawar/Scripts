@@ -1,0 +1,377 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/26/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: colorbalance [-c color] [-a amount] [-r region] [-m mid] [-f factor] 
+# [-l low] [-h high] [-t taper] infile outfile
+#
+# USAGE: colorbalance [-help]
+#
+# OPTIONS:
+#
+# -c      color             color to modify: red (r), yellow (y), green (g), 
+#                           cyan (c), blue (b), magenta (m); default=red
+# -a      amount            amount of color change; 0<=float<=100; default=10
+# -r      region            region to change: midtones (m), shadows (s), 
+#                           highlights (h), all (a); default=all
+# -m      mid               mid value threshold; 0<=float<=100; default=mean
+# -l      low               low value threshold; 0<=float<=100; 
+#                           default=mean-factor*std
+# -h      high              high value threshold; 0<=float<=100; 
+#                           default=mean+factor*std
+# -f      factor            standard deviation factor; float>0; default=0.5
+# -t      taper             taper for range thresholds in pixels; integer>=0; 
+# 							default=10
+#
+###
+#
+# NAME: COLORBALANCE 
+# 
+# PURPOSE: To manually color balance an image in midtones, highlights, 
+# shadows or overall.
+# 
+# DESCRIPTION: COLORBALANCE manually color balances an image according to a 
+# user selected color, region and amount. The regions are midtones, shadows, 
+# highlights or all (i.e. the whole image). The regions thresholds default to 
+# mean +/- factor*standard-deviation of the appropriate channel or can be set 
+# manually. The region boundaries can be tapered so that they change gradually.
+# 
+# OPTIONS: 
+# 
+# -c color ... COLOR to modify. The choices are: red (r), yellow (y), 
+# green (g), cyan (c), blue (b) or magenta (m). The default=red
+# 
+# -a amount ... AMOUNT of color change. Values are in the range 0<=float<=100. 
+# The default=10.
+#
+# -r region ... REGION of image to change. The choices are: midtones (m), 
+# shadows (s), highlights (h) or all (a) for the whole image. The 
+# default=all.
+# 
+# -m mid ... MID is the threshold value that determines the center of the 
+# midtone range. Values are in the range 0<=float<=100. The default is the 
+# appropriate channel mean.
+# 
+# -l low ... LOW is the threshold value that determines the low end of the 
+# midtones and the high end of the shadows. Values are in the range 
+# 0<=float<=100. The default is the appropriate channel 
+# mean - factor*standard-deviation
+# 
+# -h high ... HIGH is the threshold value that determines the high end of the 
+# midtones and the low end of the highlights. Values are in the range 
+# 0<=float<=100. The default is the appropriate channel 
+# mean + factor*standard-deviation
+# 
+# -f factor ... FACTOR is the multiplication factor for the standard deviation 
+# used for the low and high threshold values. Values are floats>0. The 
+# default=0.5.
+# 
+# -t taper ... TAPER is the taper for range the thresholds in pixels. Values 
+# are integers>=0. The default=10
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+color="red"				# color: red, yellow, green, cyan, blue, magenta
+amount=10				# amount of change; 0<=float<=100
+region="all"			# midtones, highlights, shadows, all
+mid=""					# mid threshold; default=mean; 0<=float<=100
+factor=0.5				# std factor; float>0
+low=""					# low threshold; default=mean-factor*std; 0<=float<=100
+high=""					# high threshold; default=mean+factor*std; 0<=float<=100
+taper=10				# threshold taper in pixels; integer>=0
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 18 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get  color
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   color=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$color" in 
+					   		red|r) color="red";;
+					   		yellow|y) color="yellow";;
+					   		green|g) color="green";;
+					   		cyan|c) color="cyan";;
+					   		blue|b) color="blue";;
+					   		magenta|m) color="magenta";;
+					   		*) errMsg "--- COLOR=$color IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-r)    # get  region
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REGION SPECIFICATION ---"
+					   checkMinus "$1"
+					   region=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$region" in 
+					   		midtones|m) region="midtones";;
+					   		shadows|s) region="shadows";;
+					   		highlights|h) region="highlights";;
+					   		all|a) region="all";;
+					   		*) errMsg "--- REGION=$region IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE AN FLOAT ---"
+					   testA=`echo "$amount < 0" | bc`
+					   testB=`echo "$amount > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-m)    # get mid
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MID SPECIFICATION ---"
+					   checkMinus "$1"
+					   mid=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$mid" = "" ] && errMsg "--- MID=$mid MUST BE AN FLOAT ---"
+					   testA=`echo "$mid < 0" | bc`
+					   testB=`echo "$mid > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- MID=$mid MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-l)    # get low
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   low=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$low" = "" ] && errMsg "--- LOW=$low MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$low < 0" | bc`
+					   testB=`echo "$low > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- LOW=$low MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-h)    # get high
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGH SPECIFICATION ---"
+					   checkMinus "$1"
+					   high=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$high" = "" ] && errMsg "--- HIGH=$high MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$high < 0" | bc`
+					   testB=`echo "$high > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- HIGH=$high MUST BE AN FLOAT BETWEEN 0 AND 100 ---"
+					   ;;
+				-f)    # get factor
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FACTOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   factor=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$factor" = "" ] && errMsg "--- FACTOR=$factor MUST BE A NON-NEGATIVE FLOAT ---"
+					   testA=`echo "$factor <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- FACTOR=$factor MUST BE AN FLOAT GREATER THAN 0 ---"
+					   ;;
+				-t)    # get taper
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TAPER SPECIFICATION ---"
+					   checkMinus "$1"
+					   taper=`expr "$1" : '\([0-9]*\)'`
+					   [ "$taper" = "" ] && errMsg "--- TAPER=$taper MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# define dir
+dir="$tmpdir/COLORBALANCE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+
+# read input image
+convert -quiet "$infile" $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# set up color2 for channel to use (cyan is opposite of red; so use red, etc for other secondary colors)
+case "$color" in 
+	red) color2="red" ;;
+	yellow) color2="blue" ;;
+	green) color2="green" ;;
+	cyan) color2="red" ;;
+	blue) color2="blue" ;;
+	magenta) color2="green" ;;
+esac
+
+# set up color3 for channel to use in fx for mean, std
+case "$color" in 
+	red) color3="r" ;;
+	yellow) color3="b" ;;
+	green) color3="g" ;;
+	cyan) color3="r" ;;
+	blue) color3="g" ;;
+	magenta) color3="b" ;;
+esac
+
+
+# set up level adjustment for color
+# secondary colors are complementatry amounts from primary colors
+if [ "$color" = "red" -o "$color" = "green" -o "$color" = "blue" ]; then
+	amount=`convert xc: -format "%[fx:100-$amount]" info:`
+	process="-channel $color2 -level 0x${amount}% +channel"
+else
+	process="-channel $color2 -level ${amount}x100% +channel"
+fi
+
+
+# setup tapering
+if [ "$taper" = "0" ]; then
+	tapering=""
+else
+	tapering="-blur ${taper}x65000 -level 0x50%"
+fi
+
+
+if [ "$region" = "all" ]; then
+	convert $dir/tmpI.mpc $process "$outfile"
+else
+	# get mean and std and mid, low, high
+	if [ "$mid" = "" ]; then
+		mid=`convert $dir/tmpI.mpc -format "%[fx:mean.$color3]" info:`
+	else
+		mid=`convert $dir/tmpI.mpc -format "%[fx:$mid/100]" info:`
+	fi
+	std=`convert $dir/tmpI.mpc -format "%[fx:standard_deviation.$color3]" info:`
+	low=`convert xc: -format "%[fx:100*($mid-$factor*$std)]" info:`
+	high=`convert xc: -format "%[fx:100*($mid+$factor*$std)]" info:`
+	mid=`convert xc: -format "%[fx:100*$mid]" info:`
+	#echo "mid=$mid; std=$std; mid=$mid; low=$low; high=$high"
+
+	# create mask and blend original with processed
+	if [ "$region" = "midtones" ]; then
+		convert $dir/tmpI.mpc \( -clone 0 $process \) \
+			\( -clone 0 -channel $color2 -separate +channel \
+			-white-threshold ${high}% -fill black -opaque white \
+			-black-threshold ${low}% -fill white +opaque black $tapering \) \
+			-compose over -composite "$outfile"
+	elif [ "$region" = "shadows" ]; then
+		convert $dir/tmpI.mpc \( -clone 0 $process \) \
+			\( -clone 0 -channel $color2 -separate +channel \
+			-threshold ${low}% -negate $tapering \) \
+			-compose over -composite "$outfile"
+	elif [ "$region" = "highlights" ]; then
+		convert $dir/tmpI.mpc \( -clone 0 $process \) \
+			\( -clone 0 -channel $color2 -separate \
+			-threshold ${high}% $tapering \) \
+			-compose over -composite "$outfile"
+	fi
+fi
+
+exit 0

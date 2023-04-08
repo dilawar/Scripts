@@ -1,0 +1,2 @@
+#!/bin/bash
+ctest --rerun-failed --output-on-failure "$@"

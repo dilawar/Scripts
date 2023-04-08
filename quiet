@@ -1,3 +1,12 @@
 #!/bin/bash
+
 # This script launches an application in terminal silently
-"$@" &> /dev/null | tee /tmp/"$1.log" &
+# set -x
+
+COMMAND=$1
+if which $COMMAND > /dev/null; then
+    "$@" &> /dev/null | tee /tmp/"$1.log" &
+else
+    echo "Could not locate $COMMAND"
+    exit 1;
+fi

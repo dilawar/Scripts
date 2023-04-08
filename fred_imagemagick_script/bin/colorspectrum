@@ -1,0 +1,418 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 3/24/2008 .......... revised 8/17/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+# USAGE: colorspectrum [-c columns] [-r rows] [-l] infile outfile
+# USAGE: colorspectrum [-h or -help]
+#
+# OPTIONS:
+#
+# -c        columns      width of spectrum; determines the maximum 
+#                        number of colors; 1<=columns<=255; default=255
+# -r        rows         height of spectrum; rows>=1; default=50
+# -l                     displays a list of colors to the terminal
+#
+###
+#
+# NAME: COLORSPECTRUM 
+# 
+# PURPOSE: To generate a spectrum-like image from the colors in an image. 
+# 
+# DESCRIPTION: PROFILE generates generate a spectrum-like image from the 
+# colors in an image. It uses a color reduction algorithm to extract the  
+# specified number of colors. Then it sorts the colors according to hue and 
+# creates an image of the specified height and width. See 
+# http://www.imagemagick.org/script/quantize.php for a description of the 
+# color reduction algorithm.
+# 
+# 
+# OPTIONS: 
+# 
+# -c columns ... COLUMNS is the width of the spectrum and also determines the 
+# number of colors to try to generate. Allowed values are integers between 
+# 1 and 255. Note that it is possible that the color reduction algorithm will  
+# produce fewer, but never more colors than desired. If fewer colors are 
+# generated, then they will show as black areas on the left side of the  
+# spectrum. The default is 255.
+# 
+# -r rows ... ROWS is the height of the spectrum. Values are integers 
+# greater than 0. The default is 100.
+# 
+# -l ... Indicates to print a list of colors to the terminal.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+columns=255
+rows=50
+list="no"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 7 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get columns=number of colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLUMNS SPECIFICATION ---"
+					   checkMinus "$1"
+					   columns=`expr "$1" : '\([0-9]*\)'`
+					   [ "$columns" = "" ] && errMsg "--- COLUMNS=$columns MUST BE A POSITIVE INTEGER ---"
+					   columnstestA=`echo "$columns < 1" | bc`
+					   columnstestB=`echo "$columns > 255" | bc`
+					   [ $columnstestA -eq 1 -o $columnstestB -eq 1 ] && errMsg "--- COLUMNS=$columns MUST BE AN INTEGER BETWEEN 1 AND 255 ---"
+					   ;;
+				-r)    # get rows
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROWS SPECIFICATION ---"
+					   checkMinus "$1"
+					   rows=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rows" = "" ] && errMsg "--- ROWS=$rows MUST BE A POSITIVE INTEGER ---"
+					   rowstestA=`echo "$rows < 1" | bc`
+					   [ $rowstestA -eq 1 ] && errMsg "--- ROWS=$rows MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-l)    # get label
+					   list="on"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+tmpA="$dir/colorspectrum_$$.mpc"
+tmpB="$dir/colorspectrum_$$.cache"
+tmp0="$dir/colorspectrum_0_$$.miff"
+tmp1="$dir/colorspectrum_1_$$.miff"
+tmp2="$dir/colorspectrum_2_$$.miff"
+tmp3="$dir/colorspectrum_3_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" ERR
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	: 'do nothing'
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# test for minimum IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# get colorspace and type
+# colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
+# before swap verbose info reported colorspace=RGB after colorspace=sRGB
+# not all formats report grayscale for colorspace (gif, tiff, jpg do not), but type will be grayscale
+colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+type=`identify -ping -verbose $tmpA | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" ]; then
+	errMsg "--- FILE $infile MUST BE RGB, sRGB ---"
+fi
+if [ "$type" = "Grayscale" ]; then
+	errMsg "--- HSL CONVERSION IS NOT ALLOWED WITH GRAYSCALE IMAGERY ---"
+fi
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using colorspectrum.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+# Note: added $setcspace after generating PPM image and before converting to HSL
+# Slight difference in color arrangement for IM before 6.7.6.7
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	cspace="RGB"
+else
+	cspace="sRGB"
+fi
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+# get quantum max value
+qmax=`convert xc: -format "%[fx:QuantumRange]" info:`
+qval=`convert xc: -format "%q" info:`
+
+# get unique spectrum colors from rgb image as lines of text
+data1=`convert $tmpA -alpha off -depth $qval +dither -colors $columns -unique-colors txt:-`
+# test if % or empty
+# keep only second line
+# remove all chars but 0-9.%
+# get third word (first/red graylevel value)
+# remove every char but %
+test1=`echo "$data1" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f3 | sed -n 's/[^%]*//p'`
+#echo "test1=$test1;"
+if [ "$test1" = "%" ]; then
+	# newer txt format using % values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed removes %
+	# 5th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum1=`echo "$data1" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p'`
+elif [ "$test1" = "" ]; then
+	# older txt format using raw values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum1=`echo "$data1" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+else
+	errMsg "---	INVALID TXT FORMAT ---"
+fi
+
+if [ "$test1" = "%" ]; then
+spectrum1=`echo "$spectrum1" |\
+	awk -v qmax="$qmax" ' { r=int($1*qmax/100+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+fi
+#echo "spectrum1=$spectrum1"
+
+# use actual number of colors found
+colorsArr=($spectrum1)
+numcolors=${#colorsArr[*]}
+columns=`convert xc: -format "%[fx:floor($numcolors/3)]" info:`
+#echo "numcolors=$numcolors; columns=$columns;"
+
+# convert rgb text spectrum to HSL single row image
+# Use NetPBM (PPM plain color format implied intermediate image)
+echo "P3 $columns 1 $qmax $spectrum1" | convert - $setcspace -colorspace HSL $tmp0
+
+
+# convert HSL single row colors image back to text and sort according to hue
+data2=`convert $tmp0 txt:-`
+# test if % or empty
+# keep only second line
+# remove all chars but 0-9.%
+# get third word (first/red graylevel value)
+# remove every char but %
+test2=`echo "$data2" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f5 | sed -n 's/[^%]*//p'`
+#echo "test2=$test2;"
+if [ "$test2" = "%" ]; then
+	# newer txt format using % values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed removes %
+	# 5th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	#
+	# note: starting at IM 6.9.2.1 HSL is in format HSL(0-360,percent,percent)
+	if [ "$im_version" -lt "06090201" ]; then
+		spectrum2=`echo "$data2" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p' |\
+			sort -n -k 1,1`
+	elif [ "$im_version" -ge "06090201" ]; then
+		spectrum2=`echo "$data2" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([0-9]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p' |\
+			sort -n -k 1,1`
+	fi
+elif [ "$test2" = "" ]; then
+	# older txt format using raw values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum2=`echo "$data2" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p' |\
+		sort -n -k 1,1`
+else
+	errMsg "---	INVALID TXT FORMAT ---"
+fi
+
+if [ "$test2" = "%" ]; then
+	if [ "$im_version" -lt "06090201" ]; then
+		spectrum2=`echo "$spectrum2" |\
+			awk -v qmax="$qmax" ' { r=int($1*qmax/100+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+	elif [ "$im_version" -ge "06090201" ]; then
+		spectrum2=`echo "$spectrum2" |\
+			awk -v qmax="$qmax" ' { r=int($1*qmax/360+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+	fi
+fi
+#echo "spectrum2=$spectrum2"
+
+
+# convert sorted HSL text colors to single row HSL image
+echo "P3 $columns 1 $qmax $spectrum2" | convert - $tmp0
+
+
+# convert HSL colors single row image to RGB single row spectrum image
+convert $tmp0 $setcspace -channel Red -separate $tmp1
+convert $tmp0 $setcspace -channel Green -separate $tmp2
+convert $tmp0 $setcspace -channel Blue -separate $tmp3
+convert $tmp1 -colorspace HSL \
+	$tmp1 -compose CopyRed -composite \
+	$tmp2 -compose CopyGreen -composite \
+	$tmp3 -compose CopyBlue -composite \
+	-colorspace $cspace $tmp0
+
+
+if [ "$list" = "on" ]
+	then
+
+	data3=`convert $tmp0 txt:-`
+	# test if % or empty
+	# keep only second line
+	# remove all chars but 0-9.%
+	# get third word (first/red graylevel value)
+	# remove every char but %
+	test3=`echo "$data3" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f3 | sed -n 's/[^%]*//p'`
+	#echo "test3=$test3;"
+	if [ "$test3" = "%" ]; then
+		# newer txt format using % values
+		# 1st sed command removes spaces
+		# 2nd sed command strips everything but color values
+		# 3rd sed command replaces commas with spaces
+		# 4th sed removes %
+		# 5th sed command prints all lines but first
+		# when echo "$data" it prints each row
+		# when echo $data it prints each line feed as a space so it is all one line.
+		spectrum3=`echo "$data3" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+	elif [ "$test3" = "" ]; then
+		# older txt format using raw values
+		# 1st sed command removes spaces
+		# 2nd sed command strips everything but color values
+		# 3rd sed command replaces commas with spaces
+		# 4th sed command prints all lines but first
+		# when echo "$data" it prints each row
+		# when echo $data it prints each line feed as a space so it is all one line.
+		spectrum3=`echo "$data3" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+	else
+		errMsg "---	INVALID TXT FORMAT ---"
+	fi
+	
+	echo ""
+	echo "List Of Colors - RGB Values 0 to Quantum Max or Percent"
+	echo ""
+	echo "$spectrum3"
+	echo ""
+fi
+
+# scale to desired height
+convert $tmp0 -scale ${columns}x${rows}! "$outfile"
+
+exit 0
+

@@ -1,0 +1,492 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 7/3/2017 .......... revised 7/11/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: smartcrop -w width -h height [-m metric] [-s search] [-l lowerthresh] 
+# [-u upperthresh] [-f factor] [-e enlarge] [-g graymode] [-b blur] [-n normalize] 
+# infile outfile
+# USAGE: smartcrop [-help]
+#
+# OPTIONS:
+#
+# -w     width          desired crop width; integer>0; required
+# -h     height         desired crop height; integer>0; required
+# -m     metric         metric to use to process the image for detail; choices are 
+#                       std (for standard_deviation), sobel (for sobel type grayscale 
+#                       edges), canny (for canny type binary edges) and corners 
+#                       (for morphologic corner detection); default=canny
+# -s     search         search technique; choices are basic (slow), pyramid (fast) and 
+#                       fft (fast); default=basic
+# -l     lowerthresh    lower threshold for canny edges (percent); smaller is more edges;
+#                       0<=integer<=100; default=10 
+# -u     upperthresh    upper threshold for canny edges (percent); smaller is more edges;
+#                       0<=integer<=100; default=30 
+# -f     factor         scale factor for size reduction for search=pyramid; integer>0; 
+#                       default=5
+# -e     enlarge        enlarge full resolution search area all around in pixels for 
+#                       search=pyramid; integer>0; default=20
+# -g     graymode       mode of converting to grayscale; grayscale or maximum; 
+#                       default=maximum
+# -b     blur			blur the detail image before normalizing; integer>=0; zero 
+#                       means no blur; default=20
+# -n     normalize      normalize the detail image before cropping; equalize or  
+#                       autolevel; default=equalize
+#
+###
+#
+# NAME: SMARTCROP
+# 
+# PURPOSE: To automatically crop an image to a given size around the hightest detail 
+# region.
+# 
+# DESCRIPTION: SMARTCROP automatically crops an image to a given size around the 
+# hightest detail region. It tries to find the best region of the given size to 
+# crop based upon fundamental type details in the image. The detail metric can be: 
+# standard deviation, sobel grayscale edges or canny binary edges. The region will 
+# be the one with the largest average grayscale. This is a low to medium intelligent 
+# method in that it uses fundamental measures of detail. So perhaps it should really 
+# be called a semi-intelligent method. It does not try to do face detection. The 
+# method of locating the best match uses rmse subimage search. For search=basic, it 
+# uses compare at full resolution. For search=pyramid, it uses a coarse to fine 2-level
+# pyramid using compare. For search=fft, it does a compare equivalent on the full
+# resolution image using FFT processing via my script, rmsecorr. Results will
+# depend upon the size of the crop dimensions desired and the metric and search
+# methods. The script does best with a single region of high detail and the rest
+# of the image low detail. Too much detail in the image or too small width and or 
+# height may give totally irrelevant results to what the user wants.
+# 
+# OPTIONS: 
+# 
+# -w width ... WIDTH is the desired crop width. Values are integers>0. This is a 
+# required argument.
+# 
+# -h height ... HEIGHT is the desired crop height. Values are integers>0. This is a 
+# required argument.
+# 
+# -m metric ... METRIC to use to process the image for detail. The choices are 
+# std (for standard_deviation), sobel (for sobel type grayscale edges),  
+# canny (for canny type binary edges) and corners (for morphologic corner detection). 
+# The default=canny.
+# 
+# -s search ... SEARCH technique. The choices are basic (slow), pyramid (fast) and 
+# fft (fast). The default=basic.
+# 
+# -l lowerthresh LOWERTHRESH is the lower threshold for canny edges (in percent). 
+# Smaller values produce more edges. Values are 0<=integers<=100. The default=10.
+# 
+# -u upper UPPERTHRESH is the upper threshold for canny edges (in percent). 
+# Smaller values produce more edges. Values are 0<=integers<=100. The default=30.
+# 
+# -f factor ... FACTOR  is the scale factor for size reduction for search=pyramid. 
+# Values are integers>0. The default=5.
+# 
+# -e enlarge ... ENLARGE full resolution search area all around in pixels for 
+# search=pyramid. Values are integers>0. The default=20.
+# 
+# -g graymode ... GRAYMODE is the mode of converting the detail image to grayscale. 
+# The choices are: grayscale (change colorspace to gray) or maximum (separate channels 
+# and take the maximum of the channels at each pixels). The default=maximum. Usually 
+# maximum is better than grayscale. But occasionally the opposite is true.
+# 
+# -b blur ... BLUR the detail image before normalizing. Values are integers>=0. 
+# A value of zero means no blur. Typical values are either 0 or between 20 and 30. 
+# The default=20. Usually blurring is better than not. But occasionally the opposite is 
+# true.
+# 
+# -n normalize ... NORMALIZE the detail image before cropping. The choices are: 
+# equalize or autolevel. The default=equalize. Usually equalizing is better than 
+# autolevel. But occasionally the opposite is true.
+# 
+# REQUIREMENTS: Requires IM 6.6.9.1 or higher for metric=std. Requires IM 6.8.9.0 
+# or higher for metric=canny. But due to a bug in IM 7 for the -canny operator, 
+# results will not be correct until IM 7.0.6.1 or higher, when the bug was fixed. 
+# Requires IM 6.5.9.3 or higher for metric=corners. Requires IM 6.6.1.8 or higher 
+# for metric=sobel.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+width=""				# desired crop width; required
+height=""				# desired crop height; required
+metric="std"			# metric used to define amount of detail: std, sobel, canny
+search="basic"			# search type: basic, pyramid, fft
+lowerthresh=10			# lower threshold for canny edges (percent); smaller is more edges
+upperthresh=30			# upper threshold for canny edges (percent); smaller is more edges
+factor=5				# scale factor only for search=pyramid; integer>0
+enlarge=20				# search area buffer (all around) for search=pyramid
+graymode="maximum"		# mode of converting detail image to gray; grayscale or maximum
+normalize="equalize"	# equalize or autolevel
+blur=20					# blur sigma
+
+
+# set directory for temporary files
+tmpdir="."    # suggestions are tmpdir="." or tmpdir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 26 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$width == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- WIDTH=$width MUST BE GREATER THAN 0 ---"
+					   ;;
+				-h)    # get height
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HEIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   height=`expr "$1" : '\([0-9]*\)'`
+					   [ "$height" = "" ] && errMsg "--- HEIGHT=$height MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$height == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- HEIGHT=$height MUST BE GREATER THAN 0 ---"
+					   ;;
+				-m)    # get  metric
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METRIC SPECIFICATION ---"
+					   checkMinus "$1"
+					   metric=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$metric" in 
+					   		std) ;;
+					   		sobel) ;;
+					   		canny) ;;
+					   		corners) ;;
+					   		*) errMsg "--- MODE=$metric IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-s)    # get  search
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SEARCH SPECIFICATION ---"
+					   checkMinus "$1"
+					   search=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$search" in 
+					   		basic) ;;
+					   		pyramid) ;;
+					   		fft) ;;
+					   		*) errMsg "--- SEARCH=$search IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-l)    # get lowerthresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOWERTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   lowerthresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lowerthresh" = "" ] && errMsg "--- LOWERTHRESH=$lowerthresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$lowerthresh > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- LOWERTHRESH=$lowerthresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-u)    # get upperthresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UPPERTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   upperthresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$upperthresh" = "" ] && errMsg "--- UPPERTHRESH=$upperthresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$upperthresh > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- UPPERTHRESH=$upperthresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-f)    # get factor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FACTOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   factor=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$factor" = "" ] && errMsg "--- FACTOR=$factor MUST BE NON-NEGATIVE ---"
+					   test=`echo "$factor == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- FACTOR=$factor MUST BE GREATER THAN 0 ---"
+					   ;;
+				-e)    # get enlarge
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ENLARGE SPECIFICATION ---"
+					   checkMinus "$1"
+					   enlarge=`expr "$1" : '\([0-9]*\)'`
+					   [ "$enlarge" = "" ] && errMsg "--- ENLARGE=$enlarge MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$enlarge == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- ENLARGE=$enlarge MUST BE GREATER THAN 0 ---"
+					   ;;
+				-g)    # get  graymode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAYMODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   graymode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$graymode" in 
+					   		grayscale) ;;
+					   		maximum) ;;
+					   		*) errMsg "--- GRAYMODE=$graymode IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-n)    # get  normalize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NORMALIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   normalize=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$normalize" in 
+					   		equalize) ;;
+					   		autolevel) ;;
+					   		*) errMsg "--- NORMALIZE=$normalize IS AN INVALID VALUE ---"  ;;
+					   esac
+					   ;;
+				-b)    # get blur
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BLUR SPECIFICATION ---"
+					   checkMinus "$1"
+					   blur=`expr "$1" : '\([0-9]*\)'`
+					   [ "$blur" = "" ] && errMsg "--- BLUR=$blur MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# Setup directory for temporary files
+# On exit remove ALL -- the whole directory of temporary images
+dir="$tmpdir/$PROGNAME.$$"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+mkdir "$dir" || {
+  echo >&2 "$PROGNAME: Unable to create working dir \"$dir\" -- ABORTING"
+  exit 10
+}
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $dir/tmpI1.mpc ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# test if width and height set
+[ "$width" = "" -o "$height" = "" ] && errMsg "--- WIDTH AND/OR HEIGHT HAVE NOT BEEN SPECIFIED  ---"
+
+# test im_version for canny edge compatible
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test for IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	preface="magick"	
+else
+	preface=""
+fi
+
+# test for hdri on
+hdri_on="no"
+# for modern versions of Imagemagick
+hdri_on1=`convert -version | grep "HDRI"`
+# for very old versions of Imagemagick
+hdri_on2=`convert -list configure | grep "enable-hdri"`
+[ "$hdri_on1" != "" -o "$hdri_on2" != "" ] && hdri_on="yes"
+[ "$hdri_on" = "no" -a "$search" = "fft" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+# setup for metric processing
+if [ "$metric" = "std" ]; then
+	dproc="-statistic standard_deviation 3x3 -colorspace gray"
+elif [ "$metric" = "sobel" ]; then 
+	dproc="-define convolve:scale=50%! -bias 50% -write mpr:img +delete mpr:img -morphology Convolve Sobel:0 +write mpr:dx +delete mpr:img -morphology Convolve Sobel:90 +write mpr:dy +delete mpr:dx mpr:dy -solarize 50% -level 50,0% -evaluate Pow 2 -compose plus -composite -evaluate Pow 0.5"
+elif [ "$metric" = "canny" ]; then 
+	dproc="-canny 0x1+${lowerthresh}%+${upperthresh}%"
+elif [ "$metric" = "corners" ]; then 
+	dproc="-write mpr:img +delete mpr:img -morphology dilate plus:1 -morphology erode diamond:1 -write mpr:plus +delete mpr:img -morphology dilate cross:1 -morphology erode square:1 -write mpr:cross +delete mpr:plus mpr:cross -compose difference -composite"
+fi
+
+#set up for graymode
+if [ "$graymode" = "grayscale" ]; then
+	gproc="-colorspace gray"
+elif [ "$graymode" = "maximum" ]; then
+	gproc="-separate -evaluate-sequence max"
+fi
+
+# set up for blur processing
+if [ "$blur" != "0" ]; then
+	bproc="-blur 0x$blur"
+	blur2=`convert xc: -format "%[fx:$blur/$factor]" info:`
+	bproc2="-blur 0x$blur2"
+else
+	bproc=""
+	bproc2=""
+fi
+
+# set up for normalize
+if [ "$normalize" = "equalize" ]; then
+	eproc="-equalize"
+elif [ "$normalize" = "autolevel" ]; then
+	eproc="-auto-level"
+fi
+
+
+# crop image
+if [ "$search" = "basic" ]; then
+	# brute force compare 
+	convert $dir/tmpI1.mpc $dproc $gproc $bproc $eproc $dir/tmpI2.mpc
+	coords=`$preface compare -metric rmse -subimage-search -dissimilarity-threshold 1 \
+		$dir/tmpI2.mpc \( -size ${width}x${height} xc:white \) null: 2>&1 | cut -d\  -f4`
+	#echo "coords=$coords;"
+	xoff=`echo "$coords" | cut -d, -f1`
+	yoff=`echo "$coords" | cut -d, -f2`
+	#echo "xo=$xoff; yo=$yoff;"
+	convert $dir/tmpI1.mpc -crop ${width}x${height}+${xoff}+${yoff} +repage "$outfile"
+
+
+elif [ "$search" = "pyramid" ]; then 
+	# two-level pyramid compare
+	pad=$((2*buffer))
+	pct=`convert xc: -format "%[fx:100/$factor]" info:`
+	ww2=`convert xc: -format "%[fx:round($width/$factor)]" info:`
+	hh2=`convert xc: -format "%[fx:round($height/$factor)]" info:`
+	#echo "ww2=$ww2; hh2=$hh2;"
+	declare `convert -ping $dir/tmpI1.mpc -format "WW=%w\nHH=%h\n" info:`
+	ww3=`convert xc: -format "%[fx:min($width+$pad,$WW-$pad)]" info:`
+	hh3=`convert xc: -format "%[fx:min($height+$pad,$HH-$pad)]" info:`
+	#echo "ww3=$ww3; hh3=$hh3;"
+	convert $dir/tmpI1.mpc $dproc -resize $pct% $gproc $bproc2 $eproc $dir/tmpI2.mpc
+	coords=`$preface compare -metric rmse -subimage-search -dissimilarity-threshold 1 \
+		$dir/tmpI2.mpc \( -size ${ww2}x${hh2} xc:white \) null: 2>&1 | cut -d\  -f4`
+	xoff=`echo "$coords" | cut -d, -f1`
+	yoff=`echo "$coords" | cut -d, -f2`
+	#echo "xo=$xoff; yo=$yoff;"
+	xoff1=`convert xc: -format "%[fx:round(max(0,$factor*$xoff-$buffer))]" info:`
+	yoff1=`convert xc: -format "%[fx:round(max(0,$factor*$yoff-$buffer))]" info:`
+	#echo "xo=$xoff1; yo=$yoff1;"
+	convert $dir/tmpI1.mpc -crop ${ww3}x${hh3}+${xoff1}+${yoff1} +repage $dproc $gproc $bproc $eproc $dir/tmpI2.mpc
+	coords=`$preface compare -metric rmse -subimage-search -dissimilarity-threshold 1 \
+		$dir/tmpI2.mpc \( -size ${width}x${height} xc:white \) null: 2>&1 | cut -d\  -f4`
+	xoff2=`echo "$coords" | cut -d, -f1`
+	yoff2=`echo "$coords" | cut -d, -f2`
+	#echo "xo=$xoff2; yo=$yoff2;"
+	xoff=$((xoff1+$xoff2))
+	yoff=$((yoff1+$yoff2))
+	convert $dir/tmpI1.mpc -crop ${width}x${height}+${xoff}+${yoff} +repage "$outfile"
+
+
+elif [ "$search" = "fft" ]; then 
+	# fft rmse compare
+	# require my script, rmsecorr
+	# requires HDRI
+	# cannot handle alpha channel
+	convert $dir/tmpI1.mpc $dproc $gproc $bproc $eproc $dir/tmpI2.mpc
+	convert -size ${width}x${height} xc:white $dir/tmpI3.mpc
+	coords=`rmsecorr $dir/tmpI3.mpc $dir/tmpI2.mpc null:`
+	#echo "coords=$coords;"
+	coords=`echo "$coords" | head -n 2 | sed -n 's/^.*[(]\([0-9]*,[0-9]*\)[)].*$/\1/p'`
+	#echo "coords=$coords;"
+	xoff=`echo "$coords" | cut -d, -f1`
+	yoff=`echo "$coords" | cut -d, -f2`
+	#echo "xo=$xoff; yo=$yoff;"
+	convert $dir/tmpI1.mpc -crop ${width}x${height}+${xoff}+${yoff} +repage "$outfile"
+
+fi
+
+echo "${width}x${height}+${xoff}+${yoff}"
+
+exit 0

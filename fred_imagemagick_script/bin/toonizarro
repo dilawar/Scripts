@@ -1,0 +1,294 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/5/2015 .......... revised 11/5/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: toonizarro [-f filter] [-s sigma] [-g gain] [-t thickness] [-l lothresh] 
+# [-h hithresh] [-c colors] infile outfile
+# USAGE: toonizarro [-help]
+#
+# OPTIONS:
+#
+# -f     filter       filter to adjust the coarseness; integer>0; default=3 
+# -s     sigma        unsharpening sigma; float>0; default=2
+# -g     gain         unsharpening gain; float>=0; default=4
+# -t     thickness    edge thickness; integer>=0; default=0 means no edges
+# -l     lothresh     canny edge detection low threshold; integer>=0; default=20
+# -h     hithresh     canny edge detection high threshold; integer>=0; default=50
+# -c     colors       color list for colorizing the result; any space-separate list 
+#                     of valid IM colors allowed; default is no colorization 
+#
+###
+#
+# NAME: TOONIZARRO 
+# 
+# PURPOSE: To apply a Superman Bizarro-like cartoon effect to an image.
+# 
+# DESCRIPTION: TOONIZARRO applies a Superman Bizarro-like cartoon effect to an image. 
+# Edges may be added optionally.
+# 
+# OPTIONS: 
+# 
+# -f filter ... FILTER to adjust the coarseness. Values are integers>0. The default=3.
+# 
+# -s sigma ... SIGMA for unsharpening. Values are float>0. The default=2
+# 
+# -g gain ... GAIN for unsharpening. Values are float>=0. The default=4.
+# 
+# -t thickness ... THICKNESS of edges. Values are integers>=0. The default=0 
+# means no edges.
+# 
+# -l lothresh ... LOTHRESHOLD is the canny edge detection low threshold. Values are
+# integers>=0. The default=20.
+# 
+# -l hithresh ... HITHRESHOLD is the canny edge detection high threshold. Values are
+# integers>=0. The default=40.
+# 
+# -c colors ... COLORS is a list of colors for colorizing the result. Any space-separate 
+# list of valid IM colors is allowed. (No spaces withing rgb color triples). The
+# default is no colorization.
+# 
+# REQUIREMENTS: IM 6.8.9.9 due to the use of the Kuwahara filter. IM 6.8.9-0 to use 
+# the Canny edge detection. See:
+# http://www.imagemagick.org/discourse-server/viewtopic.php?f=4&t=26480
+# http://www.imagemagick.org/discourse-server/viewtopic.php?f=4&t=25405
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+filter=3
+sigma=2
+gain=4
+thickness=0
+lothresh=20
+hithresh=40
+colors=""
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get filter
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FILTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   filter=`expr "$1" : '\([0-9]*\)'`
+					   [ "$filter" = "" ] && errMsg "--- FILTER=$filter MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-s)    # get sigma
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIGMA SPECIFICATION ---"
+					   checkMinus "$1"
+					   sigma=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$sigma" = "" ] && errMsg "--- SIGMA=$sigma MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$sigma == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SIGMA=$sigma MUST BE AN INTEGER LARGER THAN 0 ---"
+					   ;;
+				-g)    # get gain
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GAIN SPECIFICATION ---"
+					   checkMinus "$1"
+					   gain=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-t)    # get thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-l)    # get lothresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LOTHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   lothresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$lothresh" = "" ] && errMsg "--- LOTHRESH=$lothresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-h)    # get hithresh
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HITHRESH SPECIFICATION ---"
+					   checkMinus "$1"
+					   hithresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$hithresh" = "" ] && errMsg "--- HITHRESH=$hithresh MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-c)    # get colors
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COLORS SPECIFICATION ---"
+					   checkMinus "$1"
+					   colors="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/toonizarro_1_$$.mpc"
+tmpB1="$dir/toonizarro_1_$$.cache"
+tmpL="$dir/toonizarro_2_$$.miff"
+trap "rm -f $tmpA1 $tmpB1 $tmpL; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpL; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $tmpA1 ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# set up for edge thickness
+if [ $thickness -gt 1 ]; then
+	amt=$((thickness-1))
+	thickening="-morphology dilate diamond:$amt"
+else
+	thickening=""
+fi
+
+# process image
+if [ "$colors" = "" ]; then
+	if [ $thickness -eq 0 ]; then
+		convert $tmpA1 -kuwahara $filter -unsharp 0x${sigma}+${gain}+0 "$outfile"
+	else
+		convert $tmpA1 -kuwahara $filter -unsharp 0x${sigma}+${gain}+0 \
+		\( -clone 0 -colorspace gray -canny 0x${thickness}+${lothresh}%+${hithresh}% $thickening -negate \) \
+		\( -clone 1 -negate \) \
+		-compose over -composite "$outfile"
+	fi
+else
+	str=""
+	colorArr=($colors)
+	numcolors=${#colorArr[*]}
+	for ((i=0; i<numcolors; i++)); do
+	color=${colorArr[$i]}
+	pixel="xc:'$color'"
+	str="$str $pixel"
+	done
+	#echo "$str"
+	eval 'convert '$str' +append $tmpL'
+	if [ $thickness -eq 0 ]; then
+		convert $tmpA1 -colorspace gray -kuwahara $filter -unsharp 0x${sigma}+${gain}+0 \
+		$tmpL -clut "$outfile"
+	else
+		convert $tmpA1 -colorspace gray -kuwahara $filter -unsharp 0x${sigma}+${gain}+0 $tmpL -clut \
+		\( -clone 0 -colorspace gray -canny 0x${thickness}+${lothresh}%+${hithresh}% $thickening -negate \) \
+		\( -clone 1 -negate \) \
+		-compose over -composite "$outfile"
+	fi
+fi
+
+exit 0
+
+
+
+
+
+

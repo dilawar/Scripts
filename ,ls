@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if ! command -v exa &> /dev/null; then
+    echo "exa not found."
+
+    # install exa?
+    ~/Scripts/install_pkg_mgr.sh exa
+fi
+ls -ltrh

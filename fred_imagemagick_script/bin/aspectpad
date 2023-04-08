@@ -1,0 +1,302 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/1/2009 .......... revised 11/2/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+# USAGE: aspectpad [-a aspect] [-m mode] [-p pcolor] [-t toler] infile outfile
+# USAGE: aspectpad [-help]
+#
+# OPTIONS:
+#
+# -a      aspect	       	aspect ratio value desired; float>=1; default=2
+# -m      mode              mode for aspect; al, ap, l or p; default=al
+#                           l=force landscape pad; p=force portrait pad;
+#                           al=automatic pad (landscape for square images);
+#                           ap=automatic pad (portrait for square images)
+# -p      pcolor            pad color; any valid IM color; default=black
+# -t      toler             aspect tolerance; float>=0; if absolute difference 
+#                           between desired aspect and image aspect is less 
+#                           than or equal to tolerance, then no padding; 
+#                           default=0
+#
+###
+#
+# NAME: ASPECTPAD 
+# 
+# PURPOSE: To pad an image with a color to a specified aspect ratio 
+# and orientation.
+# 
+# DESCRIPTION: ASPECTPAD pads an image with a color to a specified aspect
+# ratio and orientation. The user can choose to force the pad to either 
+# landscape or portrait orientation or preserve the orientation in automatic 
+# mode. All padding will result in the image being centered.
+# 
+# OPTIONS: 
+# 
+# -a aspect ... ASPECT is the desired aspect ratio. Values are floats>=1. 
+# The default=2
+# 
+# -m mode ... MODE is the padding mode. Choices are: l, p, al or ap. When 
+# mode=l, the padding will force the result to be landscape at the desired 
+# aspect value. When mode=p, the padding will force the result to be portrait.
+# When mode=al, the padding will preserve the aspect of the original image, but 
+# will pad a square image into landscape format. When mode=ap, the padding will 
+# preserve the aspect of the original image, but will pad a square image into 
+# portrait format. The default=al.
+# 
+# -p pcolor ... PCOLOR is the desired padding color. Any valid IM color 
+# specification may be used. The default=black
+# 
+# -t toler ... TOLER is the aspect tolerance. If the absolute difference 
+# between desired aspect and image aspect is less than or equal to toler, 
+# then no padding will be applied. Values are floats>=0. The default=0
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+aspect="2"				# aspect>=1
+mode="al"				# al, ap, l, p; a=auto
+pcolor="black"			# pad color
+toler=0					# toler>=0
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$mode" in 
+					   		l) ;;
+					   		p) ;;
+					   		al) ;;
+					   		ap) ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-a)    # get aspect
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ASPECT SPECIFICATION ---"
+					   checkMinus "$1"
+					   aspect=`expr "$1" : '\([.0-9]*\)'`
+					   aspecttest=`echo "$aspect < 1" | bc`
+					   [ $aspecttest -eq 1 ] && errMsg "--- ASPECT=$aspect MUST BE A FLOAT GREATER THAN OR EQUAL TO 1 ---"
+					   ;;
+				-p)    # get pcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   pcolor="$1"
+					   ;;
+				-t)    # get toler
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TOLER SPECIFICATION ---"
+					   checkMinus "$1"
+					   toler=`expr "$1" : '\([.0-9]*\)'`
+					   tolertest=`echo "$toler < 0" | bc`
+					   [ $tolertest -eq 1 ] && errMsg "--- TOLER=$toler MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpA1="$dir/aspectpad_1_$$.mpc"
+tmpA2="$dir/aspectpad_1_$$.cache"
+trap "rm -f $tmpA1 $tmpA2;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+
+
+# read the input image and test validity.
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get size and aspect ratio of input
+ww=`convert $tmpA1 -ping -format "%w" info:`
+hh=`convert $tmpA1 -ping -format "%h" info:`
+wratio=`convert xc: -format "%[fx:$ww/$hh]" info:`
+hratio=`convert xc: -format "%[fx:$hh/$ww]" info:`
+#echo "ww=$ww; hh=$hh wratio=$wratio; hratio=$hratio"
+
+# test if aspect >= ratio
+wtest=`convert xc: -format "%[fx:$aspect>=$wratio?1:0]" info:`
+htest=`convert xc: -format "%[fx:$aspect>=$hratio?1:0]" info:`
+#echo "wtest=$wtest; htest=$htest"
+
+# test if within toler of desired aspect
+tratio=`convert xc: -format "%[fx:$wratio>=1?$wratio:$hratio]" info:`
+ttest=`convert xc: -format "%[fx:abs($tratio-$aspect)<=$toler?1:0]" info:`
+#echo "tratio=$tratio; ttest=$ttest"
+
+# copy input to output if image aspect is within toler
+if [ $ttest -eq 1 ]; then
+	convert $tmpA1 "$outfile"
+	exit
+fi
+
+# force landscape mode
+if [ "$mode" = "l" -a $wtest -eq 1 ]; then
+	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+elif [ "$mode" = "l" -a $wtest -eq 0 ]; then
+	hh=`convert xc: -format "%[fx:$hh*$wratio/$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+fi
+
+# force portrait mode
+if [ "$mode" = "p" -a $htest -eq 1 ]; then
+	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+elif [ "$mode" = "p" -a $htest -eq 0 ]; then
+	ww=`convert xc: -format "%[fx:$ww*$hratio/$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+fi
+
+
+# auto square image
+if [ "$mode" = "al" -a $ww -eq $hh ]; then
+	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+elif [ "$mode" = "ap" -a $ww -eq $hh ]; then
+	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+fi
+
+
+# auto landscape image 
+if [ $ww -gt $hh -a $wtest -eq 1 ]; then
+	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+elif [ $ww -gt $hh -a $wtest -eq 0 ]; then
+	hh=`convert xc: -format "%[fx:$hh*$wratio/$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+fi
+
+
+# auto portrait image
+if [ $hh -gt $ww -a $htest -eq 1 ]; then
+	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+elif [ $hh -gt $ww -a $htest -eq 0 ]; then
+	ww=`convert xc: -format "%[fx:$ww*$hratio/$aspect]" info:`
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
+	exit
+fi
+

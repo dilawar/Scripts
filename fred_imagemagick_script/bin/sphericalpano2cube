@@ -1,0 +1,358 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 9/18/2017 .......... revised 9/18/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: sphericalpano2cube [-d dimension] [-b bgcolor ] [-i interpolation] [-m montage] 
+# infile outfile
+# USAGE: sphericalpano2cube [-h or -help]
+# 
+# OPTIONS:
+# 
+# -d     dimension         square dimension of the output cube faces; integer>0; 
+#                          default=256
+# -b     bgcolor           background color for virtual pixels; any valid IM color is 
+#                          allowed; default=black
+# -i     interpolation     intepolation method; any valid IM interpolation method is 
+#                          allowed; default=bilinear
+# -m     montage           create a montage of the 6 cube face images; yes or no; 
+#                          default=no
+# 
+###
+# 
+# NAME: SPHERICALPANO2CUBE 
+#  
+# PURPOSE: To transform a spherical panorama into a cubical representation.
+# 
+# DESCRIPTION: SPHERICALPANO2CUBE transforms a spherical panorama into a cubical 
+# representation with 6 face images: left, front, right, back, over, under. The 
+# 6 output images will be named from the outfile with these names appended. 
+# The over and under images will be as if facing forward and turning up and down, 
+# respectively.
+# 
+# 
+# Arguments: 
+# 
+# -d dimension ... square DIMENSION of the output cube face images. Values are 
+# integers>0. The default=256.
+# 
+# -b bgcolor ... BGCOLOR is the background color for virtual pixels. Any valid IM color 
+# is allowed. The default=black.
+# 
+# -i interpolation ... INTEPOLATION method. Any valid IM interpolation method is allowed. 
+# The default=bilinear.
+# 
+# -m montage ... create a MONTAGE of the 6 cube face images. Choices are: yes or no.
+# The default=no. The montage has a special arrangement.
+# 
+# NOTE: This script will be slow due to the use of -fx. On my dual core INTEL Mac mini 
+# with 2.8 GHz processor and OSX Sierra, it takes 1 min 40 sec to create six 500x500 
+# pixel face images and the montage from one 2000x1000 pixel spherical panorama. Time 
+# increase/decrease approximately by the square of the cube face dimensions.
+# 
+# References: 
+# https://en.wikipedia.org/wiki/Cube_mapping
+# http://paulbourke.net//miscellaneous/cubemaps/
+# https://stackoverflow.com/questions/29678510/convert-21-equirectangular-panorama-to-cube-map
+# http://mathworld.wolfram.com/SphericalCoordinates.html
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+
+
+# set default values; 
+dimension=256					#square dimension of 6 output images
+bgcolor=black					#virtual-pixel background color
+montage="yes"					#create montaged output
+interpolation="bilinear"		#interpolation mode
+
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-d)    # dimension
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID DIMENSION SPECIFICATION ---"
+				   checkMinus "$1"
+				   dimension=`expr "$1" : '\([0-9]*\)'`
+				   test=`echo "$dimension == 0" | bc`
+				   [ $test -eq 1 ] && errMsg "--- DIMENSION=$dimension MUST BE A POSITIVE INTEGER ---"
+				   ;;
+			-b)    # get bcolor
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+				   checkMinus "$1"
+				   bcolor="$1"
+				   ;;
+			-i)    # set interpolation
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID INTERPOLATION SPECIFICATION ---"
+				   checkMinus "$1"
+				   interpolation="$1"
+				   ;;
+			-m)    # get  montage
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID MONTAGE SPECIFICATION ---"
+				   checkMinus "$1"
+				   monotone=`echo "$1" | tr '[A-Z]' '[a-z]'`
+				   case "$montage" in 
+						yes) ;;
+						no) ;;
+						*) errMsg "--- MONTAGE=$montage IS AN INVALID VALUE ---"  ;;
+				   esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that infile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# setup temporary images
+tmpA1="$dir/sphericalpano2cube_1_$$.mpc"
+tmpB1="$dir/sphericalpano2cube_1_$$.cache"
+tmpA2="$dir/sphericalpano2cube_2_$$.mpc"
+tmpB2="$dir/sphericalpano2cube_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+	errMsg "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get output name and suffix
+file=$(basename "$outfile")
+extension="${file##*.}"
+name="${file%.*}"
+#echo "file=$file"
+#echo "extension=$extension"
+#echo "name=$name"
+outname="$name"
+suffix="$extension"
+
+
+# get pano image dimensions
+declare `convert -ping $tmpA1 -format "ww=%w\nhh=%h\n" info:`
+#echo "ww=$ww; hh=$hh;"
+
+# get last pixel in output image
+dlast=$((dimension-1))
+#echo "dimension=$dimension; dlast=$dlast;"
+
+
+# Start with spherical panorama (equirectangular) corresponding to sphere of radius=1
+# Thus enclosing box has dimensions=2x2x2. 
+# Put origin at center of box with z axis upward, x axis forward (theta=0 at center of input) and y axis to left.
+# Extract each face of the cube, Front=0, Left=1, Right=2, Back=3, Over=4, Under=5
+# Note over and under will be facing front and tilting up and down
+
+
+for ((i=0; i<6; i++)); do
+
+	# set output name
+	case $i in
+		0) outfile="${outname}_front.${suffix}" ;;
+		1) outfile="${outname}_left.${suffix}" ;;
+		2) outfile="${outname}_right.${suffix}" ;;
+		3) outfile="${outname}_back.${suffix}" ;;
+		4) outfile="${outname}_over.${suffix}" ;;
+		5) outfile="${outname}_under.${suffix}" ;;
+	esac
+
+	echo ""
+	echo "i=$i; outfile=$outfile"
+
+	# normalize output image coordinates to -1 to 1 relative to center with xc right and yc up
+	# from pixel coords i right and j down with zero at top left corner
+	xc="xc=2*i/($dlast) - 1;"
+	yc="yc=1 - 2*j/($dlast);"
+
+	# Since spherical coordinates have theta 0 along the x axis, lets have the front face when looking along +x
+	# we will use x forward, y to left and z upward as world coordinates
+	# convert xc, yc to xx, yy, zz on face of cube in 3D space
+	if [ $i -eq 0 ]; then
+		# front
+		xx="xx=1;" ; yy="yy=-xc;" ; zz="zz=yc;"
+	elif [ $i -eq 1 ]; then
+		# left
+		xx="xx=xc;" ; yy="yy=1;" ; zz="zz=yc;"
+	elif [ $i -eq 2 ]; then
+		# right
+		xx="xx=-xc;" ; yy="yy=-1;" ; zz="zz=yc;"
+	elif [ $i -eq 3 ]; then
+		# back
+		xx="xx=-1;" ; yy="yy=xc;" ; zz="zz=yc;"
+	elif [ $i -eq 4 ]; then
+		# over
+		xx="xx=-yc;" ; yy="yy=-xc;" ; zz="zz=1;"
+	elif [ $i -eq 5 ]; then
+		# under
+		xx="xx=yc;" ; yy="yy=-xc;" ; zz="zz=-1;"
+	fi
+
+	# convert xx, yy, zz to spherical coordinates for points from the cube faces
+	# note rr is not constant=1=radius of sphere; it is rr=sqrt(x^2+y^2+z^2)
+	#
+	# phiang is vertical on the panorama and we need the top of the image to be phiang=0 and the bottom of the image to be phiang=180 so that angles correspond to vertical image coordinate, vv
+	# phiang in spherical coords does just that;  phiang is zero along z axis and increase downward to 180 along -z
+	# 
+	# theta is horizontal on the panorama and we need to have it 0 at the left side and 360 at the right side so that it corresponds to the horizong image coordinate, uu
+	# theta in spherical coords is zero along the x axis and increasing counterclockwise towards y axis
+	# so we need to make it clockwise, thus just negate the value of theta
+	# but we have theta=0 in middle of image and we want theta=0 at left, so add 180 so theta=180 at the center of the image
+	# 
+	# see Wolfram spherical coords transformation with unswapped axes.
+	# xx=rr*cos(theta)*sin(phiang)
+	# yy=rr*sin(theta)*sin(phiang)
+	# zz=rr*cos(phiang)
+	# rr=sqrt(xx^2 + yy^2 + zz^2)
+	# phiang=arccos(zz/rr)
+	# theta=arctan2(yy,xx)
+	
+	pi=`convert xc: -format "%[fx:pi]" info:`
+	pi2=`convert xc: -format "%[fx:pi*2]" info:`
+
+	
+	rr="rr=sqrt(xx*xx + yy*yy + zz*zz);"
+	phiang="phiang=acos(zz/rr);"
+	theta="theta=$pi-atan2(yy,xx);"
+	
+	# convert theta and phi to pixels in the input image (uu,vv) at origin top left
+	# theta is zero in center x
+	# phiang is zero at top
+	# 360 degrees corresponds to 1 pixel past the end of the image so that it wraps back to the first pixel.
+	# So ww<=>360 degreesand hh<=>180 degrees
+	# But to avoid a vertical bgcolor line in the back image, use last pixel (ww-1 and hh-1) to correspond to 360
+	# This would be correct, if the first and last columns were the same, but the do not match perfectly.
+	wlast=$((ww-1))
+	hlast=$((hh-1))
+	uu="uu=(theta)*$wlast/$pi2;"
+	vv="vv=(phiang)*$hlast/$pi;"
+	
+	# process image
+	convert -size ${dimension}x${dimension} xc: $tmpA1 \
+	-background "$bgcolor" -virtual-pixel background -interpolate $interpolation -monitor -fx \
+		"$xc $yc $xx $yy $zz $rr $phiang $theta $uu $vv v.p{uu,vv}" +monitor \
+		"$outfile"
+done
+
+if [ "$montage" = "yes" ]; then
+	convert -size ${dimension}x${dimension} xc:white $tmpA2
+	montage $tmpA2 "${outname}_over.${suffix}" $tmpA2 $tmpA2 \
+		"${outname}_left.${suffix}" "${outname}_front.${suffix}" "${outname}_right.${suffix}" "${outname}_back.${suffix}" \
+		$tmpA2 "${outname}_under.${suffix}" $tmpA2 $tmpA2 \
+		-background white -tile 4x3 -geometry +0+0 \
+		"${outname}_montage.${suffix}"
+fi
+
+exit 0
+
+
+
+
+
+

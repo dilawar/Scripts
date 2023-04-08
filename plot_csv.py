@@ -23,7 +23,7 @@ console.setFormatter(formatter)
 _logger = logging.getLogger('')
 _logger.addHandler(console)
 
-style = 'seaborn-darkgrid'
+style = 'ggplot'
 try:
     plt.style.use( style )
 except:
@@ -52,7 +52,7 @@ def get_ycols(colexpr, header=None):
     cols = []
     for r in ranges:
         if ":" in r:
-            ranges = filter(None, r.strip().split(':') )
+            ranges = [x for x in r.strip().split(':') if x]
             ranges.append( len(header) - 1)
             low, high = ranges[0], ranges[1]
             cols += range(int(low), int(high))
@@ -100,7 +100,7 @@ def plot_on_axes( ax, xvec, yvec, **kwargs):
         # )
 
     if kwargs.get('label', None):
-        plt.legend(loc='best', framealpha=0.4)
+        plt.legend(loc='best' )
     return ax
 
 def modify_convas(header, nplots, args):
@@ -227,6 +227,8 @@ def main(args):
                 )
     _logger.debug( 'Got data %s' % data )
     data = np.transpose(data)
+    if not args.xcolumn.isnumeric():
+        args.xcolumn = header.index(args.xcolumn)
     xvec = data[ args.xcolumn ]
     if len(usecols) > 5:
         modify_convas(header, len(usecols[1:]), args)
@@ -300,13 +302,13 @@ if __name__ == '__main__':
             )
     parser.add_argument('--xcolumn', '-x'
             , default =  0
-            , type = int
             , help = 'Which column is x-axis'
             )
     parser.add_argument('--ycolumns', '-y'
             , default = "1"
             , type = str
-            , help = "Columns to plot on y-axis. Index or names of columns."
+            , help = "Columns to plot on y-axix. Index or names of columns."
+                     " e.g. '1,2,3' or 'a,b,c' "
             )
     parser.add_argument('--outfile', '-o'
             , required = False

@@ -1,0 +1,283 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 3/13/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: gaussian [-w width] [-k kind] [-m mix] infile outfile
+# USAGE: gaussian [-h or -help]
+# 
+# OPTIONS:
+# 
+# -w        width             width for Gaussian blur filter;
+#                             See sigma in -blur; float > 0;
+#                             default=1
+# -k        kind              kind=high or low (pass filter) or edge; 
+#                             default=high
+# -m        mix               mixing percent with original image; 
+#                             mix=integer 0 to 100; default=20
+# -h                          get help information
+# -help                       get help information
+# 
+###
+# 
+# NAME: GAUSSIAN 
+# 
+# PURPOSE: To generate high pass or low pass filtered images based upon 
+# a Gaussian shaped convolution. 
+# 
+# DESCRIPTION: GAUSSIAN generates an output image which is a user defined  
+# mix or blend of the original image and a Gaussian blurred version of the
+# image.  
+# 
+# The basic blended low pass filtering formula is F = (1-m)*I + m*L, where I is
+# the original image, L is the Gaussian low pass filtered image and m = mix/100. 
+# When m=0, we get only the original image and when m=1, we get only the low pass
+# Gaussian filtered image. For intermediate value of m, we get a blend of the
+# image and the Gaussian low pass filtered image. For high pass filtering, we 
+# form the high pass filter by subtracting the low pass filter from the original 
+# Thus in the formula above L is replaced by H=(I-L), and as the high pass image  
+# is primarily black we simply add the percentage of the high pass image to the  
+# original image so that F = I + m*H, which also can be expressed as 
+# F = (1+m)*I - m*L. For the edge image, we simply output the high pass filtered 
+# image so tht F=H.
+#
+# 
+# OPTIONS: 
+# 
+# -w width ... WIDTH is the (half) width for the Gaussian blurring 
+# (low pass) convolution filter. This corresponds to sigma for the -blur 
+# IM function with radius set to 0 so that it is determined automatically. 
+# Width is a positive floating point value. Default=1. See the function 
+# -blur in the IM documentation.
+# 
+# -k kind ... KIND is the kind of filter, either a high pass, low pass filter 
+# or edge image are allowed. Thus kind=high, low or edge. The default=high. 
+# A low pass filter will cause blurring. A high pass filtered image will 
+# produce either sharpening and the edge option will extract edges. See below.
+# 
+# -m mix ... MIX is the percentage mixing factor to use to blend the filtered  
+# result with the original image. For kind=low, a value of mix=0, results in 
+# the original image and a value of mix=100 results in a pure low pass filtered 
+# image. For low pass filtering, a larger value for mix will produce more blurring. 
+# For kind=high, the mix percentage of the high pass filtered image will be 
+# added to the original image. A larger value for mix will sharpen or highlight 
+# the edges more. Fr kind=edge, the mix value is not relevant or is ignored. 
+# The default is mix=20.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+# 
+
+# set default params
+width=1
+mix=20
+kind="high"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -eq 3 -o $# -eq 5 -o $# -eq 7 -o $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-w)    # get width
+					   shift  # to get the next parameter - radius,sigma
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID WIDTH SPECIFICATION ---"
+					   checkMinus "$1"
+					   width=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$width" = "" ] && errMsg "--- WIDTH=$width IS NOT VALID ---"
+					   widthtest=`echo "$width <= 0" | bc`
+					   [ $widthtest -eq 1 ] && errMsg "--- WIDTH=$width MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-k)    # get kind
+					   shift  # to get the next parameter - kind
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID KIND SPECIFICATION ---"
+					   checkMinus "$1"
+					   kind="$1"
+					   # test width values
+					   [ "$kind" != "low" -a "$kind" != "high" -a "$kind" != "edge" ] && errMsg "--- KIND=$kind IS NOT A VALID VALUE ---"
+					   ;;
+				-m)    # get mix
+					   shift  # to get the next parameter - mix
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test mix values
+					   mix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mix" = "" ] && errMsg "--- MIX=$mix MUST BE AN INTEGER ---"
+					   mixtestA=`echo "$mix < 0" | bc`
+					   mixtestB=`echo "$mix > 100" | bc`
+					   [ $mixtestA -eq 1 -o $mixtestB -eq 1 ] && errMsg "--- MIX=$mix MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+tmpA="$dir/gaussian_$$.mpc"
+tmpB="$dir/gaussian_$$.cache"
+tmp0="$dir/gaussian_0_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0;" 0
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using gaussian.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.10
+# Note: blend does not work right in IM 6.7.8.9
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	: 'do nothing'
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+#process the image
+if [ "$kind" = "low" ]
+	then
+	convert $tmpA -blur 0x$width $tmp0
+	if [ "$im_version" -lt "06050304" ]; then
+		composite -blend $mix% $tmp0 $tmpA $outfile
+	else
+		convert $tmpA $tmp0 -define compose:args=$mix% -compose blend -composite "$outfile"
+	fi
+elif [ "$kind" = "high" ]
+	then
+	convert $tmpA \( $tmpA -blur 0x$width \) -compose minus +swap -composite $setcspace -normalize $tmp0
+	if [ "$im_version" -lt "06050304" ]; then
+		composite -blend $mix%x100% $tmp0 $tmpA "$outfile"
+	else
+		convert $tmpA $tmp0 -define compose:args=$mix%x100% -compose blend -composite "$outfile"
+	fi
+elif [ "$kind" = "edge" ]
+	then
+	convert $tmpA \( $tmpA -blur 0x$width \) -compose minus +swap -composite $setcspace -normalize "$outfile"
+fi
+exit 0

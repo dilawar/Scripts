@@ -1,0 +1,430 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 9/22/2008 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: slice blackpt,whitept [-m mode] [-i icolor] [-e ecolor] infile outfile
+# USAGE: slice [-h or -help]
+#
+# OPTIONS:
+#
+# blackpt,whitept        low and high thresholds; integers in range 0-255 
+#                        for mode=8, integers in range 0-65535 for mode=16  
+#                        and float in range 0-100 for mode=P (for percent)
+# -m      mode           numerical mode for threshold values; values are: 
+#                        8 for 8 bit range (0-255), 16 for 16 bit range 
+#                        (0-65535) if Q=16 or 32 or P for percent (0-100);
+#                        default=8 for Q8; otherwise 16 for Q16 or Q32
+# -i      icolor         color for range inclusive of blackpt to whitept; 
+#                        any valid IM non-transparent color, 'none' for 
+#                        transparency, or 'image' to leave image coloration
+# -e      ecolor         color for range exclusive of blackpt to whitept
+#                        any valid IM non-transparent color, 'none' for 
+#                        transparency, or 'image' to leave image coloration
+#
+###
+#
+# NAME: SLICE 
+# 
+# PURPOSE: To threshold an image between a range of graylevels and optionally 
+# colorizes inside and/or outside the threshold range.
+# 
+# DESCRIPTION: SLICE thresholds an image (inclusively) between a range of
+# graylevels and optionally colorize inside and/or outside the threshold
+# range. The inclusive range of graylevels may be set to any non-transparent
+# color, transparent or left as image coloration. Similarly the exclusive
+# range of color may be set to any non-transparent color, transparent or left
+# as image coloration. If the input image has transparency, the transparent
+# channel will be extracted and recombined with the output image. This will
+# supercede any transparency used in the processing.
+# 
+# 
+# OPTIONS: 
+# 
+# blackpt,whitept ... BLACKPT,WHITEPT are the low and high threshold values 
+# used to determine the inclusive range and corresponding coloration. Values 
+# are restricted to integers between 0 and 255 when mode=8, between 0 and 
+# 65535 when mode=16, and floats between 0 and 100 when mode=P (for percent).
+# 
+# -m mode ... MODE is the numerical mode for specifying the threshold values. 
+# Values are restricted to integers between 0 and 255 when mode=8, between 0  
+# and 65535 when mode=16, but floats between 0 and 100 are allowed when mode=P 
+# (for percent). Default=8 for Q8; otherwise 16 for Q16 or Q32
+# 
+# -i icolor ... ICOLOR is the color to be used inclusive to the threshold 
+# range. Any valid IM non-transparent color specification is allowed. One may 
+# also use 'none' to specify fully transparent or 'image' to leave the image 
+# coloration. Default=white
+# 
+# -e ecolor ... ECOLOR is the color to be used exclusive to the threshold 
+# range. Any valid IM non-transparent color specification is allowed. One may 
+# also use 'none' to specify fully transparent or 'image' to leave the image 
+# coloration. Default=black
+# 
+# NOTE: If the input has transparency, the transparency channel will be 
+# removed, saved, the image processed without it and then combined back at 
+# the end. This will supercede the use of any transparency used in the  
+# processing.
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+blackpt=""
+whitept=""
+mode=""
+icolor="white"
+ecolor="black"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-i)    # get icolor
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ICOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   icolor="$1"
+					   ;;
+				-e)    # get ecolor
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ecolor="$1"
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter - lineval
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   case "$mode" in 
+					   		8) mode="8" ;;
+					   		16) mode="16";;
+					   		P|p) mode="percent";;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   esac					   
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+	 [0-9]*,[0-9]*)    # get thresholds
+		   			   thresholds="$1"
+					   blackpt=`echo $thresholds | cut -d, -f1`
+					   whitept=`echo $thresholds | cut -d, -f2`
+					   ;;
+		   	 .*,.*)    # Bogus Values supplied
+		   	   		   errMsg "--- COORDINATES ARE NOT VALID ---"
+		   	   		   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temp files
+tmpA1="$dir/slice_1_$$.mpc"
+tmpB1="$dir/slice_1_$$.cache"
+tmpA2="$dir/slice_2_$$.mpc"
+tmpB2="$dir/slice_2_$$.cache"
+tmpA3="$dir/slice_3_$$.mpc"
+tmpB3="$dir/slice_3_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using sketch.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+
+# test input image
+convert -quiet "$infile" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# test if two different thresholds provided
+[ "$blackpt" = "" -o "$whitept" = "" ] && errMsg "--- TWO THRESHOLD VALUES MUST BE PROVIDED ---"
+[ $(convert xc: -format "%[fx:$blackpt>=$whitept?1:0]" info:) -eq 1 ] && errMsg "--- BLACKPOINT MUST BE LESS THAN WHITEPOINT ---"
+
+# test if float when not mode=percent
+[ "$mode" != "percent" -a $(echo $blackpt | grep -c '\.') -eq 1 ] && errMsg "--- BLACKPOINT MUST BE AN INTEGER ---"
+[ "$mode" != "percent" -a $(echo $whitept | grep -c '\.') -eq 1 ] && errMsg "--- WHITEPOINT MUST BE AN INTEGER ---"
+
+# get Q depth
+qdepth=`convert xc: -format "%q" info:`
+[ $qdepth -eq 32 -a "$mode" = "" ] && mode="16"
+
+# adjust and retest thresholds
+# note -black-threshold makes anything below threshold black and leaves at or above threshold alone
+# note -white-threshold makes anything above threshold black and leaves at or below threshold alone
+# note: using blackpt with -white-threshold and whitepoint with -black-threshold
+# thus swap of +-1 adjustments below
+if [ "$mode" = "8" ]; then
+	[ $qdepth -eq 8 ] && qr=255 || qr=65535
+	[ $(convert xc: -format "%[fx:$blackpt<0||$blackpt>255?1:0]" info:) -eq 1 ] && errMsg "--- BLACKPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	[ $(convert xc: -format "%[fx:$whitept<0||$whitept>255?1:0]" info:) -eq 1 ] && errMsg "--- WHITEPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	blackpt=`convert xc: -format "%[fx:min($qr,round($qr*($blackpt-1)/255))]" info:`
+	whitept=`convert xc: -format "%[fx:max(0,round($qr*($whitept+1)/255))]" info:`
+	[ $blackpt -ge $whitept ] && errMsg "--- BLACKPOINT MUST BE LESS THAN WHITEPOINT ---"
+elif [ "$mode" = "percent" ]; then
+	[ $qdepth -eq 8 ] && qr=255 || qr=65535
+	[ $(convert xc: -format "%[fx:$blackpt<0||$blackpt>100?1:0]" info:) -eq 1 ] && errMsg "--- BLACKPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	[ $(convert xc: -format "%[fx:$whitept<0||$whitept>100?1:0]" info:) -eq 1 ] && errMsg "--- WHITEPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	blackpt=`convert xc: -format "%[fx:min($qr,round($qr*$blackpt/100)-1)]" info:`
+	whitept=`convert xc: -format "%[fx:max(0,round($qr*$whitept/100)+1)]" info:`
+	[ $blackpt -ge $whitept ] && errMsg "--- BLACKPOINT MUST BE LESS THAN WHITEPOINT ---"
+elif [ "$mode" = "16" ]; then
+	qr=65535
+	[ $(convert xc: -format "%[fx:$blackpt<0||$blackpt>$qr?1:0]" info:) -eq 1 ] && errMsg "--- BLACKPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	[ $(convert xc: -format "%[fx:$whitept<0||$whitept>$qr?1:0]" info:) -eq 1 ] && errMsg "--- WHITEPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	blackpt=$(($blackpt-1))
+	whitept=$(($whitept+1))
+	[ $blackpt -ge $whitept ] && errMsg "--- BLACKPOINT MUST BE LESS THAN WHITEPOINT ---"
+elif [ "$mode" = "" -a $qdepth -ne 32 ]; then
+	[ $(convert xc: -format "%[fx:$blackpt<0||$blackpt>quantumrange?1:0]" info:) -eq 1 ] && errMsg "--- BLACKPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	[ $(convert xc: -format "%[fx:$whitept<0||$whitept>quantumrange?1:0]" info:) -eq 1 ] && errMsg "--- WHITEPOINT IS OUT OF ACCEPTABLE RANGE ---"
+	blackpt=$(($blackpt-1))
+	whitept=$(($whitept+1))
+	[ $blackpt -ge $whitept ] && errMsg "--- BLACKPOINT MUST BE LESS THAN WHITEPOINT ---"
+else
+	errMsg "--- UNKNOWN MODE ---"
+fi
+
+
+# test if image has alpha and set up copy to output
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpA1 -alpha extract $tmpA3
+	convert $tmpA1 -alpha off $tmpA1
+	addalpha="$tmpA3 -compose copy_opacity -composite"
+else
+	addalpha=""
+fi
+
+
+# setup for icolorize
+if [ "$icolor" = "image" -a "$ecolor" = "image" ]; then
+	errMsg "--- ICOLOR AND ECOLOR CANNOT BOTH BE SET TO 'IMAGE' ---"
+
+elif [ "$icolor" = "none" -a "$ecolor" = "none" ]; then
+	errMsg "--- ICOLOR AND ECOLOR CANNOT BOTH BE SET TO 'NONE' ---"
+
+elif [ "$icolor" != "none" -a "$icolor" != "image" -a "$ecolor" != "none" -a "$ecolor" != "image" -a "$ecolor" != "white" ]; then
+#echo "0"
+	negatize=""
+	icolorize="-fill $icolor -opaque white"
+	ecolorize="-fill $ecolor -opaque black"
+
+elif [ "$icolor" = "black" -a "$ecolor" = "white" ]; then
+#echo "1"
+	negatize="-negate"
+	icolorize=""
+	ecolorize=""
+
+elif [ "$icolor" = "none" -a "$ecolor" = "white" ]; then
+#echo "2"
+	negatize="-negate"
+	icolorize="-channel rgba -alpha on -transparent black"
+	ecolorize="-fill $ecolor -opaque white"
+
+elif [ "$icolor" = "none" -a "$ecolor" != "image" ]; then
+#echo "3"
+	negatize=""
+	icolorize="-channel rgba -alpha on -transparent white"
+	ecolorize="-fill $ecolor -opaque black"
+
+elif [ "$icolor" = "none" -a "$ecolor" = "image" ]; then
+#echo "4"
+#	negatize=""
+	icolorize=""
+
+elif [ "$icolor" = "image" -a "$ecolor" = "none" ]; then
+#echo "5"
+#	negatize=""
+	ecolorize=""
+
+elif [ "$icolor" = "image" -a "$ecolor" != "none" ]; then
+#echo "6"
+#	negatize=""
+	ecolorize="-channel rgba -alpha on -fill $ecolor -opaque none -alpha off"
+
+elif [ "$icolor" != "none" -a "$ecolor" = "white" ]; then
+#echo "7"
+	negatize="-negate"
+	icolorize="-fill $icolor -opaque black"
+	ecolorize="-fill $ecolor -opaque white"
+
+elif [ "$icolor" != "none" -a "$ecolor" = "image" ]; then
+#echo "8"
+#	negatize="-negate"
+	icolorize="-channel rgba -alpha on -fill $icolor -opaque none -alpha off"
+
+elif [ "$icolor" != "image" -a "$ecolor" = "none" ]; then
+#echo "9"
+	negatize=""
+	icolorize="-fill $icolor -opaque white"
+	ecolorize="-channel rgba -alpha on -transparent black"
+fi
+
+
+# create gradient for conversion to lut
+# note percents are already converted to raw values in quantumrange
+if [ "$mode" = "8" -o $qdepth -eq 8 ]; then
+	convert -size 1x256 gradient: -rotate 90 $tmpA2
+elif [ "$mode" = "16" -o $qdepth -eq 16 ]; then
+	convert -size 1x65536 gradient: -rotate 90 $tmpA2
+else
+	errMsg "--- PLEASE USE PERCENT ---"
+fi
+
+
+# convert gradient to lut
+# note swap of whitept and blackpt
+# white will be between thresholds and black elsewhere
+convert $tmpA2 \
+	\( -clone 0 -white-threshold $blackpt \
+	-channel rgba -alpha on -fill none -opaque white \) \
+	\( -clone 0 -black-threshold $whitept \
+	-channel rgba -alpha on -fill none -opaque black \) \
+	-delete 0 -compose over -composite \
+	-fill black +opaque none \
+	-fill white -opaque none \
+	-alpha off \
+	$tmpA2
+	
+
+# process the grayscale image with the lut, use as mask when "image" and colorize as appropriate
+if [ "$icolor" != "image" -a "$ecolor" != "image" ]; then
+	convert \( $tmpA1 $setcspace -colorspace gray \) $tmpA2 \
+		-interpolate nearest-neighbor -clut $negatize $ecolorize $icolorize $addalpha "$outfile"
+elif [ "$icolor" = "image" ]; then
+	convert \( $tmpA1 $setcspace -colorspace gray \) $tmpA2 \
+		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
+		$ecolorize -alpha off $addalpha "$outfile"
+elif [ "$ecolor" = "image" ]; then
+	convert \( $tmpA1 $setcspace -colorspace gray \) \( $tmpA2 -negate \) \
+		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
+		$icolorize -alpha off $addalpha "$outfile"
+fi
+
+exit 0

@@ -1,0 +1,400 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus 9/20/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: laplacian [-f filter] [t thresh] [-m mix] infile outfile
+# USAGE: laplacian [-h or -help]
+# 
+# OPTIONS:
+# 
+# -f        filter     filter=1 to 5 (in order of increasing 
+#                      edge strength); default=1
+# -t        thresh     threshold percent for binarization; 
+#                      thresh=integer 0 to 100; default="" (none)
+# -m        mix        mixing percent with original image; 
+#                      mix=integer 0 to 100; default=100
+# -h                   get help information
+# -help                get help information
+# 
+###
+# 
+# NAME: LAPLACIAN 
+# 
+# PURPOSE: To apply a Laplacian filter to an image. 
+# 
+# DESCRIPTION: LAPLACIAN generates an output image which is a user defined mix 
+# or blend of the original image and a Laplacian convolution filtered version 
+# of the image. This is achieved by forming a single convolution kernel whose 
+# weights depend upon a mixing of the Laplacian coefficients and the identity 
+# kernel. The script applies one of three different 3x3 Laplacian filters to 
+# an image to extract or enhance the edges in the image. It is a type of high 
+# pass filter which is constructed from the sum of the x and y second derivatives.
+# 
+# The basic blended high pass filtering formula is F = (1-m)*I + m*L, where I
+# is the original image, L is the Laplacian high pass filtered image and m =
+# mix/100. When m=0, we get only the original image and when m=1, we get only
+# the high pass Laplacian filtered image. For intermediate value of m, we
+# get a blend of the image and the Laplacian high pass filtered image. Now,
+# we can consider both I and L as a convolution of some kernel with the
+# original image, namely I = i x I and L = l x I, where x means convolution.
+# Note that a convolution is simply a weighted average of all the pixels in
+# some neighborhood of a give pixel. Usually an odd sized neighborhood, such
+# as 3x3, etc is used to prevent having the resulting image be shifted a
+# fractional pixel. The convolution kernel values are simply the weights for
+# the average. So here, i is the identity kernel, which is all zeroes, except
+# the center of the kernel which has a value of 1. Similarly, l is one of the
+# three Laplacian kernels. They are different forms of a high pass filter.
+# Thus we can consider the final filtered image, F = f x I, where f = (1-m)*i
+# + m*l. Consequently, we only have to do one convolution using the
+# convolution kernel, f. Note, that all pure high pass filter convolution
+# kernels will have weights that sum to 0. Also note, that the filters are 
+# actually the negatives of the true laplacian filters so that when mixed 
+# with the image they produce sharpening rather than blurring. For example, 
+# applying Laplacian 3 is equivalent the identity kernel minus the 3x3 average 
+# convolution kernel.
+#
+# OPTIONS: 
+# 
+# -f filter is the form of the filter. Three different 3x3 filters, one 5x5 
+# filter and one 7x7 filters are provided in order of the increasing edge 
+# strength they produce. Values for filter are 1 to 5. The default is filter=1.
+# 
+# Laplacian 1
+#  0 -1  0
+# -1  4 -1
+#  0 -1  0
+#
+# Laplacian 2
+# -2 1 -2
+#  1 4  1
+# -2 1 -2
+#
+# Laplacian 3
+# -1 -1 -1
+# -1  8 -1
+# -1 -1 -1
+# 
+# Laplacian 4
+# -4 -1 0 -1 -4 
+# -1  2 3  2 -1 
+#  0  3 4  3  0 
+# -1  2 3  2 -1 
+# -4 -1 0 -1 -4 
+#
+# Laplacian 5
+# -10 -5 -2 -1 -2 -5 -10 
+#  -5  0  3  4  3  0  -5 
+#  -2  3  6  7  6  3  -2 
+#  -1  4  7  8  7  4  -1 
+#  -2  3  6  7  6  3  -2 
+#  -5  0  3  4  3  0  -5 
+# -10 -5 -2 -1 -2 -5 -10 
+#
+# -t thresh is the thresholding percentage used to create a binary Laplacian
+# edge image. Values range from 0 to 100. A higher value will result in 
+# fewer edges in the resulting image.
+#
+# -m mix is the percentage mixing factor used to blend the Laplacian with 
+# the original image. A value of mix=0, results in the original image. A 
+# value of mix=100 results in a pure Laplacian filtered image. 
+#
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+# 
+
+# set default params
+filter=1
+mix=100
+thresh=""
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# define Laplacian filters
+# Laplacian 1 (4-neighbor)
+#  0 -1  0
+# -1  4 -1
+#  0 -1  0
+L1="0,-1,0,-1,4,-1,0,-1,0"
+
+# Laplacian 2 (d2x + d2y)
+# -2 1 -2
+#  1 4  1
+# -2 1 -2
+L2="-2,1,-2,1,4,1,-2,1,-2"
+
+# Laplacian 3 (8-neighbor)
+# -1 -1 -1
+# -1  8 -1
+# -1 -1 -1
+L3="-1,-1,-1,-1,8,-1,-1,-1,-1"
+
+# Laplacian 4 (d2x + d2y)
+# -4 -1 0 -1 -4 
+# -1  2 3  2 -1 
+#  0  3 4  3  0 
+# -1  2 3  2 -1 
+# -4 -1 0 -1 -4 
+L4="-4,-1,0,-1,-4,-1,2,3,2,-1,0,3,4,3,0,-1,2,3,2,-1,-4,-1,0,-1,-4"
+
+# Laplacian 5 (d2x + d2y)
+# -10 -5 -2 -1 -2 -5 -10 
+#  -5  0  3  4  3  0  -5 
+#  -2  3  6  7  6  3  -2 
+#  -1  4  7  8  7  4  -1 
+#  -2  3  6  7  6  3  -2 
+#  -5  0  3  4  3  0  -5 
+# -10 -5 -2 -1 -2 -5 -10 
+L5="-10,-5,-2,-1,-2,-5,-10,-5,0,3,4,3,0,-5,-2,3,6,7,6,3,-2,-1,4,7,8,7,4,-1,-2,3,6,7,6,3,-2,-5,0,3,4,3,0,-5,-10,-5,-2,-1,-2,-5,-10"
+
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -eq 3 -o $# -eq 5 -o $# -eq 7 -o $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-f)    # get filter
+					   shift  # to get the next parameter - filter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID LAPLACIAN FILTER SPECIFIED ---"
+					   checkMinus "$1"
+					   filter="$1"
+					   # test filter values
+					   [ $filter -lt 1 -o $filter -gt 5 ] && errMsg "--- FILTER=$filter IS NOT A VALID VALUE ---"
+					   ;;
+				-t)    # get thresh
+					   shift  # to get the next parameter - thresh
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test thresh values
+					   thresh=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE AN INTEGER ---"
+					   threshtestA=`echo "$mix < 0" | bc`
+					   threshtestB=`echo "$mix > 100" | bc`
+					   [ $threshtestA -eq 1 -o $threshtestB -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-m)    # get mix
+					   shift  # to get the next parameter - mix
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIX SPECIFICATION ---"
+					   checkMinus "$1"
+					   # test mix values
+					   mix=`expr "$1" : '\([0-9]*\)'`
+					   [ "$mix" = "" ] && errMsg "--- MIX=$mix MUST BE AN INTEGER ---"
+					   mixtestA=`echo "$mix < 0" | bc`
+					   mixtestB=`echo "$mix > 100" | bc`
+					   [ $mixtestA -eq 1 -o $mixtestB -eq 1 ] && errMsg "--- MIX=$mix MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# test if image an ordinary, readable and non-zero size
+if [ -f $infile -a -r $infile -a -s $infile ]
+	then
+	: 'do nothing - proceed'
+	else
+		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+		exit 1
+fi
+
+# setup temporary images and auto delete upon exit
+tmp0="$dir/laplacian_0_$$.miff"
+trap "rm -f $tmp0;" 0
+trap "rm -f $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmp0; exit 1" ERR
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# specify filter
+# get filter
+[ $filter -eq 1 ] && lap=$L1
+[ $filter -eq 2 ] && lap=$L2
+[ $filter -eq 3 ] && lap=$L3
+[ $filter -eq 4 ] && lap=$L4
+[ $filter -eq 5 ] && lap=$L5
+
+
+# convert 1D laplacian to array for later use 
+kern=`echo $lap | sed 's/,/ /g'`
+kernArr=($kern)
+num=${#kernArr[*]}
+width=`echo "scale=0; sqrt($num)" | bc -l`
+
+# print 2D laplacian
+k=0
+for ((i=0; i<width; i++)); do
+	krn=""
+	for ((j=0; j<width; j++)); do
+		krn="$krn ${kernArr[$k]}"
+		kernel[$i]=$krn
+		k=`expr $k + 1`
+	done
+done
+echo ""
+echo "2D Laplacian Kernel"
+for ((i=0; i<width; i++)); do
+	printf %-10s ${kernel[$i]}
+	echo ""
+done
+
+
+# create final mixed filter
+for ((i=0; i<num; i++)); do
+	kernArr[$i]=`echo "scale=3; $mix * ${kernArr[$i]} / 100" | bc`
+done
+num2=`echo "scale=0; ($num - 1) / 2" | bc`
+kernArr[$num2]=`echo "scale=3; (((100 - $mix) / 100) + ${kernArr[$num2]})" | bc`
+
+
+# print 2D Final Laplacian Kernel
+i=0
+k=0
+while [ $i -lt $width ]
+	do
+	j=0
+	krn=""
+	while [ $j -lt $width ]
+		do
+		krn="$krn ${kernArr[$k]}"
+		kernel[$i]=$krn
+		k=`expr $k + 1`
+		j=`expr $j + 1`
+	done
+	i=`expr $i + 1`	
+done
+echo ""
+echo "2D Final Laplacian Kernel"
+i=0
+while [ $i -lt $width ]
+	do
+	printf %-10s ${kernel[$i]}
+	echo ""
+	i=`expr $i + 1`
+done
+
+# print 1D IM Final Laplacian Kernel
+echo ""
+echo "IM Final Laplacian Kernel"
+kernIM=${kernArr[*]}
+kernIM=`echo $kernIM | sed 's/ /,/g'`
+echo $kernIM
+echo ""
+
+# define thresholding situation
+if [ "$thresh" != "" ]
+	then
+	threshoption="-threshold $thresh%"
+else
+	threshoption=""
+fi
+
+# process image
+convert $infile -convolve "$kernIM" $threshoption "$outfile"
+exit 0
+

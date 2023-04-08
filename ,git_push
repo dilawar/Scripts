@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+import sys
+import typing as T
+import subprocess
+from urllib.parse import urlparse
+import os
+
+import typer
+
+app = typer.Typer()
+
+git = "git"
+
+
+def env(key:str, default=None) -> T.Optional[str]:
+    return os.environ.get(key, default)
+
+def find_remote() -> str:
+    remote = subprocess.check_output([git, "remote", "-v"], text=True)
+    remote = [x for x in remote.split("\n") if "(push)" in x.strip()][0]
+    remote = remote.split()[1]
+    return remote
+
+
+def get_user(domain) -> T.Optional[str]:
+    if domain.endswith("github.com"):
+        return env("GITHUB_USER", env("GIT_USER", None))
+    if domain.endswith("gitlab.com"):
+        return env("GITLAB_USER", env("GIT_USER", None))
+    return env('GIT_USER', env('USER', None))
+
+def get_token(domain) -> T.Optional[str]:
+    if domain.endswith("github.com"):
+        return env("GITHUB_TOKEN", env("GIT_TOKEN", None))
+    if domain.endswith("gitlab.com"):
+        return env("GITLAB_TOKEN", env("GIT_TOKEN", None))
+    return env("GIT_TOKEN", None)
+
+
+def find_branch() -> str:
+    branches = (
+        subprocess.check_output([git, "branch", "-a"], text=True).strip().split("\n")
+    )
+    branch = [x.strip() for x in branches if x.strip()[0] == "*"][0]
+    return branch[1:].strip()  # remote leading *
+
+
+def rewrite_remote(remote: str) -> str:
+    o = urlparse(remote)
+    assert o.scheme in ["https", "http"]
+    U, P = get_user(o.netloc), get_token(o.netloc)
+    assert U is not None, f"Could not determine user for {o.netloc}"
+    assert P is not None, f"Could not determine token for {o.netloc}"
+    return o.geturl().replace(f"{o.scheme}://", f"{o.scheme}://{U}:{P}@")
+
+def git_push(url, branch):
+    cmd = f"git push {url} {branch}"
+    subprocess.run(cmd.split())
+
+@app.command()
+def main(remote: T.Optional[str] = None, branch: T.Optional[str] = None):
+    # get the remote
+    remote = find_remote() if remote is None else remote
+    branch = find_branch() if branch is None else branch
+    url = rewrite_remote(remote)
+    git_push(url, branch)
+
+
+if __name__ == "__main__":
+    app()

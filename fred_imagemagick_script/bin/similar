@@ -1,0 +1,335 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/30/2009 .......... revised 7/13/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: similar [-m mode] infile1 infile2
+# USAGE: similar [-h or -help]
+# 
+# OPTIONS:
+# 
+# -m      mode       colorspace mode; g (for grayscale) or rgb; default=g
+# 
+###
+# 
+# NAME: SIMILAR 
+# 
+# PURPOSE: To compute the normalized cross correlation similarity metric 
+# between two equal dimensioned images.
+# 
+# DESCRIPTION: SIMILAR computes the normalized cross correlation similarity 
+# metric between two equal dimensioned images. The normalized cross correlation 
+# metric measures how similar two images are, not how different they are. The  
+# range of ncc metric values is between 0 (dissimilar) and 1 (similar). If
+# mode=g, then the two images will be converted to grayscale. If mode=rgb, 
+# then the two images first will be converted to colorspace=rgb. Next, the 
+# ncc similarity metric will be computed for each channel. Finally, they will 
+# be combined into an rms value. NOTE: this metric does not work for constant 
+# color channels as it produces an ncc metric = 0/0 for that channel. Thus 
+# it is not advised to run the script with either image having a totally 
+# opaque or totally transparent alpha channel that is enabled.
+# 
+# 
+# ARGUMENTS: 
+# 
+# -m mode ... MODE for colorspace to use when applying the normalized cross 
+# correlation metric on the two images. If mode=g, then the two image will be 
+# converted to grayscale. If mode=rgb, then the ncc similarity metric will be 
+# computed for each channel and then combined as its rms value. Default=g
+# 
+# NOTE: For best accuracy, this script should be run in HDRI compilation of IM.
+# 
+# For reference on the normalized cross correlation metric, see 
+# http://en.wikipedia.org/wiki/Cross-correlation#Normalized_cross-correlation
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+# 
+
+# set default values
+mode="g"			# g or rgb
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 4 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-m)    # get mode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   mode="$1"
+					   mode=`echo "$mode" | tr "[:upper:]" "[:lower:]"`
+					   case "$mode" in 
+					   		gray|grayscale|g) mode="g" ;;
+					   		rgb) mode="rgb" ;;
+					   		*) errMsg "--- MODE=$mode IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile1="$1"
+	infile2="$2"
+	[ "$3" != "" ] && errMsg "--- TOO MANY IMAGES SPECIFIED ---"
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that outfile provided
+[ "$infile2" = "" ] && errMsg "--- NO INPUT FILE 2 SPECIFIED ---"
+
+# test if both files have alpha channel enabled
+# get channels as gray, graya, rgb, rgba, cmyk, cmyka, etc
+channels1=`convert $infile1 -ping -format "%[channels]" info:`
+channels2=`convert $infile2 -ping -format "%[channels]" info:`
+# split channels into array of characters
+charArr1=(`echo $channels1 | fold -w 1`)
+charArr2=(`echo $channels2 | fold -w 1`)
+# test if last character is "a"
+num1=${#charArr1[*]}
+num2=${#charArr2[*]}
+lastchar1="${charArr1[$num1-1]}"
+lastchar2="${charArr2[$num2-1]}"
+if [ "$lastchar1" = "a" -a "$lastchar2" = "a" ]; then
+	aon="yes"
+elif [ "$lastchar1" != "a" -a "$lastchar2" != "a" ]; then
+	aon="no"
+else
+	errMsg "--- ALPHA CHANNEL MUST BE ON IN BOTH IMAGES OR OFF IN BOTH IMAGES ---" 
+fi
+
+# set up temp file
+tmpA1="$dir/similar_1_$$.mpc"
+tmpB1="$dir/similar_1_$$.cache"
+tmpA2="$dir/similar_2_$$.mpc"
+tmpB2="$dir/similar_2_$$.cache"
+tmpA3="$dir/similar_3_$$.mpc"
+tmpB3="$dir/similar_3_$$.cache"
+tmpA4="$dir/similar_4_$$.mpc"
+tmpB4="$dir/similar_4_$$.cache"
+
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using similar.
+# with IM 6.6.0.10, 6.6.1.10, 6.6.2.10, 6.7.4.10, 6.7.6.10, 6.7.9.0
+# Note: prior to about 6.6.1.10 and certainly for 6.6.0.10 values are different
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+else
+	setcspace=""
+fi
+if [ "$im_version" -ge "06070606" ]; then
+	cspace="sRGB"
+else
+	cspace="RGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	cspace="sRGB"
+fi
+
+
+# set up colorspace conversion
+if [ "$mode" = "g" ]; then
+	cspace="$setcspace -colorspace gray"
+else
+	cspace="-colorspace $cspace"
+fi
+
+# read the input images into the temp files and test validity.
+convert -quiet "$infile1" $cspace +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+convert -quiet "$infile2" $cspace +repage "$tmpA2" ||
+	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+echo ""
+# test image sizes
+w1=`convert $tmpA1 -ping -format "%w" info:`
+w2=`convert $tmpA2 -ping -format "%w" info:`
+h1=`convert $tmpA1 -ping -format "%h" info:`
+h2=`convert $tmpA2 -ping -format "%h" info:`
+if [ $w1 -ne $w2 -a $h1 -ne $h2 ]; then 
+	errMsg "--- IMAGES MUST BE THE SAME WIDTH AND HEIGHT ---"
+fi
+
+#function to compute single channel NCC metric
+nccMetric()
+	{
+	img1=$1
+	img2=$2
+	m1=`convert $img1 -format "%[fx:mean]" info:`
+	m2=`convert $img2 -format "%[fx:mean]" info:`
+	m12=`convert xc: -format "%[fx:$m1*$m2]" info:`
+	s1=`convert $img1 -format "%[fx:standard_deviation]" info:`
+	s2=`convert $img2 -format "%[fx:standard_deviation]" info:`
+	#echo "m1=$m1; m2=$m2; s1=$s1; s2=$s2"
+	if [ "$s1" = "0" -o "$s2" = "0" ]; then
+		errMsg "--- ONE OR BOTH IMAGES ARE CONSTANT VALUES (NCC=0/0) ---"
+	else
+		# -compose mathematics ... is equivalent to -fx "(u-$m1)*(v-$m2)"
+		ncc=`convert $img1 $img2 -set option:compose:args "1,-$m1,-$m2,$m12" \
+			-compose mathematics -composite -format "%[fx:mean/($s1*$s2)]" info:`
+	fi
+	}
+
+
+if [ "$mode" = "g" ]; then
+#	convert $tmpA1 $setcspace -channel g -separate $tmpA3
+#	convert $tmpA2 $setcspace -channel g -separate $tmpA4
+	nccMetric "$tmpA1" "$tmpA2"
+	nccgray=$ncc
+	if [ "$aon" = "yes" ]; then
+		convert $tmpA1 -alpha extract $tmpA3
+		convert $tmpA2 -alpha extract $tmpA4
+		nccMetric "$tmpA3" "$tmpA4"
+		nccalpha=$ncc
+		ncc=`convert xc: -format \
+			"%[fx:sqrt(($nccgray^2 + $nccalpha^2)/2)]" info:`
+	else
+		ncc=$nccgray
+	fi
+	echo "Similarity Metric: $ncc"
+else
+	convert $tmpA1 $setcspace -channel red -separate $tmpA3
+	convert $tmpA2 $setcspace -channel red -separate $tmpA4
+	nccMetric "$tmpA3" "$tmpA4"
+	nccred=$ncc
+
+	convert $tmpA1 $setcspace -channel green -separate $tmpA3
+	convert $tmpA2 $setcspace -channel green -separate $tmpA4
+	nccMetric "$tmpA3" "$tmpA4"
+	nccgreen=$ncc
+
+	convert $tmpA1 $setcspace -channel blue -separate $tmpA3
+	convert $tmpA2 $setcspace -channel blue -separate $tmpA4
+	nccMetric "$tmpA3" "$tmpA4"
+	nccblue=$ncc
+	
+	if [ "$aon" = "yes" ]; then
+	convert $tmpA1 -alpha extract $tmpA3
+	convert $tmpA2 -alpha extract $tmpA4
+	nccMetric "$tmpA3" "$tmpA4"
+	nccalpha=$ncc
+	ncc=`convert xc: -format \
+		"%[fx:sqrt(($nccred^2 + $nccgreen^2 + $nccblue^2 + $nccalpha^2)/4)]" info:`
+	else
+	ncc=`convert xc: -format \
+		"%[fx:sqrt(($nccred^2 + $nccgreen^2 + $nccblue^2)/3)]" info:`
+	fi
+	echo "Similarity Metric: $ncc"
+	echo "red=$nccred; green=$nccgreen; blue=$nccblue;"
+fi
+echo ""
+
+
+
+

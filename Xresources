@@ -1,22 +1,44 @@
-URxvt.scrollBar: false
+! #include "Xresources.light"
+
 URxvt.saveLines: 100000
-URxvt.perl-ext-common:  default,matcher,font-size,clipboard
-URxvt.keysym.Shift-Control-c: perl:clipboard:copy
-URxvt.keysym.Shift-Control-v: perl:clipboard:paste
-URxvt.keysym.M-C-v: perl:clipboard:paste_command
-URxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-URxvt.url-launcher: firefox
+
+URxvt.perl-ext-common:  default,url-select,pasta,matcher,font-size,keyboard-select
+
+! - This is from https://stackoverflow.com/a/43685270/1805129
+URxvt.keysym.Shift-Control-V: eval:paste_clipboard
+URxvt.keysym.Shift-Control-C: eval:selection_to_clipboard
+URxvt.keysym.Control-Meta-c: builtin-string:
+URxvt.keysym.Control-Meta-v: builtin-string:
+
+URxvt.keysym.M-u: perl:url-select:select_next
+URxvt.keyboard-select.clipboard: true
+URxvt.url-launcher: /usr/bin/firefox
 URxvt.matcher.button:   1
 URxvt.colorUL: #1682B4
 URxvt.keysym.C-Up:     perl:font-size:increase
 URxvt.keysym.C-Down:   perl:font-size:decrease
 URxvt.keysym.C-S-Up:   perl:font-size:incglobal
 URxvt.keysym.C-S-Down: perl:font-size:decglobal
-URxvt.cursorColor: blue
+URxvt.cursorColor: gray
 URxvt.cursorBlink: true
-URxvt*scrollTtyOutput: false
-URxvt*scrollWithBuffer: true
-URxvt*scrollTtyKeypress: true
-Rxvt.font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-xterm*font: -*-fixed-medium-r-normal-*-14-130-75-*-c-70-*-*
-xterm*scrollBar: false
+URxvt.scrollTtyOutput: false
+URxvt.scrollWithBuffer: true
+URxvt.scrollTtyKeypress: true
+xterm.scrollBar: false
+
+! - This is from https://github.com/dequis/dotfiles/blob/master/urxvt/Xresources
+URxvt.copyCommand: xclip -i -selection clipboard
+
+! Setting letterSpace to 0 causes some unicode not to get displayed. What a
+! stupidity this option has caused me. See https://github.com/powerline/fonts/issues/176
+URxvt.externalBorder: 0
+
+URxvt.iso14755: false
+URxvt.iso14755_52: false
+
+URxvt.url-select.underline: true
+URxvt.clipboard.autocopy: true
+URxvt.selection.pattern-0: \\|([^|]+)\\|
+
+URxvt.font: xft:FantasqueSansMono-Regular:size=10
+URxvt.letterSpace: -1

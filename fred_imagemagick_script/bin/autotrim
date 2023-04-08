@@ -1,0 +1,646 @@
+#!/bin/bash
+# 
+# Developed by Fred Weinhaus and Dirk Lemstra 10/2/2015 .... revised 10/18/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: autotrim [-m mode] [-f fuzzval] [-c coords] [-C color] [-l left] 
+# [-r right ] [-t top ] [-b bottom ] [-p preview] infile outfile
+# USAGE: autotrim [-h or -help]
+# 
+# OPTIONS:
+# 
+# -m              mode           mode of trim; options are outer (o) or 
+#                                inner (i); default=outer
+# -f              fuzzval        fuzz value for determining border color;
+#                                expressed as (float) percent 0 to 100; 
+#                                default=0 (uniform color)
+# -c              coords         pixel coordinate to extract color; may be 
+#                                expressed as gravity value (NorthWest, etc)
+#                                or as "x,y" value; default is NorthWest=(0,0)
+# -C              color          border color; any valid IM color is allowed, 
+#                                default is to use coords to get color
+# -l              left           pixel shift of left edge; +/- is right/left
+#                                default=0 (no change) 
+# -r              right          pixel shift of right edge; +/- is right/left
+#                                default=0 (no change) 
+# -t              top            pixel shift of top edge; +/- is down/up
+#                                default=0 (no change) 
+# -b              bottom         pixel shift of bottom edge; +/- is down/up
+#                                default=0 (no change) 
+# -p              preview        preview displays a red box on input image; 
+#                                choices are: viewonly (vo), view (v), 
+#                                save (s) or off (o); default=off
+# -h or -help                    get help
+# 
+###
+# 
+# NAME: AUTOTRIM 
+#  
+# PURPOSE: Automatically trims the outside of an image or crops the inside of 
+# a rotated image. 
+# 
+# DESCRIPTION: AUTOTRIM automatically trims a (nearly) uniform color border 
+# around an image. If the image is rotated, one can trim to the bounding box 
+# around the image area or alternately trim to the maximum central area that 
+# contains no border pixels. The excess border does not have to completely 
+# surround the image. It may be only on one side. However, one must identify 
+# a coordinate within the border area for the algorithm to extract the base 
+# border color and also specify a fuzz value when the border color is not 
+# uniform. For simple border trimming of a normally oriented image or the 
+# bounding box of a rotated image, you may err somewhat towards larger than 
+# optimal fuzz values. For images that contain rotated picture data, when you 
+# want to trim to the central area, you should choose the smallest fuzz value 
+# that is appropriate. If the result is off a little, you may use the 
+# left/right/top/bottom arguments to adjust the automatically determined 
+# trim region. 
+# 
+# 
+# Arguments: 
+# 
+# -h or -help    ---  displays help information. 
+# 
+# -m mode ... MODE of trim. The options are either outer (o) or inner (i). 
+# The default=outer.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz amount specified as a percent 0 to 100 
+# (without the % sign). The default is zero which indicates that border is a 
+# uniform color. Larger values are needed when the border is not a uniform color.
+# 
+# -c coords ... COORDS is any location within the border area for the 
+# algorithm to find the base border color. It may be specified in terms of 
+# gravity parameters (NorthWest, North, NorthEast, East, SouthEast, South, 
+# SouthWest or West) or as a pixel coordinate "x,y". The default is the 
+# upper left corner = NorthWest = "0,0".
+# 
+# -C color ... COLOR of border or background. Any valid IM color is allowed.
+# The default is to use coords to get color.
+#
+# -l left ... LEFT is the number of extra pixels to shift the trim of the left 
+# edge of the image. The trim is shifted right/left for +/- integer values.
+# The default=0.
+# 
+# -r right ... RIGHT is the number of extra pixels to shift the trim of the right 
+# edge of the image. The trim is shifted right/left for +/- integer values.
+# The default=0.
+# 
+# -t top ... TOP is the number of extra pixels to shift the trim of the top 
+# edge of the image. The trim is shifted down/up for +/- integer values.
+# The default=0.
+# 
+# -b bottom ... BOTTOM is the number of extra pixels to shift the trim of the 
+# bottom edge of the image. The trim is shifted down/up for +/- integer values.
+# The default=0.
+#
+# -p preview ... PREVIEW displays a red box on the input image. The choices  
+# are: viewonly (vo), view (v), saveonly (so), save (s) or off (o). The 
+# default=off. If viewonly or saveonly is selected, then no cropped output 
+# image will be generated. The preview image, if saved, will be named from 
+# the infile as inname_preview.suffix
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+# set default values;
+mode="outer"			# trim region 
+fuzzval=0				# fuzz threshold
+coords="NorthWest"		# coordinates to get color
+color=""				# color of background/border
+pad=1					# border pad size
+lt=0					# left edge shift of trim (+/- is right/left)
+rt=0					# right edge shift of trim (+/- is right/left)
+tp=0					# top edge shift of trim (+/- is down/up)
+bm=0					# top bottom shift of trim (+/- is down/up)
+preview="off"			# preview image
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+	echo ""
+	usage2
+	exit 0
+elif [ $# -gt 20 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+		# get parameters
+		case "$1" in
+	  -h|-help)    # help information
+				   echo ""
+				   usage2
+				   ;;
+			-m)    # mode
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID MODE SPECIFICATION ---"
+				   checkMinus "$1"
+				   mode=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$mode" in
+						outer|o) mode="outer" ;;
+						inner|i) mode="inner" ;;
+						*) errMsg "--- MODE=$mode IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			-f)    # fuzzval
+				   shift  # to get the next parameter - fuzzval
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+				   checkMinus "$1"
+				   fuzzval=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE (with no sign) ---"
+				   fuzzvaltest=`echo "$fuzzval < 0" | bc`
+				   [ $fuzzvaltest -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE ---"
+				   ;;
+			-c)    # coords
+				   shift  # to get the next parameter - coords
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+				   checkMinus "$1"
+				   coords=$1
+				   # further testing done later
+				   ;;
+			-C)    # color
+				   shift  # to get the next parameter - coords
+				   color="$1"
+				   ;;
+			-l)    # left
+				   shift  # to get the next parameter - left
+				   lt=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$lt" = "" ] && errMsg "--- LEFT=$lt MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-r)    # right
+				   shift  # to get the next parameter - right
+				   rt=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$rt" = "" ] && errMsg "--- RIGHT=$rt MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-t)    # top
+				   shift  # to get the next parameter - top
+				   tp=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$tp" = "" ] && errMsg "--- TOP=$tp MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-b)    # bottom
+				   shift  # to get the next parameter - bottom
+				   bm=`expr "$1" : '\([0-9\-]*\)'`
+				   [ "$bm" = "" ] && errMsg "--- BOTTOM=$bm MUST BE AN INTEGER VALUE (with no sign or minus sign) ---"
+				   ;;
+			-p)    # preview
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PREVIEW SPECIFICATION ---"
+				   checkMinus "$1"
+				   preview=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+				   case "$preview" in
+						viewonly|vo) preview="viewonly" ;;
+						view|v) preview="view" ;;
+						saveonly|so) preview="saveonly" ;;
+						save|s) preview="save" ;;
+						off|o) preview="off" ;;
+						*) errMsg "--- PREVIEW=$preview IS NOT A VALID CHOICE ---" ;;
+				   esac
+				   ;;
+			 -)    # STDIN and end of arguments
+				   break
+				   ;;
+			-*)    # any other - argument
+				   errMsg "--- UNKNOWN OPTION ---"
+				   ;;
+			*)     # end of arguments
+				   break
+				   ;;
+		esac
+		shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+
+# setup temporary images
+tmpA1="$dir/atrim_A_$$.mpc"
+tmpA2="$dir/atrim_A_$$.cache"
+tmpB1="$dir/atrim_B_$$.mpc"
+tmpB2="$dir/atrim_B_$$.cache"
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage $tmpA1 ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get image dimensions
+dimensions()
+	{
+	img=$1
+	width=`identify -ping -format "%w" $img`
+	height=`identify -ping -format "%h" $img`
+	widthm1=$((width-1))
+	heightm1=$((height-1))
+	#echo "width=$width; height=$height; widthm1=$widthm1; heightm1=$heightm1;"
+	}
+
+# get all points of any line (given by its endpoint pairs) that passes through the red/black image as array of points
+# extract all magenta points (blend of red and blue) and get the first and last magenta coordinates 
+getIntersection()
+	{
+	p1=$1
+	p2=$2
+	Arr=(`convert $tmpB1 \
+		\( -clone 0 -fill black -colorize 100 -fill blue  \
+		+antialias -draw "line $p1 $p2" -alpha off \) \
+		-compose over -compose blend -composite \
+		-channel rgba -fill none +opaque magenta sparse-color: |\
+		sed 's/,magenta//g'`)
+	num=${#Arr[*]}
+	#echo "$num; ${Arr[*]}"
+	numm1=$((num-1))
+	if [ $num -ge 2 ]; then
+		point1=${Arr[0]}
+		point2=${Arr[$numm1]}
+	else
+		echo "INTERSECTION ERROR"
+	fi
+#	j=$((j+1))
+	}
+
+# get ww, hh, xoff, yoff and area for given set of top_left and bottom_right points
+getParms()
+	{
+	p1=$1
+	p2=$2
+	p3=$3
+	p4=$4
+	# make plist as rows of data so can sort
+	plist="$p1
+	$p2
+	$p3
+	$p4"
+	# sort list by x
+	xlist=`echo "$plist" | sort -g -k 1 -t ","`
+	pxArr=($xlist)
+	# sort list by y
+	ylist=`echo "$plist" | sort -g -k 2 -t ","`
+	pyArr=($ylist)
+	# use middle 2 coordinates for area
+	tl_x=`echo ${pxArr[1]} | cut -d, -f 1`
+	tl_y=`echo ${pyArr[1]} | cut -d, -f 2`
+	br_x=`echo ${pxArr[2]} | cut -d, -f 1`
+	br_y=`echo ${pyArr[2]} | cut -d, -f 2`
+	# note: make width and height 2 px smaller and offset 1 px larger to remove all traces of background color
+	# note: need abs and min, since for angles near 90, some reverse and would give negative widths
+	ww=`convert xc: -format "%[fx:abs(($br_x-$tl_x)-1)]" info:`
+	hh=`convert xc: -format "%[fx:abs(($br_y-$tl_y)-1)]" info:`	
+	# convert xoff,yoff to center region in image
+	xoff=`convert xc: -format "%[fx:ceil(($rwidth-$ww)/2)]" info:`
+	yoff=`convert xc: -format "%[fx:ceil(($rheight-$hh)/2)]" info:`
+	area=$((ww*hh))
+	parmsArr=($area $ww $hh $xoff $yoff)
+	}
+
+
+# get color at user specified location
+dimensions $tmpA1
+
+# dimensions of input (rotated) image
+rwidth=$width
+rheight=$height
+
+# get color
+if [ "$color" = "" ]; then
+	coords=`echo "$coords" | tr "[:upper:]" "[:lower:]"` 
+	case "$coords" in
+		northwest)	coords="0,0" ;;
+		north)	coords="$midwidth,0" ;;
+		northeast)	coords="$widthm1,0" ;;
+		east)	coords="$widthm1,$midheight" ;;
+		southeast)	coords="$widthm1,$heightm1" ;;
+		south)	coords="$midwidth,$heightm1" ;;
+		southwest)	coords="0,$heightm1" ;;
+		west)	coords="0,$midheight" ;;
+		[0-9]*,[0-9]*)	coords=$coords ;;
+		*)	errMsg "--- INVALID COORDS ---" ;;
+	esac
+	color=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+else
+	coords="0,0"
+fi
+
+
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+
+if [ "$mode" = "outer" ]; then
+	trimbox=`convert $tmpA1 -bordercolor "$color" -border 1x1 \
+		-fuzz $fuzzval% -fill none -draw "$matte_alpha $coords floodfill" \
+		-shave 1x1 -alpha extract -format "%@" info:`
+	trimbox=`echo "$trimbox" | tr -cs "0-9\n" " "`
+	ww=`echo $trimbox | cut -d\  -f1`
+	hh=`echo $trimbox | cut -d\  -f2`
+	xoff=`echo $trimbox | cut -d\  -f3`
+	yoff=`echo $trimbox | cut -d\  -f4`
+	area=$((ww*hh))
+	
+elif [ "$mode" = "inner" ]; then
+	# do floodfill to extract binary image of data and make red on black background
+	convert $tmpA1 -bordercolor "$color" -border 1x1 \
+		-fuzz $fuzzval% -fill none -draw "$matte_alpha $coords floodfill" \
+		-shave 1x1 -alpha extract -fill red -opaque white $tmpB1
+
+
+	# do processing
+	#
+	# Could have used mathematical approach of 
+	# http://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders/16778797#16778797
+	# http://jwilson.coe.uga.edu/emt668/emat6680.folders/brooks/6690stuff/righttriangle/rightday3.html
+	# but it does not work well at angles less than 2 deg and especially at 0.5 deg
+	# 
+	# So use graphical method of Dirk Lemstra:
+	# find intersections of each diagonal with binary image
+	# find pairs of horizontal and vertical intersections at each of the 4 diagonal intersections
+	# take middle pair of x and y coordinates for top left and bottom right corners of bounding box
+	# compute width, height and area
+	# use largest area from the eight possible solutions
+
+	# get diagonal intersections with outline
+	trpx="$widthm1,0"
+	blpx="0,$heightm1"
+	brpx="$widthm1,$heightm1"
+	#echo "$trpx; $blpx; $brpx;"
+
+	getIntersection "0,0" "$brpx"
+	tlbrArr=("${Arr[@]}")
+	topleftdiag="$point1"
+	bottomrightdiag="$point2"
+
+	getIntersection "$trpx" "$blpx"
+	trblArr=("${Arr[@]}")
+	toprightdiag="$point1"
+	bottomleftdiag="$point2"
+
+	#echo "topleftdiag=$topleftdiag; toprightdiag=$toprightdiag; bottomleftdiag=$bottomleftdiag; bottomrightdiag=$bottomrightdiag;"
+
+	# test for negligible rotation
+	if [ "$topleftdiag" = "0,0" -o "$toprightdiag" = "$widthm1,0" -o "$bottomleftdiag" = "$widthm1,$heightm1" -o "$bottomleftdiag" = "0,$heightm1" ]; then
+		echo "--- WARNING: NEGLIGIBLE ROTATION ---"
+		#convert $tmpA1 -fill none -stroke red -draw "rectangle $topleftdiag $bottomrightdiag" show:
+		convert $tmpA1 result_r${ang}_${mode}_a${rarea}_w${rwidth}_h${rheight}.jpg
+		exit 0
+	fi
+
+
+	pointlist="$topleftdiag
+	$bottomrightdiag
+	$toprightdiag
+	$bottomleftdiag"
+	#echo "$pointlist"
+
+
+
+	# get horizontal line intersections with binary image from diagonal intersection points
+
+	# put diagonal intersections in array sorted by y
+	pointArr=(`echo "$pointlist" | sort -g -k 2 -t ","`)
+	#echo "ylist: ${pointArr[*]}"
+
+	# get top intersections
+	top_y=`echo "${pointArr[0]}" | cut -d, -f 2`
+	getIntersection "0,$top_y" "$widthm1,$top_y"
+	top_left="$point1"
+	top_right="$point2"
+	#echo "top_left=$top_left; top_right=$top_right;"
+
+	# get topcenter intersections
+	topcenter_y=`echo "${pointArr[1]}" | cut -d, -f 2`
+	getIntersection "0,$topcenter_y" "$widthm1,$topcenter_y"
+	topcenter_left="$point1"
+	topcenter_right="$point2"
+
+	# get bottomcenter intersections
+	bottomcenter_y=`echo "${pointArr[2]}" | cut -d, -f 2`
+	getIntersection "0,$bottomcenter_y" "$widthm1,$bottomcenter_y"
+	bottomcenter_left="$point1"
+	bottomcenter_right="$point2"
+
+	# get bottom intesections
+	bottom_y=`echo "${pointArr[3]}" | cut -d, -f 2`
+	getIntersection "0,$bottom_y" "$widthm1,$bottom_y"
+	bottom_left="$point1"
+	bottom_right="$point2"
+	#echo "bottom_left=$bottom_left; bottom_right=$bottom_right;"
+
+	# get vertical line intersections with binary image from diagonal intersection points
+
+	# put diagonal intersections in array sorted by x
+	pointArr=(`echo "$pointlist" | sort -g -k 1 -t ","`)
+	#echo "xlist: ${pointArr[*]}"
+
+	# get left intersections
+	left_x=`echo "${pointArr[0]}" | cut -d, -f 1`
+	getIntersection "$left_x,0" "$left_x,$heightm1"
+	left_top="$point1"
+	left_bottom="$point2"
+
+	# get leftcenter intersections
+	leftcenter_x=`echo "${pointArr[1]}" | cut -d, -f 1`
+	getIntersection "$leftcenter_x,0" "$leftcenter_x,$heightm1"
+	leftcenter_top="$point1"
+	leftcenter_bottom="$point2"
+
+	# get rightcenter intersections
+	rightcenter_x=`echo "${pointArr[2]}" | cut -d, -f 1`
+	getIntersection "$rightcenter_x,0" "$rightcenter_x,$heightm1"
+	rightcenter_top="$point1"
+	rightcenter_bottom="$point2"
+
+	# get right intesections
+	right_x=`echo "${pointArr[3]}" | cut -d, -f 1`
+	getIntersection "$right_x,0" "$right_x,$heightm1"
+	right_top="$point1"
+	right_bottom="$point2"
+
+
+	# get parms lists and stack lists
+
+	#echo ""
+	#echo "parms"
+	#echo ""
+
+	# parms for top-bottom
+	getParms "$top_left" "$top_right" "$bottom_left" "$bottom_right"
+	list_top_bottom="${parmsArr[*]} top-bottom"
+	#echo "top_left=$top_left; bottom_right=$bottom_right; list_top_bottom=$list_top_bottom"
+
+	# parms for topcenter-bottomcenter
+	getParms "$topcenter_left" "$topcenter_right" "$bottomcenter_left" "$bottomcenter_right"
+	list_topcenter_bottomcenter="${parmsArr[*]} topcenter-bottomcenter"
+
+	# parms for top-bottomcenter
+	getParms "$top_left" "$top_right" "$bottomcenter_left" "$bottomcenter_right"
+	list_top_bottomcenter="${parmsArr[*]} top-bottomcenter"
+
+	# parms for topcenter-bottom
+	getParms "$topcenter_left" "$topcenter_right" "$bottom_left" "$bottom_right"
+	list_topcenter_bottom="${parmsArr[*]} topcenter-bottom"
+
+	# parms for left-right
+	getParms "$left_top" "$left_bottom" "$right_top" "$right_bottom"
+	list_left_right="${parmsArr[*]} left-right"
+
+	# parms for leftcenter-rightcenter
+	getParms "$leftcenter_top" "$leftcenter_bottom" "$rightcenter_top" "$rightcenter_bottom"
+	list_leftcenter_rightcenter="${parmsArr[*]} leftcenter-rightcenter"
+
+	# parms for left-rightcenter
+	getParms "$left_top" "$left_bottom" "$rightcenter_top" "$rightcenter_bottom"
+	list_left_rightcenter="${parmsArr[*]} left-rightcenter"
+
+	# parms for leftcenter-right
+	getParms "$leftcenter_top" "$leftcenter_bottom" "$right_top" "$right_bottom"
+	list_leftcenter_right="${parmsArr[*]} leftcenter-right"
+
+	# note need commas to make this work
+	stack_list="$list_top_bottom,
+	$list_topcenter_bottomcenter,
+	$list_top_bottomcenter,
+	$list_topcenter_bottom,
+	$list_left_right,
+	$list_leftcenter_rightcenter,
+	$list_left_rightcenter,
+	$list_leftcenter_right"
+
+	IFS=' '
+	OLDIFS=$IFS
+	IFS=','
+	sorted_stack_list=`echo $stack_list | sort -g -r -k 1 -t " "`
+	OLDIFS=$IFS
+
+	# need to replace new lines with commas to get array with rows of list
+	sorted_stack_list=`echo "$sorted_stack_list" | tr "\n" ","`
+
+	#IFS=','
+	stackArr=($sorted_stack_list)
+	IFS=$OLDIFS
+
+	# get parms from stackArr[0]
+	area=`echo "${stackArr[0]}" | cut -d\  -f 1`
+	ww=`echo "${stackArr[0]}" | cut -d\  -f 2`
+	hh=`echo "${stackArr[0]}" | cut -d\  -f 3`
+	xoff=`echo "${stackArr[0]}" | cut -d\  -f 4`
+	yoff=`echo "${stackArr[0]}" | cut -d\  -f 5`
+	mode=`echo "${stackArr[0]}" | cut -d\  -f 6`
+
+fi
+
+# adjust crop for shifts
+xoff=$((xoff+lt))
+yoff=$((yoff+tp))
+ww=$((ww-lt+rt))
+hh=$((hh-tp+bm))
+
+brx=$((xoff+ww-1))
+bry=$((yoff+hh-1))
+
+# generate preview image
+if [ "$preview" = "on" ]; then
+	inname=`convert -ping "$infile" -format "%t" info:`
+	suffix=`convert -ping "$infile" -format "%e" info:`
+fi
+
+
+if [ "$preview" = "view" -o "$preview" = "viewonly" ]; then
+	convert $tmpA1 -fill none -stroke red -draw "rectangle $xoff,$yoff $brx,$bry" show:
+elif [ "$preview" = "save" -o "$preview" = "saveonly" ]; then
+	convert $tmpA1 -fill none -stroke red -draw "rectangle $xoff,$yoff $brx,$bry" "${inname}_preview.$suffix"
+fi
+
+# generate cropped image
+if [ "$preview" != "viewonly" -a "$preview" != "saveonly" ]; then
+	convert $tmpA1[${ww}x${hh}+${xoff}+${yoff}] "$outfile"
+fi
+
+# list crop coordinates at terminal
+echo "Crop Box: ${ww}x${hh}+$xoff+$yoff"
+
+exit 0

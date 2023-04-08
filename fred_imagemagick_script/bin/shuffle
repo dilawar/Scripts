@@ -1,0 +1,372 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 10/25/2009 .......... revised 10/25/2009
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: shuffle [-s size] [-p percent] [-c center] [-r radii] [-R rounding] 
+# [-n] [-e ecolor] infile [maskfile] outfile
+# USAGE: shuffle [h|-help]
+#
+# OPTIONS:
+#
+# -s      size         size of square tiles; integer>0; default=32
+# -p      percent      percentage of tiles to randomly process; 
+#                      0<=integer<=100; default=100 (all patches)
+# -c      center       x and y center coordinates of the round rectangle mask
+#                      with white on the inside and black on the outside; comma
+#                      separate pair of integers>=0; default=center of image                      
+# -r      radii        x and y radii of a round rectangle mask; comma  
+#                      separated pair of integers>=0; default="0,0" (no mask)
+# -R      rounding     round rectangle corner radii expressed as pair of 
+#                      comma separated integers>=0; default="0,0"  
+# -n                   negate mask (invert black and white); note only the 
+#                      black area will be shuffled
+# -e      ecolor       edge color of mask boundary to show on the resulting 
+#                      image; any valid opaque IM color; default=do not 
+#                      show edge of mask      
+#
+# maskfile is an optional binary (b/w) mask image the same size as the infile
+# 
+###
+#
+# NAME: SHUFFLE 
+# 
+# PURPOSE: To randomly shuffle positions of square sized tiles in an image.
+# 
+# DESCRIPTION: SHUFFLE randomly shuffle the positions of square sized tiles in 
+# an image. An optional round rectangle mask may be defined to delineate where
+# the shuffling will be shown. Or an external mask image may be provided.
+# 
+# OPTIONS: 
+# 
+# -s size ... SIZE of the square-sized tiles to randomly shuffle.
+# Values are integers>1. The default=16.
+# 
+# -p percent ... PERCENT is the percentage of tiles to randomly shuffle. 
+# Values are 0<=integers<=100. The default=100 (all tiles).
+# 
+# -c center ... CENTER is the x and y center coordinates of the round 
+# rectangle mask with white on the inside and black on the outside; comma
+# separate pair of integers>=0; default=center of image                      
+# 
+# -r radii ... RADII are the x and y radii of a round rectangle mask expressed 
+# as a comma separated pair of integers>=0. The default="0,0" (no mask).
+# 
+# -R rounding ... ROUNDING is the round rectangle corner radii expressed 
+# as a pair of comma separated values. Values are integers>=0. The 
+# default="0,0".
+# 
+# -n negate ... NEGATE the mask (invert black and white).
+# 
+# -e ecolor ... ECOLOR is the edge color of the mask boundary to show on the 
+# resulting image. Any valid opaque IM color is allowed. The default is not 
+# to show the edge boundary on the image.
+# 
+# NOTE: The script runs slowly. A 256x256 sized image processed on my INTEL 
+# Mac Mini in about 15 sec for dimension 16 and about 3 sec for dimension 32. 
+# Thus larger sized patches will process faster.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+size=32			# desired patch size (square dimensions)
+percent=100		# percent of patches to process
+center=""		# center of mask -- defaults to image center
+radii="0,0"		# default round rectangle mask radii
+rounding="0,0"	# default round rectangle corner radii
+negate="no"		# negate the mask
+ecolor=""		# edge of mask region color to show on image
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 16 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-s)    # get size
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   size=`expr "$1" : '\([0-9]*\)'`
+					   test=`echo "$size < 2" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SIZE=$size MUST BE A POSITIVE INTEGER ---"
+					   ;;
+				-p)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([0-9]*\)'`
+					   test=`echo "$percent > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get center
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
+					   checkMinus "$1"
+					   center=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   ;;
+				-r)    # get radii
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RADII SPECIFICATION ---"
+					   checkMinus "$1"
+					   radii=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   ;;
+				-R)    # get rounding
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROUNDING SPECIFICATION ---"
+					   checkMinus "$1"
+					   rounding=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   ;;
+				-n)    # get negate
+					   negate="yes"
+					   ;;
+				-e)    # get ecolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ECOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ecolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile, maskfile and outfile
+	numfiles="$#"
+	if [ $# -eq 3 ]; then
+		infile="$1"
+		maskfile="$2"
+		outfile="$3"
+	elif [ $numfiles -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	else
+		errMsg "--- INCOMPATIBLE NUMBER OF FILES SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# get input dimensions
+wh=`convert -ping "$infile" -format "%wx%h" info:`
+ww=`echo "$wh" | cut -dx -f1`
+hh=`echo "$wh" | cut -dx -f2`
+
+# convert to width and height that are a multiples of the specified dimension
+ww=`convert xc: -format "%[fx:$size*floor($ww/$size)]" info:`
+hh=`convert xc: -format "%[fx:$size*floor($hh/$size)]" info:`
+
+# get center coords
+if [ "$center" = "" ]; then
+	cx=`convert xc: -format "%[fx:round($ww/2)]" info:`
+	cy=`convert xc: -format "%[fx:round($hh/2)]" info:`
+else
+	cx=`echo "$center" | cut -d, -f1`
+	cy=`echo "$center" | cut -d, -f2`
+fi
+#echo "center=$center; cx=$cx; cy=$cy;"
+
+# get number of patches in width and height and the total number of patches
+numw=$((ww/size))
+numh=$((hh/size))
+num=$((numw*numh))
+#echo "numw=$numw; numh=$numh; num=$num; percent=$percent"
+
+# set up temp file
+tmpA0="$dir/shuffle_0_$$.miff"
+tmpA1="$dir/shuffle_1_$$.miff"
+tmpA2="$dir/shuffle_2_$$.miff"
+tmpA3="$dir/shuffle_3_$$.miff"
+tmpA4="$dir/shuffle_4_$$.miff"
+trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3 $tmpA4;" 0
+trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3 $tmpA4; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1; exit 1" ERR
+
+
+# read the input image, crop to multiple of dimension, the tile crop 
+# and save into the temp file and test validity.
+convert -quiet "$infile" -crop ${ww}x${hh}+0+0 +repage +write $tmpA0 -crop ${size}x${size} $tmpA1 ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	
+
+# get radii
+xrad=`echo "$radii" | cut -d, -f1`
+yrad=`echo "$radii" | cut -d, -f2`
+#echo "radii=$radii; xrad=$xrad; yrad=$yrad;"
+
+# get rounding radii
+xround=`echo "$rounding" | cut -d, -f1`
+yround=`echo "$rounding" | cut -d, -f2`
+#echo "rounding=$rounding; xround=$xround; yround=$yround;"
+
+# set up negate of mask
+if [ "$negate" = "yes" ]; then
+	negating="-negate"
+else
+	negating=""
+fi
+
+mask=no
+if [ "$maskfile" != "" ]; then
+	# use maskfile
+	mask="yes"
+	convert "$maskfile" -alpha off \
+		-crop ${ww}x${hh}+0+0 +repage \
+		\( -clone 0 -morphology edge diamond:1 +write $tmpA3 +delete \) \
+		-depth 2 $negating $tmpA2
+elif [ "$xrad" != "0" -a "$yrad" != "0" ]; then
+	# create mask image
+	mask="yes"
+	convert -size ${ww}x${hh} xc:black -fill white \
+		-draw "translate $cx,$cy roundrectangle -$xrad,-$yrad $xrad,$yrad $xround,$yround" \
+		-alpha off \
+		\( -clone 0 -morphology edge diamond:1 +write $tmpA3 +delete \) \
+		-depth 2 $negating $tmpA2
+fi
+
+# generate array of unique random numbers in range 0 to num
+list=""
+list=`for ((i=0; i<num; i++)); do
+echo "$i"
+done`
+randArr=(`echo "$list" | awk 'BEGIN{srand();}{print rand()" "$0}' | sort -k1 -n | cut -d\  -f2`)
+
+# use subshell to process the tiles to miff:- 
+# in order to save reading and writing to a tmp file
+if [ $percent -eq 100 ]; then
+	(
+	for ((i=0; i<num; i++)); do
+	index=${randArr[$i]}
+	echo >&2 "$i $index"
+	# note need to reset the scene number or montage will try to put back into original order
+	convert $tmpA1[$index] +repage -scene 0 miff:-
+	done
+	) | montage - -tile ${numw}x${numh} -geometry +0+0 $tmpA4
+else
+	fraction=`convert xc: -format "%[fx:$percent/100]" info:`
+	(
+	for ((i=0; i<num; i++)); do
+	binary=`convert xc: -format "%[fx:(random()<$fraction)?1:0]" info:`
+	index=${randArr[$i]}
+	echo >&2 "$i $binary $index"
+	[ $binary -eq 0 ] && index=$i
+	convert $tmpA1[$index] +repage -scene 0 miff:-
+	done
+	) | montage - -tile ${numw}x${numh} -geometry +0+0 $tmpA4
+fi
+
+if [ "$mask" = "yes" -a "$ecolor" != "" ]; then
+	convert $tmpA4 $tmpA0 $tmpA2 +repage \
+		-compose over -composite \
+		\( -clone 0 -fill $ecolor -colorize 100% \) \
+		\( $tmpA3 -transparent black \) \
+		-compose over -composite "$outfile"
+elif [ "$mask" = "yes" -a "$ecolor" = "" ]; then
+	convert $tmpA4 $tmpA0 $tmpA2 \
+		-compose over -composite "$outfile"
+else
+	convert $tmpA4 "$outfile"
+fi
+
+
+exit 0
+

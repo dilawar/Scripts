@@ -1,0 +1,475 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 8/22/2009 .......... revised 11/20/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cameradeblur [-t type] [-a amount] [-r rotation] [-n noise] infile outfile
+# USAGE: cameradeblur [-h or -help]
+#
+# OPTIONS:
+#
+# -t     type          type of blur; choices are: motion (or m) or 
+#                      defocus (or d); default=defocus
+# -a     amount        amount of blur; either length of motion blur or 
+#                      diameter of defocus; float>0; default=10
+# -r     rotation      rotation angle clockwise from horizontal for the 
+#                      motion blur; floats; -180<=rotation<=180; default=0
+# -n     noise         estimate of the noise to signal power ratio; float>=0; 
+#                      default=0
+# 
+###
+#
+# NAME: CAMERADEBLUR 
+# 
+# PURPOSE: To deblur an image in the frequency domain using an ideal deblurring 
+# filter for either motion blur or lens defocus.
+# 
+# DESCRIPTION: CAMERADEBLUR deblurs an image in the frequency domain using an
+# ideal frequency domain deblurring filter for either motion blur or lens
+# defocus. The motion blur filter in the frequency domain is just an
+# optionally rotated 1D sinc function. The lens defocus filter in the
+# frequency domain is just a jinc function. The user specifies the parameters
+# needed to create those functions directly as images. An explicit filter image 
+# is not input to the script. The internally generated filter will then 
+# be divided into the Fourier transform of the image created with +fft and
+# the results will then be returned to the spatial domain via the inverse
+# Fourier transform using +ift. Any alpha channel on the filter will be
+# removed automatically before processing. If the image has an alpha channel
+# it will not be processed, but simply copied from the input to the output.
+# 
+# OPTIONS: 
+# 
+# -t type ... TYPE of blur. The choices are: motion (or m) and defocus (or d).  
+# The default=defocus.
+# 
+# -a amount ... AMOUNT of blur. This is either the length of the motion blur or 
+# the diameter of the lens defocus. Values are float>0. The default=10.
+# 
+# -r rotation ... ROTATION angle in degrees specified clockwise from horizontal 
+# for the motion blur. Values are floats with -180<=rotation<=180. The default=0.
+# 
+# -n noise ... NOISE is the estimate of the small constant added to the
+# denominator in the division process and represents the noise to signal power
+# ratio. Values are floats>=0. Usually, one simply uses trial an error with an
+# arbitrary small value for the noise, typically, in the range of about 0.001 
+# to 0.0001. However, it can be estimated from the variance of a nearly  
+# constant section of the image (to get the noise variance) divided by an 
+# estimate of the variance of the whole image (to get the signal variance). 
+# Values are floats>=0. The default=0
+# 
+# REQUIREMENTS: IM version 6.5.4-7 or higher, but compiled with HDRI enabled 
+# in any quantum level of Q8, Q16 or Q32. Also requires the FFTW delegate 
+# library.
+# 
+# LIMITATIONS: This script works well only with even, square images. Otherwise,   
+# the FFT will pad them with black to conform. However, there will be excessive 
+# ringing due to the color discontinuity associated with the padding. This 
+# even, square limitation is a ramification of the current IM implementation 
+# that needs addressing at some future time. It is not a limitation of FFTW.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+type=defocus			#defocus or motion
+amount=10				#length of motion blur or diameter of defocus
+rotation=0				#rotation for motion blur
+noise=0					#noise to signal variance estimate
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 10 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get type
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TYPE SPECIFICATION ---"
+					   checkMinus "$1"
+					   type=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$type" in 
+					   		motion|m) type="motion" ;;
+					   		defocus|d) type="defocus" ;;
+					   		*) errMsg "--- TYPE=$type IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-a)    # get amount
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
+					   checkMinus "$1"
+					   amount=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$amount" = "" ] && errMsg "--- AMOUNT=$amount MUST BE A NON-NEGATIVE FLOAT ---"
+					   amounttest=`echo "$amount <= 0" | bc`
+					   [ $amounttest -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-r)    # get rotation
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID ROTATION SPECIFICATION ---"
+					   #checkMinus "$1"
+					   rotation=`expr "$1" : '\([-.0-9]*\)'`
+					   [ "$rotation" = "" ] && errMsg "--- ROTATION=$rotation MUST BE A NON-NEGATIVE FLOAT ---"
+					   rotationtestA=`echo "$rotation < -180" | bc`
+					   rotationtestB=`echo "$rotation > 180" | bc`
+					   [ $rotationtestA -eq 1 -o $rotationtestB -eq 1 ] && errMsg "--- ROTATION=$rotation MUST BE A FLOAT BETWEEN -180 AND 180 ---"
+					   ;;
+				-n)    # get noise
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
+					   checkMinus "$1"
+					   noise=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$noise" = "" ] && errMsg "--- NOISE=$noise MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# setup temporary images
+tmpI1="$dir/cameradeblur_I_$$.mpc"
+tmpI2="$dir/cameradeblur_I_$$.cache"
+tmpF1="$dir/cameradeblur_F_$$.mpc"
+tmpF2="$dir/cameradeblur_F_$$.cache"
+tmpL="$dir/cameradeblur_L_$$.pfm"
+tmpA1="$dir/cameradeblur_A_$$.mpc"
+tmpA2="$dir/cameradeblur_A_$$.cache"
+trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL;" 0
+trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL; exit 1" 1 2 3 15
+trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL; exit 1" ERR
+
+# read the input image and filter image into the temp files and test validity.
+convert -quiet "$infile" +repage "$tmpI1" ||
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+
+# test for valid version of IM
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "06040403" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-3 OR HIGHER ---"
+
+# test for hdri enabled
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+[ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+
+# get image dimensions for later cropping as input is padded to square, even dimensions
+width=`identify -ping -format "%w" $tmpI1`
+height=`identify -ping -format "%h" $tmpI1`
+
+# compute padded to even dimensions
+w1=`convert xc: -format "%[fx:($width%2)==0?$width:($width+1)]" info:`
+h1=`convert xc: -format "%[fx:($height%2)==0?$height:($height+1)]" info:`
+
+# get center point adjusted for padding to even dimensions
+cx=`convert xc: -format "%[fx:floor(($width+1)/2)]" info:`
+cy=`convert xc: -format "%[fx:floor(($height+1)/2)]" info:`
+
+# compute full and half-diagonals
+w1d=`convert xc: -format "%[fx:sqrt(2)*$w1]" info:`
+h1d=`convert xc: -format "%[fx:sqrt(2)*$h1]" info:`
+cxd=`convert xc: -format "%[fx:sqrt(2)*$cx]" info:`
+cyd=`convert xc: -format "%[fx:sqrt(2)*$cy]" info:`
+# currently limited to square images
+#[ "$w1d" != "$h1d" ] && errMsg "--- IMAGE MUST BE SQUARE ---"
+
+#echo "width=$width; height=$height; w1=$w1; h1=$h1; cx=$cx; cy=$cy; w1d=$w1d; h1d=$h1d; cxd=$cxd; cyd=$cyd"
+
+# scale the noise value by quantumrange
+qnoise=`convert xc: -format "%[fx:quantumrange*$noise]" info:`
+
+# test if image has alpha and set up copy to output
+is_alpha=`identify -ping -verbose $tmpI1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
+	convert $tmpI1 -alpha extract $tmpA1 
+	addalpha="$tmpI1 -compose copy_opacity -composite"
+else
+	addalpha=""
+fi
+
+: '
+For "zero phase" filters see http://ccrma.stanford.edu/~jos/sasp/Rectangular_Window.html
+
+Motion Blur
+In frequency domain = sinc(dist*pi*(fx*cos(ang)-fy*sin(ang)); sinc(z)=sin(z)/z
+fx=spatial frequency in x and fy=spatial frequency in y
+fx=x/width, fy=y/height; 1/width, 1/height are frequency units
+x,y are measured from center of image; thus -.5<=fx,fy<=.5
+dist is length of motion blur in spatial domain
+rotation ang is clockwise positive to be consistent with IM
+
+Defocus
+In frequency domain = jinc(diam*pi*fr); jinc(z)=2*J1(z)/(z)
+J1 is Bessel function of first kind of order 1
+see Abramowitz and Stegun, p369-370, formula 9.4.4 and 9.4.6
+fr=spatial frequency in r
+fr=sqrt(fx^2+fy^2); fx=x/width, fy=y/height; 1/width, 1/height are frequency units
+x,y are measured from center of image; thus -.5<=fx,fy<=.5
+diam is diameter of lens defocus in spatial domain
+'
+
+# compute spatial frequency units and other params and create filter
+if [ "$type" = "motion" ]; then 
+
+	# compute spatial frequency units times pi*length=pi*amount, 
+	# where spatial frequency units fx=1/w, fy=1/h
+	# note f=1/dimension and w=pi*f=pi/dimension
+	fxd=`convert xc: -format "%[fx:$amount*pi/$w1]" info:`
+	fyd=`convert xc: -format "%[fx:$amount*pi/$h1]" info:`
+
+	# compute angular orientation factors
+	sinang=`convert xc: -format "%[fx:sin($rotation*pi/180)]" info:`
+	cosang=`convert xc: -format "%[fx:cos($rotation*pi/180)]" info:`
+
+	# create sinc filter
+	if [ "$sinang" = "0" -o "$sinang" = "0.0" ]; then
+		convert -size ${w1}x1 xc: \
+			-fx "zz=$fxd*(i-$cx)*$cosang; zz?sin(zz)/(zz):1" \
+			-scale ${w1}x${h1}\! $tmpF1
+	elif [ "$cosang" = "0" -o "$cosang" = "0.0" ]; then
+		convert -size 1x${h1} xc: \
+			-fx "zz=-$fyd*(j-$cy)*$sinang; zz?sin(zz)/(zz):1" \
+			-scale ${w1}x${h1}\! $tmpF1
+	
+	else
+	
+: '
+		# old slow method
+		convert -size ${w1}x${h1} xc: -monitor \
+			-fx "zz=($fxd*(i-$cx)*$cosang+$fyd*(j-$cy)*$sinang); zz?sin(zz)/(zz):1" \
+			$tmpF1
+'
+		# fast method
+		# note -compose divide has zero divide value of 0 and for sinc 
+		# we need it to be 1. so we do -linear-stretch to force maxvalue=1
+		# and -fill white -opaque black to make zero divide value=1
+		# also since sinusoid already has built in 2*pi in frequency,  
+		# we must divide xfact=yfact by that amount to compensate in freq
+		h2=$(($h1+1))
+		xfact=`convert xc: -format "%[fx:$cosang*$w1/2]" info:`
+		yfact=`convert xc: -format "%[fx:$sinang*$h1/2]" info:`
+		freq=`convert xc: -format "%[fx:$fxd/(2*pi)]" info:`
+		convert \( -size ${w1}x${h2} gradient: \
+		-gravity center -crop ${w1}x${h1}+0+1 +repage \
+		-linear-stretch 1x0 -function polynomial "2,-1" \) \
+		\( -clone 0 -rotate 90 -evaluate multiply $xfact \) \
+		\( -clone 0 -rotate 180 -evaluate multiply $yfact \) \
+		\( -clone 1 -clone 2 -define compose:clamp=false -compose plus -composite \) \
+		\( -clone 3 -function sinusoid "$freq,0,1,0" -clone 3 +swap -define compose:clamp=false -compose divide -composite \) \
+		-delete 0-3 -linear-stretch 0x1 -fill white -opaque black \
+		$tmpF1
+	fi
+	
+elif [ "$type" = "defocus" ]; then
+
+	if [ "$im_version" -lt "06060005" ]; then
+#echo "got here d old"
+		# create A&S jinc function components
+		# note: factor of 2 below due to A&S formula has max of 1/2 and we need it normalize to 1
+		a0=0.5; a1=-.56249985; a2=.21093573; a3=-.03954289; a4=.00443319; a5=-.00031781; a6=.00001109
+		uu="(zz/3)"
+		jinc1="($a0+$a1*pow($uu,2)+$a2*pow($uu,4)+$a3*pow($uu,6)+$a4*pow($uu,8)+$a5*pow($uu,10)+$a6*pow($uu,12))"
+	
+		b0=.79788456; b1=.00000156; b2=.01659667; b3=.00017105; b4=-.00249511; b5=.00113653; b6=-.00020033
+		c0=-2.35619; c1=.12499612; c2=-.00005650; c3=-.00637879; c4=.00074348; c5=.00079824; c6=-.00029166
+		iuu="(3/zz)"
+		vv="($b0+$b1*$iuu+$b2*pow($iuu,2)+$b3*pow($iuu,3)+$b4*pow($iuu,4)+$b5*pow($iuu,5)+$b6*pow($iuu,6))"
+		ww="(zz+$c0+$c1*$iuu+$c2*pow($iuu,2)+$c3*pow($iuu,3)+$c4*pow($iuu,4)+$c5*pow($iuu,5)+$c6*pow($iuu,6))"
+		jinc2="$vv*cos($ww)/(zz*sqrt(zz))"
+
+		# compute spatial frequency units times pi times diameter, 
+		# where diameter = amount 
+		# and where spatial frequency units fx=1/w, fy=1/h
+		# and jinc(x)=j1(x)/(x)
+		fxd=`convert xc: -format "%[fx:$amount*pi/$w1]" info:`
+		fyd=`convert xc: -format "%[fx:$amount*pi/$h1]" info:`
+		jincfunc="(zz<=3)?2*$jinc1:2*$jinc2"
+		
+		convert -size ${w1}x${h1} xc: -monitor \
+			-fx "zz=hypot($fxd*(i-$cx),$fyd*(j-$cy)); $jincfunc" +monitor \
+			$tmpF1
+		
+		
+	else
+		# use -fx jinc function
+		# compute spatial frequency units times pi times diameter, 
+		# where diameter = amount
+		# and where spatial frequency units fx=1/w, fy=1/h
+		# and -fx jinc(x)=2*j1(pi*x)/(pi*x), 
+		# so leave out pi in fxd and fyd
+		# and -fx jinc(x) already normalized to max value of 1, 
+		# so leave out factor of 2
+		fxd=`convert xc: -format "%[fx:$amount/$w1]" info:`
+		fyd=`convert xc: -format "%[fx:$amount/$h1]" info:`
+
+		convert \
+		\( -size ${w1}x1 xc: -fx "$fxd*(i-$cx))" -scale ${w1}x${h1}! -evaluate pow 2 \) \
+		\( -size 1x${h1} xc: -fx "$fyd*(j-$cy))" -scale ${w1}x${h1}! -evaluate pow 2 \) \
+		-define compose:clamp=false -compose plus -composite -evaluate pow 0.5 -fx "jinc(u)" \
+		$tmpF1
+		
+	fi
+
+fi
+
+debug="false"
+if $debug; then
+inname=`convert $infile -format "%t" info:`
+rr=`echo $rotation | tr "-" "m"`
+lval=100
+convert $tmpF1 -set colorspace RGB -linear-stretch 1x1 -evaluate log $lval ${inname}_ideal${type}${amount}_r${rr}_filt_log$lval.png
+fi
+
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using cameradeblur.
+# Tested with 6.7.4.10, 6.7.6.6, 6.7.6.10, 6.7.7.7, 6.7.7.10, 6.7.8.6 (hdri)
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace="-set colorspace RGB"
+	setcspace2=""
+else
+	setcspace="-set colorspace RGB"
+	setcspace2="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	setcspace2=""
+fi
+
+# transform the image to real and imaginary components,
+# divide both components by single filter (FxR)/(FxF + n) and (FxI)/(FxF + n),
+# transform back
+#
+# first line takes fft of image (as separate frames) and loads filter
+# second line creates denominator
+# third line creates FxR
+# fourth line creates FxI
+# fifth line creates (FxR/(FxF + n)
+# sixth line creates (FxI/(FxF + n)
+# seventh line deletes all intermediate steps and does ift of resulting components
+convert \( $tmpI1 -alpha off +fft $setcspace \) \( $tmpF1 $setcspace \) \
+		\( -clone 2 -clone 2 -define compose:clamp=false -compose multiply -composite -evaluate add $qnoise \) \
+		\( -clone 0 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+		\( -clone 1 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+		\( -clone 4 -clone 3 +swap -define compose:clamp=false -compose divide -composite \) \
+		\( -clone 5 -clone 3 +swap -define compose:clamp=false -compose divide -composite \) \
+		-delete 0-5 +ift -crop ${width}x${height}+0+0 +repage \
+		$addalpha $setcspace2 "$outfile"
+
+
+exit 0
+
+
+

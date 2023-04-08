@@ -1,0 +1,274 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/23/2015 .......... 11/23/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cosinebell [-r rolloff] [-g gravity] [-o offsets] 
+# infile1 [infile2] outfile
+# USAGE: cosinebell [-h or -help]
+#
+# OPTIONS:
+#
+# -r     rolloff     rolloff percent (percent distance from the center of the 
+#                    image to the image edge where the alpha channel drops to 
+#                    50% amplitude; 0<=integer<=100; default=30
+# -g     gravity     gravity setting for compositing the smaller image into  
+#                    the larger image; any valid IM gravity setting is allowed; 
+#                    default=northwest
+# -o     offsets     x and y offsets relative to the gravity for compositing 
+#                    the smaller image into the larger image; geometry-like 
+#                    values, +-X+-Y in pixels; default=+0+0
+#
+# infile1 is the smaller foreground image and infile2 is the larger 
+# background image.
+#
+###
+#
+# NAME: COSINEBELL 
+# 
+# PURPOSE: Creates a cosine-bell-shaped tapered alpha channel in an image 
+# and optionally blends the image into a background image.
+# 
+# DESCRIPTION: COSINEBELL creates a cosine-bell-shaped tapered alpha channel
+# in an image and optionally blends the image into a background image.
+# 
+# OPTIONS: 
+#
+# -r rolloff ... ROLLOFF (taper) percent (percent distance from the edge of 
+# the image to the image center where the alpha channel drops to 50% amplitude. 
+# Values are 0<=integer<=100. Nominal values are 10 to 30. The default=30.
+# 
+# -g gravity ... GRAVITY setting for compositing the smaller image into the
+# larger image. Any valid IM gravity setting is allowed. The default=northwest.
+# 
+# -o offsets ... x and y OFFSETS relative to the gravity for compositing the
+# smaller image into the larger image. These are geometry-like values, 
+# +-X+-Y in pixels. The default=+0+0
+# 
+# The foreground (infile1) must not be larger than the background 
+# image (infile2).
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+rolloff=30
+gravity="northwest"
+offsets="+0+0"
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-r)    # get rolloff
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ROLLOFF SPECIFICATION ---"
+					   checkMinus "$1"
+					   rolloff=`expr "$1" : '\([0-9]*\)'`
+					   [ "$rolloff" = "" ] && errMsg "ROLLOFF=$rolloff MUST BE AN INTEGER"
+		   			   test=`echo "$rolloff > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- ROLLOFF=$rolloff MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-g)    # get gravity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID GRAVITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   gravity="$1"
+					   gravity=`echo "$gravity" | tr "[:upper:]" "[:lower:]"`
+					   case "$gravity" in 
+					   		northwest) ;;
+					   		north) ;;
+					   		northeast) ;;
+					   		west) ;;
+					   		center) ;;
+					   		east) ;;
+					   		southwest) ;;
+					   		south) ;;
+					   		southeast) ;;
+					   		*) errMsg "--- GRAVITY=$gravity IS AN INVALID VALUE ---" 
+					   esac
+					   ;;
+				-o)    # get offsets
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSETS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   offsets=`expr "$1" : '\([+-][0-9]*[+-][0-9]*\)'`
+					   [ "$offsets" = "" ] && errMsg "OFFSETS=$offsets MUST BE PAIR of +-INTEGERS"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infiles and outfile
+	if [ $# -eq 2 ]; then
+		infile1="$1"
+		outfile="$2"
+	elif [ $# -eq 3 ]; then
+		infile1="$1"
+		infile2="$2"
+		outfile="$3"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+fi
+
+# test that infile1 provided
+[ "$infile1" = "" ] && errMsg "--- NO INPUT FILE 1 SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# set up temp files
+tmpA1="$dir/cosinebell_1_$$.mpc"
+tmpB1="$dir/cosinebell_1_$$.cache"
+tmpA2="$dir/cosinebell_2_$$.mpc"
+tmpB2="$dir/cosinebell_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+
+# test input images
+convert -quiet "$infile1" +repage "$tmpA1" ||
+	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	
+if [ "$infile2" != "" ]; then	
+	convert -quiet "$infile2" +repage "$tmpA2" ||
+		errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+# get image1 and image2 width, height and test the same size
+w1=`convert $tmpA1 -ping -format "%w" info:`
+h1=`convert $tmpA1 -ping -format "%h" info:`
+if [ "$infile2" != "" ]; then	
+	w2=`convert $tmpA2 -ping -format "%w" info:`
+	h2=`convert $tmpA2 -ping -format "%h" info:`
+	[ $w1 -gt $w2 ] && errMsg "--- $infile1 WIDTH IS GREATER THAN $infile2 WIDTH ---"
+	[ $h1 -gt $h2 ] && errMsg "--- $infile1 HEIGHT IS GREATER THAN $infile2 HEIGHT ---"
+fi
+
+# convert rolloff to fraction
+ff=`convert xc: -format "%[fx:$rolloff/100]" info:`
+
+# process image(s)
+if [ "$infile2" = "" ]; then	
+	convert $tmpA1 \
+	\( -clone 0 -crop ${w1}x1+0+0 +repage -fx "0.5*cos(pi*max(0,(1-i/($ff*(w-1)))))+0.5" \
+		-scale ${w1}x${h1}! -write mpr:tmp0 +delete \) \
+	\( mpr:tmp0 -flop -write mpr:tmp1 +delete \) \
+	\( -clone 0 -crop 1x${h1}+0+0 +repage -fx "0.5*cos(pi*max(0,(1-j/($ff*(h-1)))))+0.5" \
+		-scale ${w1}x${h1}! -write mpr:tmp2 +delete \) \
+	\( mpr:tmp2 -flip -write mpr:tmp3 +delete \) \
+	\( mpr:tmp0 mpr:tmp1 -compose multiply -composite \
+	mpr:tmp2 -compose multiply -composite \
+	mpr:tmp3 -compose multiply -composite \) \
+	-compose over -compose copy_opacity -composite "$outfile"
+else
+	convert $tmpA1 \
+	\( -clone 0 -crop ${w1}x1+0+0 +repage -fx "0.5*cos(pi*max(0,(1-i/($ff*(w-1)))))+0.5" \
+		-scale ${w1}x${h1}! -write mpr:tmp0 +delete \) \
+	\( mpr:tmp0 -flop -write mpr:tmp1 +delete \) \
+	\( -clone 0 -crop 1x${h1}+0+0 +repage -fx "0.5*cos(pi*max(0,(1-j/($ff*(h-1)))))+0.5" \
+		-scale ${w1}x${h1}! -write mpr:tmp2 +delete \) \
+	\( mpr:tmp2 -flip -write mpr:tmp3 +delete \) \
+	\( mpr:tmp0 mpr:tmp1 -compose multiply -composite \
+	mpr:tmp2 -compose multiply -composite \
+	mpr:tmp3 -compose multiply -composite \) \
+	-compose over -compose copy_opacity -composite \
+	$tmpA2 +swap -gravity $gravity -geometry $offsets -compose over -composite "$outfile"
+fi
+
+exit 0

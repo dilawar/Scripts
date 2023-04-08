@@ -1,0 +1,414 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 11/21/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: bilinearwarp [-f format] [-v vpmode] [-b bgcolor] "x1,y1 x2,y2 x3,y3 x4,y4" infile outfile
+# USAGE: bilinearwarp [-h or -help]
+#
+# OPTIONS:
+# 
+# "x1,y1 x2,y2 ..."         four and only four control point x,y coordinates;
+#                           these are where the corners of input image are 
+#                           desired in the output image; must be ordered clockwise 
+#                           starting with the point corresponding to the upper 
+#                           left corner of input image; floats>=0;
+#                           list must be specified just prior to infile
+# -f     format             format for output size; B or box (for bounding box) 
+#                           or I or input (for same as input); default=box
+# -v     vpmode             any valid IM virtual-pixel mode; default=black
+# -b     bgcolor            background color when virtual-pixel is set to 
+#                           background; Any valid IM color; default=black
+#                         
+###
+#
+# NAME: BILINEARWARP
+#
+# PURPOSE: To generate a proper four-point bilinear warp of the input image.
+#
+# DESCRIPTION: BILINEARWARP generate a proper four-point bilinear warp of the 
+# input image using the corners of the input image and the specified 
+# corresponding coordinates where it is desire that those corner points be  
+# located in the output image. The input coordinates are not specified as 
+# they will be found from the image dimensions. The four output x,y coordinates  
+# must be specified in clockwise order starting with the corresponding point to 
+# the upper left corner of the input image.
+# 
+# OPTIONS: 
+# 
+# "x1,y1 x2,y2 x3,y3 x4,y4" ... LIST of x,y coordinates in the output image
+# that correspond to where the corners of the input image are desired to be 
+# located. The input coordinates are not specified as they will be found from 
+# the image dimensions. The four output x,y coordinates must be specified in 
+# clockwise order starting with the corresponding point to the upper left 
+# corner of the input image. Values may be floats>=0.
+# 
+# -f format ... FORMAT for output size. The choices are to make the output the  
+# same size as the input (value=I or input) or to make the output the size of 
+# the bounding box around the set of specified output control point coordinates 
+# (value=B or box). The default is B (bounding box).
+# 
+# -v  vpmode ... VPMODE is any valid IM virtual-pixel method. 
+# The default is black.
+# 
+# -b bgcolor... BGCOLOR is the fill color for the background area outside 
+# of the warped image when the virtual-pixel method is specified as background. 
+# Any valid IM color may be used. Values should be enclosed in quotes if not 
+# color names. See http://imagemagick.org/script/color.php
+# 
+# <a href="BilinearImageWarping2.pdf" target="_blank">Mathematical Background</a>
+# 
+# NOTE: This script may be slow due to the use of -fx.
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, nor that 
+# trapping of inconsistent parameters is complete and foolproof. Use At Your 
+# Own Risk.
+# 
+######
+# 
+
+# set default value
+format="box"  		#box or input
+vpmode="black"		#virtual-pixel mode
+bgcolor="black"		#background color when vpmode=background
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+# function to report error messages, usage and exit
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# function to test if valid positive float point pair
+testFloatPair()
+	{
+	v1=`echo $1 | cut -d, -f1`
+	v2=`echo $1 | cut -d, -f2`
+	test1=`expr "$v1" : '^[.0-9][.0-9]*$'`
+	test2=`expr "$v2" : '^[.0-9][.0-9]*$'`
+	[ $test1 -eq 0 -o $test2 -eq 0 ] && errMsg "$1 IS NOT A VALID POINT PAIR"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 9 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0  ;;
+				-f)    # get  format
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FORMAT SPECIFICATION ---"
+					   checkMinus "$1"
+						case "$1" in
+						 B)			format="box";;
+						 b)			format="box";;
+						 box)		format="box";;
+						 I)			format="input";;
+						 i)			format="input";;
+						 input)		format="input";;
+						 *)         errMsg="--- UNKNOWN FORMAT ---"
+						esac
+					   ;;
+				-v)    # get  vpmode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIRTUAL-PIXEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   vpmode="$1"
+					   ;;
+				-b)    # get  bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+				*)     # end of arguments
+					   break 
+					   ;;
+			esac
+			shift   # next option
+	done
+fi
+
+# extract and test point pair values
+# get plist, infile and outfile
+parms="$1"
+infile="$2"
+outfile="$3"
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# process plist
+# first pattern below replaces all occurrences of commas and spaces with a space => 1 2 3 4 5 6
+# second pattern below replaces the first occurrence of a space with a comma => 1,2[ 3 4][ 5 6] - ignore [], they are for emphasis only
+# third pattern below looks for all space number space number pairs and replaces them with a space followed by number1,number2 => 1,2 3,4 5,6
+set - `echo "$parms" | sed 's/[, ][, ]*/ /g; s/ /,/; s/ \([^ ]*\) \([^ ]*\)/ \1,\2/g'`
+# test for valid positive floats for x and y
+index=0
+plist=""
+while [ $# -gt 0 ]
+	do
+	testFloatPair $1
+	plist="$plist $1"
+	shift
+	index=`expr $index + 1`
+done
+
+#remove leading space from plist
+plist=`echo "$plist" | sed -n 's/ [ ]*\(.*\)/\1/p'`
+[ "$plist" = "" ] && errMsg "--- NO POINT PAIRS WERE PROVIDED ---"
+
+# test if 4 x,y control points
+numpts=`echo "$plist" | wc -w`
+[ $numpts -ne 4 ] && errMsg "--- REQUIRES 4 OUTPUT X,Y CONTROL POINTS ---"
+
+# separate control points
+point0=`echo "$plist" | cut -d\  -f1`
+point1=`echo "$plist" | cut -d\  -f2`
+point2=`echo "$plist" | cut -d\  -f3`
+point3=`echo "$plist" | cut -d\  -f4`
+
+# separate each point into x and y values
+x0=`echo "$point0" | cut -d, -f1`
+y0=`echo "$point0" | cut -d, -f2`
+x1=`echo "$point1" | cut -d, -f1`
+y1=`echo "$point1" | cut -d, -f2`
+x2=`echo "$point2" | cut -d, -f1`
+y2=`echo "$point2" | cut -d, -f2`
+x3=`echo "$point3" | cut -d, -f1`
+y3=`echo "$point3" | cut -d, -f2`
+
+# setup temporary images and auto delete upon exit
+# use mpc/cache to hold input image temporarily in memory
+tmpA="$dir/bilinearwarp_$$.mpc"
+tmpB="$dir/bilinearwarp_$$.cache"
+trap "rm -f $tmpA $tmpB;" 0
+trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
+
+if convert -quiet "$infile" +repage "$tmpA"
+	then
+	# get last x and y pixel
+	nx=`convert $tmpA -format "%[fx:w-1]" info:`
+	ny=`convert $tmpA -format "%[fx:h-1]" info:`
+else
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+fi
+
+
+# BACKGROUND INFORMATION
+#
+# Test of proper bilinear interpolation as inverse transformation
+# This inverts the 1 1/2 order transformation, which involves solving a quadratic equation
+# This test only works on the whole image
+#
+# the forward bilinear transformation from rectangle to quadrilateral is of the form
+# u,v are input (rectangle) coordinates
+# x,y are output (quadrilateral) coordinates
+# x = a0 + (a1 * u) + (a2 * v) + (a3 * u * v)
+# y = b0 + (b1 * u) + (b2 * v) + (b3 * u * v)
+#
+# we want to find and use the inverse equation
+# u = F(x,y)
+# v = G(x,y)
+
+
+# rectangle coordinates ordered clockwise from upper left corner
+
+#   0               1
+#   _______________
+#   |              |
+#   |              |
+#   |              |
+#   |              |
+#   |              |
+#   |______________|
+#
+#   3               2
+
+
+if [ "$format" = "box" ]; then
+	# compute bounding box of output points
+	maxx=`convert xc: -format "%[fx:max($x3,max($x2,max($x1,max($x0,-1000000))))]" info:`
+	minx=`convert xc: -format "%[fx:min($x3,min($x2,min($x1,min($x0,1000000))))]" info:`
+	maxy=`convert xc: -format "%[fx:max($y3,max($y2,max($y1,max($y0,-1000000))))]" info:`
+	miny=`convert xc: -format "%[fx:min($y3,min($y2,min($y1,min($y0,1000000))))]" info:`
+	ww=`convert xc: -format "%[fx:floor($maxx-$minx)]" info:`
+	hh=`convert xc: -format "%[fx:floor($maxy-$miny)]" info:`
+		
+	# compute output coords relative to bounding box
+	x0=`convert xc: -format "%[fx:$x0-$minx]" info:`
+	y0=`convert xc: -format "%[fx:$y0-$miny]" info:`
+	x1=`convert xc: -format "%[fx:$x1-$minx]" info:`
+	y1=`convert xc: -format "%[fx:$y1-$miny]" info:`
+	x2=`convert xc: -format "%[fx:$x2-$minx]" info:`
+	y2=`convert xc: -format "%[fx:$y2-$miny]" info:`
+	x3=`convert xc: -format "%[fx:$x3-$minx]" info:`
+	y3=`convert xc: -format "%[fx:$y3-$miny]" info:`	
+fi
+
+# compute coefficients
+# substitute u,v=0,0
+a0=$x0
+
+# substitute u,v=nx,0
+a1=`convert xc: -format "%[fx:($x1 - $x0)/$nx]" info:`
+
+# substitute u,v=0,ny
+a2=`convert xc: -format "%[fx:($x3 - $x0)/$ny]" info:`
+
+# substitute u,v=nx,ny
+a3=`convert xc: -format "%[fx:($x0 - $x1 - $x3 + $x2)/($nx * $ny)]" info:`
+
+# substitute u,v=0,0
+b0=$y0
+
+# substitute u,v=nx,0
+b1=`convert xc: -format "%[fx:($y1 - $y0)/$nx]" info:`
+
+# substitute u,v=0,ny
+b2=`convert xc: -format "%[fx:($y3 - $y0)/$ny]" info:`
+
+# substitute u,v=nx,ny
+b3=`convert xc: -format "%[fx:($y0 - $y1 - $y3 + $y2)/($nx * $ny)]" info:`
+
+# calculate quadratic coefficient constants
+# solve for u in x equation
+# then solve quadratic in v and take plus sign choice
+A=`convert xc: -format "%[fx:($b2 * $a3) - ($b3 * $a2)]" info:`
+B1=`convert xc: -format "%[fx:(($b0 * $a3) - ($b3 * $a0)) + (($b2 * $a1) - ($b1 * $a2))]" info:`
+C1=`convert xc: -format "%[fx:($b0 * $a1) - ($b1 * $a0)]" info:`
+
+
+debug="false"
+if $debug; then
+	echo "x0,y0 = $x0,$y0"
+	echo "x1,y1 = $x1,$y1"
+	echo "x2,y2 = $x2,$y2"
+	echo "x3,y3 = $x3,$y3"
+	echo "a0=$a0"
+	echo "a1=$a1"
+	echo "a2=$a2"
+	echo "a3=$a3"
+	echo "b0=$b0"
+	echo "b1=$b1"
+	echo "b2=$b2"
+	echo "b3=$b3"
+	echo "A=$A"
+	echo "B1=$B1"
+	echo "C1=$C1"
+fi
+
+# set up for transparency
+if [ "$vpmode" = "transparent" ]; then
+	channels="-channel rgba -matte"
+	xcolor="none"
+else
+	channels=""
+	xcolor=""
+fi
+
+# set "skycolor" to same as either background or transparent
+if [ "$vpmode" = "transparent" ]; then
+	skycolor="none"
+elif [ "$vpmode" = "black" -o "$vpmode" = "white" -o "$vpmode" = "gray" ]; then
+	skycolor="$vpmode"
+elif [ "$vpmode" = "background" ]; then
+	skycolor="$bgcolor"
+else
+	skycolor="black"
+fi
+
+# for fx: i,j=output coords (replacing x,y) and is,il=input coords (replacing u,v)
+# condition for skycolor is when square root argument (rt) is negative
+if [ "$format" = "box" ]; then
+	convert \( -size ${ww}x${hh} xc:$xcolor \) \( $tmpA $channels \) \
+	-virtual-pixel $vpmode -background $bgcolor -monitor \
+	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:v.p{is,il}" "$outfile"
+
+elif [ "$format" = "input" ]; then
+	convert $tmpA $channels -virtual-pixel $vpmode \
+	-background $bgcolor -monitor \
+	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:u.p{is,il}" "$outfile"
+fi
+exit 0
+
+

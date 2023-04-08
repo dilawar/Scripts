@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+# if lua is not found, download and install.
+LUA=$(which lua)
+if [ "$LUA" = "" ]; then
+    echo "Lua is not found. Installing ....";
+    ( 
+        mkdir -p /tmp/__lua
+        cd /tmp/__lua
+        wget https://www.lua.org/ftp/lua-5.3.5.tar.gz 
+        tar xvf lua-5.3.5.tar.gz 
+        ./configure --prefix=$HOME/.local
+        make -j$(nproc)
+        make install
+    )
+else
+    echo "LUA is $LUA"
+fi

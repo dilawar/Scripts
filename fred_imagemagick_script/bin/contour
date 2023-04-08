@@ -1,0 +1,482 @@
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 4/1/2017 .......... revised 4/3/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: contour [-t trim] [-T tolerance] [-d distance] [-p pad] [-i icolor] 
+# [-o ocolor] [-s shadow] [-r ramping] [-h highlight] [-m method] [-f fuzzval] 
+# [-c coords] infile [maskfile] outfile
+# 
+# USAGE: contour [-help]
+#
+# OPTIONS:
+#
+# -t     trim          preprocess trim to image content bounding box;
+#                      yes or no; default=yes
+# -T     tolerance     preprocessing trim tolerance percent (fuzz value); 
+#                      0<=integer<=100; default=2
+# -d     distance      contour distance in pixels; integer>=0; default=20
+# -p     pad           image pad after trimming; integer>=0; default is twice 
+#                      the contour distance to allow room for the shadow
+# -i     icolor        input image existing background color, which should be 
+#                      nearly a constant opaque color; used only if the input   
+#                      image is opaque and no mask image is provided; 
+#                      default=white 
+# -o     ocolor        output image desired background color; any IM allowed 
+#                      opaque color;  default=white
+# -s     shadow        shadow brightness in percent; 0<=integer<=100; 
+#                      default=30
+# -r     ramping       shadow ramping amount (blur sigma value); integer>=0; 
+#                      default=10
+# -h     highlight     show black highlight edge; on or off; default=on
+# -m     method        method of generating transparency when the input image 
+#                      has no alpha channel and there is no mask; choices are: 
+#                      floodfill and recolor; floodfill will not leave holes 
+#                      in the result; recolor may leave holes in the result, if 
+#                      there are content gaps larger than the contour distance 
+#                      and these are desired; default=floodfill
+# -f     fuzzval       fuzz value for the floodfill; 0<=integer<=100; 
+#                      default=2
+# -c     coords        coordinates to start the floodfill; comma separate pair 
+#                      of x,y values; default=0,0 (upper left corner of the 
+#                      input image)
+#
+###
+#
+# NAME: CONTOUR 
+# 
+# PURPOSE: To apply a contour outline to the image content.
+# 
+# DESCRIPTION: CONTOUR applies a contour outline to the image content. 
+# This is generate via a mask image. The mask image may come from the alpha 
+# channel of the input image, from a mask image or by a transparent floodfill 
+# or transparent recoloring operation. The background color may be selected 
+# along with the shadowing and highlight edge around the contour.
+# 
+# OPTIONS: 
+#
+# -t trim ... TRIM is the preprocess trim to image content bounding box. 
+# Choices are: yes (y) or no (n). The default=yes.
+# 
+# -T tolerance ... TOLERANCE is the preprocessing trim tolerance percent 
+# (i.e., fuzz value). Values are 0<=integer<=100. The default=2.
+# 
+# -d distance ... DISTANCE is the contour distance in pixels. Values are 
+# integer>=0. The default=20.
+# 
+# -p pad ... PAD is the image pad amount after trimming. Value are  integer>=0. 
+# The default is twice the contour distance to allow room for the shadow.
+# 
+# -i icolor ... ICOLOR is the input image existing background color, which 
+# should be nearly a constant opaque color. This option is used only if the    
+# input image is opaque and no mask image is provided. The default=white. 
+# 
+# -o ocolor ... OCOLOR is the output image desired background color. Any IM  
+# opaque color is allowed. The default=white.
+# 
+# -s shadow ... SHADOW brightness in percent. Values are 0<=integer<=100. The 
+# default=30.
+# 
+# -r ramping ... RAMPING is the shadow ramping amount (blur sigma value). 
+# Values are integer>=0. The default=10.
+# 
+# -h highlight ... HIGHLIGHT is a flag to show a black highlight edge around  
+# the contour. Values are on or off. The default=on.
+# 
+# -m method ... METHOD of generating transparency when the input image has no
+# alpha channel and there is no mask. Choices are:  floodfill (f) and 
+# recolor (r). A choice of floodfill will not leave holes in the result. A 
+# choice of recolor may leave holes in the result, if there are content gaps 
+# larger than the contour distance and these are desired. The default=floodfill.
+# 
+# -f fuzzval ... FUZZVAL is the fuzz value for the floodfill. Value are 
+# 0<=integer<=100. The default=2.
+# 
+# -c coords ... COORDS are the coordinates to start the floodfill. They must be 
+# a comma separate pair of x,y values. The default=0,0 (upper left corner of  
+# the input image).
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+trim="yes"			# preprocessing trim to bounding box
+tolerance="2"		# preprocessing trim tolerance (fuzz value)
+distance=20			# contour distance
+pad=""				# pad amount default = 2*distance; pad color = icolor
+icolor="white"		# color of input image background; needed if no alpha channel and no mask
+ocolor="white"		# color of output image desired background
+shadow="30"			# shadow brightness; 0<=integer<=100
+ramping="10"		# shadow ramping amount (-blur sigma)
+highlight="on"		# show black highlight edge; on or off
+method="floodfill"	# method of generating transparency when no alpha channel and no mask; recolor or floodfill
+fuzzval="2"			# fuzz value for generating transparency
+coords="0,0"		# floodfill coordinates
+
+# set directory for temporary files
+dir="."    # suggestions are dir="." or dir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 27 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		     -help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-t)    # get trim
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TRIM SPECIFICATION ---"
+					   checkMinus "$1"
+					   trim="$1"
+					   case "$trim" in
+							yes|y) trim="yes" ;;
+							 no|n) trim="no" ;;
+							*)  errMsg "--- TRIM=$trim IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-T)    # get tolerance
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID TOLERANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   tolerance=`expr "$1" : '\([0-9]*\)'`
+					   [ "$tolerance" = "" ] && errMsg "--- TOLERANCE=$tolerance MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$tolerance > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- TOLERANCE=$tolerance MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-d)    # get distance
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DISTANCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   distance=`expr "$1" : '\([0-9]*\)'`
+					   [ "$distance" = "" ] && errMsg "--- DISTANCE=$distance MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-p)    # get pad
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAD SPECIFICATION ---"
+					   checkMinus "$1"
+					   pad=`expr "$1" : '\([0-9]*\)'`
+					   [ "$pad" = "" ] && errMsg "--- PAD=$pad MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-i)    # get icolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ICOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   icolor="$1"
+					   ;;
+				-o)    # get ocolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   ocolor="$1"
+					   ;;
+				-s)    # get shadow
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SHADOW SPECIFICATION ---"
+					   checkMinus "$1"
+					   shadow=`expr "$1" : '\([0-9]*\)'`
+					   [ "$shadow" = "" ] && errMsg "--- SHADOW=$shadow MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$shadow > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- SHADOW=$shadow MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-r)    # get ramping
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RAMPING SPECIFICATION ---"
+					   checkMinus "$1"
+					   ramping=`expr "$1" : '\([0-9]*\)'`
+					   [ "$ramping" = "" ] && errMsg "--- RAMPING=$ramping MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-h)    # get highlight
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID HIGHLIGHT SPECIFICATION ---"
+					   checkMinus "$1"
+					   highlight="$1"
+					   case "$highlight" in
+							 on) ;;
+							off) ;;
+							*)  errMsg "--- HIGHLIGHT=$highlight IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-m)    # get method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method="$1"
+					   case "$method" in
+							floodfill|f) method="floodfill" ;;
+							 recolor|replace|r) method="recolor" ;;
+							*)  errMsg "--- METHOD=$method IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
+				-f)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$fuzzval > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-c)    # get coords
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COORDS SPECIFICATION ---"
+					   checkMinus "$1"
+					   test=`echo "$1" | sed 's/ *//g' | tr "," " " | wc -w`
+					   [ $test -ne 2 ] && errMsg "--- INCORRECT NUMBER OF COORDINATES SUPPLIED ---"
+					   coords=`expr "$1" : '\([0-9]*,[0-9]*\)'`
+					   [ "$coords" = "" ] && errMsg "--- COORDS=$coords MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	# get infile, maskfile and outfile
+	if [ $# -eq 3 ]; then
+		infile="$1"
+		maskfile="$2"
+		outfile="$3"
+	elif [ $# -eq 2 ]; then
+		infile="$1"
+		outfile="$2"
+	else
+	errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+	fi
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "--- NO OUTPUT FILE SPECIFIED ---"
+
+# setup temporary images
+tmpA1="$dir/contour_1_$$.mpc"
+tmpB1="$dir/contour_1_$$.cache"
+tmpA2="$dir/contour_2_$$.mpc"
+tmpB2="$dir/contour_2_$$.cache"
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+
+# read the input image into the temporary cached image and test if valid
+convert -quiet "$infile" +repage "$tmpA1" ||
+	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+if [ "$maskfile" != "" ]; then
+	# read the mask image into the temporary cached image and test if valid
+	convert -quiet "$maskfile" +repage "$tmpA2" ||
+		echo "--- 1 FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+fi
+
+# get IM version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g'`
+
+# setup for disabling alpha channel
+if [ "$im_version" -ge "07000000" ]; then
+	alpha_disable="-alpha discrete"
+	matte_alpha="alpha"
+else
+	alpha_disable="-alpha off"
+	matte_alpha="matte"
+fi
+
+# set up pad
+[ "$pad" = "" ] && pad=$((2*distance))
+
+# test if image has non-opaque alpha channel when no mask file
+alpha_channel="no"
+if [ "$maskfile" = "" ]; then
+	alpha_flag=`convert -ping $tmpA1 -format "%A" info:`
+	if [ "$alpha_flag" = "True" ]; then
+		alpha_val=`convert $tmpA1 -alpha extract -scale 1x1 -format "%[fx:mean]" info:`
+		test=`convert xc: -format "%[fx:($alpha_val==1)?1:0]" info:`
+		[ $test -eq 0 ] && alpha_channel="yes"
+	fi
+fi
+#echo "alpha_flag=$alpha_flag; alpha_val=$alpha_val; test=$test; alpha_channel=$alpha_channel; maskfile=$maskfile;"
+
+if [ "$alpha_channel" = "yes" ];then
+	method="alpha"
+elif [ "$maskfile" != "" ]; then
+	method="mask"
+fi
+
+# set up for highlight on or off
+if [ "$highlight" = "on" ]; then
+	highlighting="mpr:edg -compose multiply -composite"
+else
+	highlighting=""
+fi
+#echo "highlight=$highlight; highlighting=$highlighting"
+
+# set up preprocessing
+if [ "$alpha_channel" = "yes" -a "$maskfile" = "" ]; then
+	# alpha channel is not fully opaque
+	preproc1=""
+elif [ "$maskfile" != "" ]; then
+	# maskfile exists
+	preproc1="$tmpA2 -alpha off -compose copy_opacity -composite"
+elif [ "$alpha_channel" = "no" -a "$maskfile" = "" ]; then
+	# alpha file exists and is not fully opaque and no maskfile
+	if [ "$method" = "floodfill" ]; then
+		preproc1="-alpha off -fuzz $fuzzval% -fill none -draw"
+		preproc2="$matte_alpha $coords floodfill"
+	elif [ "$method" = "recolor" ]; then
+		preproc1="-alpha off -fuzz $fuzzval% -transparent $icolor"
+	fi
+fi
+#echo "preproc1=$preproc1; preproc2=$preproc2; method=$method;"
+
+# process image
+if [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "floodfill" ]; then
+	# floodfill needs an extra border=1 to allow for floodfill to go all around
+	convert \
+		\( $tmpA1 -bordercolor "$icolor" -border 1 $preproc1 "$preproc2" \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract -morphology dilate disk:$distance \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+		
+elif [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "recolor" ]; then
+	# recolor using -transparent
+	convert \
+		\( $tmpA1 $preproc1 \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract -morphology dilate disk:$distance \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+else
+	# image has alpha channel or mask present
+	convert \
+		\( $tmpA1 $preproc1 \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract -morphology dilate disk:$distance \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+fi
+exit 0

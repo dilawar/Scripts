@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+
+set -e
+
+# Format the whole directory.
+
+DIR=${1:-.}
+ARG="${2:''}"
+
+if [ ! -d "$DIR" ]; then
+    echo "$DIR does not exists."
+    exit -1;
+fi
+
+find $DIR -type f \( -iname "*.cpp" -o -iname "*.h" \) -print0 \
+    | xargs -0 -I file clang-format $ARG file

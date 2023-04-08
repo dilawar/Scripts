@@ -18,7 +18,16 @@ __email__            = "dilawars@iitb.ac.in"
 __status__           = "Development"
 
 import sys
-import pylab
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+try:
+    mpl.style.use( 'bmh' )
+except Exception as e:
+    pass
+mpl.rcParams['axes.linewidth'] = 0.2
+mpl.rcParams['lines.linewidth'] = 1.0
+mpl.rcParams['text.latex.preamble'] = [ r'\usepackage{siunitx}' ]
+mpl.rcParams['text.usetex'] = False
 
 data = {}
 
@@ -63,13 +72,13 @@ def plotData( outFile = None ):
             print("[FATAL] Failed to zip the given elements")
             sys.exit(0)
         for yvec in yvecs:
-            pylab.plot(xvec, yvec, label='%s' % file)
-    pylab.legend(loc='best', framealpha=0.4)
+            plt.plot(xvec, yvec, label='%s' % file)
+    plt.legend(loc='best', framealpha=0.4)
     if not outFile:
-        pylab.show()
+        plt.show()
     else:
         print("[INFO] Saving plots to: {}".format( outFile ))
-        pylab.savefig(outFile)
+        plt.savefig(outFile)
 
 if __name__ == "__main__":
     import argparse

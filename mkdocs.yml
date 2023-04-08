@@ -1,0 +1,48 @@
+site_name: Spine Growth 
+author: Dilawar Singh <dilawars@ncbs.res.in>
+site_author: Dilawar Singh <dilawars@ncbs.res.in>
+copyright: 'Copyright &copy; 2019- Dilawar Singh'
+repo_url: https://gitlab.com/dilawar/SpineGrowth
+theme:
+    name: material
+    feature:
+      tabs: true
+    highlightjs: true
+    hljs_languages:
+        - php
+        - python
+
+extra_css: [extra.css]
+
+markdown_extensions:
+    - admonition
+    - toc
+    - attr_list
+    - mdx_bib:
+        bibtex_file: SpineSize.bib
+        order: 'unsorted'
+    - pymdownx.betterem:
+        smart_enable: all
+    - pymdownx.caret
+    - pymdownx.details
+    - pymdownx.inlinehilite
+    - pymdownx.magiclink
+    - pymdownx.mark
+    - pymdownx.smartsymbols
+    - pymdownx.superfences
+    - pymdownx.arithmatex
+    - pymdownx.tasklist:
+        custom_checkbox: true
+    - pymdownx.tilde
+    - plantuml_markdown:
+        server: http://www.plantuml.com/plantuml  # PlantUML server, for remote rendering
+        cachedir: /tmp                            # set a non-empty value to enable caching
+        format: svg                               # default diagram image format
+        classes: plantuml,image                    # default diagram classes
+        title: UML diagram                        # default title (tooltip) for diagram images
+        alt: UML diagram image                    # default `alt` attribute for diagram images
+
+extra_javascript:
+  # other extra java script
+  - mathjax-config.js
+  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML

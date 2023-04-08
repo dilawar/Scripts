@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Pandoc filter to convert divs with class="theorem" to LaTeX
@@ -17,7 +17,6 @@ def latex(x):
 
 def html(x):
     return RawBlock('html', x)
-
 
 def theorems(key, value, format, meta):
     if key == 'Div':
