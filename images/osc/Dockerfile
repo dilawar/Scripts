@@ -11,3 +11,4 @@ RUN zypper --non-interactive install \
     --allow-vendor-change \
     build rpmlint \
     && zypper clean --all
+WORKDIR /app
