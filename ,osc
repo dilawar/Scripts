@@ -1,4 +1,9 @@
 #!/bin/bash
+set -x
+set -e
+
+PWD=$(pwd)
+
 podman run \
-    -v $(PWD):/root \
+    --mount=type=bind,source=$PWD,target=/root \
     -it docker.io/subcomdocker/osc osc $@
