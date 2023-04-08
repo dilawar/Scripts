@@ -10,5 +10,11 @@ RUN zypper --non-interactive install \
 RUN zypper --non-interactive install \
     --allow-vendor-change \
     build rpmlint sudo \
+    obs-service-obs_scm obs-service-set_version obs-service-extract_file \
+    obs-service-{recompress,download_url,format_spec_file} \
+    && zypper clean --all
+RUN zypper --non-interactive install \
+    --allow-vendor-change \
+    obs-service-{tar,cargo_audit} \
     && zypper clean --all
 WORKDIR /app

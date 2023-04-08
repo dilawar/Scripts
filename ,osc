@@ -4,7 +4,8 @@ set -e
 
 PWD=$(pwd)
 
-podman run \
+docker run \
+    --rm \
     --privileged \
     -v $HOME/.config/osc/oscrc:/root/.oscrc \
     -v /var/tmp:/var/tmp \
