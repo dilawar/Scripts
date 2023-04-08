@@ -7,3 +7,7 @@ RUN zypper --non-interactive install \
     --allow-vendor-change \
     osc obs-service-cargo_vendor obs-service-recompress obs-service-tar_scm \
     && zypper clean --all
+RUN zypper --non-interactive install \
+    --allow-vendor-change \
+    build rpmlint \
+    && zypper clean --all
