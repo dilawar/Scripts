@@ -9,6 +9,6 @@ RUN zypper --non-interactive install \
     && zypper clean --all
 RUN zypper --non-interactive install \
     --allow-vendor-change \
-    build rpmlint \
+    build rpmlint sudo \
     && zypper clean --all
 WORKDIR /app

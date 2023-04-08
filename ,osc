@@ -5,6 +5,7 @@ set -e
 PWD=$(pwd)
 
 podman run \
+    --privileged \
     -v $HOME/.config/osc/oscrc:/root/.oscrc \
-    --mount=type=bind,source=$PWD,target=/root \
+    --mount=type=bind,source=$PWD/,target=/app \
     -it docker.io/subcomdocker/osc osc $@
