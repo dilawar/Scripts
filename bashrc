@@ -260,3 +260,6 @@ mkdir -p $MYPY_CACHE_DIR
 export GEM_HOME=$HOME/.gem
 export GEM_PATH=$HOME/.gem
 export PATH=$HOME/.gem/bin:$PATH
+
+" navigation
+function rgv() { vim -c "silent grep $1" -c "copen"; }
