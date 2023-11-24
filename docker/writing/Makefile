@@ -8,5 +8,6 @@ build : Dockerfile
 	podman build -t "$(NAME):$(VERSION)" .
 
 upload :
+	podman login docker.io
 	podman push $(NAME):$(VERSION)
 	podman push $(NAME):latest

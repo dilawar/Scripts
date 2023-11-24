@@ -25,3 +25,7 @@ RUN pip install git+https://github.com/dilawar/dilawarpy
 RUN pip install pandoc-latex-unlisted
 COPY latexmk.pl /usr/bin/latexmk
 RUN chmod +x /usr/bin/latexmk && latexmk -v
+
+# extra packages
+RUN zypper -n install texlive-{titlesec,fira,firamath,tikzsymbols,emoji} && zypper clean
+RUN zypper -n install texlive-collection-fontsextra && zypper clean
