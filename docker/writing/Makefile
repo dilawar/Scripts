@@ -4,9 +4,9 @@ VERSION:=$(shell date +%Y.%m.%d)
 all : build
 
 build : Dockerfile
-	docker build -t "$(NAME):latest" .
-	docker build -t "$(NAME):$(VERSION)" .
+	podman build -t "$(NAME):latest" .
+	podman build -t "$(NAME):$(VERSION)" .
 
 upload :
-	docker push $(NAME):$(VERSION)
-	docker push $(NAME):latest
+	podman push $(NAME):$(VERSION)
+	podman push $(NAME):latest
