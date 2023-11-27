@@ -6,7 +6,6 @@ ARG PANDOC_VERSION=3.1.8
 ARG PANDOC_CROSSREF_VERSION=0.3.17.0
 
 # Install dependencies.
-RUN zypper -n install git wget curl && zypper clean
 RUN cd /tmp \
     && wget https://github.com/jgm/pandoc/releases/download/$PANDOC_VERSION/pandoc-$PANDOC_VERSION-linux-amd64.tar.gz \
     && wget https://github.com/lierdakil/pandoc-crossref/releases/download/v$PANDOC_CROSSREF_VERSION/pandoc-crossref-Linux.tar.xz \
@@ -17,7 +16,7 @@ RUN cd /tmp \
     && mv pandoc-$PANDOC_VERSION/bin/* /usr/bin/ \
     && rm -rf /tmp/*
 
-RUN apt update && apt install -y python3-pygraphviz && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y python3-pygraphviz python3-venv python3-pypandoc && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv --system-site-packages /root/PY3
 ENV PATH="/root/PY3/bin:${PATH}"
 RUN echo $PATH
