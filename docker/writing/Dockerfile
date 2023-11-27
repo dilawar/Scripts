@@ -23,4 +23,12 @@ RUN echo $PATH
 RUN pip install git+https://github.com/dilawar/dilawarpy
 RUN pip install pandoc-latex-unlisted
 
+# plantuml 
+RUN apt update && apt install -y default-jre && rm -rf /var/lib/apt/lists/* 
+RUN java --version
+RUN cd /root && wget https://github.com/plantuml/plantuml/releases/download/v1.2023.12/plantuml-1.2023.12.jar 
+RUN ls /root/*.jar
+RUN echo '#!/usr/bin/env bash\nset -e -x\njava -jar /root/plantuml-1.2023.12.jar $@' > /usr/bin/plantuml && chmod +x /usr/bin/plantuml
+RUN cat /usr/bin/plantuml
+RUN plantuml --version
 WORKDIR /workdir
