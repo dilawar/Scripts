@@ -1,3 +1,3 @@
 #!/bin/bash
 set -exu
-diff -q $1 $2
+diff -qr $1 $2
