@@ -1,4 +1,4 @@
 ^!t::
 {
-    Run "C:\tools\msys64\msys.exe"
+    Run "C:\tools\msys64\msys2.exe"
 }
