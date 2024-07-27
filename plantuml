@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -x -e
+
+if [ -f "$HOME/.local/lib/plantuml.jar" ]; then
+    (
+        mkdir -p $HOME/.local/lib
+        cd $HOME/.local/lib
+        wget https://github.com/plantuml/plantuml/releases/download/v1.2024.6/plantuml.jar 
+    )
+fi
+
+java -jar $HOME/.local/lib/plantuml.jar $@
