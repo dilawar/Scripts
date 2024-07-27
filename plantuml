@@ -1,13 +1,18 @@
 #!/bin/bash
 
 set -x -e
+unset DISPLAY
 
-if [ ! -f "$HOME/.local/lib/plantuml.jar" ]; then
+VERSION="1.2024.6"
+URL=https://github.com/plantuml/plantuml/releases/download/v$VERSION/plantuml-$VERSION.jar
+
+
+if [ ! -f "$HOME/.local/lib/plantuml-$VERSION.jar" ]; then
     (
         mkdir -p $HOME/.local/lib
         cd $HOME/.local/lib
-        wget https://github.com/plantuml/plantuml/releases/download/v1.2024.6/plantuml.jar 
+        wget $URL
     )
 fi
 
-java -jar $HOME/.local/lib/plantuml.jar $@
+java -Djava.awt.headless=true -jar $HOME/.local/lib/plantuml-$VERSION.jar $@
