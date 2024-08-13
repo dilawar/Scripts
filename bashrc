@@ -265,3 +265,7 @@ export PATH=$HOME/.gem/bin:$PATH
 function rgv() { 
     vim -c "silent grep $1" -c "copen";
 }
+
+# fzf
+eval "$(fzf --bash)"
+alias fzf="fzf --bind 'enter:become(vim {})'"
