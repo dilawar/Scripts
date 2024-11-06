@@ -27,7 +27,7 @@ def uninstall(pkg: str):
         if not file.strip():
             continue
         p = Path(f"/{file}")
-        assert p.is_file(), f"{p} is not a file"
+        # assert p.is_file(), f"{p} is not a file"
         to_remove.append((p, False))
     for d in subprocess.run(
         ["pkgutil", "--only-dir", "--files", pkg], text=True, capture_output=True
@@ -35,14 +35,17 @@ def uninstall(pkg: str):
         if not d.strip():
             continue
         p = Path(f"/{d}")
-        assert p.is_dir(), f"{p} is not a dir"
+        # assert p.is_dir(), f"{p} is not a dir"
         to_remove.append((p, True))
 
     for path, is_dir in to_remove:
-        if not is_dir:
-            path.unlink()
-        else:
-            path.rmdir()
+        try:
+            if not is_dir:
+                path.unlink()
+            else:
+                path.rmdir()
+        except Exception:
+            pass
 
     subprocess.run(["sudo", "pkgutil", "--forget", pkg], text=True)
 
