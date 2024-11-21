@@ -49,17 +49,21 @@ class DisplayablePath(object):
         count = 1
         for path in children:
             is_last = count == len(children)
-            if path.is_dir():
-                yield from cls.make_tree(
-                    path,
-                    parent=displayable_root,
-                    is_last=is_last,
-                    dir_only=dir_only,
-                    max_depth=max_depth,
-                )
-            else:
-                yield cls(path, displayable_root, is_last)
-            count += 1
+            try:
+                if path.is_dir():
+                    yield from cls.make_tree(
+                        path,
+                        parent=displayable_root,
+                        is_last=is_last,
+                        dir_only=dir_only,
+                        max_depth=max_depth,
+                    )
+                else:
+                    yield cls(path, displayable_root, is_last)
+                count += 1
+            except Exception as e:
+                # its rare but can happen.
+                pass
 
     @classmethod
     def _default_criteria(cls, path, dir_only: bool = False, max_depth: int = -1):
