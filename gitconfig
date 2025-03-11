@@ -1,18 +1,54 @@
+[column]
+    ui = auto
+[branch]
+    sort = -committerdate
+[tag]
+    sort = version:refname
+[init]
+    defaultBranch = main
 [user]
     name = Dilawar Singh
-    email = dilawar@subcom.tech
-    signkey = 97FC9EE02C637EB6
-
+    email = dilawar@dognosis.tech
 [core]
     pager = cat
-
+    fsmonitor = true
+    untrackedCache = true
 [merge]
     tool = vimdiff
 [diff]
+    algorithm = histogram
+    colorMoved = plain
+    mnemonicPrefix = true
+    renames = true
     tool = vimdiff
 [alias]
     lol = log --all --decorate --oneline --graph
     lg1 = log --graph --abbrev-commit --decorate --all
     lg = !"git lg1"
 [pull]
-    rebase = false
+    rebase = true
+[push]
+    default = simple
+    autoSetupRemote = true
+    followTags = true
+[fetch]
+    prune = true
+    pruneTags = true
+    all = true
+
+[credential "https://gitlab.dognosis.link"]
+	helper = 
+	helper = !/usr/bin/glab auth git-credential
+
+[help]
+    autocorrect = prompt
+[commit]
+    verbose = true
+[rerere]
+    enabled = true
+    autoupdate = true
+[rebase]
+    autoSquash = true
+    autoStash = true
+    updateRefs = true
+
