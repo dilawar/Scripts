@@ -13,6 +13,7 @@
     pager = cat
     fsmonitor = true
     untrackedCache = true
+	autocrlf = input
 [merge]
     tool = vimdiff
 [diff]
@@ -52,3 +53,5 @@
     autoStash = true
     updateRefs = true
 
+[safe]
+	directory = /usr/share/flutter
