@@ -1,0 +1,8 @@
+#!/usr/bin/env/bash
+
+set -ex 
+
+export ZYPP_PCK_PRELOAD=1
+export ZYPP_CURL=2
+
+sudo -E zypper $@
