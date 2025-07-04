@@ -4,7 +4,7 @@ VERSION:=$(shell date +%Y.%m.%d)
 all : build
 
 build : Dockerfile
-	/usr/bin/docker build -t "$(NAME):latest" .
+	/usr/bin/docker build --progress=plain -t "$(NAME):latest" .
 	/usr/bin/docker build -t "$(NAME):$(VERSION)" .
 
 upload :
