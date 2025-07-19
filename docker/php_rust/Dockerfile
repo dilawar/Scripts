@@ -8,5 +8,5 @@ RUN zypper -n install php8-cli php8-devel \
 RUN zypper -n install which clang-devel clang php8-xdebug php8 && zypper clean --all
 RUN php-config --version
 RUN php -v
-RUN cargo install cargo-php
+RUN cargo install cargo-php --locked
 WORKDIR /workdir

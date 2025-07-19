@@ -57,3 +57,5 @@
 	directory = /usr/share/flutter
 [checkout]
 	defaultRemote = origin
+[grep]
+    lineNumber = true
