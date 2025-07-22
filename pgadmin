@@ -5,7 +5,7 @@ set -x
 
 PORT=8123
 
-if [ -z ${PGADMIN_DEFAULT_PASSWORD+x} ]; then
+if [[ ! -v PGADMIN_DEFAULT_PASSWORD ]]; then
     echo "You must set PGADMIN_DEFAULT_PASSWORD";
     exit 1;
 fi
