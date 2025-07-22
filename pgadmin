@@ -1,21 +1,18 @@
 #!/usr/bin/env fish
 
-set PORT 8123
-
-source ~/.config/fish/conf.d/pgadmin.fish
 
 if ! set -q PGADMIN_DEFAULT_PASSWORD
     echo "You must set PGADMIN_DEFAULT_PASSWORD ...";
     exit 1;
 end
 
+set PORT 8123
 
-docker pull dpage/pgadmin4
 docker run \
     --name pgadmin \
-    --network host \
     -p $PORT:80 \
     -e 'PGADMIN_DEFAULT_EMAIL=dilawar.s.rajput@gmail.com' \
+    -e PGADMIN_DEFAULT_PASSWORD=$PGADMIN_DEFAULT_PASSWORD \
     -d dpage/pgadmin4
 
 echo "[INFO] Running on port $PORT..."
