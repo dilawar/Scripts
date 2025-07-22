@@ -5,10 +5,14 @@ set -x
 
 PORT=8123
 
+if [ -z ${PGADMIN_DEFAULT_PASSWORD+x} ]; then
+    echo "You must set PGADMIN_DEFAULT_PASSWORD";
+    exit 1;
+fi
+
 docker pull dpage/pgadmin4
 docker run -p $PORT:80 \
-    -e 'PGADMIN_DEFAULT_EMAIL=user@domain.com' \
-    -e 'PGADMIN_DEFAULT_PASSWORD=SuperSecret' \
+    -e 'PGADMIN_DEFAULT_EMAIL=dilawar.s.rajput@gmail.com' \
     -d dpage/pgadmin4
 
 echo "[INFO] Running on port $PORT..."
