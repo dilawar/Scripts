@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/use/bin/env bash
 # Original script : https://wiki.archlinux.org/index.php/Full_System_Backup_with_rsync
-# Modified by : Dilawar Singh <dilawars@ncbs.res.in>
+# Modified by : Dilawar Singh <dilawar.s.rajput@gmail.com>
 
 if [ $# -lt 2 ]; then 
     echo "No source and destination defined. Usage: $0 source destination" >&2
@@ -11,10 +11,6 @@ elif [ $# -gt 2 ]; then
 elif [ ! -d "$1" ]; then
    echo "Invalid path: $1" >&2
    exit 1
-   if [ ! -d "$1" ]; then
-     echo "Invalid path: $2" >&2
-     exit 1
-   fi
 elif [ ! -w "$2" ]; then
   echo "Directory not writable: $2" >&2
   exit 1
