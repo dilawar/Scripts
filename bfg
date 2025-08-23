@@ -1,7 +1,7 @@
 #!/bin/sh
 
 set -e
-VERSION=1.14.0
+VERSION=1.15.0
 JARFILE="$HOME/Scripts/bfg-$VERSION.jar"
 URL=https://repo1.maven.org/maven2/com/madgag/bfg/$VERSION/bfg-$VERSION.jar
 if [ ! -f "$JARFILE" ]; then
