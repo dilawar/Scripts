@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 
-set -e 
+set -e
 set -x
 
-
-cd ~/App/LanguageTool-6.6-stable/
-java -cp languagetool-server.jar org.languagetool.server.HTTPServer \
-    --config server.properties \
-    --port 7777 \
-    --allow-origin
+docker run --rm -it -p 8010:8010 \
+    -e Java_Xms=512m -e Java_Xmx=2g \
+    erikvl87/languagetool &
