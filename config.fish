@@ -14,8 +14,6 @@ set -g fish_key_bindings fish_hybrid_key_bindings
 
 set ANDROID_HOME ~/Android/Sdk
 set ANDROID_NDK_HOME ~/Android/Sdk/ndk/29.0.13113456/
-
-set ONEAPI_TOKEN woof-flattop-rascal-flakily
 set COMPOSER_MEMORY_LIMIT -1
 
 set PATH /usr/local/bin $PATH
