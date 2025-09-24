@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+set -e
+uvx --from meta-package-manager mpm "$@"
