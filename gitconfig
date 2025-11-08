@@ -15,13 +15,13 @@
     untrackedCache = true
 	autocrlf = input
 [merge]
-    tool = vimdiff
+    tool = nvimdiff
 [diff]
     algorithm = histogram
     colorMoved = plain
     mnemonicPrefix = true
     renames = true
-    tool = vimdiff
+    tool = nvimdiff
 [alias]
     lol = log --all --decorate --oneline --graph
     lg1 = log --graph --abbrev-commit --decorate --all
@@ -35,10 +35,9 @@
 [fetch]
     prune = true
     pruneTags = true
-    all = true
+    all = false
 
 [credential "https://gitlab.dognosis.link"]
-	helper = 
 	helper = !/usr/bin/glab auth git-credential
 
 [help]
@@ -52,9 +51,6 @@
     autoSquash = true
     autoStash = true
     updateRefs = true
-
-[safe]
-	directory = /usr/share/flutter
 [checkout]
 	defaultRemote = origin
 [grep]
