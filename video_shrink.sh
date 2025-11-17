@@ -1,12 +1,12 @@
-#!/bin/bash - 
+#!/bin/bash -
 #===============================================================================
 #
 #          FILE: video_shrink.sh
-# 
-#         USAGE: ./video_shrink.sh 
-# 
-#   DESCRIPTION: 
-# 
+#
+#         USAGE: ./video_shrink.sh
+#
+#   DESCRIPTION:
+#
 #       OPTIONS: ---
 #  REQUIREMENTS: ---
 #          BUGS: ---
@@ -17,9 +17,9 @@
 #      REVISION:  ---
 #===============================================================================
 
-set -o nounset                              # Treat unset variables as an error
+set -o nounset # Treat unset variables as an error
 set -x
 set -e
 INFILE=$1
 OUTFILE=$2
-ffmpeg -i $INFILE -s 640x480 -b:v 512k  -acodec copy $OUTFILE
+ffmpeg -i "$INFILE" -s 640x480 -b:v 512k -acodec copy "$OUTFILE"
