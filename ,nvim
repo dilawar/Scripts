@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+(
+	cd "$HOME/.local/bin/" || echo "Directory not found."
+
+	if [ ! -f nvim-linux-x86_64.appimage ]; then
+		curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
+		chmod u+x nvim-linux-x86_64.appimage
+	fi
+
+	./nvim-linux-x86_64.appimage "$@"
+)
