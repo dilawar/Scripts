@@ -10,12 +10,13 @@
     name = Dilawar Singh
     email = dilawar.s.rajput@gmail.com
 [core]
-    pager = cat
+	pager = delta
     fsmonitor = true
     untrackedCache = true
 	autocrlf = input
 [merge]
     tool = nvimdiff
+	conflictStyle = zdiff3
 [diff]
     algorithm = histogram
     colorMoved = plain
@@ -55,3 +56,11 @@
 	defaultRemote = origin
 [grep]
     lineNumber = true
+[credential "https://gitlab.com"]
+	helper = 
+	helper = !/home/linuxbrew/.linuxbrew/Cellar/glab/1.91.0/bin/glab auth git-credential
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	dark = true

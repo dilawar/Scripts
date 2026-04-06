@@ -6,6 +6,6 @@
 set -xeu
 set -o pipefail
 
-PATH="$1"
+_filepath="$1"
 
-git log --all --full-history -- "$PATH"
+\git log --all --full-history -- "$_filepath"
