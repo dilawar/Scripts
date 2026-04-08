@@ -16,12 +16,7 @@
 	autocrlf = input
 [merge]
     tool = nvimdiff
-	conflictStyle = zdiff3
 [diff]
-    algorithm = histogram
-    colorMoved = plain
-    mnemonicPrefix = true
-    renames = true
     tool = nvimdiff
 [alias]
     lol = log --all --decorate --oneline --graph
@@ -63,3 +58,5 @@
 	diffFilter = delta --color-only
 [delta]
 	navigate = true
+[mergetool "vimdiff"]
+	layout = MERGED
