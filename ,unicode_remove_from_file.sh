@@ -1,6 +1,6 @@
-#!/usr/bin/env
+#!/usr/bin/env bash
 
-set -xeu
+set -eu
 FILE="$1"
 
 iconv -f utf8 -t ascii//TRANSLIT <"$FILE"
