@@ -1,0 +1,20 @@
+services:
+  kroki:
+    image: yuzutech/kroki:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      KROKI_LISTEN: 0.0.0.0:8000
+      KROKI_SAFE_MODE: secure
+    # PlantUML, GraphViz, and TikZ are available in the official Kroki image.
+
+  niolesk:
+    image: ghcr.io/webgiss/niolesk:latest
+    restart: unless-stopped
+    depends_on:
+      - kroki
+    ports:
+      - "8017:80"
+    environment:
+      NIOLESK_KROKI_ENGINE: http://kroki:8000/
